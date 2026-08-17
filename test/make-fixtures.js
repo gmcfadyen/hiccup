@@ -1096,18 +1096,24 @@ let BASIC_EVENTS = null; // the shared two-leg call, reused by the text fixtures
       ].concat(hi).concat([['User-Agent', 'Asterisk PBX 18.9.0 (bloated-histinfo build)']]),
     });
   }
+  // NOTE (fixtures-finish pass): the original 1450-byte target was
+  // unreachable -- the base message (History-Info chain + headers) is
+  // already 1744 bytes before any padding, i.e. 294 bytes over target. Raised
+  // to 1800 (still well past the >1300-byte MTU-rule threshold the retrans
+  // classifier and advisor.js key off) so the deterministic pad-to-exact-size
+  // logic below has room to work. See the integrator report for detail.
   let text = build('');
-  const grow = 1450 - Buffer.byteLength(text, 'latin1');
-  if (grow < 0) throw new Error('big-invite base is already ' + (-grow) + ' bytes over 1450');
+  const grow = 1800 - Buffer.byteLength(text, 'latin1');
+  if (grow < 0) throw new Error('big-invite base is already ' + (-grow) + ' bytes over 1800');
   text = build('x'.repeat(grow));
   const size = Buffer.byteLength(text, 'latin1');
-  if (size !== 1450) throw new Error('big-invite came out ' + size + ' bytes, wanted 1450');
+  if (size !== 1800) throw new Error('big-invite came out ' + size + ' bytes, wanted 1800');
 
   const offsets = backoff(4);
   const plain = newCap();
   for (const t of offsets) plain.udp(t, A_IP, 5060, SBC_OUT, 5060, wire(text));
   const fragged = newCap();
-  // 1458-byte datagram split at 1000/458 -- offset 1000 is a multiple of 8.
+  // 1808-byte datagram split at 1000/808 -- offset 1000 is a multiple of 8.
   for (const t of offsets) fragged.udpFragmented(t, A_IP, 5060, SBC_OUT, 5060, wire(text), 1000);
 
   const expect = {
@@ -2391,3 +2397,950 @@ const RX_ICID = 'hiccupRX8811';
 })();
 
 // __PART6__
+
+/* ------------------------------------------------------------------ */
+/* Acme text-log envelope helpers (used by sbc-log.txt)                */
+/* ------------------------------------------------------------------ */
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * Render an Acme/Oracle sipmsg.log timestamp: 'Mon D YYYY HH:MM:SS.mmm' (UTC).
+ * @param {number} ts epoch seconds
+ * @returns {string}
+ */
+function acmeTimestamp(ts) {
+  const d = new Date(ts * 1000);
+  const pad2 = (n) => String(n).padStart(2, '0');
+  return MONTH_NAMES[d.getUTCMonth()] + ' ' + d.getUTCDate() + ' ' + d.getUTCFullYear() + ' ' +
+    pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes()) + ':' + pad2(d.getUTCSeconds()) + '.' +
+    String(d.getUTCMilliseconds()).padStart(3, '0');
+}
+
+/**
+ * Render one Acme sipmsg.log block: envelope line, the SIP message text
+ * (already CRLF-terminated by sipMsg), then a dashed separator.
+ * @param {{ts: number, src: string, sport: number, dst: string, dport: number, text: string}} e
+ * @returns {string}
+ */
+function acmeBlock(e) {
+  const onIsBox = (e.src === SBC_OUT || e.src === SBC_IN);
+  const onIp = onIsBox ? e.src : e.dst;
+  const onPort = onIsBox ? e.sport : e.dport;
+  const peerIp = onIsBox ? e.dst : e.src;
+  const peerPort = onIsBox ? e.dport : e.sport;
+  const dir = onIsBox ? 'sent to' : 'received from';
+  const env = acmeTimestamp(BASE_TS + e.ts) + ' On [1:0]' + onIp + ':' + onPort + ' ' + dir + ' ' + peerIp + ':' + peerPort;
+  return env + CRLF + e.text + '----------------------------------------' + CRLF;
+}
+
+/**
+ * Render a full Acme sipmsg.log-style export from SIP events (both legs
+ * interleaved in capture order, as a real SBC export would show).
+ * @param {Array<object>} events sipEventsToCap()-style events
+ * @returns {string}
+ */
+function buildAcmeLog(events) {
+  return events.map(acmeBlock).join('');
+}
+
+/* ------------------------------------------------------------------ */
+/* plain support files (HMR configs, KB guide sample)                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Register a plain support file (not a capture -- no analyzeCapture pass).
+ * @param {{file: string, text: string}} spec
+ */
+function addTextFile(spec) {
+  if (TEXT_FILES.some((t) => t.file === spec.file)) return;
+  TEXT_FILES.push({ file: spec.file, text: spec.text });
+}
+
+/* ------------------------------------------------------------------ */
+/* STUN (RFC 5389) + DTLS record-layer minimal encoders                */
+/* ------------------------------------------------------------------ */
+
+const STUN_BINDING_REQUEST = 0x0001;
+const STUN_BINDING_SUCCESS = 0x0101;
+const STUN_ATTR_USERNAME = 0x0006;
+const STUN_ATTR_XOR_MAPPED_ADDRESS = 0x0020;
+
+/**
+ * XOR-MAPPED-ADDRESS attribute value (IPv4 only) per RFC 5389 section 15.2.
+ * @param {string} ip dotted-quad
+ * @param {number} port host port
+ * @returns {Buffer} 8-byte attribute value
+ */
+function stunXorMappedAddress(ip, port) {
+  const v = Buffer.alloc(8);
+  v[1] = 0x01; // family: IPv4
+  v.writeUInt16BE((port ^ 0x2112) & 0xffff, 2);
+  const octs = ip.split('.').map(Number);
+  const cookie = [0x21, 0x12, 0xa4, 0x42];
+  for (let i = 0; i < 4; i++) v[4 + i] = (octs[i] ^ cookie[i]) & 0xff;
+  return v;
+}
+
+/**
+ * One STUN attribute (type + length + value, padded to a 4-byte boundary).
+ * @param {number} type attribute type
+ * @param {Buffer} value attribute value bytes
+ * @returns {Buffer}
+ */
+function stunAttr(type, value) {
+  const pad = (4 - (value.length % 4)) % 4;
+  const b = Buffer.alloc(4 + value.length + pad);
+  b.writeUInt16BE(type, 0);
+  b.writeUInt16BE(value.length, 2);
+  value.copy(b, 4);
+  return b;
+}
+
+/**
+ * A complete STUN message (RFC 5389 magic cookie header + attributes).
+ * @param {number} type message type (STUN_BINDING_REQUEST / STUN_BINDING_SUCCESS)
+ * @param {Buffer} txid12 12-byte transaction id
+ * @param {Array<Buffer>} attrs encoded attributes
+ * @returns {Buffer}
+ */
+function stunMsg(type, txid12, attrs) {
+  const body = Buffer.concat(attrs);
+  const h = Buffer.alloc(20);
+  h.writeUInt16BE(type, 0);
+  h.writeUInt16BE(body.length, 2);
+  h.writeUInt32BE(0x2112a442, 4);
+  txid12.copy(h, 8);
+  return Buffer.concat([h, body]);
+}
+
+/**
+ * A 13-byte DTLS record header (content type, version, epoch, seq, length).
+ * @param {number} contentType 22 = handshake
+ * @param {number} epoch
+ * @param {number} seq 48-bit sequence number
+ * @param {number} length fragment length
+ * @returns {Buffer}
+ */
+function dtlsRecordHeader(contentType, epoch, seq, length) {
+  const h = Buffer.alloc(13);
+  h[0] = contentType;
+  h[1] = 0xfe;
+  h[2] = 0xfd; // DTLS 1.2
+  h.writeUInt16BE(epoch, 3);
+  h.writeUIntBE(seq, 5, 6);
+  h.writeUInt16BE(length, 11);
+  return h;
+}
+
+/**
+ * A 12-byte DTLS handshake header (msg type, length, msg seq, frag offset/length).
+ * @param {number} msgType 1 = ClientHello
+ * @param {number} bodyLen
+ * @param {number} msgSeq
+ * @returns {Buffer}
+ */
+function dtlsHandshakeHeader(msgType, bodyLen, msgSeq) {
+  const h = Buffer.alloc(12);
+  h[0] = msgType;
+  h.writeUIntBE(bodyLen, 1, 3);
+  h.writeUInt16BE(msgSeq, 4);
+  h.writeUIntBE(0, 6, 3);
+  h.writeUIntBE(bodyLen, 9, 3);
+  return h;
+}
+
+/**
+ * A single unencrypted DTLS ClientHello record (epoch 0), no extensions.
+ * Used to build a stalled handshake: no ServerHello ever follows it.
+ * @param {string} label deterministic-noise seed
+ * @returns {Buffer}
+ */
+function dtlsClientHello(label) {
+  const random = noise('dtls-random-' + label, 32);
+  const body = Buffer.concat([
+    Buffer.from([0xfe, 0xfd]),   // client_version (DTLS 1.2)
+    random,
+    Buffer.from([0x00]),         // session id length
+    Buffer.from([0x00]),         // cookie length
+    Buffer.from([0x00, 0x02]),   // cipher suites length
+    Buffer.from([0xc0, 0x2b]),   // one cipher suite
+    Buffer.from([0x01]),         // compression methods length
+    Buffer.from([0x00]),         // null compression
+    Buffer.from([0x00, 0x00]),   // extensions length
+  ]);
+  const hs = Buffer.concat([dtlsHandshakeHeader(1, body.length, 0), body]);
+  return Buffer.concat([dtlsRecordHeader(22, 0, 0, hs.length), hs]);
+}
+
+/* ================================================================== */
+/* 17. ice-stun -- STUN checks (one succeeds, one silent) + a stalled   */
+/*     DTLS handshake, around a WebRTC/ICE-SDP call                    */
+/* ================================================================== */
+
+(function registerIceStun() {
+  const leg = newLeg({
+    callId: callIdOf('ice-stun', 'webrtc.example.net'),
+    fromName: 'Browser', fromUri: 'sip:webrtc-user@webrtc.example.net',
+    fromTag: tagOf('ice-f'),
+    toUri: 'sip:+33987654321@sbc.example.net', toTag: tagOf('ice-t'),
+    srcIp: WEBRTC_IP, srcPort: 55000, dstIp: SBC_OUT, dstPort: 5060,
+    contact: 'sip:webrtc-user@' + WEBRTC_IP + ':55000',
+  });
+  const invBr = branch('ice-inv');
+  const ackBr = branch('ice-ack');
+  const byeBr = branch('ice-bye');
+  const offer = sdpBody([
+    'v=0', 'o=- 6100001 1 IN IP4 ' + WEBRTC_IP, 's=-', 'c=IN IP4 ' + WEBRTC_IP, 't=0 0',
+    'm=audio 50000 RTP/SAVPF 111 0', 'a=rtpmap:111 opus/48000/2', 'a=rtpmap:0 PCMU/8000',
+    'a=ice-ufrag:F7gIabcd', 'a=ice-pwd:x9cml0YzichV2XlhiMu8gPassw0rd',
+    'a=candidate:1 1 UDP 2130706431 ' + WEBRTC_IP + ' 50000 typ host',
+    'a=fingerprint:sha-256 8A:3F:12:CE:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA',
+    'a=setup:actpass', 'a=sendrecv',
+  ]);
+  const answer = sdpBody([
+    'v=0', 'o=sbc 6100002 1 IN IP4 ' + SBC_OUT, 's=-', 'c=IN IP4 ' + SBC_OUT, 't=0 0',
+    'm=audio 60000 RTP/SAVPF 111', 'a=rtpmap:111 opus/48000/2',
+    'a=ice-ufrag:sbcU1', 'a=ice-pwd:sbcMediaProxyPwdValue12345678',
+    'a=candidate:1 1 UDP 2130706431 ' + SBC_OUT + ' 60000 typ host',
+    'a=fingerprint:sha-256 11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD',
+    'a=setup:active', 'a=sendrecv',
+  ]);
+  const cap = newCap();
+  cap.udp(0.000, WEBRTC_IP, 55000, SBC_OUT, 5060, wire(leg.req('INVITE', 'sip:+33987654321@' + SBC_OUT, 1, invBr, {
+    body: offer, ctype: 'application/sdp',
+    extra: [['Supported', 'ice, 100rel'], ['User-Agent', 'Chrome-WebRTC/126.0']],
+  })));
+  cap.udp(0.010, SBC_OUT, 5060, WEBRTC_IP, 55000, wire(leg.res(100, 'Trying', 1, 'INVITE', invBr, { toTag: false })));
+  cap.udp(0.180, SBC_OUT, 5060, WEBRTC_IP, 55000, wire(leg.res(200, 'OK', 1, 'INVITE', invBr, {
+    body: answer, ctype: 'application/sdp', contact: 'sip:+33987654321@' + SBC_OUT + ':5060',
+  })));
+  cap.udp(0.200, WEBRTC_IP, 55000, SBC_OUT, 5060, wire(leg.req('ACK', 'sip:+33987654321@' + SBC_OUT + ':5060', 1, ackBr, { toTag: true })));
+
+  // ICE candidate pair 1: STUN binding request/response -- succeeds.
+  const txid1 = Buffer.from(hex32('ice-tx-1').slice(0, 24), 'hex');
+  cap.udp(0.220, WEBRTC_IP, 50000, SBC_OUT, 60000,
+    stunMsg(STUN_BINDING_REQUEST, txid1, [stunAttr(STUN_ATTR_USERNAME, Buffer.from('sbcU1:F7gIabcd', 'ascii'))]));
+  cap.udp(0.240, SBC_OUT, 60000, WEBRTC_IP, 50000,
+    stunMsg(STUN_BINDING_SUCCESS, txid1, [stunAttr(STUN_ATTR_XOR_MAPPED_ADDRESS, stunXorMappedAddress(WEBRTC_IP, 50000))]));
+
+  // ICE candidate pair 2: STUN binding request -- no response ever comes.
+  const txid2 = Buffer.from(hex32('ice-tx-2').slice(0, 24), 'hex');
+  cap.udp(0.260, WEBRTC_IP, 50002, SBC_OUT, 60002,
+    stunMsg(STUN_BINDING_REQUEST, txid2, [stunAttr(STUN_ATTR_USERNAME, Buffer.from('sbcU1:F7gIabcd', 'ascii'))]));
+
+  // DTLS ClientHello on a third, separate 5-tuple -- no ServerHello follows.
+  cap.udp(0.300, WEBRTC_IP, 50004, SBC_OUT, 60004, dtlsClientHello('ice-stun'));
+
+  cap.udp(6.000, WEBRTC_IP, 55000, SBC_OUT, 5060, wire(leg.req('BYE', 'sip:+33987654321@' + SBC_OUT + ':5060', 2, byeBr, {
+    toTag: true, contact: false,
+  })));
+  cap.udp(6.020, SBC_OUT, 5060, WEBRTC_IP, 55000, wire(leg.res(200, 'OK', 2, 'BYE', byeBr, { toTag: true })));
+
+  addCapture({
+    name: 'ice-stun',
+    file: 'ice-stun.pcap',
+    cap: cap,
+    expect: {
+      format: 'pcap',
+      sipMessages: 6, h323Messages: 0, legs: 1, calls: 1,
+      callStates: { unpaired: 1 },
+      indicatorsOn: ['sip', 'rtp', 'srtp', 'dtls-srtp', '100rel', 'stun-ice'],
+      auxProtocols: ['dtls', 'ice', 'stun'],
+      scenario: 'webrtc-ott',
+    },
+  });
+})();
+
+/* ================================================================== */
+/* 18. t38-fax -- audio call, mid-call re-INVITE to T.38, UDPTL packets */
+/* ================================================================== */
+
+(function registerT38Fax() {
+  const leg = newLeg({
+    callId: callIdOf('t38fax', 'pbx.example.com'),
+    fromName: 'Alice', fromUri: 'sip:+33123456789@pbx.example.com',
+    fromTag: tagOf('t38fax-f'),
+    toUri: 'sip:+33987654321@sbc.example.net', toTag: tagOf('t38fax-t'),
+    srcIp: A_IP, srcPort: 5060, dstIp: SBC_OUT, dstPort: 5060,
+    contact: 'sip:+33123456789@' + A_IP + ':5060',
+  });
+  const invBr = branch('t38fax-inv');
+  const ackBr = branch('t38fax-ack');
+  const reinvBr = branch('t38fax-reinv');
+  const reackBr = branch('t38fax-reack');
+  const byeBr = branch('t38fax-bye');
+  const audioOffer = sdpBody([
+    'v=0', 'o=- 6200001 1 IN IP4 ' + A_IP, 's=-', 'c=IN IP4 ' + A_IP, 't=0 0',
+    'm=audio 40700 RTP/AVP 0 101', 'a=rtpmap:0 PCMU/8000',
+    'a=rtpmap:101 telephone-event/8000', 'a=ptime:20', 'a=sendrecv',
+  ]);
+  const audioAnswer = sdpBody([
+    'v=0', 'o=sbc 7780001 1 IN IP4 ' + SBC_OUT, 's=-', 'c=IN IP4 ' + SBC_OUT, 't=0 0',
+    'm=audio 21700 RTP/AVP 0 101', 'a=rtpmap:0 PCMU/8000',
+    'a=rtpmap:101 telephone-event/8000', 'a=ptime:20', 'a=sendrecv',
+  ]);
+  const t38Offer = sdpBody([
+    'v=0', 'o=- 6200001 2 IN IP4 ' + A_IP, 's=-', 'c=IN IP4 ' + A_IP, 't=0 0',
+    'm=image 6000 udptl t38', 'a=T38FaxVersion:0', 'a=T38MaxBitRate:14400',
+    'a=T38FaxRateManagement:transferredTCF', 'a=T38FaxMaxDatagram:400', 'a=T38FaxUdpEC:t38UDPRedundancy',
+  ]);
+  const t38Answer = sdpBody([
+    'v=0', 'o=sbc 7780001 2 IN IP4 ' + SBC_OUT, 's=-', 'c=IN IP4 ' + SBC_OUT, 't=0 0',
+    'm=image 21706 udptl t38', 'a=T38FaxVersion:0', 'a=T38MaxBitRate:14400',
+    'a=T38FaxRateManagement:transferredTCF', 'a=T38FaxMaxDatagram:400', 'a=T38FaxUdpEC:t38UDPRedundancy',
+  ]);
+  const cap = newCap();
+  cap.udp(0.000, A_IP, 5060, SBC_OUT, 5060, wire(leg.req('INVITE', 'sip:+33987654321@' + SBC_OUT, 1, invBr, {
+    body: audioOffer, ctype: 'application/sdp',
+    extra: [['Supported', 'timer'], ['User-Agent', 'FaxATA-Endpoint/3.2']],
+  })));
+  cap.udp(0.010, SBC_OUT, 5060, A_IP, 5060, wire(leg.res(100, 'Trying', 1, 'INVITE', invBr, { toTag: false })));
+  cap.udp(0.300, SBC_OUT, 5060, A_IP, 5060, wire(leg.res(180, 'Ringing', 1, 'INVITE', invBr, {
+    contact: 'sip:+33987654321@' + SBC_OUT + ':5060',
+  })));
+  cap.udp(1.200, SBC_OUT, 5060, A_IP, 5060, wire(leg.res(200, 'OK', 1, 'INVITE', invBr, {
+    body: audioAnswer, ctype: 'application/sdp', contact: 'sip:+33987654321@' + SBC_OUT + ':5060',
+  })));
+  cap.udp(1.220, A_IP, 5060, SBC_OUT, 5060, wire(leg.req('ACK', 'sip:+33987654321@' + SBC_OUT + ':5060', 1, ackBr, { toTag: true })));
+
+  // A fax tone is detected mid-call: re-INVITE switches the audio to T.38.
+  cap.udp(4.000, A_IP, 5060, SBC_OUT, 5060, wire(leg.req('INVITE', 'sip:+33987654321@' + SBC_OUT + ':5060', 2, reinvBr, {
+    toTag: true, body: t38Offer, ctype: 'application/sdp',
+    extra: [['User-Agent', 'FaxATA-Endpoint/3.2']],
+  })));
+  cap.udp(4.150, SBC_OUT, 5060, A_IP, 5060, wire(leg.res(200, 'OK', 2, 'INVITE', reinvBr, {
+    toTag: true, body: t38Answer, ctype: 'application/sdp', contact: 'sip:+33987654321@' + SBC_OUT + ':5060',
+  })));
+  cap.udp(4.170, A_IP, 5060, SBC_OUT, 5060, wire(leg.req('ACK', 'sip:+33987654321@' + SBC_OUT + ':5060', 2, reackBr, { toTag: true })));
+
+  // A handful of small UDPTL-shaped datagrams on the negotiated fax port
+  // (arbitrary plausible bytes -- stream presence is the point, not the ASN.1).
+  for (let i = 0; i < 6; i++) {
+    cap.udp(4.200 + i * 0.030, A_IP, 6000, SBC_OUT, 21706, noise('t38-a-' + i, 24 + (i % 3) * 8));
+    cap.udp(4.215 + i * 0.030, SBC_OUT, 21706, A_IP, 6000, noise('t38-s-' + i, 24 + (i % 3) * 8));
+  }
+
+  cap.udp(20.000, A_IP, 5060, SBC_OUT, 5060, wire(leg.req('BYE', 'sip:+33987654321@' + SBC_OUT + ':5060', 3, byeBr, {
+    toTag: true, contact: false,
+  })));
+  cap.udp(20.020, SBC_OUT, 5060, A_IP, 5060, wire(leg.res(200, 'OK', 3, 'BYE', byeBr, { toTag: true })));
+
+  addCapture({
+    name: 't38-fax',
+    file: 't38-fax.pcap',
+    cap: cap,
+    expect: {
+      format: 'pcap',
+      sipMessages: 10, h323Messages: 0, legs: 1, calls: 1,
+      callStates: { unpaired: 1 },
+      mediaStreams: 3,
+      indicatorsOn: ['sip', 'rtp', 'rtcp', 't38', 'dtmf-rfc4733', 'session-timers'],
+      scenario: 'fax-service',
+    },
+  });
+})();
+
+/* ================================================================== */
+/* 19. callcentre -- a dozen short calls to one DID in a busy window,   */
+/*     queue-hop headers and a couple of REFER transfers               */
+/* ================================================================== */
+
+(function registerCallCentre() {
+  const cap = newCap();
+  const DID = '+33900001111';
+  const N = 12;
+  for (let i = 0; i < N; i++) {
+    const from = '+336100003' + String(i).padStart(2, '0');
+    const port = 5100 + i;
+    const leg = newLeg({
+      callId: callIdOf('cc-' + i, 'pbx.example.com'),
+      fromUri: 'sip:' + from + '@pbx.example.com', fromTag: tagOf('cc-f-' + i),
+      toUri: 'sip:' + DID + '@sbc.example.net', toTag: tagOf('cc-t-' + i),
+      srcIp: A_IP, srcPort: port, dstIp: SBC_OUT, dstPort: 5060,
+      contact: 'sip:' + from + '@' + A_IP + ':' + port,
+    });
+    const invBr = branch('cc-inv-' + i);
+    const ackBr = branch('cc-ack-' + i);
+    const byeBr = branch('cc-bye-' + i);
+    const referBr = branch('cc-refer-' + i);
+    const t0 = i * 0.2;
+    const hasRefer = (i === 3 || i === 7);
+    const byeCseq = hasRefer ? 3 : 2;
+
+    const invExtra = [['Supported', 'timer'], ['User-Agent', 'Contact-Center-Dialer/2.1']];
+    if (i === 2 || i === 5) {
+      invExtra.push(['Diversion', '<sip:' + DID + '@queue.example.com>;reason=unconditional;counter=1']);
+    }
+    cap.udp(t0, A_IP, port, SBC_OUT, 5060, wire(leg.req('INVITE', 'sip:' + DID + '@' + SBC_OUT, 1, invBr, {
+      body: sdpBody([
+        'v=0', 'o=- 6210' + String(i).padStart(3, '0') + ' 1 IN IP4 ' + A_IP, 's=-', 'c=IN IP4 ' + A_IP, 't=0 0',
+        'm=audio ' + (43000 + i * 2) + ' RTP/AVP 0 101', 'a=rtpmap:0 PCMU/8000',
+        'a=rtpmap:101 telephone-event/8000', 'a=ptime:20', 'a=sendrecv',
+      ]),
+      ctype: 'application/sdp',
+      extra: invExtra,
+    })));
+    cap.udp(t0 + 0.010, SBC_OUT, 5060, A_IP, port, wire(leg.res(100, 'Trying', 1, 'INVITE', invBr, { toTag: false })));
+    cap.udp(t0 + 0.050, SBC_OUT, 5060, A_IP, port, wire(leg.res(180, 'Ringing', 1, 'INVITE', invBr, {
+      contact: 'sip:' + DID + '@' + SBC_OUT + ':5060',
+    })));
+    cap.udp(t0 + 0.150, SBC_OUT, 5060, A_IP, port, wire(leg.res(200, 'OK', 1, 'INVITE', invBr, {
+      body: sdpBody([
+        'v=0', 'o=agent 7110' + String(i).padStart(3, '0') + ' 1 IN IP4 ' + SBC_OUT, 's=-', 'c=IN IP4 ' + SBC_OUT, 't=0 0',
+        'm=audio ' + (23000 + i * 2) + ' RTP/AVP 0 101', 'a=rtpmap:0 PCMU/8000',
+        'a=rtpmap:101 telephone-event/8000', 'a=ptime:20', 'a=sendrecv',
+      ]),
+      ctype: 'application/sdp', contact: 'sip:' + DID + '@' + SBC_OUT + ':5060',
+    })));
+    cap.udp(t0 + 0.160, A_IP, port, SBC_OUT, 5060, wire(leg.req('ACK', 'sip:' + DID + '@' + SBC_OUT + ':5060', 1, ackBr, { toTag: true })));
+
+    if (hasRefer) {
+      cap.udp(t0 + 0.500, A_IP, port, SBC_OUT, 5060, wire(leg.req('REFER', 'sip:' + DID + '@' + SBC_OUT + ':5060', 2, referBr, {
+        toTag: true, contact: false,
+        extra: [['Refer-To', '<sip:+33900002222@sbc.example.net>'], ['Referred-By', '<sip:' + from + '@pbx.example.com>']],
+      })));
+      cap.udp(t0 + 0.510, SBC_OUT, 5060, A_IP, port, wire(leg.res(202, 'Accepted', 2, 'REFER', referBr, { toTag: true })));
+    }
+
+    cap.udp(t0 + 1.500, A_IP, port, SBC_OUT, 5060, wire(leg.req('BYE', 'sip:' + DID + '@' + SBC_OUT + ':5060', byeCseq, byeBr, {
+      toTag: true, contact: false,
+    })));
+    cap.udp(t0 + 1.520, SBC_OUT, 5060, A_IP, port, wire(leg.res(200, 'OK', byeCseq, 'BYE', byeBr, { toTag: true })));
+  }
+
+  addCapture({
+    name: 'callcentre',
+    file: 'callcentre.pcap',
+    cap: cap,
+    expect: {
+      format: 'pcap',
+      sipMessages: 88, h323Messages: 0, legs: 12, calls: 12,
+      callStates: { unpaired: 12 },
+      callTypes: { single: 12 },
+      indicatorsOn: ['sip', 'rtp', 'dtmf-rfc4733', 'session-timers', 'refer-transfer', 'history-info'],
+      scenario: 'call-centre',
+    },
+  });
+})();
+
+/* ================================================================== */
+/* 20. ims-volte -- REGISTER route-set, sip:orig INVITE, preconditions  */
+/*     confirmed via UPDATE, P-Access-Network-Info, AMR                */
+/* ================================================================== */
+
+(function registerImsVolte() {
+  const cap = newCap();
+
+  const regLeg = newLeg({
+    callId: callIdOf('volte-reg', 'ims.example.net'),
+    fromUri: 'sip:+33612345678@ims.example.net', fromTag: tagOf('volte-reg-f'),
+    toUri: 'sip:+33612345678@ims.example.net', toTag: tagOf('volte-reg-t'),
+    srcIp: UE_IP, srcPort: 5060, dstIp: PCSCF_IP, dstPort: 5060,
+    contact: 'sip:+33612345678@' + UE_IP + ':5060',
+  });
+  const regBr = branch('volte-reg');
+  cap.udp(0.000, UE_IP, 5060, PCSCF_IP, 5060, wire(regLeg.req('REGISTER', 'sip:ims.example.net', 1, regBr, {
+    contact: false,
+    extra: [
+      ['Contact', '<sip:+33612345678@' + UE_IP + ':5060>;+sip.instance="<urn:uuid:2b6a1c3d-5e7f-49a0-b1c2-3d4e5f6a7b8c>"'],
+      ['Expires', '600'],
+      ['Supported', 'path'],
+      ['P-Access-Network-Info', '3GPP-E-UTRAN-FDD;utran-cell-id-3gpp=234150999999999'],
+      ['User-Agent', 'VoLTE-UE/IMS-1.0'],
+    ],
+  })));
+  cap.udp(0.020, PCSCF_IP, 5060, UE_IP, 5060, wire(regLeg.res(200, 'OK', 1, 'REGISTER', regBr, {
+    toTag: true,
+    extra: [
+      ['Contact', '<sip:+33612345678@' + UE_IP + ':5060>;expires=600'],
+      ['Path', '<sip:term@' + PCSCF_IP + ';lr>'],
+      ['Service-Route', '<sip:orig@scscf.example.net;lr>'],
+      ['P-Associated-URI', '<sip:+33612345678@ims.example.net>, <tel:+33612345678>'],
+      ['Server', 'P-CSCF/3.1'],
+    ],
+  })));
+
+  const invLeg = newLeg({
+    callId: callIdOf('volte-inv', 'ims.example.net'),
+    fromUri: 'sip:+33612345678@ims.example.net', fromTag: tagOf('volte-inv-f'),
+    toUri: 'sip:+33987654321@ims.example.net', toTag: tagOf('volte-inv-t'),
+    srcIp: UE_IP, srcPort: 5060, dstIp: PCSCF_IP, dstPort: 5060,
+    contact: 'sip:+33612345678@' + UE_IP + ':5060',
+  });
+  const invBr = branch('volte-inv');
+  const updBr = branch('volte-update');
+  const ackBr = branch('volte-ack');
+  const byeBr = branch('volte-bye');
+
+  const offer = sdpBody([
+    'v=0', 'o=- 6400001 1 IN IP4 ' + UE_IP, 's=-', 'c=IN IP4 ' + UE_IP, 't=0 0',
+    'm=audio 49000 RTP/AVP 96', 'a=rtpmap:96 AMR/8000', 'a=fmtp:96 mode-set=0,2,4,7;octet-align=1',
+    'a=curr:qos local none', 'a=curr:qos remote none',
+    'a=des:qos mandatory local sendrecv', 'a=des:qos mandatory remote sendrecv',
+    'a=sendrecv',
+  ]);
+  const progressAnswer = sdpBody([
+    'v=0', 'o=core 6400002 1 IN IP4 ' + B_IP, 's=-', 'c=IN IP4 ' + B_IP, 't=0 0',
+    'm=audio 34500 RTP/AVP 96', 'a=rtpmap:96 AMR/8000', 'a=fmtp:96 mode-set=0,2,4,7;octet-align=1',
+    'a=curr:qos local none', 'a=curr:qos remote none',
+    'a=des:qos mandatory local sendrecv', 'a=des:qos mandatory remote sendrecv',
+    'a=sendrecv',
+  ]);
+  const updateOffer = sdpBody([
+    'v=0', 'o=- 6400001 2 IN IP4 ' + UE_IP, 's=-', 'c=IN IP4 ' + UE_IP, 't=0 0',
+    'm=audio 49000 RTP/AVP 96', 'a=rtpmap:96 AMR/8000', 'a=fmtp:96 mode-set=0,2,4,7;octet-align=1',
+    'a=curr:qos local sendrecv', 'a=curr:qos remote sendrecv',
+    'a=des:qos mandatory local sendrecv', 'a=des:qos mandatory remote sendrecv',
+    'a=conf:qos local sendrecv', 'a=conf:qos remote sendrecv',
+    'a=sendrecv',
+  ]);
+  const updateAnswer = sdpBody([
+    'v=0', 'o=core 6400002 2 IN IP4 ' + B_IP, 's=-', 'c=IN IP4 ' + B_IP, 't=0 0',
+    'm=audio 34500 RTP/AVP 96', 'a=rtpmap:96 AMR/8000', 'a=fmtp:96 mode-set=0,2,4,7;octet-align=1',
+    'a=curr:qos local sendrecv', 'a=curr:qos remote sendrecv',
+    'a=conf:qos local sendrecv', 'a=conf:qos remote sendrecv',
+    'a=sendrecv',
+  ]);
+  const finalAnswer = sdpBody([
+    'v=0', 'o=core 6400002 3 IN IP4 ' + B_IP, 's=-', 'c=IN IP4 ' + B_IP, 't=0 0',
+    'm=audio 34500 RTP/AVP 96', 'a=rtpmap:96 AMR/8000', 'a=fmtp:96 mode-set=0,2,4,7;octet-align=1',
+    'a=sendrecv',
+  ]);
+
+  cap.udp(1.000, UE_IP, 5060, PCSCF_IP, 5060, wire(invLeg.req('INVITE', 'sip:+33987654321@ims.example.net', 1, invBr, {
+    body: offer, ctype: 'application/sdp',
+    extra: [
+      ['Route', '<sip:orig@scscf.example.net;lr>'],
+      ['P-Charging-Vector', 'icid-value=hiccupVOLTE9911;orig-ioi=pcscf.example.net'],
+      ['P-Access-Network-Info', '3GPP-E-UTRAN-FDD;utran-cell-id-3gpp=234150999999999'],
+      ['P-Preferred-Identity', '<sip:+33612345678@ims.example.net>'],
+      ['Supported', '100rel, precondition'],
+      ['User-Agent', 'VoLTE-UE/IMS-1.0'],
+    ],
+  })));
+  cap.udp(1.020, PCSCF_IP, 5060, UE_IP, 5060, wire(invLeg.res(100, 'Trying', 1, 'INVITE', invBr, { toTag: false })));
+  cap.udp(1.300, PCSCF_IP, 5060, UE_IP, 5060, wire(invLeg.res(183, 'Session Progress', 1, 'INVITE', invBr, {
+    body: progressAnswer, ctype: 'application/sdp',
+    contact: 'sip:+33987654321@' + PCSCF_IP + ':5060',
+  })));
+  cap.udp(1.900, UE_IP, 5060, PCSCF_IP, 5060, wire(invLeg.req('UPDATE', 'sip:+33987654321@' + PCSCF_IP + ':5060', 2, updBr, {
+    toTag: true, body: updateOffer, ctype: 'application/sdp',
+  })));
+  cap.udp(1.950, PCSCF_IP, 5060, UE_IP, 5060, wire(invLeg.res(200, 'OK', 2, 'UPDATE', updBr, {
+    toTag: true, body: updateAnswer, ctype: 'application/sdp',
+  })));
+  cap.udp(2.500, PCSCF_IP, 5060, UE_IP, 5060, wire(invLeg.res(200, 'OK', 1, 'INVITE', invBr, {
+    toTag: true, body: finalAnswer, ctype: 'application/sdp',
+    contact: 'sip:+33987654321@' + PCSCF_IP + ':5060',
+  })));
+  cap.udp(2.520, UE_IP, 5060, PCSCF_IP, 5060, wire(invLeg.req('ACK', 'sip:+33987654321@' + PCSCF_IP + ':5060', 1, ackBr, { toTag: true })));
+  cap.udp(30.000, UE_IP, 5060, PCSCF_IP, 5060, wire(invLeg.req('BYE', 'sip:+33987654321@' + PCSCF_IP + ':5060', 3, byeBr, {
+    toTag: true, contact: false,
+  })));
+  cap.udp(30.020, PCSCF_IP, 5060, UE_IP, 5060, wire(invLeg.res(200, 'OK', 3, 'BYE', byeBr, { toTag: true })));
+
+  addCapture({
+    name: 'ims-volte',
+    file: 'ims-volte.pcap',
+    cap: cap,
+    expect: {
+      format: 'pcap',
+      sipMessages: 11, h323Messages: 0, legs: 2, calls: 1,
+      callStates: { unpaired: 1 },
+      indicatorsOn: ['sip', 'ims', 'rtp', '100rel', 'update-method', 'precondition', 'registration', 'early-media'],
+      scenario: 'volte-5g',
+    },
+  });
+})();
+
+/* ================================================================== */
+/* 21. sbc-log -- the basic-call scenario re-rendered as an Acme        */
+/*     sipmsg.log-style export, both legs interleaved                  */
+/* ================================================================== */
+
+(function registerSbcLog() {
+  if (!BASIC_EVENTS) throw new Error('sbc-log.txt needs BASIC_EVENTS from registerBasicCall()');
+  addTextCapture({
+    name: 'sbc-log',
+    file: 'sbc-log.txt',
+    text: buildAcmeLog(BASIC_EVENTS),
+    expect: Object.assign({ format: 'acme-log' }, BASIC_EXPECT),
+  });
+})();
+
+/* ================================================================== */
+/* 22. raw-messages -- bare concatenated SIP messages, one simple call */
+/* ================================================================== */
+
+(function registerRawMessages() {
+  const leg = newLeg({
+    callId: callIdOf('rawmsg', 'pbx.example.com'),
+    fromName: 'Alice', fromUri: 'sip:+33123456789@pbx.example.com',
+    fromTag: tagOf('rawmsg-f'),
+    toUri: 'sip:+33987654321@sbc.example.net', toTag: tagOf('rawmsg-t'),
+    srcIp: A_IP, srcPort: 5060, dstIp: SBC_OUT, dstPort: 5060,
+    contact: 'sip:+33123456789@' + A_IP + ':5060',
+  });
+  const invBr = branch('rawmsg-inv');
+  const ackBr = branch('rawmsg-ack');
+  const byeBr = branch('rawmsg-bye');
+  const offer = sdpBody([
+    'v=0', 'o=- 6300001 1 IN IP4 ' + A_IP, 's=-', 'c=IN IP4 ' + A_IP, 't=0 0',
+    'm=audio 41100 RTP/AVP 0 101', 'a=rtpmap:0 PCMU/8000',
+    'a=rtpmap:101 telephone-event/8000', 'a=ptime:20', 'a=sendrecv',
+  ]);
+  const answer = sdpBody([
+    'v=0', 'o=sbc 7790001 1 IN IP4 ' + SBC_OUT, 's=-', 'c=IN IP4 ' + SBC_OUT, 't=0 0',
+    'm=audio 21800 RTP/AVP 0 101', 'a=rtpmap:0 PCMU/8000',
+    'a=rtpmap:101 telephone-event/8000', 'a=ptime:20', 'a=sendrecv',
+  ]);
+  const messages = [
+    leg.req('INVITE', 'sip:+33987654321@' + SBC_OUT, 1, invBr, {
+      body: offer, ctype: 'application/sdp',
+      extra: [['Supported', 'timer'], ['User-Agent', 'Asterisk PBX 18.9.0']],
+    }),
+    leg.res(100, 'Trying', 1, 'INVITE', invBr, { toTag: false }),
+    leg.res(180, 'Ringing', 1, 'INVITE', invBr, { contact: 'sip:+33987654321@' + SBC_OUT + ':5060' }),
+    leg.res(200, 'OK', 1, 'INVITE', invBr, {
+      body: answer, ctype: 'application/sdp', contact: 'sip:+33987654321@' + SBC_OUT + ':5060',
+    }),
+    leg.req('ACK', 'sip:+33987654321@' + SBC_OUT + ':5060', 1, ackBr, { toTag: true }),
+    leg.req('BYE', 'sip:+33987654321@' + SBC_OUT + ':5060', 2, byeBr, { toTag: true, contact: false }),
+    leg.res(200, 'OK', 2, 'BYE', byeBr, { toTag: true }),
+  ];
+
+  addTextCapture({
+    name: 'raw-messages',
+    file: 'raw-messages.txt',
+    text: messages.join(CRLF),
+    expect: {
+      format: 'raw-sip',
+      sipMessages: 7, h323Messages: 0, legs: 1, calls: 1,
+      callStates: { unpaired: 1 },
+    },
+  });
+})();
+
+/* ================================================================== */
+/* 23-26. plain support files -- HMR configs + the KB guide sample     */
+/* ================================================================== */
+
+(function registerAcmeHmrConfig() {
+  addTextFile({
+    file: 'acme-hmr.cfg',
+    text: [
+      'sip-manipulation ACME-EGRESS-HMR',
+      '  name ACME-EGRESS-HMR',
+      '  description "Rewrite the From user to the trunk DID and strip an internal debug header on egress"',
+      '  header-rule',
+      '    name strip-x-internal-cause',
+      '    header-name X-Internal-Cause',
+      '    action delete',
+      '    msg-type request',
+      '    methods INVITE',
+      '  header-rule',
+      '    name rewrite-from-user',
+      '    header-name From',
+      '    action manipulate',
+      '    msg-type request',
+      '    methods INVITE',
+      '    element-rule',
+      '      name from-user-rewrite',
+      '      type uri-user',
+      '      action replace',
+      '      new-value 33900000123',
+      '  header-rule',
+      '    name add-pai',
+      '    header-name P-Asserted-Identity',
+      '    action add',
+      '    msg-type request',
+      '    methods INVITE',
+      '    new-value <sip:+33900000123@sbc.example.net>',
+      '',
+      'session-agent sbc-egress-agent',
+      '  hostname 10.20.0.5',
+      '  realm-id core',
+      '  out-manipulationid ACME-EGRESS-HMR',
+      '',
+    ].join('\n'),
+  });
+})();
+
+(function registerAudioCodesHmrIni() {
+  addTextFile({
+    file: 'audiocodes-hmr.ini',
+    text: [
+      '[MessageManipulations]',
+      'FORMAT MessageManipulations_Index = MessageManipulations_ManipulationName, MessageManipulations_ManSetID, MessageManipulations_MessageType, MessageManipulations_Condition, MessageManipulations_ActionSubject, MessageManipulations_ActionType, MessageManipulations_ActionValue, MessageManipulations_RowRole;',
+      'MessageManipulations 0 = "Strip-Internal-Header", 1, "invite.request", "", "header.x-internal-cause", "Remove", "", 0;',
+      'MessageManipulations 1 = "Rewrite-From-User", 1, "invite.request", "", "header.from.url.user", "Modify", "+33900000123", 0;',
+      'MessageManipulations 2 = "Add-PAI", 1, "invite.request", "", "header.p-asserted-identity", "Add", "<sip:+33900000123@sbc.example.net>", 0;',
+      '[\\MessageManipulations]',
+      '',
+      '[IPGroup]',
+      'FORMAT IPGroup_Index = IPGroup_Name, IPGroup_OutboundManSet;',
+      'IPGroup 3 = "Carrier-Egress-1", 1;',
+      '[\\IPGroup]',
+      '',
+    ].join('\n'),
+  });
+})();
+
+(function registerRibbonSmm() {
+  addTextFile({
+    file: 'ribbon-smm.txt',
+    text: [
+      'signaling group SG-CARRIER-EGRESS-1',
+      'inbound profile: SMM-PBX-EGRESS',
+      'sipAdaptorProfile SMM-PBX-EGRESS rule 1 criterion header From condition regex value ".*@pbx.example.com"',
+      'sipAdaptorProfile SMM-PBX-EGRESS rule 1 operation header From uriuser actiontype modify value "+33900000123"',
+      'sipAdaptorProfile SMM-PBX-EGRESS rule 2 criterion header X-Internal-Route condition exists',
+      'sipAdaptorProfile SMM-PBX-EGRESS rule 2 operation header X-Internal-Route actiontype delete',
+      '',
+    ].join('\n'),
+  });
+})();
+
+(function registerGuideSample() {
+  const pages = [
+    [
+      'VENDOR SBC CONFIGURATION GUIDE',
+      '',
+      'INTRODUCTION',
+      '',
+      'This guide explains how to configure header manipulation rules and session',
+      'timer behaviour on a session border controller trunk. It is written for',
+      'engineers who already understand SIP signalling and want to know which',
+      'settings interoperate safely with a carrier or PBX peer.',
+    ].join('\n'),
+    [
+      'CONFIGURING HEADER MANIPULATION',
+      '',
+      'Header manipulation rules let the SBC add, delete or rewrite a SIP header',
+      'as a message crosses the trunk. A typical rule strips an internal debug',
+      'header before it reaches the carrier, or rewrites the From header user',
+      'part to the trunk billing number. Bind manipulation sets to the session',
+      'agent or realm so the rule only applies in the intended direction, and',
+      'always test with a permissive condition before narrowing it, since an',
+      'overly broad match can rewrite a header on calls it was never meant to',
+      'touch.',
+    ].join('\n'),
+    [
+      'CONFIGURING SESSION TIMERS',
+      '',
+      'Session timers (RFC 4028) keep a long call from being orphaned by a',
+      'device that crashed without sending BYE. Each side proposes an interval',
+      'in the Session-Expires header and a floor in Min-SE; when the interval',
+      'offered is below the peer Min-SE, the request is rejected with 422',
+      'Session Interval Too Small, and the response carries the acceptable',
+      'Min-SE value. Set Min-SE low enough that a legitimate short refresh is',
+      'not rejected, but not so low that a chatty refresher wastes bandwidth',
+      'on the trunk.',
+    ].join('\n'),
+    [
+      'TROUBLESHOOTING CHECKLIST',
+      '',
+      'If a call drops at a suspiciously round number of seconds, check',
+      'whether one side requested session timers and the other rejected the',
+      'interval. If a header a downstream system depends on is missing, check',
+      'the manipulation rule order, since an earlier rule can delete a header',
+      'a later rule expects to still be present. Always review a generated',
+      'draft before applying it to a production trunk.',
+    ].join('\n'),
+  ];
+  addTextFile({ file: 'guide-sample.txt', text: pages.join('\f') + '\n' });
+})();
+
+/* ================================================================== */
+/* driver -- write every fixture, re-parse it, and emit expected.json  */
+/* ================================================================== */
+
+(function driver() {
+  const written = [];
+  let hadError = false;
+
+  function fail(msg) {
+    hadError = true;
+    process.stderr.write('FIXTURE ERROR: ' + msg + '\n');
+  }
+
+  /**
+   * Assert one expected.json entry against a real AnalysisJSON, mirroring
+   * test/selftest.js's assertFixture exactly (only the keys it checks) so a
+   * green run here means selftest.js will be green too. Also prints the
+   * documentary fields (indicators/aux/media/scenario) for eyeballing --
+   * those are not asserted by selftest.js, so they never fail the run.
+   * @param {object} spec FIXTURES entry
+   * @param {object} analysis analyzeCapture() output
+   */
+  function checkExpect(spec, analysis) {
+    const expect = spec.expect || {};
+    const stats = (analysis && analysis.stats) || {};
+    const calls = (analysis && analysis.calls) || [];
+    const problems = [];
+
+    function count(label, actual, wanted) {
+      if (actual !== wanted) problems.push(label + ': expected ' + JSON.stringify(wanted) + ', got ' + JSON.stringify(actual));
+    }
+    if ('format' in expect) count('format', stats.format, expect.format);
+    if ('sipMessages' in expect) count('sipMessages', stats.sipMessages, expect.sipMessages);
+    if ('h323Messages' in expect) count('h323Messages', stats.h323Messages, expect.h323Messages);
+    if ('legs' in expect) count('legs', stats.legs, expect.legs);
+    if ('calls' in expect) count('calls', stats.calls, expect.calls);
+
+    if (expect.callStates) {
+      for (const state of Object.keys(expect.callStates)) {
+        const got = calls.filter((c) => c && c.state === state).length;
+        count('callStates.' + state, got, expect.callStates[state]);
+      }
+    }
+    if (expect.callTypes) {
+      for (const type of Object.keys(expect.callTypes)) {
+        const got = calls.filter((c) => c && c.type === type).length;
+        count('callTypes.' + type, got, expect.callTypes[type]);
+      }
+    }
+    if (expect.retransCodes) {
+      const collapses = ((analysis && analysis.retrans) || {}).collapses || [];
+      const codes = [];
+      for (const col of collapses) if (col && col.classification && col.classification.code) codes.push(col.classification.code);
+      for (const c of expect.retransCodes) {
+        if (codes.indexOf(c) === -1) problems.push("retransCodes: '" + c + "' not among collapse classifications [" + codes.join(', ') + ']');
+      }
+    }
+    if (expect.diffTags) {
+      const tags = [];
+      for (const call of calls) {
+        for (const d of (call && call.diffs) || []) {
+          const cats = (d && d.diff && d.diff.categories) || [];
+          for (const cat of cats) {
+            for (const item of (cat && cat.items) || []) {
+              if (item && item.tag && tags.indexOf(item.tag) === -1) tags.push(item.tag);
+            }
+          }
+        }
+      }
+      for (const t of expect.diffTags) {
+        if (tags.indexOf(t) === -1) problems.push("diffTags: '" + t + "' not present (saw: " + (tags.join(', ') || 'none') + ')');
+      }
+    }
+    if (expect.findingsInclude) {
+      const findings = (analysis && analysis.findings) || [];
+      for (const want of expect.findingsInclude) {
+        const hit = findings.some((f) => f && f.severity === want.severity && f.category === want.category);
+        if (!hit) problems.push('findingsInclude: no finding with severity=' + want.severity + ' category=' + want.category);
+      }
+    }
+    if (expect.absentStrings) {
+      const blob = JSON.stringify(analysis);
+      for (const s of expect.absentStrings) {
+        if (blob.indexOf(s) !== -1) problems.push("absentStrings: '" + s + "' leaked into the serialized analysis");
+      }
+    }
+    if (problems.length) fail(spec.name + ' (' + spec.file + '): ' + problems.join('; '));
+
+    const actualIndicatorsOn = ((analysis && analysis.indicators) || [])
+      .filter((i) => i && i.state !== 'off').map((i) => i.key);
+    const actualAux = Array.from(new Set(((analysis && analysis.aux) || []).map((a) => a.protocol))).sort();
+    const actualMedia = ((analysis && analysis.media && analysis.media.streams) || []).length;
+    const actualScenario = analysis && analysis.scenario ? analysis.scenario.primary : null;
+    const actualConfidence = analysis && analysis.scenario ? analysis.scenario.confidence : null;
+    console.log('  ' + spec.name + ': indicatorsOn=[' + actualIndicatorsOn.join(',') + '] auxProtocols=[' +
+      actualAux.join(',') + '] mediaStreams=' + actualMedia + ' scenario=' + actualScenario +
+      (actualConfidence !== null ? '@' + actualConfidence : ''));
+  }
+
+  fs.mkdirSync(OUT_DIR, { recursive: true });
+
+  let analyzeCapture;
+  try {
+    ({ analyzeCapture } = require('../lib/analyze.js'));
+  } catch (e) {
+    process.stderr.write('make-fixtures.js: could not load ../lib/analyze.js: ' + (e && e.message ? e.message : e) + '\n');
+    process.exit(1);
+  }
+
+  // -- write + re-parse every capture / text-log fixture ----------------
+  for (const spec of FIXTURES) {
+    let buf;
+    try {
+      if (spec.text !== undefined) {
+        buf = Buffer.from(spec.text, 'utf8');
+      } else if (spec.pcapng) {
+        buf = encodePcapng(spec.cap.frames);
+      } else {
+        buf = encodePcap(spec.cap.frames);
+      }
+    } catch (e) {
+      fail(spec.name + ': failed to encode -- ' + (e && e.message ? e.message : e));
+      continue;
+    }
+    const outPath = path.join(OUT_DIR, spec.file);
+    fs.writeFileSync(outPath, buf);
+    written.push({ file: spec.file, bytes: buf.length });
+
+    let analysis;
+    try {
+      const reread = fs.readFileSync(outPath);
+      analysis = analyzeCapture(reread);
+    } catch (e) {
+      fail(spec.name + ' (' + spec.file + ') failed to analyze: ' + (e && e.message ? e.message : e));
+      continue;
+    }
+    checkExpect(spec, analysis);
+  }
+
+  // -- write every plain support file (no analyze pass) ------------------
+  for (const tf of TEXT_FILES) {
+    const outPath = path.join(OUT_DIR, tf.file);
+    fs.writeFileSync(outPath, tf.text, 'utf8');
+    written.push({ file: tf.file, bytes: Buffer.byteLength(tf.text, 'utf8') });
+  }
+
+  // -- verify the HMR fixtures actually parse via lib/hmr.js --------------
+  try {
+    const hmr = require('../lib/hmr.js');
+    for (const name of ['acme-hmr.cfg', 'audiocodes-hmr.ini', 'ribbon-smm.txt']) {
+      const tf = TEXT_FILES.find((t) => t.file === name);
+      if (!tf) { fail('missing TEXT_FILES entry for ' + name); continue; }
+      const parsed = hmr.parseConfig(tf.text);
+      if (!parsed.rules || !parsed.rules.length) {
+        fail(name + ': parseConfig found 0 rules (vendor=' + parsed.vendor + ', warnings=' + (parsed.warnings || []).join('; ') + ')');
+        continue;
+      }
+      let intent = '';
+      try {
+        const explained = hmr.explainRule(parsed.rules[0]);
+        intent = explained && explained.intent ? String(explained.intent) : '';
+      } catch (e) {
+        fail(name + ': explainRule(rules[0]) threw -- ' + (e && e.message ? e.message : e));
+        continue;
+      }
+      if (!intent.trim()) {
+        fail(name + ': explainRule(rules[0]).intent is empty');
+      } else {
+        console.log('  HMR OK: ' + name + ' -> vendor=' + parsed.vendor + ' rules=' + parsed.rules.length +
+          ' intent="' + intent.slice(0, 70) + (intent.length > 70 ? '...' : '') + '"');
+      }
+    }
+  } catch (e) {
+    fail('HMR verification failed to run: ' + (e && e.message ? e.message : e));
+  }
+
+  // -- write expected.json -------------------------------------------------
+  const expected = FIXTURES.map((f) => ({ name: f.name, file: f.file, expect: f.expect }));
+  const expectedPath = path.join(OUT_DIR, 'expected.json');
+  fs.writeFileSync(expectedPath, JSON.stringify(expected, null, 2), 'utf8');
+  written.push({ file: 'expected.json', bytes: fs.statSync(expectedPath).size });
+
+  for (const w of written) console.log(w.file + '  (' + w.bytes + ' bytes)');
+  console.log('wrote ' + FIXTURES.length + ' capture fixture(s), ' + TEXT_FILES.length +
+    ' support file(s), and expected.json to ' + OUT_DIR);
+
+  if (hadError) {
+    process.stderr.write('make-fixtures.js: one or more fixtures failed verification (see FIXTURE ERROR lines above)\n');
+    process.exit(1);
+  }
+  process.exit(0);
+})();
