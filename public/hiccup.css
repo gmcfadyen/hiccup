@@ -71,6 +71,24 @@
   --h323: #d2a8ff;
   --media-ink: #39c5cf;
   --aux-ink: #8b949e;
+
+  /* app.css color-token pass: severity/accent variants and component-scoped
+     washes that app.css needed but didn't have an exact existing token for.
+     See the light blocks below for the themed equivalents. */
+  --mark-bg: rgba(245, 166, 35, 0.32);
+  --row-hover-strong: rgba(255, 255, 255, 0.035);
+  --tint-warn-border: rgba(245, 166, 35, 0.5);
+  --tint-crit-border: rgba(242, 84, 91, 0.4);
+  --tint-crit-gap: rgba(242, 84, 91, 0.35);
+  --lamp-ring-warn: rgba(245, 166, 35, 0.8);
+  --lamp-glow-warn: rgba(245, 166, 35, 0.28);
+  --lamp-ring-crit: rgba(242, 84, 91, 0.85);
+  --lamp-glow-crit: rgba(242, 84, 91, 0.32);
+  --border-soft: rgba(35, 43, 54, 0.7);
+  --border-faint: rgba(35, 43, 54, 0.5);
+  --text-soft: #c3ccd6;
+  --tint-warn-ink: #e7d3ae;
+  --accent-wash: rgba(245, 166, 35, 0.07);
 }
 
 @media (prefers-color-scheme: light) {
@@ -115,6 +133,21 @@
     --h323: #8250df;
     --media-ink: #1b7c83;
     --aux-ink: #57606a;
+
+    --mark-bg: rgba(154, 91, 0, 0.32);
+    --row-hover-strong: rgba(27, 31, 36, 0.06);
+    --tint-warn-border: rgba(154, 91, 0, 0.5);
+    --tint-crit-border: rgba(207, 34, 46, 0.4);
+    --tint-crit-gap: rgba(207, 34, 46, 0.35);
+    --lamp-ring-warn: rgba(154, 91, 0, 0.8);
+    --lamp-glow-warn: rgba(154, 91, 0, 0.28);
+    --lamp-ring-crit: rgba(207, 34, 46, 0.85);
+    --lamp-glow-crit: rgba(207, 34, 46, 0.32);
+    --border-soft: rgba(208, 215, 222, 0.7);
+    --border-faint: rgba(208, 215, 222, 0.5);
+    --text-soft: #2c323a;
+    --tint-warn-ink: #5c3d10;
+    --accent-wash: rgba(154, 91, 0, 0.07);
   }
 }
 
@@ -159,6 +192,21 @@
   --h323: #8250df;
   --media-ink: #1b7c83;
   --aux-ink: #57606a;
+
+  --mark-bg: rgba(154, 91, 0, 0.32);
+  --row-hover-strong: rgba(27, 31, 36, 0.06);
+  --tint-warn-border: rgba(154, 91, 0, 0.5);
+  --tint-crit-border: rgba(207, 34, 46, 0.4);
+  --tint-crit-gap: rgba(207, 34, 46, 0.35);
+  --lamp-ring-warn: rgba(154, 91, 0, 0.8);
+  --lamp-glow-warn: rgba(154, 91, 0, 0.28);
+  --lamp-ring-crit: rgba(207, 34, 46, 0.85);
+  --lamp-glow-crit: rgba(207, 34, 46, 0.32);
+  --border-soft: rgba(208, 215, 222, 0.7);
+  --border-faint: rgba(208, 215, 222, 0.5);
+  --text-soft: #2c323a;
+  --tint-warn-ink: #5c3d10;
+  --accent-wash: rgba(154, 91, 0, 0.07);
 }
 
 /* ---------- base ---------- */
@@ -667,7 +715,7 @@ tbody tr:hover { background: var(--row-hover); }
   border: 1px solid var(--border);
   border-radius: 10px;
   background:
-    linear-gradient(180deg, rgba(245, 166, 35, 0.07), rgba(245, 166, 35, 0)) ,
+    linear-gradient(180deg, var(--accent-wash), rgba(0, 0, 0, 0)) ,
     var(--panel);
   color: var(--muted);
   font-size: 12.5px;

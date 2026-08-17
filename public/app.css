@@ -228,7 +228,7 @@ body.chat-open #layout { margin-right: var(--chat-w); }
   border-radius: 8px;
   padding: 12px 10px;
   text-align: center;
-  background: rgba(255, 255, 255, 0.015);
+  background: var(--row-hover);
 }
 
 .dropzone.is-over {
@@ -388,7 +388,7 @@ body.chat-open #layout { margin-right: var(--chat-w); }
   flex: none;
   max-width: 46%;
   font-size: 10.5px;
-  color: #5a6572;
+  color: var(--placeholder);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -397,7 +397,7 @@ body.chat-open #layout { margin-right: var(--chat-w); }
 /* search-hit highlighting inside raw text / excerpts */
 mark,
 .hit {
-  background: rgba(245, 166, 35, 0.32);
+  background: var(--mark-bg);
   color: var(--text);
   border-radius: 2px;
   padding: 0 1px;
@@ -454,33 +454,33 @@ mark,
 
 .lamp[data-state="off"],
 .lamp.lamp-off {
-  color: #5a6572;
+  color: var(--placeholder);
   border-color: var(--border);
-  background: rgba(255, 255, 255, 0.015);
+  background: var(--row-hover);
   opacity: 0.65;
 }
 
 .lamp[data-state="on"],
 .lamp.lamp-on {
   color: var(--accent);
-  border-color: rgba(245, 166, 35, 0.45);
+  border-color: var(--tint-select-border);
   background: var(--tint-warn);
 }
 
 .lamp[data-state="partial"],
 .lamp.lamp-partial {
   color: var(--accent);
-  border-color: rgba(245, 166, 35, 0.8);
+  border-color: var(--lamp-ring-warn);
   background: var(--panel2);
-  box-shadow: 0 0 0 2px rgba(245, 166, 35, 0.28);
+  box-shadow: 0 0 0 2px var(--lamp-glow-warn);
 }
 
 .lamp[data-state="issue"],
 .lamp.lamp-issue {
   color: var(--crit);
-  border-color: rgba(242, 84, 91, 0.85);
+  border-color: var(--lamp-ring-crit);
   background: var(--tint-crit);
-  box-shadow: 0 0 0 2px rgba(242, 84, 91, 0.32);
+  box-shadow: 0 0 0 2px var(--lamp-glow-crit);
 }
 
 .lamp:hover { border-color: currentColor; }
@@ -589,12 +589,12 @@ mark,
   white-space: nowrap;
 }
 
-.pane-btn:hover { color: var(--text); border-color: #3d4a5c; }
+.pane-btn:hover { color: var(--text); border-color: var(--btn-hover-border); }
 
 .pane-btn.is-active,
 .pane-btn[aria-pressed="true"] {
   color: var(--accent);
-  border-color: rgba(245, 166, 35, 0.5);
+  border-color: var(--tint-warn-border);
   background: var(--tint-warn);
 }
 
@@ -617,7 +617,7 @@ mark,
 
 .tree-node.is-call > .tree-row {
   font-weight: 600;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--row-hover);
 }
 
 .tree-node.is-call > .tree-row.edge-crit,
@@ -677,19 +677,19 @@ mark,
 
 .sel-row {
   padding: 1px 8px;
-  border-bottom: 1px solid rgba(35, 43, 54, 0.7);
+  border-bottom: 1px solid var(--border-soft);
   font-size: 12.5px;
   cursor: pointer;
 }
 
-.sel-row:hover { background: rgba(255, 255, 255, 0.035); }
+.sel-row:hover { background: var(--row-hover-strong); }
 
 .sel-row.is-selected,
 .sel-row[aria-selected="true"] { background: var(--tint-select); }
 
 /* cross-highlight from a ladder-row hover */
 .sel-row.is-cross,
-.table-dense tbody tr.is-cross { background: rgba(88, 166, 255, 0.14); }
+.table-dense tbody tr.is-cross { background: var(--tint-notice); }
 
 .sel-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
@@ -887,7 +887,7 @@ mark,
 .lad-msg.has-crit .lad-sevdot { fill: var(--crit); }
 .lad-msg.has-crit .lad-label { font-weight: 700; }
 
-.lad-selrect { fill: rgba(245, 166, 35, 0.14); stroke: rgba(245, 166, 35, 0.5); }
+.lad-selrect { fill: var(--tint-warn); stroke: var(--tint-warn-border); }
 .lad-selected .lad-line { stroke-width: 3; }
 .lad-msg.is-cross .lad-line { stroke-width: 3; }
 
@@ -963,7 +963,7 @@ mark,
 .raw-view {
   margin: 0;
   padding: 8px 10px;
-  background: #0b0e13;
+  background: var(--input-bg);
   border: 1px solid var(--border);
   border-radius: 6px;
   font-family: var(--mono);
@@ -1013,10 +1013,10 @@ mark,
   grid-template-columns: minmax(120px, 26%) minmax(0, 1fr);
   gap: 8px;
   padding: 1px 4px;
-  border-bottom: 1px solid rgba(35, 43, 54, 0.5);
+  border-bottom: 1px solid var(--border-faint);
 }
 
-.ptree-row:hover { background: rgba(255, 255, 255, 0.03); }
+.ptree-row:hover { background: var(--row-hover-strong); }
 
 .ptree-key {
   color: var(--muted);
@@ -1071,7 +1071,7 @@ mark,
   height: 38px;
   margin: 4px 0 2px;
   padding: 2px 4px;
-  background: #0b0e13;
+  background: var(--input-bg);
   border: 1px solid var(--border);
   border-radius: 5px;
   overflow: hidden;
@@ -1081,7 +1081,7 @@ mark,
 .spark-bar { fill: var(--media-ink); }
 .spark-bar.is-loss { fill: var(--crit); }
 .spark-axis { stroke: var(--border-strong); stroke-width: 1; }
-.spark-gap { fill: rgba(242, 84, 91, 0.35); }
+.spark-gap { fill: var(--tint-crit-gap); }
 
 .spark-caption {
   font-size: 10.5px;
@@ -1134,8 +1134,8 @@ mark,
 .advice-block.is-mechanism {
   padding: 6px 8px;
   border-left: 2px solid var(--border-strong);
-  background: rgba(255, 255, 255, 0.02);
-  color: #c3ccd6;
+  background: var(--row-hover);
+  color: var(--text-soft);
 }
 
 .fix-list { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
@@ -1194,7 +1194,7 @@ mark,
 pre.fix-config {
   margin: 0;
   padding: 8px 74px 8px 10px;
-  background: #0b0e13;
+  background: var(--input-bg);
   border: 1px solid var(--border-strong);
   border-radius: 6px;
   font-family: var(--mono);
@@ -1234,7 +1234,7 @@ pre.fix-config {
   padding: 5px 8px;
   border-radius: 5px;
   background: var(--tint-warn);
-  color: #e7d3ae;
+  color: var(--tint-warn-ink);
 }
 
 .fix-caution::before {
@@ -1278,7 +1278,7 @@ pre.fix-config {
   margin-top: 2px;
   padding-left: 8px;
   border-left: 2px solid var(--border-strong);
-  color: #c3ccd6;
+  color: var(--text-soft);
   font-style: italic;
 }
 
@@ -1420,7 +1420,7 @@ pre.fix-config {
   margin: 8px 0;
   padding: 8px 10px;
   background: var(--tint-crit);
-  border: 1px solid rgba(242, 84, 91, 0.4);
+  border: 1px solid var(--tint-crit-border);
   border-radius: 8px;
 }
 
@@ -1432,7 +1432,7 @@ pre.fix-config {
   gap: 1px;
   height: 44px;
   padding: 2px;
-  background: #0b0e13;
+  background: var(--input-bg);
   border: 1px solid var(--border);
   border-radius: 5px;
 }
@@ -1458,7 +1458,7 @@ pre.fix-config {
 
 .ambiguous-chip {
   color: var(--warn);
-  border-color: rgba(245, 166, 35, 0.5);
+  border-color: var(--tint-warn-border);
   background: var(--tint-warn);
   font-family: var(--mono);
   font-size: 10.5px;
@@ -1593,7 +1593,7 @@ pre.fix-config {
 
 .chat-bubble.from-bot {
   align-self: flex-start;
-  background: rgba(245, 166, 35, 0.07);
+  background: var(--accent-wash);
   border: 1px solid var(--border);
 }
 
