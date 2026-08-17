@@ -40,6 +40,9 @@
   var MAX_LADDER_ROWS = 1500;
   var SEARCH_CAP = 500;
 
+  // Wave 3: remembers the upload dropzone's project choice across uploads.
+  var UPLOAD_PROJECT_KEY = 'hiccup.upload.projectId';
+
   // ---------------------------------------------------------------- helpers
 
   function $(id) { return document.getElementById(id); }
@@ -66,6 +69,8 @@
   }
 
   function str(v) { return v == null ? '' : String(v); }
+
+  function isStr(v) { return typeof v === 'string' && v.length > 0; }
 
   function nnum(v) { return (typeof v === 'number' && isFinite(v)) ? v : null; }
 
@@ -239,6 +244,15 @@
     captureId: null,
     analysis: null,
 
+    // Wave 3: projects (folders within the shared capture library).
+    projects: [],
+    projectsInited: false,   // guards the one-time sessionStorage read below
+    projectFilter: '',       // '' = all, 'unfiled' = unfiled only, else a project id
+    uploadProjectId: '',     // '' = Unfiled; persisted in sessionStorage across uploads
+    projectManageOpen: false,
+    projectEditingId: null,  // project id currently showing its inline rename form
+    projectBusy: false,      // guards double-submit on create/rename/delete
+
     msgById: {},
     legById: {},
     callById: {},
@@ -307,6 +321,7 @@
     ensureChatRfplexLine();
     pollStatus();
     setInterval(pollStatus, 60000);
+    await loadProjects();
     await loadCaptures();
     renderAll();
   }
@@ -370,6 +385,37 @@
         ev.preventDefault();
         dz.classList.remove('drag');
         if (ev.dataTransfer && ev.dataTransfer.files) uploadFiles(ev.dataTransfer.files);
+      });
+    }
+
+    // Project filter + upload project picker + manage-projects panel (Wave 3).
+    var projectFilterSel = $('project-filter');
+    if (projectFilterSel) {
+      projectFilterSel.addEventListener('change', function () {
+        state.projectFilter = projectFilterSel.value || '';
+        loadCaptures();
+      });
+    }
+
+    var uploadProjectSel = $('upload-project');
+    if (uploadProjectSel) {
+      uploadProjectSel.addEventListener('change', function () {
+        state.uploadProjectId = uploadProjectSel.value || '';
+        try { sessionStorage.setItem(UPLOAD_PROJECT_KEY, state.uploadProjectId); }
+        catch (e) { /* private mode / quota */ }
+      });
+    }
+
+    var pmToggle = $('project-manage-toggle');
+    if (pmToggle) pmToggle.addEventListener('click', function () { toggleProjectManage(); });
+    var pmClose = $('project-manage-close');
+    if (pmClose) pmClose.addEventListener('click', function () { toggleProjectManage(false); });
+
+    var pmForm = $('project-create-form');
+    if (pmForm) {
+      pmForm.addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        createProject();
       });
     }
 
@@ -442,7 +488,11 @@
 
   async function loadCaptures() {
     try {
-      var r = await fetch('/api/captures');
+      var url = '/api/captures';
+      var q = state.projectFilter === 'unfiled' ? 'unfiled'
+        : (state.projectFilter ? encodeURIComponent(state.projectFilter) : '');
+      if (q) url += '?project=' + q;
+      var r = await fetch(url);
       if (!r.ok) throw new Error('captures ' + r.status);
       var j = await r.json();
       state.captures = arr(j);
@@ -471,9 +521,13 @@
     setUploadMsg('Analysing ' + file.name + ' …');
     try {
       var buf = await file.arrayBuffer();
+      var headers = { 'X-Filename': file.name };
+      // Unfiled (the default) omits the header entirely — the capture just
+      // gets projectId: null server-side, same as before projects existed.
+      if (state.uploadProjectId) headers['X-Project-Id'] = state.uploadProjectId;
       var r = await fetch('/api/captures', {
         method: 'POST',
-        headers: { 'X-Filename': file.name },
+        headers: headers,
         body: buf
       });
       var j = null;
@@ -516,8 +570,13 @@
     if (!list) return;
     clear(list);
     if (!state.captures.length) {
-      emptyNote(list, 'No captures yet.',
-        'Upload a pcap, pcapng, or an SBC log / SIP text export to get started.');
+      if (state.projectFilter) {
+        emptyNote(list, 'No captures match this filter.',
+          'Choose a different project, or clear the filter to see everything.');
+      } else {
+        emptyNote(list, 'No captures yet.',
+          'Upload a pcap, pcapng, or an SBC log / SIP text export to get started.');
+      }
       return;
     }
     for (var i = 0; i < state.captures.length; i++) {
@@ -552,6 +611,304 @@
         list.appendChild(row);
       })(state.captures[i]);
     }
+  }
+
+  // -------------------------------------------------------- projects (Wave 3)
+
+  /**
+   * Projects are folders within the team's shared capture library (or the
+   * solo user's own — accountUid() makes no client-visible difference).
+   * GET /api/projects drives #project-filter (scopes the existing
+   * GET /api/captures call via ?project=) and the upload dropzone's project
+   * picker (sets X-Project-Id on POST /api/captures, omitted for Unfiled).
+   */
+
+  async function loadProjects() {
+    try {
+      var r = await fetch('/api/projects');
+      if (r.status === 401) { location.href = '/'; return; }
+      if (!r.ok) throw new Error('projects ' + r.status);
+      var j = await r.json();
+      state.projects = arr(j);
+    } catch (e) {
+      state.projects = [];
+    }
+
+    if (!state.projectsInited) {
+      state.projectsInited = true;
+      try {
+        var saved = sessionStorage.getItem(UPLOAD_PROJECT_KEY);
+        if (saved) state.uploadProjectId = saved;
+      } catch (e) { /* private mode / quota */ }
+    }
+
+    // Self-heal: a remembered/selected project may have been deleted
+    // elsewhere (another tab, or this tab's own manage-projects panel).
+    if (state.uploadProjectId && !projectExists(state.uploadProjectId)) {
+      state.uploadProjectId = '';
+      try { sessionStorage.removeItem(UPLOAD_PROJECT_KEY); } catch (e) { /* ignore */ }
+    }
+    if (state.projectFilter && state.projectFilter !== 'unfiled' && !projectExists(state.projectFilter)) {
+      state.projectFilter = '';
+    }
+
+    renderProjectFilter();
+    renderUploadProjectPicker();
+    if (state.projectManageOpen) renderProjectManagePanel();
+  }
+
+  function projectExists(id) {
+    for (var i = 0; i < state.projects.length; i++) {
+      if (state.projects[i] && state.projects[i].id === id) return true;
+    }
+    return false;
+  }
+
+  function renderProjectFilter() {
+    var sel = $('project-filter');
+    if (!sel) return;
+    clear(sel);
+    var all = el('option', null, 'All captures');
+    all.value = '';
+    sel.appendChild(all);
+    var unfiled = el('option', null, 'Unfiled');
+    unfiled.value = 'unfiled';
+    sel.appendChild(unfiled);
+    for (var i = 0; i < state.projects.length; i++) {
+      var p = state.projects[i];
+      if (!p || !isStr(p.id)) continue;
+      var o = el('option', null, p.name || p.id);
+      o.value = p.id;
+      sel.appendChild(o);
+    }
+    sel.value = state.projectFilter || '';
+  }
+
+  function renderUploadProjectPicker() {
+    var sel = $('upload-project');
+    if (!sel) return;
+    clear(sel);
+    var unfiled = el('option', null, 'Unfiled');
+    unfiled.value = '';
+    sel.appendChild(unfiled);
+    for (var i = 0; i < state.projects.length; i++) {
+      var p = state.projects[i];
+      if (!p || !isStr(p.id)) continue;
+      var o = el('option', null, p.name || p.id);
+      o.value = p.id;
+      sel.appendChild(o);
+    }
+    sel.value = state.uploadProjectId || '';
+  }
+
+  function setProjectManageMsg(text, isError) {
+    var m = $('project-manage-msg');
+    if (!m) return;
+    m.textContent = text || '';
+    m.classList.toggle('err', !!isError);
+  }
+
+  function toggleProjectManage(open) {
+    state.projectManageOpen = (open === undefined) ? !state.projectManageOpen : !!open;
+    var panel = $('project-manage-panel');
+    if (panel) panel.hidden = !state.projectManageOpen;
+    if (state.projectManageOpen) {
+      state.projectEditingId = null;
+      setProjectManageMsg('');
+      renderProjectManagePanel();
+    }
+  }
+
+  function renderProjectManagePanel() {
+    var host = $('project-manage-list');
+    if (!host) return;
+    clear(host);
+    if (!state.projects.length) {
+      emptyNote(host, 'No projects yet.', 'Create one below to start filing captures.');
+      return;
+    }
+    for (var i = 0; i < state.projects.length; i++) {
+      var p = state.projects[i];
+      if (!p || !isStr(p.id)) continue;
+      host.appendChild(state.projectEditingId === p.id ? projectEditRow(p) : projectRow(p));
+    }
+  }
+
+  function projectRow(p) {
+    var row = el('div', 'pm-row');
+    var head = el('div', 'pm-row-head');
+    head.appendChild(el('span', 'pm-row-name', p.name || p.id));
+    var count = (typeof p.captureCount === 'number' && isFinite(p.captureCount)) ? p.captureCount : 0;
+    head.appendChild(el('span', 'chip pm-row-count', count + (count === 1 ? ' capture' : ' captures')));
+    row.appendChild(head);
+    if (isStr(p.description)) row.appendChild(el('div', 'pm-row-desc', p.description));
+
+    var actions = el('div', 'pm-row-actions');
+    var rename = el('button', 'btn', 'Rename');
+    rename.type = 'button';
+    rename.addEventListener('click', function () {
+      state.projectEditingId = p.id;
+      renderProjectManagePanel();
+    });
+    actions.appendChild(rename);
+
+    var del = el('button', 'btn', 'Delete');
+    del.type = 'button';
+    del.addEventListener('click', function () { deleteProject(p, del); });
+    actions.appendChild(del);
+
+    row.appendChild(actions);
+    return row;
+  }
+
+  function projectEditRow(p) {
+    var wrap = el('div', 'pm-edit-row');
+
+    var nameInput = el('input', 'input');
+    nameInput.type = 'text';
+    nameInput.maxLength = 80;
+    nameInput.value = p.name || '';
+    nameInput.setAttribute('aria-label', 'project name');
+    wrap.appendChild(nameInput);
+
+    var descInput = el('input', 'input');
+    descInput.type = 'text';
+    descInput.placeholder = 'Description (optional)';
+    descInput.value = p.description || '';
+    descInput.setAttribute('aria-label', 'project description');
+    wrap.appendChild(descInput);
+
+    var actions = el('div', 'pm-edit-actions');
+    var save = el('button', 'btn btn-primary', 'Save');
+    save.type = 'button';
+    save.addEventListener('click', function () {
+      var name = (nameInput.value || '').trim();
+      if (!name) { setProjectManageMsg('Enter a project name.', true); return; }
+      renameProject(p, name, (descInput.value || '').trim(), save);
+    });
+    actions.appendChild(save);
+
+    var cancel = el('button', 'btn', 'Cancel');
+    cancel.type = 'button';
+    cancel.addEventListener('click', function () {
+      state.projectEditingId = null;
+      renderProjectManagePanel();
+    });
+    actions.appendChild(cancel);
+
+    wrap.appendChild(actions);
+    return wrap;
+  }
+
+  async function createProject() {
+    if (state.projectBusy) return;
+    var nameInput = $('project-create-name');
+    var descInput = $('project-create-desc');
+    var name = ((nameInput && nameInput.value) || '').trim();
+    if (!name) { setProjectManageMsg('Enter a project name.', true); return; }
+
+    var form = $('project-create-form');
+    var btn = form ? form.querySelector('button[type="submit"]') : null;
+
+    state.projectBusy = true;
+    if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
+    setProjectManageMsg('');
+    var res = null, payload = null;
+    try {
+      res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name, description: ((descInput && descInput.value) || '').trim() })
+      });
+      if (res.status === 401) { location.href = '/'; return; }
+      try { payload = await res.json(); } catch (e) { payload = null; }
+    } catch (e) {
+      state.projectBusy = false;
+      if (btn) { btn.disabled = false; btn.textContent = 'Create project'; }
+      setProjectManageMsg('Could not reach the server.', true);
+      return;
+    }
+    state.projectBusy = false;
+    if (btn) { btn.disabled = false; btn.textContent = 'Create project'; }
+    if (!res.ok) {
+      setProjectManageMsg((payload && (payload.error || payload.userMessage)) ||
+        ('Could not create the project (status ' + res.status + ').'), true);
+      return;
+    }
+    if (nameInput) nameInput.value = '';
+    if (descInput) descInput.value = '';
+    setProjectManageMsg('Created ' + name + '.');
+    await loadProjects();
+    await loadCaptures();
+  }
+
+  async function renameProject(p, name, description, btn) {
+    if (state.projectBusy) return;
+    state.projectBusy = true;
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    setProjectManageMsg('');
+    var res = null, payload = null;
+    try {
+      res = await fetch('/api/projects/' + encodeURIComponent(p.id), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name, description: description })
+      });
+      if (res.status === 401) { location.href = '/'; return; }
+      try { payload = await res.json(); } catch (e) { payload = null; }
+    } catch (e) {
+      state.projectBusy = false;
+      if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
+      setProjectManageMsg('Could not reach the server.', true);
+      return;
+    }
+    state.projectBusy = false;
+    if (!res.ok) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
+      setProjectManageMsg((payload && (payload.error || payload.userMessage)) ||
+        ('Could not rename the project (status ' + res.status + ').'), true);
+      return;
+    }
+    state.projectEditingId = null;
+    setProjectManageMsg('Saved.');
+    await loadProjects();
+    await loadCaptures();
+  }
+
+  async function deleteProject(p, btn) {
+    if (state.projectBusy) return;
+    if (!confirm('Delete project "' + (p.name || p.id) + '"? Its captures will become ' +
+      'Unfiled, not deleted.')) return;
+
+    state.projectBusy = true;
+    if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
+    setProjectManageMsg('');
+    var res = null, payload = null;
+    try {
+      res = await fetch('/api/projects/' + encodeURIComponent(p.id), { method: 'DELETE' });
+      if (res.status === 401) { location.href = '/'; return; }
+      try { payload = await res.json(); } catch (e) { payload = null; }
+    } catch (e) {
+      state.projectBusy = false;
+      if (btn) { btn.disabled = false; btn.textContent = 'Delete'; }
+      setProjectManageMsg('Could not reach the server.', true);
+      return;
+    }
+    state.projectBusy = false;
+    if (!res.ok) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Delete'; }
+      setProjectManageMsg((payload && (payload.error || payload.userMessage)) ||
+        ('Could not delete the project (status ' + res.status + ').'), true);
+      return;
+    }
+    if (state.uploadProjectId === p.id) {
+      state.uploadProjectId = '';
+      try { sessionStorage.removeItem(UPLOAD_PROJECT_KEY); } catch (e) { /* ignore */ }
+    }
+    if (state.projectFilter === p.id) state.projectFilter = '';
+    setProjectManageMsg('Deleted ' + (p.name || p.id) + '.');
+    await loadProjects();
+    await loadCaptures();
   }
 
   function resetSelection() {

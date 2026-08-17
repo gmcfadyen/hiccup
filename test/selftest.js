@@ -135,6 +135,29 @@ async function expectReject(promise, ms, label) {
 }
 
 /**
+ * Wave-3 addition: call `fn`, expecting either a synchronous throw or a
+ * rejected promise. lib/teams.js/lib/projects.js are documented with plain
+ * "throws {userMessage}" language (matching lib/auth.js's synchronous
+ * style), but this hedges the same way the existing verifyGoogleIdToken test
+ * below already does, in case an implementation returns a promise instead.
+ * @param {function(): *} fn call under test
+ * @param {string} label used in failure messages
+ * @returns {Promise<*>} the thrown/rejected error
+ */
+async function expectThrowsOrRejects(fn, label) {
+  let p;
+  try {
+    p = fn();
+  } catch (e) {
+    return e; // synchronous throw — acceptable
+  }
+  if (p && typeof p.then === 'function') {
+    return await expectReject(p, 5000, label);
+  }
+  throw new Error(label + ': expected a throw or a rejection, got a plain return value ' + JSON.stringify(p));
+}
+
+/**
  * Remove a directory tree, ignoring errors and missing paths.
  * @param {string} dir directory to remove
  */
@@ -423,6 +446,607 @@ async function main() {
     const err = await expectReject(p, 30000, 'askLlm with Ollama down');
     ok(err && (err.message || err.userMessage || err.code), 'askLlm rejected without any error information');
   });
+
+  // ==================================================== wave3: teams & projects
+  // ARCHITECTURE.md "# Wave 3 — Teams & Projects" (grep that heading for the
+  // full spec). lib/teams.js and lib/projects.js are being built by another
+  // agent in parallel and may not exist yet when this runs -- every test
+  // below fails gracefully via tryRequire()/an ok(modVar, ...) guard, exactly
+  // like the passes above, rather than crashing.
+  //
+  // Isolation: this whole block uses its own subdirectory (test/tmp-data/
+  // wave3) and its own users/teams, and re-initialises the auth/teams/
+  // projects singletons against that subdirectory as its first step. That
+  // re-init call is what makes this section independent of run order with
+  // respect to the Wave-1/Wave-2 auth pass above: whichever section
+  // initialises last "wins" for calls made after that point, but each
+  // section only reads module state immediately after its OWN init call, so
+  // the two never observe each other's data. Cleanup is covered by the
+  // existing rimraf(TMP_DATA) at the end of this file (wave3/ lives under it).
+
+  const W3_DIR = path.join(TMP_DATA, 'wave3');
+  let w3auth = null;
+  let w3teams = null;
+  let w3projects = null;
+  let uA = null, uB = null, uC = null, uD = null;
+  let team1 = null;
+  let uidAForProjects = null;
+  let w3SharedCaptureId = null;
+  let realProjectA = null, realProjectC = null;
+
+  function needTeams() { ok(w3teams, 'lib/teams.js unavailable (see load test above)'); }
+  function needProjects() { ok(w3projects, 'lib/projects.js unavailable (see load test above)'); }
+  function mkUser(email, name) { return w3auth.createUser({ email, password: 'correct-horse-8', name }); }
+
+  await t('wave3: lib/teams.js loads with the documented exports', () => {
+    const r = tryRequire(path.join('lib', 'teams.js'));
+    if (r.err) throw new Error(r.err);
+    const need = ['initTeams', 'accountUid', 'getTeamIdFor', 'getAccountRole', 'canManageMembers',
+      'isSuspended', 'createTeam', 'getTeamView', 'createInvite', 'getInviteInfo', 'acceptInvite',
+      'setMemberRole', 'setMemberSuspended', 'removeMember', 'transferOwnership'];
+    const missing = need.filter((k) => typeof r.mod[k] !== 'function');
+    ok(missing.length === 0, 'lib/teams.js missing export(s): ' + missing.join(', '));
+    w3teams = r.mod;
+  });
+
+  await t('wave3: lib/projects.js loads with the documented exports', () => {
+    const r = tryRequire(path.join('lib', 'projects.js'));
+    if (r.err) throw new Error(r.err);
+    const need = ['initProjects', 'listProjects', 'createProject', 'getProject', 'renameProject', 'deleteProject'];
+    const missing = need.filter((k) => typeof r.mod[k] !== 'function');
+    ok(missing.length === 0, 'lib/projects.js missing export(s): ' + missing.join(', '));
+    w3projects = r.mod;
+  });
+
+  await t('wave3: init auth+teams+projects against a dedicated dir', async () => {
+    needTeams();
+    needProjects();
+    fs.mkdirSync(W3_DIR, { recursive: true });
+    const r = tryRequire(path.join('lib', 'auth.js'));
+    if (r.err) throw new Error(r.err);
+    w3auth = r.mod;
+    // lib/auth.js keeps its state in module-level singletons (see the
+    // Wave-1/2 auth pass above), so this re-points that singleton at W3_DIR
+    // for the rest of this section -- necessary because lib/teams.js's
+    // acceptInvite calls into ./auth internally and both need to agree on
+    // one initialised instance.
+    await within(Promise.resolve(w3auth.initAuth(W3_DIR, {
+      baseUrl: 'http://127.0.0.1:8400',
+      googleClientId: null,
+    })), 10000, 'wave3 initAuth');
+    await within(Promise.resolve(w3teams.initTeams(W3_DIR)), 10000, 'initTeams');
+    await within(Promise.resolve(w3projects.initProjects(W3_DIR)), 10000, 'initProjects');
+  });
+
+  await t('wave3: create users A, B, C', () => {
+    ok(w3auth, 'auth unavailable');
+    uA = mkUser('w3-a@example.com', 'Alice A');
+    uB = mkUser('w3-b@example.com', 'Bob B');
+    uC = mkUser('w3-c@example.com', 'Carol C');
+    ok(uA && uA.id && uB && uB.id && uC && uC.id, 'user creation did not return usable ids');
+  });
+
+  // -------------------------------------------------- core sharing behavior
+
+  await t('wave3: A creates a team; accountUid(A) becomes the team\'s dataRootId', () => {
+    needTeams();
+    team1 = w3teams.createTeam(uA.id, 'Team Alpha');
+    ok(team1 && team1.dataRootId, 'createTeam did not return a Team with dataRootId');
+    uidAForProjects = w3teams.accountUid(uA.id);
+    // dataRootId is fixed at the CREATOR's own id (matching RFPlex's actual
+    // behaviour, and ARCHITECTURE.md only requires it stay fixed thereafter,
+    // not that it differ from the creator) -- so accountUid(A) === A.id here
+    // is correct, zero-migration design, not a bug. It only diverges from a
+    // user's own id for someone who JOINS an existing team (see the next
+    // test, B accepting A's invite) -- that's what's actually asserted below.
+    ok(w3teams.getTeamIdFor(uA.id), 'A is not recognized as being on a team right after createTeam');
+    eq(uidAForProjects, team1.dataRootId, 'accountUid(A) vs team1.dataRootId');
+    eq(w3teams.getAccountRole(uA.id), 'owner', 'A\'s role right after createTeam');
+  });
+
+  await t('wave3: A invites B\'s email; B accepts via the already-authenticated branch; accountUid(A) === accountUid(B)', async () => {
+    needTeams();
+    const inv = w3teams.createInvite(uA.id, uB.email);
+    ok(inv && typeof inv.token === 'string' && inv.token, 'createInvite did not return a usable token');
+    ok(inv.expiresAt, 'createInvite did not return expiresAt');
+    ok(inv.inviteUrl, 'createInvite did not return inviteUrl');
+
+    // Simulate "B is already logged in" the way server.js would see it: a
+    // real session for B, even though acceptInvite's frozen signature takes
+    // sessionUserId directly rather than a raw token.
+    const sess = await within(Promise.resolve(w3auth.createSession(uB.id)), 5000, 'createSession(B)');
+    const got = await within(Promise.resolve(w3auth.getSession(sess.token)), 5000, 'getSession(B)');
+    ok(got && got.user && got.user.id === uB.id, 'B\'s session did not resolve back to B');
+
+    const res = await within(Promise.resolve(
+      w3teams.acceptInvite(inv.token, { sessionUserId: uB.id })
+    ), 5000, 'acceptInvite(B, already-authenticated branch)');
+    ok(res && res.userId === uB.id, 'acceptInvite did not return {userId: B.id}');
+
+    eq(w3teams.accountUid(uA.id), w3teams.accountUid(uB.id), 'accountUid(A) vs accountUid(B) after join');
+    eq(w3teams.getTeamIdFor(uB.id), team1.teamId, 'B\'s teamId after accepting');
+    eq(w3teams.getAccountRole(uB.id), 'member', 'B\'s role after accepting (should be plain member)');
+  });
+
+  await t('wave3: getTeamView(A) reflects the team, both members, and manage flags', () => {
+    needTeams();
+    const view = w3teams.getTeamView(uA.id);
+    ok(view && view.team && view.team.teamId === team1.teamId, 'getTeamView(A).team mismatch');
+    ok(Array.isArray(view.members), 'getTeamView(A).members not an array');
+    eq(view.members.length, 2, 'getTeamView(A).members.length (expected just A + B at this point)');
+    const ids = view.members.map((m) => m.userId);
+    ok(ids.includes(uA.id) && ids.includes(uB.id), 'A and/or B missing from getTeamView(A).members');
+    const aEntry = view.members.find((m) => m.userId === uA.id);
+    ok(aEntry && aEntry.role === 'owner', 'A\'s role in the members list');
+    eq(view.myRole, 'owner', 'getTeamView(A).myRole');
+    eq(view.myCanManage, true, 'getTeamView(A).myCanManage');
+  });
+
+  await t('wave3: acceptInvite branch 3 — brand-new email + createAccount creates the user and joins', async () => {
+    needTeams();
+    const email = 'w3-brandnew@example.com';
+    ok(!w3auth.findUserByEmail(email), 'sanity: this email must not already have an account');
+    const inv = w3teams.createInvite(uA.id, email);
+
+    const res = await within(Promise.resolve(
+      w3teams.acceptInvite(inv.token, { createAccount: { password: 'correct-horse-8', name: 'Brand New' } })
+    ), 5000, 'acceptInvite branch 3 (new account)');
+    ok(res && res.userId, 'acceptInvite (branch 3) did not return {userId}');
+
+    const created = w3auth.findUserByEmail(email);
+    ok(created && created.id === res.userId, 'branch 3 did not actually create an account for the invited email');
+    eq(w3teams.accountUid(res.userId), w3teams.accountUid(uA.id), 'new user\'s accountUid after branch-3 join');
+    eq(w3teams.getAccountRole(res.userId), 'member', 'new user\'s role after branch-3 join');
+  });
+
+  await t('wave3: acceptInvite branch 2 — existing account, correct password, not pre-authenticated', async () => {
+    needTeams();
+    const email = 'w3-existing-ok@example.com';
+    const existing = mkUser(email, 'Existing Ok');
+    const inv = w3teams.createInvite(uA.id, email);
+
+    const res = await within(Promise.resolve(
+      w3teams.acceptInvite(inv.token, { password: 'correct-horse-8' })
+    ), 5000, 'acceptInvite branch 2 (correct password)');
+    ok(res && res.userId === existing.id, 'acceptInvite (branch 2) did not resolve to the existing account');
+    eq(w3teams.accountUid(existing.id), w3teams.accountUid(uA.id), 'accountUid after branch-2 join');
+  });
+
+  await t('wave3: acceptInvite branch 2 — wrong password is rejected and does not join', async () => {
+    needTeams();
+    const email = 'w3-existing-badpw@example.com';
+    const existing = mkUser(email, 'Existing BadPw');
+    const inv = w3teams.createInvite(uA.id, email);
+
+    // This is the exact attack the spec's identity-verification step exists
+    // to stop: someone has the token (forwarded/logged) but not the password.
+    const e = await expectThrowsOrRejects(
+      () => w3teams.acceptInvite(inv.token, { password: 'totally-wrong-password' }),
+      'acceptInvite branch 2 with the wrong password'
+    );
+    ok(errMsg(e), 'wrong-password rejection carries no message');
+    eq(w3teams.getTeamIdFor(existing.id), null, 'wrong password still joined the account to the team');
+    eq(w3teams.accountUid(existing.id), existing.id, 'accountUid changed despite a rejected wrong-password accept');
+  });
+
+  await t('wave3: acceptInvite branch 2 — Google-only account (no password) rejects clearly', async () => {
+    needTeams();
+    const email = 'w3-google-only@example.com';
+    const existing = w3auth.createUser({ email, googleSub: 'fake-google-sub-w3-1', name: 'Google Only' });
+    const inv = w3teams.createInvite(uA.id, email);
+
+    const e = await expectThrowsOrRejects(
+      () => w3teams.acceptInvite(inv.token, { password: 'anything-at-all' }),
+      'acceptInvite branch 2 against a Google-only account'
+    );
+    ok(errMsg(e), 'Google-only rejection carries no message (spec wants a "sign in first"-style userMessage)');
+    eq(w3teams.getTeamIdFor(existing.id), null, 'Google-only account joined despite having no password to verify against');
+  });
+
+  await t('wave3: createInvite supersedes a prior pending invite; PendingInvite never carries the token', () => {
+    needTeams();
+    const email = 'w3-superseded@example.com';
+    const inv1 = w3teams.createInvite(uA.id, email);
+    const inv2 = w3teams.createInvite(uA.id, email);
+    ok(inv2.token !== inv1.token, 'second createInvite for the same email+team returned the same token');
+
+    // "Supersedes" is read here as: the old token stops resolving at all.
+    // If the real implementation instead lets the old token keep working
+    // until its own natural expiry (also a defensible reading, as long as
+    // only one PENDING invite is ever tracked per email), this specific
+    // assertion is the one to revisit with the integrator -- everything
+    // else in this test is interpretation-independent.
+    eq(w3teams.getInviteInfo(inv1.token), null, 'superseded (first) token should no longer resolve');
+    ok(w3teams.getInviteInfo(inv2.token), 'current (second) token should still resolve');
+
+    const pending = w3teams.getTeamView(uA.id).pendingInvites.find((p) => p.email === email);
+    ok(pending, 'pendingInvites should contain the invite for ' + email);
+    ok(!('token' in pending), 'PendingInvite leaked a `token` field (spec: "never includes the token itself")');
+    ok(JSON.stringify(pending).indexOf(inv2.token) === -1, 'PendingInvite JSON contains the raw token string');
+  });
+
+  await t('wave3: createTeam throws if the caller is already on a team (owner and plain member alike)', async () => {
+    needTeams();
+    await expectThrowsOrRejects(() => w3teams.createTeam(uA.id, 'A Second Team For A'), 'owner A creating a 2nd team');
+    await expectThrowsOrRejects(() => w3teams.createTeam(uB.id, 'A Second Team For B'), 'member B creating a 2nd team');
+  });
+
+  await t('wave3: uninvited C keeps their own accountUid; getTeamView(C) is the normal solo response', () => {
+    needTeams();
+    eq(w3teams.accountUid(uC.id), uC.id, 'accountUid(C) should equal C\'s own id (never invited)');
+    ok(w3teams.accountUid(uC.id) !== w3teams.accountUid(uA.id), 'accountUid(C) collides with the team\'s accountUid');
+    const view = w3teams.getTeamView(uC.id);
+    ok(view, 'getTeamView(C) returned nothing');
+    eq(view.team, null, 'getTeamView(C).team should be null (solo user — normal, not an error)');
+    ok(Array.isArray(view.members) && view.members.length === 0, 'getTeamView(C).members should be empty');
+    ok(Array.isArray(view.pendingInvites) && view.pendingInvites.length === 0, 'getTeamView(C).pendingInvites should be empty');
+  });
+
+  await t('wave3: a capture stored under accountUid(A) is reachable via accountUid(B) (real store.js calls)', () => {
+    needTeams();
+    const storeR = tryRequire(path.join('lib', 'store.js'));
+    if (storeR.err) throw new Error(storeR.err);
+    const store = storeR.mod;
+
+    const uidA = w3teams.accountUid(uA.id);
+    const uidB = w3teams.accountUid(uB.id);
+    const captureId = store.newCaptureId();
+    const dirViaA = store.captureDir(W3_DIR, uidA, captureId);
+    fs.mkdirSync(dirViaA, { recursive: true });
+    fs.writeFileSync(path.join(dirViaA, 'meta.json'), JSON.stringify({
+      id: captureId, filename: 'wave3.pcap', uploadedAt: new Date().toISOString(), projectId: null,
+    }));
+
+    // The concrete assertion the task calls for: B's resolved directory for
+    // the SAME capture id is the exact same path on disk as A's.
+    const dirViaB = store.captureDir(W3_DIR, uidB, captureId);
+    eq(dirViaB, dirViaA, 'captureDir(accountUid(B), captureId) !== captureDir(accountUid(A), captureId)');
+    ok(fs.existsSync(path.join(dirViaB, 'meta.json')), 'meta.json not visible via accountUid(B)\'s resolved dir');
+
+    const listedForB = store.listCaptures(W3_DIR, uidB);
+    ok(listedForB.some((m) => m.id === captureId), 'listCaptures(accountUid(B)) does not include A\'s capture');
+
+    w3SharedCaptureId = captureId;
+  });
+
+  await t('wave3: C (never invited) cannot reach the team\'s capture via accountUid resolution — the CVE-class check', () => {
+    needTeams();
+    ok(w3SharedCaptureId, 'prerequisite capture-sharing test did not run/pass');
+    const storeR = tryRequire(path.join('lib', 'store.js'));
+    if (storeR.err) throw new Error(storeR.err);
+    const store = storeR.mod;
+
+    const uidA = w3teams.accountUid(uA.id);
+    const uidC = w3teams.accountUid(uC.id);
+    ok(uidC !== uidA, 'accountUid(C) equals accountUid(A) — cross-tenant isolation is broken');
+
+    const dirViaA = store.captureDir(W3_DIR, uidA, w3SharedCaptureId);
+    const dirViaC = store.captureDir(W3_DIR, uidC, w3SharedCaptureId);
+    ok(dirViaC !== dirViaA, 'captureDir resolves to the SAME directory for C as for A/B — cross-tenant leak');
+    ok(!fs.existsSync(path.join(dirViaC, 'meta.json')),
+      'C\'s resolved directory unexpectedly contains the team\'s capture meta.json');
+
+    const listedForC = store.listCaptures(W3_DIR, uidC);
+    ok(!listedForC.some((m) => m.id === w3SharedCaptureId),
+      'listCaptures(accountUid(C)) leaks the team\'s capture to an uninvited user');
+  });
+
+  // ----------------------------------------------------- permission boundaries
+
+  await t('wave3: plain member B cannot createInvite (owner/admin only)', async () => {
+    needTeams();
+    eq(w3teams.getAccountRole(uB.id), 'member', 'B\'s role before promotion');
+    const e = await expectThrowsOrRejects(
+      () => w3teams.createInvite(uB.id, 'w3-nobody@example.com'),
+      'createInvite by a plain member'
+    );
+    ok(errMsg(e), 'rejection carries no message');
+  });
+
+  await t('wave3: promoting B to admin allows B to createInvite', async () => {
+    needTeams();
+    await within(Promise.resolve(w3teams.setMemberRole(uA.id, uB.id, 'admin')), 5000, 'setMemberRole(B, admin)');
+    eq(w3teams.getAccountRole(uB.id), 'admin', 'B\'s role after promotion');
+    ok(w3teams.canManageMembers(uB.id), 'canManageMembers(B) is false after promotion to admin');
+    const inv = w3teams.createInvite(uB.id, 'w3-via-b@example.com');
+    ok(inv && inv.token, 'createInvite by admin B did not succeed');
+  });
+
+  await t('wave3: nobody can remove the owner — not the owner themselves, not an admin', async () => {
+    needTeams();
+    await expectThrowsOrRejects(() => w3teams.removeMember(uA.id, uA.id), 'owner removing self');
+    await expectThrowsOrRejects(() => w3teams.removeMember(uB.id, uA.id), 'admin B removing the owner');
+    eq(w3teams.getAccountRole(uA.id), 'owner', 'A is no longer owner after rejected removal attempts');
+  });
+
+  await t('wave3: create + onboard a second admin, D', async () => {
+    needTeams();
+    uD = mkUser('w3-d@example.com', 'Dana D');
+    const inv = w3teams.createInvite(uA.id, uD.email);
+    const res = await within(Promise.resolve(
+      w3teams.acceptInvite(inv.token, { sessionUserId: uD.id })
+    ), 5000, 'acceptInvite(D)');
+    ok(res && res.userId === uD.id, 'D failed to join the team');
+    await within(Promise.resolve(w3teams.setMemberRole(uA.id, uD.id, 'admin')), 5000, 'setMemberRole(D, admin)');
+    eq(w3teams.getAccountRole(uD.id), 'admin', 'D\'s role after promotion');
+  });
+
+  await t('wave3: an admin cannot remove another admin; the owner can', async () => {
+    needTeams();
+    ok(uD, 'prerequisite onboarding test did not run/pass');
+    await expectThrowsOrRejects(() => w3teams.removeMember(uB.id, uD.id), 'admin B removing admin D');
+    eq(w3teams.getAccountRole(uD.id), 'admin', 'D was removed by a fellow admin');
+
+    await within(Promise.resolve(w3teams.removeMember(uA.id, uD.id)), 5000, 'owner A removing admin D');
+    eq(w3teams.getAccountRole(uD.id), null, 'D still has a team role after the owner removed them');
+    eq(w3teams.getTeamIdFor(uD.id), null, 'D still resolves to the team after removal');
+  });
+
+  await t('wave3: setMemberSuspended takes effect immediately, decoupled from lib/auth.js sessions', async () => {
+    needTeams();
+    const e2 = mkUser('w3-e@example.com', 'Eve E');
+    const inv = w3teams.createInvite(uA.id, e2.email);
+    await within(Promise.resolve(w3teams.acceptInvite(inv.token, { sessionUserId: e2.id })), 5000, 'acceptInvite(E)');
+    eq(w3teams.isSuspended(e2.id), false, 'E suspended immediately after joining');
+
+    await within(Promise.resolve(w3teams.setMemberSuspended(uA.id, e2.id, true)), 5000, 'setMemberSuspended(E, true)');
+    eq(w3teams.isSuspended(e2.id), true, 'isSuspended(E) not true immediately after setMemberSuspended');
+
+    // Spec: "lib/auth.js is untouched" — suspension enforcement belongs in
+    // server.js's requireAuth, not in auth.js itself. Confirm the
+    // decoupling: E's session still resolves fine at the auth layer even
+    // though E is now suspended at the team layer.
+    const sess = await within(Promise.resolve(w3auth.createSession(e2.id)), 5000, 'createSession(E)');
+    const got = await within(Promise.resolve(w3auth.getSession(sess.token)), 5000, 'getSession(E) after suspension');
+    ok(got && got.user && got.user.id === e2.id,
+      'auth.getSession stopped resolving a suspended user directly — suspension enforcement belongs in server.js, not lib/auth.js');
+  });
+
+  await t('wave3: one-team-per-user — accepting a 2nd team\'s invite is rejected, 1st membership untouched', async () => {
+    needTeams();
+    const f2 = mkUser('w3-f@example.com', 'Frank F');
+    const team2 = w3teams.createTeam(f2.id, 'Team Beta');
+    ok(team2 && team2.teamId !== team1.teamId, 'team2 did not get its own teamId');
+
+    const beforeUid = w3teams.accountUid(uB.id);
+    const beforeTeamId = w3teams.getTeamIdFor(uB.id);
+    eq(beforeTeamId, team1.teamId, 'B not on team1 before the cross-team-invite attempt');
+
+    const inv2 = w3teams.createInvite(f2.id, uB.email); // B is already on team1
+    const e = await expectThrowsOrRejects(
+      () => w3teams.acceptInvite(inv2.token, { sessionUserId: uB.id }),
+      'B accepting a 2nd team\'s invite while already on team1'
+    );
+    ok(errMsg(e), 'rejection carries no userMessage');
+
+    eq(w3teams.getTeamIdFor(uB.id), beforeTeamId, 'B\'s teamId changed after the rejected cross-team accept');
+    eq(w3teams.accountUid(uB.id), beforeUid, 'accountUid(B) changed after the rejected cross-team accept');
+  });
+
+  await t('wave3: re-inviting an email already on the team is rejected (no dangling duplicate invite)', async () => {
+    needTeams();
+    await expectThrowsOrRejects(
+      () => w3teams.createInvite(uA.id, uB.email),
+      'inviting an email that is already a team member'
+    );
+  });
+
+  await t('wave3: transferOwnership moves the owner role but NEVER moves dataRootId', async () => {
+    needTeams();
+    const uidA_before = w3teams.accountUid(uA.id);
+    const uidB_before = w3teams.accountUid(uB.id);
+    eq(w3teams.getAccountRole(uA.id), 'owner', 'A is not owner before transfer');
+
+    await within(Promise.resolve(w3teams.transferOwnership(uA.id, uB.id)), 5000, 'transferOwnership(A -> B)');
+
+    eq(w3teams.getAccountRole(uB.id), 'owner', 'B is not owner after transferOwnership');
+    ok(w3teams.getAccountRole(uA.id) !== 'owner', 'A is still owner after transferring ownership away');
+    eq(w3teams.accountUid(uA.id), uidA_before, 'accountUid(A) moved after transferOwnership — dataRootId must never move');
+    eq(w3teams.accountUid(uB.id), uidB_before, 'accountUid(B) moved after transferOwnership — dataRootId must never move');
+    eq(w3teams.accountUid(uA.id), w3teams.accountUid(uB.id), 'A and B no longer share an accountUid after ownership transfer');
+  });
+
+  // -------------------------------------------------------- invite token edges
+
+  await t('wave3: getInviteInfo(garbage token) returns null, does not throw', () => {
+    needTeams();
+    const res = w3teams.getInviteInfo('not-a-real-token-' + 'f'.repeat(40));
+    eq(res, null, 'getInviteInfo(garbage) result');
+  });
+
+  await t('wave3: expired invite token is rejected (getInviteInfo null, acceptInvite throws)', async () => {
+    needTeams();
+    const storeR = tryRequire(path.join('lib', 'store.js'));
+    if (storeR.err) throw new Error(storeR.err);
+    const store = storeR.mod;
+
+    // Dedicated owner/invitee, used only by this test: this is deliberately
+    // the LAST test in this file that mutates lib/teams.js state, because it
+    // forces a full re-init (see below) whose blast radius we don't want to
+    // reason about relative to team1/A/B/D's already-asserted state.
+    const owner = mkUser('w3-expowner@example.com', 'Owner Exp');
+    const invitee = mkUser('w3-expinvitee@example.com', 'Invitee Exp');
+    w3teams.createTeam(owner.id, 'Team Expiry');
+    const inv = w3teams.createInvite(owner.id, invitee.email);
+    ok(w3teams.getInviteInfo(inv.token), 'sanity: fresh invite not visible via getInviteInfo before we expire it');
+
+    // Directly edit data/invitations.json's expiresAt into the past rather
+    // than sleeping 7 days. Per ARCHITECTURE.md this is a plain store.js
+    // JSON object keyed by token. IF lib/teams.js caches invitations in
+    // memory the way lib/auth.js caches users/sessions (loaded once at
+    // init, mutated only through its own API — see auth.initAuth's own
+    // "safe to call again, re-reads from disk" doc comment), this on-disk
+    // edit alone won't be visible until something forces a reload — so we
+    // call initTeams() again on the assumption teams.js follows the same
+    // convention. If that assumption is wrong and teams.js re-reads the
+    // file on every call instead, the extra initTeams() call is harmless.
+    const invFile = path.join(W3_DIR, 'invitations.json');
+    const all = store.loadJson(invFile, null);
+    ok(all && all[inv.token],
+      'invitations.json does not contain the token just created — check the file name/shape against the spec ' +
+      '(expected data/invitations.json, an object keyed by the 32-byte-hex token)');
+    all[inv.token].expiresAt = Date.now() - 1000;
+    store.saveJson(invFile, all);
+    await within(Promise.resolve(w3teams.initTeams(W3_DIR)), 10000, 're-init teams to pick up the hand-edited expiry');
+
+    eq(w3teams.getInviteInfo(inv.token), null, 'getInviteInfo on an expired token');
+
+    const e = await expectThrowsOrRejects(
+      () => w3teams.acceptInvite(inv.token, { sessionUserId: invitee.id }),
+      'acceptInvite on an expired token'
+    );
+    ok(errMsg(e), 'expired-token rejection carries no message');
+  });
+
+  // ---------------------------------------------- path-safety / id validation
+
+  await t('wave3: createProject rejects an empty name and an over-long (81-char) name', async () => {
+    needProjects();
+    ok(uidAForProjects, 'prerequisite team-creation test did not run/pass');
+    await expectThrowsOrRejects(
+      () => w3projects.createProject(uidAForProjects, { name: '' }),
+      'createProject with an empty name'
+    );
+    await expectThrowsOrRejects(
+      () => w3projects.createProject(uidAForProjects, { name: 'x'.repeat(81) }),
+      'createProject with an 81-char name (documented limit is 80)'
+    );
+  });
+
+  await t('wave3: create real projects for A and C (fixtures for the id-validation tests below)', () => {
+    needProjects();
+    needTeams();
+    const uidC = w3teams.accountUid(uC.id);
+    realProjectA = w3projects.createProject(uidAForProjects, { name: 'Wave3 Project A' });
+    realProjectC = w3projects.createProject(uidC, { name: 'Wave3 Project C' });
+    ok(realProjectA && /^[a-f0-9]{12}$/.test(realProjectA.id), 'createProject(A) did not return a 12-hex id');
+    ok(realProjectC && /^[a-f0-9]{12}$/.test(realProjectC.id), 'createProject(C) did not return a 12-hex id');
+  });
+
+  // server.js does not define resolveOwnedProjectId yet as of this writing
+  // (confirmed by grep: no "resolveOwnedProjectId"/"teams"/"projects"
+  // anywhere in server.js), and server.js has no module.exports at all — it
+  // calls server.listen() unconditionally at module scope with no
+  // `require.main === module` guard and registers SIGINT handlers, so
+  // require()-ing it here would start a real HTTP listener as a side effect
+  // of running this selftest, which must never happen. So the tests below
+  // exercise a LOCAL, byte-for-byte mirror of ARCHITECTURE.md's documented
+  // function body against the REAL lib/projects.js:
+  //   function resolveOwnedProjectId(accountUid, rawId) {
+  //     if (typeof rawId !== 'string' || !/^[a-f0-9]{12}$/.test(rawId)) return null;
+  //     return projects.getProject(accountUid, rawId) ? rawId : null;
+  //   }
+  // INTEGRATOR: once server.js actually defines this (name/location TBD),
+  // please confirm it matches this body exactly, ideally by pointing these
+  // tests at the real export instead of the mirror.
+  function mirrorResolveOwnedProjectId(getProjectFn, accountUid, rawId) {
+    if (typeof rawId !== 'string' || !/^[a-f0-9]{12}$/.test(rawId)) return null;
+    return getProjectFn(accountUid, rawId) ? rawId : null;
+  }
+
+  await t('wave3: resolveOwnedProjectId (mirror) rejects malformed ids BEFORE any getProject lookup', () => {
+    needProjects();
+    ok(realProjectA, 'prerequisite project-creation test did not run/pass');
+    let calls = 0;
+    const spy = (uid, id) => { calls++; return w3projects.getProject(uid, id); };
+
+    const malformed = [
+      ['path traversal (..)', '../../etc'],
+      ['path traversal to a sibling account', '../../../' + w3teams.accountUid(uC.id)],
+      ['backslash traversal', '..\\..\\etc\\passwd'],
+      ['URL-encoded traversal', '..%2f..%2fetc'],
+      ['UNC path', '\\\\server\\share\\x'],
+      ['Windows absolute path', 'C:\\Windows\\x'],
+      ['too short (11 chars)', 'a'.repeat(11)],
+      ['too long (13 chars)', 'a'.repeat(13)],
+      ['uppercase hex', 'ABCDEF123456'],
+      ['mixed-case hex', 'aBcDef123456'],
+      ['non-hex letters', 'zzzzzzzzzzzz'],
+      ['empty string', ''],
+      ['leading whitespace', ' ' + realProjectA.id.slice(1)],
+      ['trailing newline', realProjectA.id.slice(0, 11) + '\n'],
+      ['embedded null byte', 'abcdef\u000012345'],
+      ['null', null],
+      ['undefined', undefined],
+      ['number, not string', 123456789012],
+      ['array', ['a', 'b']],
+      ['object', { id: 'abcdef123456' }],
+      ['very long string', 'a'.repeat(10000)],
+    ];
+
+    const problems = [];
+    for (const [label, rawId] of malformed) {
+      const result = mirrorResolveOwnedProjectId(spy, uidAForProjects, rawId);
+      if (result !== null) problems.push(label + ': expected null, got ' + JSON.stringify(result));
+    }
+    if (calls !== 0) problems.push('getProject was called ' + calls + ' time(s) for malformed ids — the shape check did not short-circuit');
+    if (problems.length) throw new Error(problems.join('; '));
+  });
+
+  await t('wave3: a 12-digit numeric STRING is valid hex shape (0-9 are valid hex digits — not a gap)', () => {
+    needProjects();
+    // Distinguishes from the "number, not string" case above: a JS `number`
+    // is rejected by the `typeof rawId !== 'string'` guard, but a STRING of
+    // 12 decimal digits legally matches /^[a-f0-9]{12}$/. Noted explicitly
+    // so nobody mistakes the absence of a rejection here for a missed case —
+    // ownership (getProject) is still what ultimately gates access.
+    const digitsOnly = '123456789012';
+    ok(/^[a-f0-9]{12}$/.test(digitsOnly), 'sanity: the documented regex accepts a 12-digit numeric string');
+    let calls = 0;
+    const spy = (uid, id) => { calls++; return w3projects.getProject(uid, id); };
+    const result = mirrorResolveOwnedProjectId(spy, uidAForProjects, digitsOnly);
+    eq(result, null, 'a well-shaped but nonexistent id should resolve null via the ownership check');
+    eq(calls, 1, 'getProject should have been called exactly once for a well-shaped id');
+  });
+
+  await t('wave3: a nonexistent id and another tenant\'s real id resolve IDENTICALLY (no information leak)', () => {
+    needProjects();
+    ok(realProjectC, 'prerequisite project-creation test did not run/pass');
+
+    const nonexistentId = 'deadbeef0000';
+    ok(/^[a-f0-9]{12}$/.test(nonexistentId), 'sanity: nonexistentId is well-shaped');
+    const r1 = mirrorResolveOwnedProjectId(w3projects.getProject, uidAForProjects, nonexistentId);
+    const r2 = mirrorResolveOwnedProjectId(w3projects.getProject, uidAForProjects, realProjectC.id);
+
+    eq(r1, null, 'resolveOwnedProjectId(A, nonexistent-id)');
+    eq(r2, null, 'resolveOwnedProjectId(A, C\'s real project id) — must be null, not a leak of C\'s project');
+    eq(r1, r2, 'a nonexistent id and another tenant\'s real id must be indistinguishable to the caller');
+
+    // Confirmed directly against the real getProject too, not just the mirror.
+    eq(w3projects.getProject(uidAForProjects, realProjectC.id), null, 'projects.getProject(A, C\'s project id) leaked C\'s project to A');
+
+    // Positive control: A's own real project resolves fine, proving the
+    // rejections above are a genuine ownership check, not e.g. getProject
+    // always returning null regardless of input.
+    const r3 = mirrorResolveOwnedProjectId(w3projects.getProject, uidAForProjects, realProjectA.id);
+    eq(r3, realProjectA.id, 'resolveOwnedProjectId(A, A\'s own real project id) should resolve to that id');
+  });
+
+  await t('wave3: projects.getProject itself never throws on hostile ids (defense in depth beneath the shape gate)', () => {
+    needProjects();
+    // Not a strict spec requirement (resolveOwnedProjectId is the mandated
+    // gate) — this checks the layer underneath doesn't also need to be
+    // perfectly trusted. A failure here is a hardening opportunity, not
+    // necessarily a spec violation; call it out as such when reporting.
+    const hostile = ['../../etc', '..\\..\\x', '\u0000', '', null, undefined, 123, ['x'], { x: 1 }, 'a'.repeat(10000)];
+    const problems = [];
+    for (const rawId of hostile) {
+      try {
+        const res = w3projects.getProject(uidAForProjects, rawId);
+        if (res) problems.push('getProject(' + JSON.stringify(rawId) + ') returned a truthy value: ' + JSON.stringify(res));
+      } catch (e) {
+        problems.push('getProject(' + JSON.stringify(rawId) + ') threw: ' + errMsg(e));
+      }
+    }
+    if (problems.length) throw new Error(problems.join('; '));
+  });
+
+  console.log('NOTE (wave3): HTTP-route-level behavior — a malformed X-Project-Id header or ?project=' +
+    ' filter degrading to a clean 4xx, and a suspended member\'s existing session 401ing on the next ' +
+    'request — is NOT exercised by this file. server.js has no module.exports and calls server.listen() ' +
+    'unconditionally at module scope, so requiring it here would start a real HTTP listener as a side ' +
+    'effect. That needs a subprocess-based HTTP integration test once server.js stabilises; see the report ' +
+    'to the integrator for details.');
 
   // ------------------------------------------------------- cleanup + summary
   try {

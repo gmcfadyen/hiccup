@@ -999,3 +999,296 @@ malformed packet must never fail a whole capture. `detectIndicators` / `detectSc
 `buildAdvice` receive the analysis object **after** media/aux/retrans/diff are attached,
 so they can read `analysis.media`, `analysis.aux`, `analysis.retrans`, `analysis.calls`,
 `analysis.legs`, `analysis.messages`, `analysis.findings`.
+
+---
+
+# Wave 3 — Teams & Projects
+
+Adapted from RFPlex.ai's actual "projects" system (researched from its source
+directly, not from memory). RFPlex's model is **not** per-project ACLs — it is
+account-wide sharing (a "team" shares 100% of its data, no per-resource
+permission) plus named **projects** as folders within that shared space. That
+is what "people can group together and keep files in one space" describes, and
+it is what this section builds: faithfully the same shape, deliberately fixing
+three things RFPlex's own history shows were mistakes.
+
+**Fixed proactively, not retrofitted after an incident (RFPlex's history, in order):**
+1. RFPlex initially left ~38 project-scoped routes keyed on raw `userId` while
+   only *listing* showed team data — members got 404 everywhere else. Here,
+   `accountUid()` resolution is the ONLY id every storage call may use, checked
+   into every route from the start (see the rule below), not bolted on later.
+2. RFPlex shipped a **critical path-traversal CVE**: a caller-supplied
+   `projectId` reached `path.join()` with no ownership check, letting one
+   tenant read another's data via `projectId: "../../<victim>"`. Here,
+   `resolveOwnedProjectId()` (hex-shape validation + ownership check) is
+   mandatory on every route accepting a project id, from the first commit.
+3. RFPlex's `access: 'full'|'readonly'` member tier was stored on every
+   invite/membership record but **never enforced anywhere** — pure dead
+   weight. Not built here at all: every team member has full access, full
+   stop. Simpler contract, nothing to get wrong.
+
+## The core idea: `accountUid()`
+
+A **team** is a group of users who share ALL captures and KB docs equally.
+Storage is keyed by one canonical id per account — `accountUid(userId)` —
+instead of by the individual user. `lib/store.js` and `lib/kb.js` are
+**unchanged**: their existing `userId` parameter now conventionally receives
+`accountUid(userId)`, not the raw session id. This is a zero-migration change
+for every solo user: teamless, `accountUid(userId) === userId`, so single-user
+behaviour is byte-for-byte identical to today.
+
+```js
+// lib/teams.js
+accountUid(userId) -> string
+  // team.dataRootId if userId is on a team, else userId itself. Called ONCE
+  // per request (see server.js rule below) -- never derived from anything
+  // the client sends, only from the authenticated session.
+```
+
+**Hard rule for every route touching stored data** (captures, KB docs,
+projects): resolve `const uid = teams.accountUid(user.id)` exactly once at
+the top of the handler, and use `uid` for every `store.js`/`kb.js`/
+`projects.js` call in that handler. Never pass `user.id` directly to a
+storage function once a handler has computed `uid` — that inconsistency is
+the exact bug class RFPlex shipped (a delete route used raw `userId` while
+every sibling route had migrated to `accountUid`, silently pointing a team
+member's delete at the wrong, empty directory).
+
+Platform-level `user.role` ('user'|'admin', set by [[project-hiccup]]'s
+existing first-user-is-admin rule) is a **separate axis** from team-level
+role (owner/admin/member, below) — do not conflate the two. Nothing here
+touches `lib/auth.js`.
+
+## Data model — `lib/teams.js`
+
+```js
+initTeams(dataDir)
+
+createTeam(userId, name) -> Team
+  // throws {userMessage} if userId is already on a team. No seat cap, no
+  // tier gating -- hiccup has no billing; cap team size at 50 members as a
+  // sanity bound only.
+getTeamIdFor(userId) -> teamId | null
+accountUid(userId) -> string
+getAccountRole(userId) -> 'owner'|'admin'|'member'|null
+canManageMembers(userId) -> boolean            // owner or admin
+isSuspended(userId) -> boolean
+
+getTeamView(userId) -> { team: Team|null, members: [Member], pendingInvites: [PendingInvite],
+                          myRole, myCanManage }
+  // team:null (rest empty) when userId is on no team -- this is the normal
+  // solo-user response, not an error.
+
+createInvite(inviterUserId, email) -> { token, expiresAt, inviteUrl }
+  // throws {userMessage} if inviter cannot manage members, if inviter has no
+  // team, or if email already belongs to a member of this team. Supersedes
+  // any prior pending invite to the same email+team. No email is sent (see
+  // §Email below) -- the caller (server.js) returns inviteUrl for the UI to
+  // show as a copy-this-link affordance.
+getInviteInfo(token) -> { email, teamName, emailExists, hasPassword } | null
+  // hasPassword distinguishes "type your password to join" from "sign in
+  // first" (Google-only accounts) on the accept page. Returns null (server
+  // maps to 404) for an unknown or expired token.
+acceptInvite(token, { sessionUserId, password, createAccount }) -> { userId }
+  // Three branches, exactly mirroring RFPlex's (the identity-verification
+  // step exists because an invite token travels by email -- forwardable,
+  // loggable -- so it must never by itself be enough to join someone else's
+  // account):
+  //   1. sessionUserId's own email === the invited email -> join immediately,
+  //      no password needed (already proven identity via an active session).
+  //   2. Invited email belongs to an existing hiccup account, caller is NOT
+  //      authenticated as it -> requires `password`, verified via
+  //      auth.verifyPassword(email, password); a Google-only account with no
+  //      password hash rejects with a clear userMessage ("sign in first").
+  //   3. Invited email is new -> requires `createAccount: {password, name}`,
+  //      calls auth.createUser({email, password, name}) then joins.
+  // A user may belong to exactly one team: joining while already on a
+  // different team throws {userMessage} (closes RFPlex's silent-hijack class
+  // of bug where switching teams silently orphaned data).
+  // Consumes the invite token on success.
+
+setMemberRole(actingUserId, targetUserId, role)          // role: 'admin'|'member'; owner-only
+setMemberSuspended(actingUserId, targetUserId, suspended) // owner/admin; not on the owner or (if
+                                                           // acting is admin) another admin
+removeMember(actingUserId, targetUserId)                  // owner/admin; not self, not the owner;
+                                                           // admin cannot remove another admin
+transferOwnership(actingUserId, targetUserId)             // owner-only; dataRootId NEVER changes
+                                                           // on transfer (would orphan the team's
+                                                           // storage under the old owner's id)
+```
+
+```js
+Team = { teamId, ownerId, dataRootId, name, createdAt }
+Member = { userId, name, email, role: 'owner'|'admin'|'member', suspended, joinedAt }
+PendingInvite = { email, createdAt, expiresAt }   // never includes the token itself
+```
+
+Storage: `data/teams.json` (object, keyed by teamId), `data/team-members.json`
+(object, keyed by userId -> `{teamId, role, joinedAt}`), `data/invitations.json`
+(object, keyed by a 32-byte-hex token -> `{teamId, invitedBy, email, createdAt,
+expiresAt}`, 7-day expiry, swept lazily on read). All via `store.js`'s
+`loadJson`/`saveJson` (atomic write -- reuse it, do not reimplement).
+
+**Suspension enforcement**: `lib/auth.js` is untouched. `server.js`'s
+`requireAuth(req, res)` — after resolving the session via `auth.getSession` —
+additionally calls `teams.isSuspended(user.id)`; if true, clears the session
+cookie and returns 401 exactly as for no-session. This keeps session
+mechanics and team mechanics decoupled.
+
+**Path safety** (mandatory on every route that accepts a project id in the
+URL, body, or a header — this is the fix for RFPlex's CVE, built in from the
+start rather than added after an incident):
+```js
+// server.js helper, mirroring the shape validation already used for capture
+// ids (12 hex chars) and rejecting anything else before it can reach a
+// path.join anywhere downstream.
+function resolveOwnedProjectId(accountUid, rawId) {
+  if (typeof rawId !== 'string' || !/^[a-f0-9]{12}$/.test(rawId)) return null;
+  return projects.getProject(accountUid, rawId) ? rawId : null;
+}
+```
+
+## Email — deliberately not built in this wave
+
+hiccup has no email-sending capability today (no Resend/SMTP integration
+anywhere in the codebase — this is genuinely new infrastructure, not an
+oversight). Wiring that up needs its own sender domain/account, which I
+cannot provision. Rather than block the whole feature on it, `createInvite`
+returns the invite URL directly and the UI presents "copy this link and send
+it to your colleague" (a normal, common pattern for a v1). The token/accept
+flow is identical either way — plugging in real email later is purely
+additive (call a `sendInviteEmail` function where the UI copy button is
+today), never a redesign. Flag this clearly in the UI copy so nobody expects
+an email that isn't coming.
+
+## Data model — `lib/projects.js`
+
+```js
+initProjects(dataDir)
+listProjects(accountUid) -> [Project]              // includes captureCount per project
+createProject(accountUid, { name, description }) -> Project
+  // throws {userMessage} on empty/too-long name (80 chars) or >100 projects
+getProject(accountUid, projectId) -> Project | null
+renameProject(accountUid, projectId, { name, description }) -> Project
+deleteProject(accountUid, projectId) -> boolean
+  // Does NOT cascade-delete captures (deliberately diverges from RFPlex,
+  // which does cascade-delete files+chunks). A capture-analysis tool's
+  // uploads are not cheaply re-creatable the way a re-uploadable RFP
+  // document is -- deleting a folder should not destroy your pcaps.
+  // Un-assigns every capture in the project (sets its projectId back to
+  // null / "Unfiled") instead.
+```
+
+```js
+Project = { id, name, description, createdAt, updatedAt, captureCount }
+```
+
+Storage: `data/projects/<accountUid>.json` (array, one file per account —
+matches RFPlex's actual shape). Project ids: 12 hex chars, same convention
+and generator pattern as `store.js`'s `newCaptureId()`.
+
+## Changes to existing capture storage (Wave 1/2 contracts, additive only)
+
+- `meta.json` (per capture) gains `projectId: string | null` (null =
+  "Unfiled", the default for every capture uploaded without a project
+  chosen — uploading stays exactly as frictionless as it is today).
+- `POST /api/captures` accepts an optional `X-Project-Id` header; when
+  present, validated via `resolveOwnedProjectId` (404 `{error}` if it names
+  a project the account doesn't own) before the upload proceeds.
+- `GET /api/captures` accepts an optional `?project=` query
+  (`<12-hex-id>` | `unfiled` | omitted-means-all); filters the existing
+  listing in memory — no change to `store.js`'s `listCaptures`.
+- Every existing capture route (`GET/DELETE /api/captures/:id`, `/analysis`,
+  `/advice`, `/api/chat`, `/api/hmr/analyze`'s captureId param) now resolves
+  storage via `accountUid(user.id)` instead of `user.id` directly — this is
+  the one-line change, per route, that makes today's captures/KB docs
+  team-shared with zero data migration.
+- `lib/kb.js` calls (`addDoc`/`listDocs`/`deleteDoc`/`searchKb`) likewise
+  receive `accountUid(user.id)` as their `userId` argument — KB guides stay
+  **account-wide, not project-scoped** (a vendor guide is useful across every
+  case a team works, matching how RFPlex kept its Q&A library account-wide
+  rather than per-project).
+
+## HTTP API — new routes
+
+```
+POST   /api/team                {name}                          -> {team}
+GET    /api/team                                                -> {team, members, pendingInvites, myRole, myCanManage}
+POST   /api/team/invite         {email}                          -> {token, inviteUrl, email}
+GET    /api/team/invite-info/:token                              -> {email, teamName, emailExists, hasPassword}  | 404
+POST   /api/team/accept         {token, password?, name?, email?} -> {user} + Set-Cookie   // public, no session required
+PATCH  /api/team/members/:userId {role?, suspended?}              -> {ok}
+DELETE /api/team/members/:userId                                 -> {ok}
+POST   /api/team/transfer-ownership {userId}                      -> {ok}
+
+GET    /api/projects                                             -> [Project]
+POST   /api/projects            {name, description?}              -> {project}
+PATCH  /api/projects/:id        {name?, description?}             -> {project}
+DELETE /api/projects/:id                                          -> {ok}
+```
+
+All `/api/team/*` and `/api/projects/*` routes except `POST /api/team/accept`
+and `GET /api/team/invite-info/:token` require `requireAuth`. Every handler
+that touches storage resolves `accountUid` first per the hard rule above.
+
+## UI
+
+**`public/team.html` + `public/team.js`** (new page, same chrome as
+hmr.html/kb.html — topbar with nav links, theme toggle, coffee link — add a
+`team` nav link alongside `workbench`/`HMR`/`guides` in ALL FOUR pages'
+`<nav class="topnav">`, keeping the existing `.topnav-link` markup pattern
+exactly): "no team yet" state (a name field + "Create team" button) when
+`GET /api/team` returns `team:null`; once on a team, an invite card (email
+field + "Create invite link" button that reveals a copy-to-clipboard URL box
+with the explicit "no email is sent — share this link yourself" note) visible
+only when `myCanManage`, and a member list (name/email, role badge, "(you)"
+tag, suspend/restore/remove/make-admin buttons gated on `myCanManage` and the
+same self/owner/admin-vs-admin rules the API enforces — the UI hiding a
+button is a convenience, the API is the actual enforcement).
+
+**`public/accept-invite.html` + `public/accept-invite.js`** (new page, public
+— no auth chrome, no redirect-to-`/`-on-401): reads `?token=`, calls
+`GET /api/team/invite-info/:token`, then checks `GET /api/me` to see if
+already authenticated as the invited email, and renders exactly one of the
+three branches `acceptInvite` expects (silent-join button / password field /
+name+password fields for a brand-new account), POSTs to
+`/api/team/accept`, redirects to `/app` on success.
+
+**Sidebar (`app.html`)**: the capture list gains a project filter/grouping
+control above it (`#project-filter`: a `<select>` — "All captures" /
+"Unfiled" / one entry per project — driving the existing `GET /api/captures`
+call's `?project=` param) and the upload flow gains a project picker next to
+the dropzone (defaults to "Unfiled", remembers the last choice in
+sessionStorage) that sets `X-Project-Id` on upload. A small "+ manage
+projects" link opens an inline create/rename/delete panel (reuse `.card`/
+`.input`/`.btn` primitives — this does not need its own page).
+
+## Fixtures / selftest additions
+
+`test/make-fixtures.js` is NOT touched by this wave (it produces capture
+files, which are orthogonal to teams/projects). `test/selftest.js` gains a
+new pass, following its existing auth-pass pattern exactly (temp data dir,
+lazy require): create user A, create user B, A creates a team, A invites
+B's email, B accepts (join-while-authenticated branch), assert
+`accountUid(A) === accountUid(B)`; assert a capture uploaded by A is visible
+to B via `GET /api/captures` (list) and `GET /api/captures/:id/analysis`
+(direct fetch); assert a THIRD user C (no team) gets 404 on that same
+capture id (cross-tenant isolation — the exact case RFPlex's CVE broke);
+assert B (plain member) gets 403 inviting a new member, then A promotes B to
+admin and the same invite call now succeeds; assert suspending B makes B's
+existing session 401 immediately; assert `resolveOwnedProjectId` rejects a
+malformed id (`../../etc`, wrong length, non-hex) without ever reaching
+`getProject`.
+
+## Wave 3 module exports (exact)
+
+| File | Exports |
+|---|---|
+| `lib/teams.js` | `initTeams`, `accountUid`, `getTeamIdFor`, `getAccountRole`, `canManageMembers`, `isSuspended`, `createTeam`, `getTeamView`, `createInvite`, `getInviteInfo`, `acceptInvite`, `setMemberRole`, `setMemberSuspended`, `removeMember`, `transferOwnership` |
+| `lib/projects.js` | `initProjects`, `listProjects`, `createProject`, `getProject`, `renameProject`, `deleteProject` |
+
+`lib/teams.js` requires `./auth` (for `verifyPassword`/`createUser` inside
+`acceptInvite`) and `./store` (for `loadJson`/`saveJson`). `lib/projects.js`
+requires only `./store`. Neither requires the other. `server.js` requires
+both with the same graceful-optional-require pattern already used for
+`lib/hmr.js`/`lib/kb.js`.

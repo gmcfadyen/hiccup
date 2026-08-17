@@ -212,6 +212,7 @@ body.chat-open #layout { margin-right: var(--chat-w); }
 /* ============================================================== sidebar == */
 
 .sidebar {
+  position: relative;   /* anchors #project-manage-panel (Wave 3) */
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -333,6 +334,112 @@ body.chat-open #layout { margin-right: var(--chat-w); }
 .cap-chips .chip { padding: 0 7px; font-size: 10.5px; }
 
 #rfplex-promo { flex: none; }
+
+/* ---- Wave 3: project filter, upload picker, manage-projects panel ---- */
+
+.dz-field { display: block; margin-top: 8px; text-align: left; }
+.dz-field > span { display: block; font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+.dz-field select.input { padding: 4px 8px; font-size: 12px; }
+
+.project-filter-row {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.project-filter-row select#project-filter {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.project-filter-row .pane-btn { flex: none; white-space: nowrap; }
+
+/* An inline popover, not a modal: same footprint as the sidebar it covers,
+   dismissed with its own close button. See .sidebar's position:relative. */
+.project-manage-panel {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 12px;
+}
+
+.project-manage-panel[hidden] { display: none; }
+
+.pm-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.pm-head h3 { margin: 0; font-size: 13px; }
+.pm-head .btn { padding: 0 8px; font-size: 14px; line-height: 1.4; }
+
+.project-manage-list {
+  flex: 1 1 auto;
+  min-height: 40px;
+  margin-bottom: 10px;
+}
+
+.pm-row { padding: 6px 0; border-top: 1px solid var(--border); }
+.pm-row:first-child { border-top: 0; }
+
+.pm-row-head { display: flex; align-items: center; gap: 6px; }
+
+.pm-row-name {
+  flex: 1 1 auto;
+  font-size: 12.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pm-row-count { flex: none; }
+.pm-row-desc { margin-top: 2px; font-size: 11px; color: var(--muted); }
+
+.pm-row-actions { display: flex; gap: 4px; margin-top: 4px; }
+.pm-row-actions .btn { padding: 2px 8px; font-size: 11px; }
+
+.pm-edit-row { display: flex; flex-direction: column; gap: 6px; padding: 6px 0; }
+.pm-edit-row .input { padding: 5px 8px; font-size: 12px; }
+.pm-edit-actions { display: flex; gap: 6px; }
+.pm-edit-actions .btn { padding: 3px 10px; font-size: 11.5px; }
+
+.project-create-form {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.project-create-form label { margin: 4px 0 0; font-size: 11px; }
+.project-create-form .input { padding: 5px 8px; font-size: 12px; }
+.project-create-form .btn { margin-top: 6px; }
+
+.project-manage-msg {
+  flex: none;
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  color: var(--muted);
+  min-height: 16px;
+}
+
+.project-manage-msg.err { color: var(--crit); }
 
 /* ============================================================ searchbar == */
 
@@ -1647,4 +1754,7 @@ pre.fix-config {
   .pane { border-right: 0; border-bottom: 1px solid var(--border); }
   body.chat-open #layout { margin-right: 0; }
   .chat-drawer { top: 0; }
+  /* .sidebar is no longer a tall column here, so anchor the manage-projects
+     popover to the viewport instead of the (now short/wide) sidebar box. */
+  .project-manage-panel { position: fixed; top: calc(var(--topbar-h) + 10px); right: 10px; bottom: 10px; left: 10px; }
 }

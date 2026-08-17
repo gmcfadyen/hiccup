@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hiccup — team</title>
+<script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
+
+<!--
+  Fallback chrome styles, deliberately placed BEFORE the stylesheet links so that
+  app.css (owned by another agent) wins wherever it styles the shared topbar.
+  These only keep the header usable if app.css has not been deployed yet.
+-->
+<style>
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 18px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border, #232b36);
+  }
+  .topbar-spacer { flex: 1 1 auto; }
+  .logo { font-size: 20px; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
+  .logo:hover { text-decoration: none; }
+  .logo-bump { position: relative; top: -3px; display: inline-block; color: var(--accent); }
+  .coffee-link { font-size: 13px; color: var(--muted); }
+  .user-name { font-size: 13px; color: var(--muted); }
+  .topnav { display: flex; align-items: center; gap: 2px; margin-left: 10px; }
+  .topnav-link { padding: 3px 9px; border-radius: 6px; color: var(--muted); font-size: 13px; font-weight: 600; }
+  .topnav-link:hover { background: var(--panel2); color: var(--text); text-decoration: none; }
+  .topnav-link.is-current { background: var(--panel2); color: var(--text); }
+</style>
+
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/app.css">
+
+<!--
+  Page-scoped styles: team-prefixed class names only. The topbar, .topnav*,
+  .card, .chip, .table-dense, .form-error and .promo-card primitives come from
+  hiccup.css + app.css and are deliberately NOT redefined here.
+-->
+<style>
+  .page { max-width: 900px; margin: 0 auto; padding: 22px 20px 64px; }
+  .page-head h1 { font-size: 22px; margin-bottom: 4px; }
+  .page-lede { color: var(--muted); max-width: 78ch; }
+
+  .team-card { margin: 0 0 20px; }
+  .team-card h2 { font-size: 17px; margin-bottom: 4px; }
+  .team-card form { max-width: 420px; }
+
+  .team-summary-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .team-summary-head h2 { margin: 0; font-size: 19px; }
+  .team-summary-me { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
+
+  .team-invite-result { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .team-invite-copy-row { display: flex; gap: 6px; align-items: center; }
+  .team-invite-copy-row .input { flex: 1 1 auto; min-width: 0; }
+  .team-invite-copy-row .btn { flex: none; }
+  .btn.is-copied { color: var(--ok, #3fb950); border-color: var(--ok, #3fb950); }
+  .team-invite-note { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
+  .team-copy-msg { margin: 6px 0 0; font-size: 12.5px; color: var(--muted); min-height: 16px; }
+
+  .team-pending { margin-top: 16px; }
+  .team-pending-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .team-pending-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: baseline;
+    padding: 5px 0;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .team-pending-row:first-of-type { border-top: 0; }
+  .team-pending-exp { font-size: 12px; }
+
+  .team-table-wrap { overflow-x: auto; }
+  table.team-table { min-width: 640px; }
+  .team-you-tag { margin-left: 4px; color: var(--muted); font-weight: 400; }
+  .chip.team-role-owner { color: var(--accent); background: var(--tint-warn); border-color: var(--tint-warn-strong); }
+  .chip.team-role-admin { color: var(--notice); background: var(--tint-notice); border-color: var(--tint-notice-strong); }
+  .chip.team-role-member { color: var(--muted); }
+  .team-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+  .team-actions .btn { padding: 3px 9px; font-size: 12px; }
+  .team-members-msg { margin: 10px 0 0; font-size: 13px; color: var(--muted); min-height: 18px; }
+  .team-members-msg.err { color: var(--crit); }
+
+  .team-empty { color: var(--muted); }
+  .promo-card { margin-top: 28px; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/app" aria-label="hiccup">hic<span class="logo-bump">c</span>up</a>
+  <nav class="topnav" aria-label="tools">
+    <a class="topnav-link" href="/app">workbench</a>
+    <a class="topnav-link" href="/hmr">HMR</a>
+    <a class="topnav-link" href="/kb">guides</a>
+    <a class="topnav-link is-current" href="/team" aria-current="page">team</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="coffee-link" href="https://buymeacoffee.com/mcfadyen" target="_blank" rel="noopener">☕ Buy Me a Coffee</a>
+  <span id="user-name" class="user-name mono"></span>
+  <button id="logout-btn" class="btn" type="button">Sign out</button>
+</header>
+
+<main class="page">
+
+  <div class="page-head">
+    <h1>Team</h1>
+    <p class="page-lede">
+      A team shares every capture and guide with all of its members equally — there is
+      no per-project permission to configure. Invite a colleague and you will both see
+      the same library.
+    </p>
+  </div>
+
+  <section id="team-loading" class="card team-card">
+    <p class="muted">Loading your team…</p>
+  </section>
+
+  <section id="team-error" class="card team-card" hidden>
+    <p id="team-error-text" class="sev-crit" role="alert"></p>
+    <button id="team-retry" class="btn" type="button">Try again</button>
+  </section>
+
+  <!-- "no team yet" state -->
+  <section id="team-create" class="card team-card" hidden>
+    <h2>Create your team</h2>
+    <p class="muted">
+      Create a team and every capture and guide already in your library becomes shared
+      with whoever you invite — nothing to migrate, nothing to configure per file.
+    </p>
+    <form id="team-create-form" novalidate>
+      <label for="team-name-input">Team name</label>
+      <input id="team-name-input" class="input" type="text" autocomplete="off"
+        placeholder="e.g. Acme NetOps" maxlength="80" required>
+      <p id="team-create-error" class="form-error" role="alert"></p>
+      <button class="btn btn-primary" type="submit" id="team-create-btn">Create team</button>
+    </form>
+  </section>
+
+  <!-- on-a-team state -->
+  <div id="team-view" hidden>
+
+    <section id="team-summary" class="card team-card"></section>
+
+    <section id="team-invite-card" class="card team-card" hidden>
+      <h2>Invite a colleague</h2>
+      <p class="muted">hiccup does not send email — you copy the link and share it yourself.</p>
+      <form id="team-invite-form" novalidate>
+        <label for="team-invite-email">Email</label>
+        <input id="team-invite-email" class="input" type="email" autocomplete="off"
+          placeholder="colleague@example.com" required>
+        <p id="team-invite-error" class="form-error" role="alert"></p>
+        <button class="btn btn-primary" type="submit" id="team-invite-btn">Create invite link</button>
+      </form>
+
+      <div id="team-invite-result" class="team-invite-result" hidden>
+        <label for="team-invite-url">Invite link for <span id="team-invite-result-email" class="mono"></span></label>
+        <div class="team-invite-copy-row">
+          <input id="team-invite-url" class="input mono" type="text" readonly>
+          <button id="team-invite-copy" class="btn" type="button">Copy</button>
+        </div>
+        <p class="team-invite-note">No email is sent — copy this link and send it to your colleague yourself.</p>
+        <p id="team-invite-copy-msg" class="team-copy-msg" role="status" aria-live="polite"></p>
+      </div>
+
+      <div id="team-pending-invites"></div>
+    </section>
+
+    <section class="card team-card">
+      <h2>Members</h2>
+      <div id="team-members" class="team-table-wrap"></div>
+      <p id="team-members-msg" class="team-members-msg" role="status" aria-live="polite"></p>
+    </section>
+
+  </div>
+
+  <aside class="promo-card" aria-label="also from the same workshop">
+    <p><span class="promo-kicker">also from the same workshop</span>
+      <a href="https://rfplex.ai/?utm_source=hiccup&amp;utm_medium=app&amp;utm_campaign=crosslink"
+        target="_blank" rel="noopener"><strong>RFPlex.ai</strong></a>
+      — AI that answers RFPs, RFIs and DDQs from your own document library.
+      Self-hosted, EU-sovereign, free during beta.</p>
+  </aside>
+
+</main>
+
+<script src="/team.js"></script>
+<script src="/theme.js"></script>
+</body>
+</html>

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hiccup — join a team</title>
+<script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/app.css">
+
+<!--
+  This page is PUBLIC: reached by a signed-out visitor from an emailed/copied
+  invite link (ARCHITECTURE.md "Wave 3 -- Teams and Projects" / acceptInvite's
+  three branches). It deliberately carries none of the app shell's topbar,
+  nav, theme toggle or sign-out -- there is no session yet to hang those off
+  of, and GET /api/me returning 401 here is a normal, expected response, not
+  a reason to redirect anywhere.
+
+  Page-scoped styles only below (accept-prefixed class names); .card, .input,
+  .btn, .form-error and .muted come from hiccup.css/app.css unmodified.
+-->
+<style>
+  .accept-page { max-width: 460px; margin: 0 auto; padding: 48px 20px 64px; }
+
+  .brand-row { text-align: center; margin-bottom: 22px; }
+  .brand-row img { height: 40px; width: auto; }
+
+  .accept-card h1 { font-size: 19px; margin-bottom: 10px; }
+  .accept-intro-text { color: var(--muted); margin-bottom: 4px; }
+
+  .accept-form-host label { margin: 14px 0 4px; }
+  .accept-form-host label:first-child { margin-top: 4px; }
+
+  .accept-actions { margin-top: 16px; }
+  .accept-actions .btn { width: 100%; }
+
+  #accept-invalid p:first-child,
+  #accept-error p:first-child { font-weight: 600; }
+  #accept-invalid .btn,
+  #accept-error .btn { margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<main class="accept-page">
+
+  <div class="brand-row">
+    <a href="/" aria-label="hiccup"><img src="/logo.svg" alt="hiccup"></a>
+  </div>
+
+  <section id="accept-loading" class="card accept-card">
+    <p class="muted">Loading your invite…</p>
+  </section>
+
+  <section id="accept-invalid" class="card accept-card" hidden>
+    <p>This invite is invalid or has expired.</p>
+    <p class="muted">Ask your teammate to send you a new invite link.</p>
+    <a class="btn" href="/">Go to hiccup</a>
+  </section>
+
+  <section id="accept-error" class="card accept-card" hidden>
+    <p id="accept-error-text" role="alert"></p>
+    <button id="accept-retry" class="btn" type="button">Try again</button>
+  </section>
+
+  <section id="accept-ready" class="card accept-card" hidden>
+    <h1>Join a team</h1>
+    <div id="accept-intro"></div>
+    <div id="accept-form-host" class="accept-form-host"></div>
+    <p id="accept-form-error" class="form-error" role="alert"></p>
+  </section>
+
+</main>
+
+<script src="/accept-invite.js"></script>
+<script src="/theme.js"></script>
+</body>
+</html>

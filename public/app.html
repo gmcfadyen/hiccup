@@ -26,6 +26,12 @@
   Buy Me a Coffee link, the sidebar dropzone (#dropzone #browse-btn #file-input
   #upload-msg #capture-list) and the whole chat drawer (#chat-* ids).
 
+  Wave-3 additions (ARCHITECTURE.md §"Wave 3 — Teams and Projects"), populated
+  by app.js the same way: #project-filter (above #capture-list), #upload-project
+  (inside #dropzone) and the inline #project-manage-panel (#project-manage-toggle
+  opens it, #project-manage-close/#project-manage-list/#project-create-form
+  /#project-create-name/#project-create-desc/#project-manage-msg live inside it).
+
   Placeholder copy lives INSIDE each container so a renderer that clears the node
   removes it for free.
 -->
@@ -39,6 +45,7 @@
     <a class="topnav-link is-current" href="/app" aria-current="page">workbench</a>
     <a class="topnav-link" href="/hmr">HMR</a>
     <a class="topnav-link" href="/kb">guides</a>
+    <a class="topnav-link" href="/team">team</a>
   </nav>
   <span class="topbar-spacer"></span>
   <span id="llm-chip" class="chip llm-chip" title="local model status">LLM …</span>
@@ -59,15 +66,47 @@
       <p class="dz-sub">.pcap · .pcapng · .cap · .txt · .log</p>
       <button id="browse-btn" class="btn" type="button">Choose file…</button>
       <input id="file-input" type="file" multiple hidden>
+      <label class="dz-field" for="upload-project">
+        <span>Project</span>
+        <select id="upload-project" class="input"><option value="">Unfiled</option></select>
+      </label>
       <p id="upload-msg" class="upload-msg" hidden></p>
     </div>
 
     <div class="sidebar-section">
       <h2 class="sidebar-title">captures</h2>
+      <div class="project-filter-row">
+        <select id="project-filter" class="input" aria-label="filter captures by project">
+          <option value="">All captures</option>
+          <option value="unfiled">Unfiled</option>
+        </select>
+        <button id="project-manage-toggle" class="pane-btn" type="button">+ manage projects</button>
+      </div>
       <div id="capture-list" class="capture-list scroll-area">
         <p class="pane-empty">no captures yet — drop a pcap or an SBC log above and
         hiccup analyses it on upload.</p>
       </div>
+    </div>
+
+    <!-- CONTRACT project-manage-panel — inline create/rename/delete, never a modal -->
+    <div id="project-manage-panel" class="card project-manage-panel" aria-label="manage projects" hidden>
+      <div class="pm-head">
+        <h3>Manage projects</h3>
+        <button id="project-manage-close" class="btn" type="button" aria-label="close">×</button>
+      </div>
+      <div id="project-manage-list" class="project-manage-list scroll-area">
+        <p class="pane-empty">no projects yet — create one below.</p>
+      </div>
+      <form id="project-create-form" class="project-create-form" novalidate>
+        <label for="project-create-name">New project</label>
+        <input id="project-create-name" class="input" type="text" autocomplete="off"
+          placeholder="Project name" maxlength="80">
+        <label for="project-create-desc">Description (optional)</label>
+        <input id="project-create-desc" class="input" type="text" autocomplete="off"
+          placeholder="What is this project for?">
+        <button class="btn btn-primary" type="submit">Create project</button>
+      </form>
+      <p id="project-manage-msg" class="project-manage-msg" role="status" aria-live="polite"></p>
     </div>
 
     <!-- CONTRACT #rfplex-promo — tasteful sidebar crosslink, never a modal -->

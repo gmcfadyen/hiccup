@@ -125,6 +125,51 @@ function initKbIfPossible() {
   }
 }
 
+// lib/teams.js + lib/projects.js (Wave 3) get the same graceful-optional-
+// require treatment as lib/kb.js above.
+let teamsInitialised = false;
+let projectsInitialised = false;
+initTeamsIfPossible();
+initProjectsIfPossible();
+
+/**
+ * Load lib/teams.js (if present) and run initTeams(DATA_DIR) exactly once.
+ * @returns {object|null} the teams module when it is usable, else null
+ */
+function initTeamsIfPossible() {
+  const teams = optionalModule('./lib/teams');
+  if (!teams) return null;
+  if (teamsInitialised) return teams;
+  try {
+    if (typeof teams.initTeams === 'function') teams.initTeams(DATA_DIR);
+    teamsInitialised = true;
+    return teams;
+  } catch (e) {
+    console.warn('hiccup: initTeams failed (' + (e && e.message) +
+      ') — /api/team/* will answer 501 and every account behaves teamless');
+    return null;
+  }
+}
+
+/**
+ * Load lib/projects.js (if present) and run initProjects(DATA_DIR) exactly once.
+ * @returns {object|null} the projects module when it is usable, else null
+ */
+function initProjectsIfPossible() {
+  const projects = optionalModule('./lib/projects');
+  if (!projects) return null;
+  if (projectsInitialised) return projects;
+  try {
+    if (typeof projects.initProjects === 'function') projects.initProjects(DATA_DIR);
+    projectsInitialised = true;
+    return projects;
+  } catch (e) {
+    console.warn('hiccup: initProjects failed (' + (e && e.message) +
+      ') — /api/projects/* will answer 501');
+    return null;
+  }
+}
+
 const PORT = process.env.PORT ? Number(process.env.PORT) : config.port;
 const HOST = process.env.HOST || config.host;
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -330,7 +375,42 @@ function requireAuth(req, res) {
     sendJson(res, 401, { error: 'sign in required' });
     return null;
   }
+  // Wave 3: a suspended team member is rejected exactly as if they had no
+  // session at all. lib/auth.js knows nothing about teams -- this stays a
+  // server.js-level decoration over the session check above, never a change
+  // to lib/auth.js itself.
+  const teams = initTeamsIfPossible();
+  let suspended = false;
+  if (teams && typeof teams.isSuspended === 'function') {
+    try { suspended = teams.isSuspended(sess.user.id); } catch { suspended = false; }
+  }
+  if (suspended) {
+    clearSessionCookie(res);
+    sendJson(res, 401, { error: 'sign in required' });
+    return null;
+  }
   return sess.user;
+}
+
+/**
+ * Resolve the storage account id for a signed-in user: the team's shared
+ * dataRootId when the user is on a team, otherwise the user's own id
+ * unchanged (teamless behaviour is byte-for-byte identical to pre-Wave-3
+ * hiccup). ARCHITECTURE.md's Wave 3 hard rule: every handler that touches
+ * captures/KB docs/projects resolves this exactly ONCE at the top and uses
+ * the result — never `user.id` again — for every storage call in that
+ * handler. Degrades to the raw id when lib/teams.js is not deployed.
+ * @param {string} userId
+ * @returns {string}
+ */
+function resolveAccountUid(userId) {
+  const teams = initTeamsIfPossible();
+  if (!teams || typeof teams.accountUid !== 'function') return String(userId);
+  try {
+    return teams.accountUid(userId);
+  } catch {
+    return String(userId);
+  }
 }
 
 /**
@@ -475,17 +555,18 @@ function countFindings(findings) {
 }
 
 /**
- * Resolve a capture directory for this user, or null when the id is invalid
- * or the capture does not exist (ownership is structural: captures live under
- * the owner's directory only).
- * @param {object} user
+ * Resolve a capture directory for this account, or null when the id is
+ * invalid or the capture does not exist (ownership is structural: captures
+ * live under the account's directory only).
+ * @param {string} uid resolved account id (teams.accountUid(user.id) — see
+ *   the Wave 3 hard rule; never a raw user.id once a handler has computed uid)
  * @param {string} captureId
  * @returns {string|null}
  */
-function findCaptureDir(user, captureId) {
+function findCaptureDir(uid, captureId) {
   let dir;
   try {
-    dir = store.captureDir(DATA_DIR, String(user.id), String(captureId || ''));
+    dir = store.captureDir(DATA_DIR, String(uid), String(captureId || ''));
   } catch {
     return null;
   }
@@ -498,6 +579,22 @@ async function handleUpload(req, res, user) {
     sendJson(res, 501, { error: 'analysis engine not deployed on this server yet' });
     return;
   }
+  const uid = resolveAccountUid(user.id);
+
+  // Wave 3: an optional X-Project-Id header. Validated (shape THEN ownership,
+  // via resolveOwnedProjectId) before the upload proceeds — this is the same
+  // check every project-id-accepting route must do, done here before any
+  // bytes are read off the wire.
+  let projectId = null;
+  const rawProjectHeader = req.headers['x-project-id'];
+  if (rawProjectHeader != null && String(rawProjectHeader).trim() !== '') {
+    projectId = resolveOwnedProjectId(uid, String(rawProjectHeader).trim());
+    if (!projectId) {
+      sendJson(res, 404, { error: 'that project was not found' });
+      return;
+    }
+  }
+
   const maxBytes = (Number(config.maxUploadMb) || CONFIG_DEFAULTS.maxUploadMb) * 1024 * 1024;
   let buf;
   try {
@@ -518,7 +615,7 @@ async function handleUpload(req, res, user) {
   const filename = cleanFilename(req.headers['x-filename']) || 'capture.bin';
 
   const id = store.newCaptureId();
-  const dir = store.captureDir(DATA_DIR, String(user.id), id);
+  const dir = store.captureDir(DATA_DIR, uid, id);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'original.bin'), buf);
 
@@ -538,6 +635,7 @@ async function handleUpload(req, res, user) {
     sizeBytes: buf.length,
     stats: analysis.stats,
     findingCounts: countFindings(analysis.findings),
+    projectId,
   };
   store.saveJson(path.join(dir, 'meta.json'), meta);
   store.saveJson(path.join(dir, 'analysis.json'), analysis);
@@ -545,13 +643,13 @@ async function handleUpload(req, res, user) {
 }
 
 /**
- * Load a capture's stored analysis for this user.
- * @param {object} user
+ * Load a capture's stored analysis for this account.
+ * @param {string} uid resolved account id (see the Wave 3 hard rule)
  * @param {string} captureId
  * @returns {object|null} AnalysisJSON, or null when missing/unreadable
  */
-function loadAnalysis(user, captureId) {
-  const dir = findCaptureDir(user, captureId);
+function loadAnalysis(uid, captureId) {
+  const dir = findCaptureDir(uid, captureId);
   if (!dir) return null;
   const analysis = store.loadJson(path.join(dir, 'analysis.json'), null);
   return analysis && typeof analysis === 'object' ? analysis : null;
@@ -571,7 +669,8 @@ function loadAnalysis(user, captureId) {
  * @param {string} captureId
  */
 function handleAdvice(req, res, user, captureId) {
-  const analysis = loadAnalysis(user, captureId);
+  const uid = resolveAccountUid(user.id);
+  const analysis = loadAnalysis(uid, captureId);
   if (!analysis) {
     sendJson(res, 404, { error: 'capture not found' });
     return;
@@ -586,7 +685,7 @@ function handleAdvice(req, res, user, captureId) {
     return;
   }
   try {
-    const out = advisor.buildAdvice(analysis, { retrieve: makeKbRetriever(user) });
+    const out = advisor.buildAdvice(analysis, { retrieve: makeKbRetriever(uid) });
     sendJson(res, 200, { advice: (out && Array.isArray(out.advice)) ? out.advice : [] });
   } catch (e) {
     console.warn('hiccup: buildAdvice failed for capture ' + captureId + ': ' +
@@ -614,6 +713,7 @@ const HMR_VENDORS = ['oracle-acme', 'audiocodes', 'ribbon'];
 async function handleHmrAnalyze(req, res, user) {
   let body;
   try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
+  const uid = resolveAccountUid(user.id);
   const hmr = optionalModule('./lib/hmr');
   if (!hmr || typeof hmr.parseConfig !== 'function') {
     sendJson(res, 501, {
@@ -657,7 +757,7 @@ async function handleHmrAnalyze(req, res, user) {
   let matches = null;
   const captureId = body.captureId ? String(body.captureId) : '';
   if (captureId) {
-    const analysis = loadAnalysis(user, captureId);
+    const analysis = loadAnalysis(uid, captureId);
     if (!analysis) {
       sendJson(res, 404, { error: 'capture not found' });
       return;
@@ -706,17 +806,17 @@ function requireKb(res) {
 }
 
 /**
- * Per-user KB search that never throws and never rejects.
- * @param {object} user session user
+ * Per-account KB search that never throws and never rejects.
+ * @param {string} uid resolved account id (see the Wave 3 hard rule)
  * @param {string} q free-text query
  * @param {number} k max hits
  * @returns {Array<object>} searchKb hits (possibly empty)
  */
-function kbSearchSafe(user, q, k) {
+function kbSearchSafe(uid, q, k) {
   const kb = initKbIfPossible();
   if (!kb || typeof kb.searchKb !== 'function' || !q) return [];
   try {
-    const hits = kb.searchKb(String(user.id), String(q), k);
+    const hits = kb.searchKb(String(uid), String(q), k);
     return Array.isArray(hits) ? hits : [];
   } catch {
     return [];
@@ -727,12 +827,12 @@ function kbSearchSafe(user, q, k) {
  * Build the retriever lib/advisor.js expects: `retrieve(query)` -> KB hits.
  * Hits carry both the searchKb field names and the kbCitations names so
  * either convention works on the advisor side.
- * @param {object} user session user
+ * @param {string} uid resolved account id (see the Wave 3 hard rule)
  * @returns {function(string): Array<object>}
  */
-function makeKbRetriever(user) {
+function makeKbRetriever(uid) {
   return function retrieve(query) {
-    return kbSearchSafe(user, query, 3).map((h) => ({
+    return kbSearchSafe(uid, query, 3).map((h) => ({
       docId: h.docId,
       docTitle: h.docTitle,
       page: h.page,
@@ -746,6 +846,7 @@ function makeKbRetriever(user) {
 
 /** POST /api/kb/docs — raw document body + X-Filename header. */
 async function handleKbAdd(req, res, user) {
+  const uid = resolveAccountUid(user.id);
   const kb = requireKb(res);
   if (!kb || typeof kb.addDoc !== 'function') {
     if (kb) sendJson(res, 501, { error: 'this build of lib/kb.js cannot add documents' });
@@ -777,7 +878,7 @@ async function handleKbAdd(req, res, user) {
   const product = firstString(req.headers['x-product'], q.get('product'));
   let doc;
   try {
-    doc = await kb.addDoc({ userId: String(user.id), filename, buffer: buf, vendor, product });
+    doc = await kb.addDoc({ userId: uid, filename, buffer: buf, vendor, product });
   } catch (e) {
     sendJson(res, 422, { error: (e && e.userMessage) || 'could not read this document' });
     return;
@@ -790,19 +891,21 @@ async function handleKbAdd(req, res, user) {
   });
 }
 
-/** GET /api/kb/docs — this user's documents. */
+/** GET /api/kb/docs — this account's documents. */
 function handleKbList(req, res, user) {
+  const uid = resolveAccountUid(user.id);
   const kb = requireKb(res);
   if (!kb) return;
   let docs = null;
   if (typeof kb.listDocs === 'function') {
-    try { docs = kb.listDocs(String(user.id)); } catch { docs = null; }
+    try { docs = kb.listDocs(uid); } catch { docs = null; }
   }
   sendJson(res, 200, Array.isArray(docs) ? docs : []);
 }
 
-/** DELETE /api/kb/docs/:id — owner only (kb.deleteDoc is scoped by userId). */
+/** DELETE /api/kb/docs/:id — scoped to this account (kb.deleteDoc is scoped by userId). */
 async function handleKbDelete(req, res, user, docId) {
+  const uid = resolveAccountUid(user.id);
   const kb = requireKb(res);
   if (!kb) return;
   if (typeof kb.deleteDoc !== 'function') {
@@ -811,7 +914,7 @@ async function handleKbDelete(req, res, user, docId) {
   }
   let ok;
   try {
-    ok = await kb.deleteDoc(String(user.id), docId);
+    ok = await kb.deleteDoc(uid, docId);
   } catch (e) {
     sendJson(res, 422, { error: (e && e.userMessage) || 'could not delete that document' });
     return;
@@ -827,6 +930,7 @@ async function handleKbDelete(req, res, user, docId) {
 async function handleKbSearch(req, res, user) {
   let body;
   try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
+  const uid = resolveAccountUid(user.id);
   const kb = requireKb(res);
   if (!kb) return;
   if (typeof kb.searchKb !== 'function') {
@@ -843,12 +947,333 @@ async function handleKbSearch(req, res, user) {
   k = Math.min(Math.round(k), 50);
   let hits;
   try {
-    hits = await kb.searchKb(String(user.id), q, k);
+    hits = await kb.searchKb(uid, q, k);
   } catch (e) {
     sendJson(res, 422, { error: (e && e.userMessage) || 'could not search the library' });
     return;
   }
   sendJson(res, 200, { hits: Array.isArray(hits) ? hits : [] });
+}
+
+// ---------------------------------------------------------------------------
+// Teams & Projects (Wave 3)
+// ---------------------------------------------------------------------------
+
+/**
+ * Path safety for every route that accepts a project id from the URL, a
+ * header, or the request body: shape validation FIRST (12 lowercase hex
+ * chars — same convention as capture ids), ownership lookup SECOND, only
+ * reachable once the shape check passed. This is the fix for RFPlex's
+ * shipped path-traversal CVE (a caller-supplied projectId reaching
+ * path.join() with no ownership check) — mandatory here from the first
+ * commit, never bolted on later. Never trust a client-supplied id for "which
+ * account does this belong to"; accountUid must already have been derived
+ * from the authenticated session before this is called.
+ * @param {string} accountUid resolved via resolveAccountUid(user.id) — never
+ *   anything the request itself claims
+ * @param {*} rawId the client-supplied id (URL segment, header, or body field)
+ * @returns {string|null} rawId when it is well-shaped AND owned by accountUid,
+ *   else null (callers map null to 404 — a bad shape and someone else's id
+ *   must look identical to the caller)
+ */
+function resolveOwnedProjectId(accountUid, rawId) {
+  if (typeof rawId !== 'string' || !/^[a-f0-9]{12}$/.test(rawId)) return null;
+  const projects = initProjectsIfPossible();
+  if (!projects) return null;
+  return projects.getProject(accountUid, rawId) ? rawId : null;
+}
+
+/** POST /api/team {name} -> {team} */
+async function handleTeamCreate(req, res, user) {
+  let body;
+  try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
+  const teams = initTeamsIfPossible();
+  if (!teams) {
+    sendJson(res, 501, { error: 'the teams module is not deployed on this server yet' });
+    return;
+  }
+  let team;
+  try {
+    team = teams.createTeam(user.id, typeof body.name === 'string' ? body.name : '');
+  } catch (e) {
+    sendJson(res, 400, { error: (e && e.userMessage) || 'could not create the team' });
+    return;
+  }
+  sendJson(res, 200, { team });
+}
+
+/** GET /api/team -> {team, members, pendingInvites, myRole, myCanManage} */
+function handleTeamGet(req, res, user) {
+  const teams = initTeamsIfPossible();
+  if (!teams) {
+    sendJson(res, 501, { error: 'the teams module is not deployed on this server yet' });
+    return;
+  }
+  sendJson(res, 200, teams.getTeamView(user.id));
+}
+
+/** POST /api/team/invite {email} -> {token, inviteUrl, email} */
+async function handleTeamInvite(req, res, user) {
+  let body;
+  try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
+  const teams = initTeamsIfPossible();
+  if (!teams) {
+    sendJson(res, 501, { error: 'the teams module is not deployed on this server yet' });
+    return;
+  }
+  let result;
+  try {
+    result = teams.createInvite(user.id, typeof body.email === 'string' ? body.email : '');
+  } catch (e) {
+    // createInvite independently re-checks permission itself (the real
+    // enforcement); this pre-check only exists so a plain member gets 403
+    // rather than 400 for the permission case specifically.
+    const status = teams.canManageMembers(user.id) ? 400 : 403;
+    sendJson(res, status, { error: (e && e.userMessage) || 'could not create an invite' });
+    return;
+  }
+  sendJson(res, 200, { token: result.token, inviteUrl: result.inviteUrl, email: body.email });
+}
+
+/** GET /api/team/invite-info/:token -> {email, teamName, emailExists, hasPassword} | 404 — public. */
+function handleInviteInfo(req, res, token) {
+  const teams = initTeamsIfPossible();
+  if (!teams) {
+    sendJson(res, 501, { error: 'the teams module is not deployed on this server yet' });
+    return;
+  }
+  const info = teams.getInviteInfo(token);
+  if (!info) {
+    sendJson(res, 404, { error: 'this invite link is invalid or has expired' });
+    return;
+  }
+  sendJson(res, 200, info);
+}
+
+/**
+ * POST /api/team/accept {token, password?, name?, email?} -> {user} + Set-Cookie — public.
+ * `email` (if sent) is not required or used to change behaviour: the invite
+ * token itself is the sole source of truth for which email is being
+ * accepted, exactly so an invite can never be redirected to a different
+ * account by a client claiming a different email.
+ */
+async function handleTeamAccept(req, res) {
+  let body;
+  try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
+  const teams = initTeamsIfPossible();
+  if (!teams) {
+    sendJson(res, 501, { error: 'the teams module is not deployed on this server yet' });
+    return;
+  }
+  const token = typeof body.token === 'string' ? body.token : '';
+  if (!token) {
+    sendJson(res, 400, { error: 'token is required' });
+    return;
+  }
+  const info = teams.getInviteInfo(token);
+  if (!info) {
+    sendJson(res, 404, { error: 'this invite link is invalid or has expired' });
+    return;
+  }
+
+  // Best-effort session peek — this route is public, so a missing/invalid
+  // cookie is not an error, just "branch 2 or 3" instead of "branch 1".
+  const cookieToken = parseCookies(req)[SESSION_COOKIE];
+  const sess = cookieToken ? auth.getSession(cookieToken) : null;
+  const sessionUser = sess && sess.user ? sess.user : null;
+
+  let result;
+  try {
+    result = teams.acceptInvite(token, {
+      sessionUserId: sessionUser ? sessionUser.id : null,
+      password: typeof body.password === 'string' ? body.password : undefined,
+      createAccount: typeof body.password === 'string'
+        ? { password: body.password, name: typeof body.name === 'string' ? body.name : undefined }
+        : undefined,
+    });
+  } catch (e) {
+    sendJson(res, 400, { error: (e && e.userMessage) || 'could not accept this invite' });
+    return;
+  }
+
+  const fullUser = (sessionUser && sessionUser.id === result.userId)
+    ? sessionUser
+    : findUserByEmail(info.email);
+  if (!fullUser) {
+    sendJson(res, 500, { error: 'joined the team, but could not load the account' });
+    return;
+  }
+  respondSignedIn(res, fullUser);
+}
+
+/** PATCH /api/team/members/:userId {role?, suspended?} -> {ok} */
+async function handleTeamMemberPatch(req, res, user, targetUserId) {
+  let body;
+  try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
+  const teams = initTeamsIfPossible();
+  if (!teams) {
+    sendJson(res, 501, { error: 'the teams module is not deployed on this server yet' });
+    return;
+  }
+
+  const hasRole = Object.prototype.hasOwnProperty.call(body, 'role') && body.role != null;
+  const hasSuspended = Object.prototype.hasOwnProperty.call(body, 'suspended') &&
+    body.suspended !== undefined;
+  if (!hasRole && !hasSuspended) {
+    sendJson(res, 400, { error: 'role or suspended is required' });
+    return;
+  }
+
+  if (hasRole) {
+    if (teams.getAccountRole(user.id) !== 'owner') {
+      sendJson(res, 403, { error: 'Only the team owner can change member roles.' });
+      return;
+    }
+    try {
+      teams.setMemberRole(user.id, targetUserId, body.role);
+    } catch (e) {
+      sendJson(res, 400, { error: (e && e.userMessage) || 'could not change that member role' });
+      return;
+    }
+  }
+  if (hasSuspended) {
+    if (!teams.canManageMembers(user.id)) {
+      sendJson(res, 403, { error: 'Only a team owner or admin can suspend members.' });
+      return;
+    }
+    try {
+      teams.setMemberSuspended(user.id, targetUserId, !!body.suspended);
+    } catch (e) {
+      sendJson(res, 400, { error: (e && e.userMessage) || 'could not update that member' });
+      return;
+    }
+  }
+  sendJson(res, 200, { ok: true });
+}
+
+/** DELETE /api/team/members/:userId -> {ok} */
+function handleTeamMemberDelete(req, res, user, targetUserId) {
+  const teams = initTeamsIfPossible();
+  if (!teams) {
+    sendJson(res, 501, { error: 'the teams module is not deployed on this server yet' });
+    return;
+  }
+  if (!teams.canManageMembers(user.id)) {
+    sendJson(res, 403, { error: 'Only a team owner or admin can remove members.' });
+    return;
+  }
+  try {
+    teams.removeMember(user.id, targetUserId);
+  } catch (e) {
+    sendJson(res, 400, { error: (e && e.userMessage) || 'could not remove that member' });
+    return;
+  }
+  sendJson(res, 200, { ok: true });
+}
+
+/** POST /api/team/transfer-ownership {userId} -> {ok} */
+async function handleTeamTransfer(req, res, user) {
+  let body;
+  try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
+  const teams = initTeamsIfPossible();
+  if (!teams) {
+    sendJson(res, 501, { error: 'the teams module is not deployed on this server yet' });
+    return;
+  }
+  if (teams.getAccountRole(user.id) !== 'owner') {
+    sendJson(res, 403, { error: 'Only the team owner can transfer ownership.' });
+    return;
+  }
+  try {
+    teams.transferOwnership(user.id, typeof body.userId === 'string' ? body.userId : '');
+  } catch (e) {
+    sendJson(res, 400, { error: (e && e.userMessage) || 'could not transfer ownership' });
+    return;
+  }
+  sendJson(res, 200, { ok: true });
+}
+
+/** GET /api/projects -> [Project] */
+function handleProjectsList(req, res, user) {
+  const projects = initProjectsIfPossible();
+  if (!projects) {
+    sendJson(res, 501, { error: 'the projects module is not deployed on this server yet' });
+    return;
+  }
+  const uid = resolveAccountUid(user.id);
+  sendJson(res, 200, projects.listProjects(uid));
+}
+
+/** POST /api/projects {name, description?} -> {project} */
+async function handleProjectsCreate(req, res, user) {
+  let body;
+  try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
+  const projects = initProjectsIfPossible();
+  if (!projects) {
+    sendJson(res, 501, { error: 'the projects module is not deployed on this server yet' });
+    return;
+  }
+  const uid = resolveAccountUid(user.id);
+  let project;
+  try {
+    project = projects.createProject(uid, {
+      name: typeof body.name === 'string' ? body.name : '',
+      description: typeof body.description === 'string' ? body.description : '',
+    });
+  } catch (e) {
+    sendJson(res, 400, { error: (e && e.userMessage) || 'could not create the project' });
+    return;
+  }
+  sendJson(res, 200, { project });
+}
+
+/** PATCH /api/projects/:id {name?, description?} -> {project} */
+async function handleProjectsPatch(req, res, user, rawId) {
+  let body;
+  try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
+  const projects = initProjectsIfPossible();
+  if (!projects) {
+    sendJson(res, 501, { error: 'the projects module is not deployed on this server yet' });
+    return;
+  }
+  const uid = resolveAccountUid(user.id);
+  const projectId = resolveOwnedProjectId(uid, rawId);
+  if (!projectId) {
+    sendJson(res, 404, { error: 'project not found' });
+    return;
+  }
+  let project;
+  try {
+    project = projects.renameProject(uid, projectId, {
+      name: typeof body.name === 'string' ? body.name : undefined,
+      description: typeof body.description === 'string' ? body.description : undefined,
+    });
+  } catch (e) {
+    sendJson(res, 400, { error: (e && e.userMessage) || 'could not update the project' });
+    return;
+  }
+  sendJson(res, 200, { project });
+}
+
+/** DELETE /api/projects/:id -> {ok} */
+function handleProjectsDelete(req, res, user, rawId) {
+  const projects = initProjectsIfPossible();
+  if (!projects) {
+    sendJson(res, 501, { error: 'the projects module is not deployed on this server yet' });
+    return;
+  }
+  const uid = resolveAccountUid(user.id);
+  const projectId = resolveOwnedProjectId(uid, rawId);
+  if (!projectId) {
+    sendJson(res, 404, { error: 'project not found' });
+    return;
+  }
+  const removed = projects.deleteProject(uid, projectId);
+  if (!removed) {
+    sendJson(res, 404, { error: 'project not found' });
+    return;
+  }
+  sendJson(res, 200, { ok: true });
 }
 
 // ---------------------------------------------------------------------------
@@ -1170,7 +1595,8 @@ async function handleChat(req, res, user) {
     sendJson(res, 400, { error: 'messages array is required' });
     return;
   }
-  const analysis = loadAnalysis(user, body.captureId);
+  const uid = resolveAccountUid(user.id);
+  const analysis = loadAnalysis(uid, body.captureId);
   if (!analysis) {
     sendJson(res, 404, { error: 'capture not found' });
     return;
@@ -1184,12 +1610,12 @@ async function handleChat(req, res, user) {
     role: m && m.role === 'assistant' ? 'assistant' : 'user',
     content: String((m && m.content) || ''),
   }));
-  // Config-shaped questions get the user's own vendor-guide excerpts injected.
+  // Config-shaped questions get the account's own vendor-guide excerpts injected.
   let question = '';
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i].role === 'user') { question = messages[i].content; break; }
   }
-  const kbHits = looksConfigShaped(question) ? kbSearchSafe(user, question, 4) : [];
+  const kbHits = looksConfigShaped(question) ? kbSearchSafe(uid, question, 4) : [];
   const system = buildSystemPrompt(analysis, body.scope, kbHits);
   try {
     const out = await llm.askLlm({ system, messages });
@@ -1353,6 +1779,66 @@ async function handle(req, res) {
     return;
   }
 
+  // --- team (Wave 3) --- two routes are public (accepting an invite happens
+  // before the invitee necessarily has a session); the rest require auth.
+  if (pathname === '/api/team/accept' && method === 'POST') {
+    return handleTeamAccept(req, res);
+  }
+  const inviteInfoMatch = pathname.match(/^\/api\/team\/invite-info\/([A-Za-z0-9]{1,128})$/);
+  if (inviteInfoMatch && method === 'GET') {
+    return handleInviteInfo(req, res, inviteInfoMatch[1]);
+  }
+  if (pathname === '/api/team' && method === 'POST') {
+    const user = requireAuth(req, res);
+    if (!user) { req.resume(); return; }
+    return handleTeamCreate(req, res, user);
+  }
+  if (pathname === '/api/team' && method === 'GET') {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    return handleTeamGet(req, res, user);
+  }
+  if (pathname === '/api/team/invite' && method === 'POST') {
+    const user = requireAuth(req, res);
+    if (!user) { req.resume(); return; }
+    return handleTeamInvite(req, res, user);
+  }
+  if (pathname === '/api/team/transfer-ownership' && method === 'POST') {
+    const user = requireAuth(req, res);
+    if (!user) { req.resume(); return; }
+    return handleTeamTransfer(req, res, user);
+  }
+  const teamMemberMatch = pathname.match(/^\/api\/team\/members\/([A-Za-z0-9_-]{1,64})$/);
+  if (teamMemberMatch) {
+    const user = requireAuth(req, res);
+    if (!user) { req.resume(); return; }
+    if (method === 'PATCH') return handleTeamMemberPatch(req, res, user, teamMemberMatch[1]);
+    if (method === 'DELETE') return handleTeamMemberDelete(req, res, user, teamMemberMatch[1]);
+    sendJson(res, 404, { error: 'not found' });
+    return;
+  }
+
+  // --- projects (Wave 3) ---
+  if (pathname === '/api/projects' && method === 'GET') {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    return handleProjectsList(req, res, user);
+  }
+  if (pathname === '/api/projects' && method === 'POST') {
+    const user = requireAuth(req, res);
+    if (!user) { req.resume(); return; }
+    return handleProjectsCreate(req, res, user);
+  }
+  const projectMatch = pathname.match(/^\/api\/projects\/([A-Za-z0-9_-]{1,64})$/);
+  if (projectMatch) {
+    const user = requireAuth(req, res);
+    if (!user) { req.resume(); return; }
+    if (method === 'PATCH') return handleProjectsPatch(req, res, user, projectMatch[1]);
+    if (method === 'DELETE') return handleProjectsDelete(req, res, user, projectMatch[1]);
+    sendJson(res, 404, { error: 'not found' });
+    return;
+  }
+
   // --- captures ---
   if (pathname === '/api/captures' && method === 'POST') {
     const user = requireAuth(req, res);
@@ -1362,7 +1848,15 @@ async function handle(req, res) {
   if (pathname === '/api/captures' && method === 'GET') {
     const user = requireAuth(req, res);
     if (!user) return;
-    sendJson(res, 200, store.listCaptures(DATA_DIR, String(user.id)));
+    const uid = resolveAccountUid(user.id);
+    let list = store.listCaptures(DATA_DIR, uid);
+    const projectParam = queryParams(req).get('project');
+    if (projectParam === 'unfiled') {
+      list = list.filter((m) => !m.projectId);
+    } else if (projectParam) {
+      list = list.filter((m) => m.projectId === projectParam);
+    }
+    sendJson(res, 200, list);
     return;
   }
 
@@ -1371,12 +1865,13 @@ async function handle(req, res) {
   if (capMatch) {
     const user = requireAuth(req, res);
     if (!user) return;
+    const uid = resolveAccountUid(user.id);
     const captureId = capMatch[1];
     if (capMatch[2] === '/advice' && method === 'GET') {
       return handleAdvice(req, res, user, captureId);
     }
     if (capMatch[2] === '/analysis' && method === 'GET') {
-      const dir = findCaptureDir(user, captureId);
+      const dir = findCaptureDir(uid, captureId);
       const file = dir ? path.join(dir, 'analysis.json') : null;
       if (!file || !fs.existsSync(file)) {
         sendJson(res, 404, { error: 'capture not found' });
@@ -1392,7 +1887,7 @@ async function handle(req, res) {
       return;
     }
     if (!capMatch[2] && method === 'DELETE') {
-      const removed = store.deleteCapture(DATA_DIR, String(user.id), captureId);
+      const removed = store.deleteCapture(DATA_DIR, uid, captureId);
       if (!removed) {
         sendJson(res, 404, { error: 'capture not found' });
         return;
@@ -1453,6 +1948,8 @@ async function handle(req, res) {
     if (pathname === '/app') return servePublicFile(res, 'app.html');
     if (pathname === '/hmr') return servePublicPage(res, 'hmr.html');
     if (pathname === '/kb') return servePublicPage(res, 'kb.html');
+    if (pathname === '/team') return servePublicPage(res, 'team.html');
+    if (pathname === '/accept-invite') return servePublicPage(res, 'accept-invite.html');
     return serveStatic(res, pathname);
   }
 
