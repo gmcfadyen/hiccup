@@ -1,0 +1,262 @@
+/*
+ * hiccup — shared design system (contract: ARCHITECTURE.md §UI).
+ * Every page loads this. app.css may only ADD view-specific styles on top of
+ * these variables and primitives — never redefine them.
+ *
+ * Contract-required CSS vars:
+ *   --bg --panel --panel2 --text --muted --accent --crit --warn --notice --info --mono
+ * Contract-required classes:
+ *   .btn .btn-primary .input .card .chip .sev-crit .sev-warn .sev-notice .sev-info .mono
+ */
+
+:root {
+  --bg: #0e1116;
+  --panel: #161b22;
+  --panel2: #1d242e;
+  --text: #dce3ea;
+  --muted: #8b949e;
+  --accent: #f5a623;
+  --crit: #f2545b;
+  --warn: #f5a623;
+  --notice: #58a6ff;
+  --info: #8b949e;
+  --mono: ui-monospace, Consolas, "Cascadia Mono", Menlo, monospace;
+
+  /* shared helpers (not in the contract list, but pages may rely on them) */
+  --border: #232b36;
+  --border-strong: #2f3947;
+}
+
+/* ---------- base ---------- */
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  line-height: 1.25;
+  margin: 0 0 0.5em;
+}
+
+p { margin: 0 0 0.8em; }
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+code, pre, kbd, samp,
+.mono { font-family: var(--mono); }
+
+pre {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  overflow: auto;
+}
+
+img, svg { max-width: 100%; }
+
+::selection { background: rgba(245, 166, 35, 0.25); }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.muted { color: var(--muted); }
+
+/* ---------- layout ---------- */
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* ---------- scrollbars ---------- */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover { background: #3d4a5c; }
+
+/* ---------- forms ---------- */
+
+input, select, textarea, button {
+  font: inherit;
+  color: inherit;
+}
+
+label {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  margin: 12px 0 4px;
+}
+
+.input {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: #0b0e13;
+  color: var(--text);
+}
+
+.input::placeholder { color: #5a6572; }
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(245, 166, 35, 0.15);
+}
+
+select.input option { background: var(--panel); }
+
+textarea.input { resize: vertical; min-height: 70px; }
+
+.form-error {
+  color: var(--crit);
+  font-size: 13px;
+  min-height: 18px;
+  margin: 8px 0 0;
+}
+
+/* ---------- buttons ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: var(--panel2);
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+  text-decoration: none;
+  user-select: none;
+}
+
+.btn:hover {
+  background: #232c39;
+  border-color: #3d4a5c;
+  text-decoration: none;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #1a1205;
+}
+
+.btn-primary:hover {
+  background: #ffb43a;
+  border-color: #ffb43a;
+}
+
+/* ---------- cards ---------- */
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+}
+
+/* ---------- chips ---------- */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--panel2);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+/* ---------- severity ---------- */
+/* bare .sev-* colors text; combined with .chip it becomes a tinted pill */
+
+.sev-crit   { color: var(--crit); }
+.sev-warn   { color: var(--warn); }
+.sev-notice { color: var(--notice); }
+.sev-info   { color: var(--info); }
+
+.chip.sev-crit {
+  background: rgba(242, 84, 91, 0.14);
+  border-color: rgba(242, 84, 91, 0.4);
+}
+
+.chip.sev-warn {
+  background: rgba(245, 166, 35, 0.14);
+  border-color: rgba(245, 166, 35, 0.4);
+}
+
+.chip.sev-notice {
+  background: rgba(88, 166, 255, 0.14);
+  border-color: rgba(88, 166, 255, 0.4);
+}
+
+.chip.sev-info {
+  background: rgba(139, 148, 158, 0.14);
+  border-color: rgba(139, 148, 158, 0.4);
+}
+
+/* ---------- tables (sane base; app.css refines) ---------- */
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th, td {
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+tbody tr:hover { background: rgba(255, 255, 255, 0.02); }

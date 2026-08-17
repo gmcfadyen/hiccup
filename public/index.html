@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hiccup — see where the call went wrong</title>
+<meta name="description" content="hiccup — a self-hosted SIP / H.323 trace analyser. two-leg SBC diffs, retransmission classification, SIP↔H.323 correlation.">
+<link rel="icon" type="image/svg+xml" href="/logo.svg">
+<link rel="stylesheet" href="/hiccup.css">
+<style>
+  /* landing-page layout on top of the shared design system (hiccup.css) */
+
+  .hero {
+    padding: 72px 0 36px;
+    text-align: center;
+  }
+
+  .hero .logo {
+    height: 60px;
+    width: auto;
+  }
+
+  .tagline {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 18px 0 10px;
+  }
+
+  .hero .sub {
+    max-width: 620px;
+    margin: 0 auto;
+    color: var(--muted);
+  }
+
+  .features {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin: 12px 0 44px;
+  }
+
+  .feature h3 {
+    font-size: 16px;
+    color: var(--accent);
+  }
+
+  .feature p {
+    color: var(--muted);
+    font-size: 14px;
+    margin: 0;
+  }
+
+  .auth-card {
+    max-width: 760px;
+    margin: 0 auto 56px;
+    padding: 26px 28px 28px;
+  }
+
+  .auth-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+
+  .auth-head h2 { margin: 0; font-size: 20px; }
+
+  .auth-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .auth-grid form { padding: 8px 28px 0 0; }
+
+  .auth-grid form + form {
+    border-left: 1px solid var(--border);
+    padding: 8px 0 0 28px;
+  }
+
+  .auth-grid h3 { font-size: 15px; margin-bottom: 2px; }
+
+  .auth-grid .btn { width: 100%; margin-top: 14px; }
+
+  .or-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--muted);
+    font-size: 13px;
+    margin: 22px 0 16px;
+  }
+
+  .or-divider::before,
+  .or-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  #google-btn {
+    display: flex;
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  #google-error { text-align: center; }
+
+  #open-app {
+    text-align: center;
+    padding: 24px 0 8px;
+  }
+
+  .site-footer {
+    text-align: center;
+    padding: 28px 20px 40px;
+    border-top: 1px solid var(--border);
+  }
+
+  .site-footer p { margin: 0 0 6px; }
+
+  @media (max-width: 720px) {
+    .hero { padding-top: 48px; }
+    .features { grid-template-columns: 1fr; }
+    .auth-grid { grid-template-columns: 1fr; }
+    .auth-grid form { padding: 8px 0 0; }
+    .auth-grid form + form {
+      border-left: none;
+      border-top: 1px solid var(--border);
+      margin-top: 22px;
+      padding: 22px 0 0;
+    }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero container">
+  <img class="logo" src="/logo.svg" alt="hiccup">
+  <p class="tagline">see where the call went wrong</p>
+  <p class="sub">a self-hosted SIP / H.323 trace analyser for the SBC-curious.
+  upload a pcap or paste an SBC log — get the ladder, the deltas, and a diagnosis
+  instead of two 200-line INVITEs to eyeball.</p>
+</header>
+
+<main class="container">
+
+  <section class="features" aria-label="features">
+    <div class="card feature">
+      <h3>two-leg diff + delta view</h3>
+      <p>pairs ingress and egress legs across the B2BUA and emits a structured
+      delta: headers added or stripped, codec lists narrowed, DTMF payload-type
+      mismatches, 100rel asymmetry, session-timer conflicts, topology leaks.</p>
+    </div>
+    <div class="card feature">
+      <h3>retransmission classifier</h3>
+      <p>seven INVITEs collapse into one readable row — then get classified:
+      never arrived, slow far end, UDP fragmentation, ACK not landing, or a
+      box-wide storm that was never about your call in the first place.</p>
+    </div>
+    <div class="card feature">
+      <h3>SIP↔H.323 correlation</h3>
+      <p>decodes Q.931/H.225 alongside SIP and stitches IWF calls into a single
+      flow with a confidence score — and an honest AMBIGUOUS state instead of a
+      silent wrong guess.</p>
+    </div>
+  </section>
+
+  <section class="card auth-card" id="auth-card">
+    <div id="auth-body">
+      <div class="auth-head">
+        <h2>get started</h2>
+        <span class="chip">free while in beta</span>
+      </div>
+
+      <div class="auth-grid">
+        <form id="signup-form" novalidate>
+          <h3>create an account</h3>
+          <label for="su-email">email</label>
+          <input class="input" id="su-email" name="email" type="email"
+                 autocomplete="email" placeholder="you@example.com" required>
+          <label for="su-password">password</label>
+          <input class="input" id="su-password" name="password" type="password"
+                 autocomplete="new-password" placeholder="at least 8 characters"
+                 minlength="8" required>
+          <p class="form-error" id="signup-error" role="alert"></p>
+          <button class="btn btn-primary" type="submit" id="signup-btn">sign up</button>
+        </form>
+
+        <form id="login-form" novalidate>
+          <h3>sign in</h3>
+          <label for="li-email">email</label>
+          <input class="input" id="li-email" name="email" type="email"
+                 autocomplete="email" placeholder="you@example.com" required>
+          <label for="li-password">password</label>
+          <input class="input" id="li-password" name="password" type="password"
+                 autocomplete="current-password" placeholder="your password" required>
+          <p class="form-error" id="login-error" role="alert"></p>
+          <button class="btn btn-primary" type="submit" id="login-btn">sign in</button>
+        </form>
+      </div>
+
+      <div id="google-wrap" hidden>
+        <div class="or-divider"><span>or</span></div>
+        <div id="google-btn"></div>
+        <p class="form-error" id="google-error" role="alert"></p>
+      </div>
+    </div>
+
+    <div id="open-app" hidden>
+      <p>you're already signed in.</p>
+      <a class="btn btn-primary" href="/app">Open app</a>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <p><a href="https://buymeacoffee.com/mcfadyen" target="_blank" rel="noopener">☕ Buy Me a Coffee</a></p>
+  <p class="muted">self-hosted · your traces never leave this box</p>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+
+  function validEmail(v) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  }
+
+  function setError(el, msg) { el.textContent = msg || ''; }
+
+  /**
+   * POST a JSON body to an auth endpoint. On 2xx → /app.
+   * On failure, writes the server's {error} (or a fallback) into errEl.
+   */
+  async function postAuth(url, body, errEl, btn) {
+    setError(errEl, '');
+    if (btn) btn.disabled = true;
+    try {
+      var r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      var data = {};
+      try { data = await r.json(); } catch (e) { /* non-JSON body */ }
+      if (r.ok) { location = '/app'; return; }
+      setError(errEl, (data && data.error) || ('request failed (' + r.status + ')'));
+    } catch (e) {
+      setError(errEl, 'could not reach the server');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  $('signup-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var errEl = $('signup-error');
+    var email = $('su-email').value.trim().toLowerCase();
+    var password = $('su-password').value;
+    if (!validEmail(email)) { setError(errEl, 'enter a valid email address'); return; }
+    if (password.length < 8) { setError(errEl, 'password must be at least 8 characters'); return; }
+    postAuth('/api/auth/signup', { email: email, password: password }, errEl, $('signup-btn'));
+  });
+
+  $('login-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var errEl = $('login-error');
+    var email = $('li-email').value.trim().toLowerCase();
+    var password = $('li-password').value;
+    if (!validEmail(email)) { setError(errEl, 'enter a valid email address'); return; }
+    if (!password) { setError(errEl, 'enter your password'); return; }
+    postAuth('/api/auth/login', { email: email, password: password }, errEl, $('login-btn'));
+  });
+
+  /** GIS callback: exchange the Google ID token for a hiccup session. */
+  function onGoogleCredential(resp) {
+    var errEl = $('google-error');
+    if (!resp || !resp.credential) {
+      setError(errEl, 'google sign-in returned no credential');
+      return;
+    }
+    postAuth('/api/auth/google', { credential: resp.credential }, errEl, null);
+  }
+
+  /**
+   * Inject the GIS script and render the Google button.
+   * Only ever called when /api/config/public reports a googleClientId —
+   * no external requests are made otherwise.
+   */
+  function initGoogle(clientId) {
+    var s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client';
+    s.async = true;
+    s.defer = true;
+    s.onload = function () {
+      if (!(window.google && google.accounts && google.accounts.id)) return;
+      google.accounts.id.initialize({
+        client_id: clientId,
+        callback: onGoogleCredential
+      });
+      $('google-wrap').hidden = false;
+      google.accounts.id.renderButton($('google-btn'), {
+        theme: 'filled_black',
+        size: 'large',
+        text: 'continue_with',
+        width: 280
+      });
+    };
+    document.head.appendChild(s);
+  }
+
+  (async function boot() {
+    // Already signed in? Swap the auth forms for an "Open app" button.
+    var signedIn = false;
+    try {
+      var me = await fetch('/api/me');
+      signedIn = me.ok;
+    } catch (e) { /* server unreachable — leave the forms up */ }
+    if (signedIn) {
+      $('auth-body').hidden = true;
+      $('open-app').hidden = false;
+      return;
+    }
+    // Google sign-in, only when the server has a client id configured.
+    try {
+      var r = await fetch('/api/config/public');
+      if (r.ok) {
+        var cfg = await r.json();
+        if (cfg && cfg.googleClientId) initGoogle(cfg.googleClientId);
+      }
+    } catch (e) { /* no config → no Google button; forms still work */ }
+  })();
+})();
+</script>
+
+</body>
+</html>

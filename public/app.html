@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hiccup</title>
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/app" aria-label="hiccup">hic<span class="logo-bump">c</span>up</a>
+  <span class="topbar-spacer"></span>
+  <span id="llm-chip" class="chip llm-chip" title="local model status">LLM …</span>
+  <button id="chat-toggle" class="btn" type="button">ask hiccup</button>
+  <a class="coffee-link" href="https://buymeacoffee.com/mcfadyen" target="_blank" rel="noopener">☕ Buy Me a Coffee</a>
+  <span id="user-name" class="user-name mono"></span>
+  <button id="logout-btn" class="btn" type="button">Sign out</button>
+</header>
+
+<div id="layout">
+
+  <aside id="sidebar">
+    <div id="dropzone" class="dropzone">
+      <p class="dz-title">Drop a capture here</p>
+      <p class="dz-sub">.pcap · .pcapng · .cap · .txt · .log</p>
+      <button id="browse-btn" class="btn" type="button">Choose file…</button>
+      <input id="file-input" type="file" multiple hidden>
+      <p id="upload-msg" class="upload-msg" hidden></p>
+    </div>
+    <div id="capture-list" class="capture-list"></div>
+  </aside>
+
+  <main id="main">
+    <nav id="tabs" class="tabbar" aria-label="views">
+      <button class="tab active" data-tab="calls" type="button">Calls</button>
+      <button class="tab" data-tab="ladder" type="button">Ladder</button>
+      <button class="tab" data-tab="retrans" type="button">Retrans</button>
+      <button class="tab" data-tab="findings" type="button">Findings</button>
+    </nav>
+    <div id="main-content" class="main-content"></div>
+  </main>
+
+  <aside id="inspector" class="inspector" hidden></aside>
+
+</div>
+
+<aside id="chat-drawer" class="chat-drawer" hidden>
+  <div class="chat-head">
+    <strong>ask hiccup</strong>
+    <span id="chat-model" class="chip"></span>
+    <span class="topbar-spacer"></span>
+    <button id="chat-close" class="btn chat-close" type="button" aria-label="close chat">×</button>
+  </div>
+  <div id="chat-scope" class="chat-scope"></div>
+  <div id="chat-hint" class="chat-hint" hidden></div>
+  <div id="chat-messages" class="chat-messages"></div>
+  <div id="chat-error" class="chat-error" hidden></div>
+  <div id="chat-offline" class="chat-offline" hidden>
+    local model offline — chat is unavailable. Every other feature still works.
+  </div>
+  <form id="chat-form" class="chat-form">
+    <textarea id="chat-input" class="input chat-input" rows="2"
+      placeholder="Ask about this capture, SIP, H.323…"></textarea>
+    <button id="chat-send" class="btn btn-primary" type="submit">Send</button>
+  </form>
+</aside>
+
+<script src="/ladder.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

@@ -563,6 +563,11 @@ Content-Length correct (compute it), realistic SDP. Hosts: A=198.51.100.10, SBC
 outside=203.0.113.5, SBC inside=10.20.0.5, B=10.20.0.30 (RFC5737/1918 so topology
 findings trigger).
 
+Wave-2 fixture additions (see §Wave 2 below): `rtp-loss.pcap`, `sipi-call.pcap`,
+`dns-slow.pcap`, `diameter-rx.pcap`, `ice-stun.pcap`, `t38-fax.pcap`,
+`callcentre.pcap`, `ims-volte.pcap`, `acme-hmr.cfg`, `audiocodes-hmr.ini`,
+`ribbon-smm.txt`, `guide-sample.txt`.
+
 `expected.json` shape (selftest consumes this generically):
 ```js
 [{ name: 'timer-b', file: 'timer-b.pcap',
@@ -591,3 +596,406 @@ pass (init with ollamaUrl pointing at a dead 127.0.0.1 port: getLlmStatus().avai
 === false and askLlm rejects cleanly). Uses a throwaway data dir under test/tmp-data/
 (delete before/after). Output `PASS k/n` lines then a summary; non-zero exit on any
 fail. No network beyond 127.0.0.1.
+
+---
+
+# Wave 2 — protocols, advice, search, workbench UI
+
+Wave 1 (above) is built and loads clean. Wave 2 adds protocol breadth, an advisory
+engine with citations, HMR analysis, config-guide ingestion, trace-wide search, and the
+SIP-Workbench-style layout. **Everything in Wave 1 stays as specified** — Wave 2 only
+adds new modules, new top-level keys in AnalysisJSON, and new routes.
+
+## New AnalysisJSON top-level keys (additive)
+
+```js
+{
+  ...wave1,
+  media:  { streams: [MediaStream], rtcp: [RtcpReport] },
+  aux:    [AuxMessage],        // DNS / Diameter / STUN / ICE / DTLS observations
+  indicators: [Indicator],     // the "lamps"
+  scenario: Scenario,
+  advice: [Advice],            // articulated problems + cited fixes
+}
+```
+
+SipMessage gains (optional, added by lib/isup.js when present):
+`isup: { messageType:'IAM'|'ACM'|'ANM'|'REL'|'CPG'|'CON'|'SAM', calledParty, callingParty,
+causeCode, causeText, natureOfConnection, params:[{name,value}], raw }` and
+`bodyParts: [{ contentType, disposition, body }]` for multipart INVITEs.
+
+### MediaStream — `lib/rtp.js`
+
+```js
+MediaStream = {
+  id: 'rs1', kind: 'rtp'|'srtp'|'t38-udptl'|'unknown',
+  src, sport, dst, dport, ssrc: 439041101 | null,
+  payloadType: 0, codec: 'PCMU' | 'T.38' | 'unknown', clockRate: 8000,
+  firstTs, lastTs, durationSec, packets: 1234, bytes: 210000,
+  expected: 1250, lost: 16, lossPct: 1.28,        // RFC 3550 seq-based
+  outOfOrder: 3, duplicates: 0,
+  meanJitterMs: 4.2, maxJitterMs: 41.0,           // RFC 3550 interarrival jitter
+  maxGapMs: 320, gaps: [{ ts, ms }],              // silence/black-hole gaps >100ms
+  mos: 3.9, mosMethod: 'e-model-simplified',      // ITU-T G.107 simplified; label as ESTIMATE
+  dtmfEvents: [{ ts, digit, durationMs }],        // RFC 4733 telephone-event
+  legIds: [], callIds: [],                        // matched via SDP m=/c= of those legs
+  oneWay: false,                                  // no reverse stream seen for a paired leg
+  markerResets: 0, ssrcChanges: 0,
+}
+RtcpReport = { id:'rc1', ts, src, dst, type:'SR'|'RR'|'BYE'|'SDES'|'APP'|'XR',
+  ssrc, blocks:[{ ssrc, fractionLostPct, cumulativeLost, jitter, lsr, dlsrMs, rttMs }],
+  cname: null|'...', raw }
+```
+
+Detection: primary source is SDP (`m=` port + `c=` address per leg, plus the answer) —
+match streams to legs. Secondary heuristic for captures without SDP: even UDP port,
+RTP version 2, plausible PT, monotonic-ish seq. `t38-udptl`: SDP `m=image ... udptl t38`
+or UDPTL structure. `srtp`: SDP `RTP/SAVP`/`SAVPF` or `a=crypto` — report stats from
+headers only (never attempt decryption), set `kind:'srtp'` and note payload is encrypted.
+Cap work: sample at most 200k media packets, note truncation in a warning.
+
+### AuxMessage — `lib/dns.js`, `lib/diameter.js`, `lib/ice.js`
+
+```js
+AuxMessage = {
+  id: 'x1', protocol: 'dns'|'diameter'|'stun'|'ice'|'dtls',
+  ts, src, sport, dst, dport, transport,
+  summary: 'NAPTR? example.com  ->  no answer (2.4s)',
+  detail: {...},              // per-protocol, see below
+  raw: '...' | null,          // hex or text
+  legIds: [], callIds: [],    // best-effort association
+}
+```
+
+- **DNS** (`lib/dns.js`): parse query/response (UDP 53 + TCP 53), types A/AAAA/SRV/
+  NAPTR/CNAME/PTR/NS, rcode names, match responses to queries by (txid, 4-tuple),
+  compute `detail.latencyMs`, flag `detail.timedOut:true` for unanswered queries and
+  `detail.slow:true` over 1s. This is the evidence source that upgrades the
+  retransmission classifier's `dns-blocking` verdict from inference to proof — export
+  `dnsEvidence(auxList)` -> `{ byDest: { 'host': { slowQueries, timeouts, maxLatencyMs } } }`
+  for advisor.js.
+- **Diameter** (`lib/diameter.js`): Diameter header (version 1, length, flags, command
+  code, app id, hop-by-hop, end-to-end) over TCP port 3868/3869; decode AVPs
+  generically (code, flags, length, vendor id, value as int/UTF8/octets) with a name table
+  for the Rx/Gx/Cx/Sh AVPs that matter (Session-Id 263, Result-Code 268,
+  Experimental-Result-Code 298, Auth-Application-Id 258, Framed-IP-Address 8,
+  AF-Charging-Identifier 505, Media-Component-Description 517, Origin-Host 264,
+  Destination-Realm 283, Public-Identity 601, Server-Name 602, User-Name 1).
+  Command names: AAR/AAA 265, RAR/RAA 258, STR/STA 275, ASR/ASA 274, CCR/CCA 272,
+  UAR/UAA 300, MAR/MAA 303, SAR/SAA 306, LIR/LIA 307. **Rx-to-SIP correlation**: match
+  `AF-Charging-Identifier` (or Session-Id substring) against the SIP
+  `P-Charging-Vector` icid-value -> fill `legIds`/`callIds`. That is DESIGN_1's
+  cross-protocol stretch goal; when it fires, emit an info finding naming both sides.
+- **STUN/ICE/DTLS** (`lib/ice.js`): STUN (RFC 5389 magic cookie 0x2112A442) message
+  class/method names, XOR-MAPPED-ADDRESS, USERNAME, ERROR-CODE, ICE-CONTROLLED/
+  CONTROLLING, USE-CANDIDATE; group into `detail.checkList` per 5-tuple pair with
+  `succeeded`/`failed`/`no-response`; DTLS record layer (content type 22 handshake)
+  -> ClientHello/ServerHello/Certificate/Finished progression, `detail.stalledAfter`
+  when a handshake never completes, plus `detail.srtpProfile` from use_srtp when
+  visible. One-way-audio and WebRTC/Teams-side failures live here.
+
+### Indicator — `lib/detect.js`
+
+```js
+Indicator = { key, label, state: 'on'|'off'|'partial'|'issue', detail, evidenceMsgIds: [], evidenceCallIds: [] }
+```
+
+Fixed key set, always all returned in this order (UI renders them as lamps, `off` shown
+dim): `sip`, `h323`, `iwf`, `sip-i`, `ims`, `rtp`, `rtcp`, `srtp`, `dtls-srtp`, `t38`,
+`dtmf-rfc4733`, `100rel`, `session-timers`, `update-method`, `precondition`, `dns`,
+`diameter`, `stun-ice`, `tcp-transport`, `tls-transport`, `ipv6`, `registration`,
+`topology-hiding`, `transcoding`, `early-media`, `refer-transfer`, `history-info`.
+`state:'issue'` when detected AND something is provably wrong with it (e.g. `t38`
+present but re-INVITE rejected; `precondition` requested but never confirmed).
+Each indicator's `detail` is one plain sentence, written for someone who may not know
+the feature — this is the teaching surface DESIGN_1 asks for.
+
+IMS detection (per DESIGN_1 core feature 4): `Path`/`Service-Route` in REGISTER,
+`P-Associated-URI`, third-party REGISTER, `sip:orig` in Route, `P-Charging-Vector`
+icid, preconditions (`a=curr`/`a=des`/`a=conf`), `P-Early-Media`,
+`P-Access-Network-Info`, `P-Visited-Network-ID`. Also fold in 5G markers when present
+(`P-Access-Network-Info` containing `3GPP-NR` / `5G`, `Feature-Caps`, `sip.instance`
+with a gr param).
+
+### Scenario — `lib/detect.js`
+
+```js
+Scenario = {
+  primary: 'call-centre'|'enterprise-trunk'|'residential-ims'|'volte-5g'|'carrier-interconnect'
+           |'webrtc-ott'|'fax-service'|'lab-test'|'unknown',
+  confidence: 0.0-1.0,
+  signals: [{ name, detail, weight }],
+  detail: 'two or three sentences: what this capture appears to be, and what that
+            implies for how to read the rest of the analysis',
+  alternatives: [{ primary, confidence }],
+}
+```
+
+Signals (evidence-based, no LLM): call-centre -> high concurrent call volume, short
+setups, predictive-dialer patterns, many calls to one DID, `Diversion`/`History-Info`
+queue hops, REFER-heavy transfers. enterprise-trunk -> single trunk pair, a PBX
+User-Agent (Avaya/Cisco/Mitel/3CX/Asterisk/FreePBX strings), E.164 DDI block, static
+IPs, OPTIONS keepalives. residential-ims -> REGISTER with Path/Service-Route, one
+subscriber, P-Access-Network-Info xDSL/fibre, single line. volte-5g -> IMS markers +
+preconditions + `3GPP-E-UTRAN`/`3GPP-NR` access info + AMR/EVS codecs + Rx Diameter.
+carrier-interconnect -> SIP-I/ISUP bodies, no REGISTER, big number ranges, transit
+Via chains. webrtc-ott -> STUN/ICE + DTLS-SRTP + opus + `a=ice-ufrag`. fax-service ->
+T.38/UDPTL or G.711 with `a=fax`. lab-test -> RFC5737/RFC1918-only addressing,
+sipp/pjsua/sipsak User-Agents, synthetic number patterns.
+
+### Advice — `lib/advisor.js`
+
+The articulation layer the user asked for: *what is wrong, why, how to fix it, and the
+citation*. **Deterministic — never LLM-generated.** The LLM may later paraphrase an
+Advice object in chat, but the object itself, and above all its citations, come from a
+hand-written knowledge base in this module.
+
+```js
+Advice = {
+  id: 'a1',
+  findingIds: ['f2'],                   // findings this explains (may be [])
+  severity: 'crit'|'warn'|'notice'|'info',
+  title: 'ACK never reaches the far end after topology hiding',
+  whatsWrong: 'plain-language statement of the observed fault, quoting the evidence',
+  whyItMatters: 'the user-visible symptom - "the call answers then drops at ~32s"',
+  mechanism: 'the protocol-level explanation, teaching-oriented',
+  fixes: [{
+    target: 'oracle-acme'|'audiocodes'|'ribbon'|'cisco-cube'|'freeswitch'|'asterisk'
+            |'endpoint'|'network'|'generic',
+    summary: 'one line',
+    steps: ['ordered, concrete steps'],
+    config: 'vendor config snippet (draft, review before applying)' | null,
+    caution: 'what this could break' | null,
+    confidence: 'likely'|'possible'|'depends-on-topology',
+  }],
+  citations: [Citation],
+  kbCitations: [],                      // filled via the injected retriever, see lib/kb.js
+}
+Citation = { source: 'RFC 3261', section: 'Section 13.2.2.4', title: 'The ACK Request',
+             url: 'https://www.rfc-editor.org/rfc/rfc3261#section-13.2.2.4',
+             note: 'why this reference applies' }
+```
+
+`buildAdvice(analysis, opts)` -> `{ advice: [Advice] }`. Rule coverage (minimum set —
+one rule per condition, each with at least one **verified** citation):
+
+| Condition | Anchor references |
+|---|---|
+| INVITE retransmit to Timer B, no 100 | RFC 3261 17.1.1.2 (Timer A/B), 18.1.1 |
+| UDP request >1300 bytes, no response | RFC 3261 18.1.1 (MTU rule, switch to TCP) |
+| 200 OK retransmitting, no ACK | RFC 3261 13.2.2.4, 12.1.1 (Contact/Record-Route) |
+| Route/Record-Route mismatch after topology hiding | RFC 3261 12.1.1, RFC 5658 |
+| 100rel / PRACK asymmetry | RFC 3262 sections 3 and 4 |
+| Session timer conflict (Min-SE > Session-Expires) | RFC 4028 sections 3, 5, 6 (422 handling) |
+| telephone-event PT mismatch across legs | RFC 4733 2.4.1, RFC 3264 6.1 |
+| ptime / codec renegotiation | RFC 3264 6.1, RFC 4566 section 6 |
+| Early media 183 vs 180 / no SDP | RFC 3960 section 3, RFC 5009 (P-Early-Media) |
+| Private IP leak through topology hiding | RFC 1918 section 3, RFC 3261 8.1.1.8 (Contact) |
+| T.38 re-INVITE rejected / asymmetric | ITU-T T.38, RFC 3407 |
+| One-way audio (stream in one direction) | RFC 4566 section 6, RFC 3264 6.1 |
+| RTP loss / jitter above threshold | RFC 3550 6.4.1, ITU-T G.107 |
+| DNS SRV/NAPTR timeout on egress | RFC 3263 section 4, RFC 3261 18.1.1 |
+| Missing Service-Route in REGISTER 200 | RFC 3608 6.1, 3GPP TS 24.229 |
+| Preconditions requested, never confirmed | RFC 3312 sections 3 and 5, RFC 4032 |
+| ICE checks all fail / DTLS stalls | RFC 8445 section 7, RFC 5764 section 4 |
+| Digest auth loop (401 then 401) | RFC 3261 22.2, RFC 7616 |
+| CANCEL race / 487 handling | RFC 3261 sections 9.1 and 9.2 |
+| Diameter Rx AAR failure alongside INVITE | 3GPP TS 29.214, RFC 6733 section 7 |
+| REFER transfer failure | RFC 3515 section 2, RFC 7647 |
+
+Every citation must be one you are confident is correct — if unsure of a section
+number, cite the RFC without a section rather than inventing one. Build `url` from the
+rfc-editor anchor pattern (`https://www.rfc-editor.org/rfc/rfcNNNN#section-X.Y`), and
+omit the anchor when you omit the section. Non-RFC standards (3GPP TS, ITU-T) get
+`url: null` and a `source` string a reader can search for.
+
+### HMR — `lib/hmr.js` (DESIGN_1 core feature 5, plus articulation)
+
+```js
+parseConfig(text) -> { vendor: 'oracle-acme'|'audiocodes'|'ribbon'|'unknown',
+                       confidence, rules: [HmrRule], warnings: [] }
+explainRule(rule) -> { intent, correctness: { ok, issues: [{severity, detail, citation}] },
+                       improvements: [{ detail, rationale }] }
+renderRule(rule, vendor) -> string        // reviewable draft config, never applied
+matchAgainstAnalysis(rules, analysis) -> { matches: [{ ruleId, callIds, diffTags,
+                       verdict: 'observed-as-configured'|'configured-not-observed'
+                                |'observed-not-configured', detail }] }
+HmrRule = {
+  id: 'h1', name, vendor, raw,
+  scope: { direction: 'in'|'out'|'both'|null, msgType: 'request'|'response'|'any', methods: [] },
+  conditions: [{ element, comparison: 'equals'|'matches'|'exists'|'absent', value }],
+  target: { header, element: 'uri.user'|'uri.host'|'param.tag'|'value'|null, index: null },
+  operation: 'add'|'delete'|'modify'|'store'|'replace'|'none',
+  value: null | { kind: 'literal'|'expression', text },
+  bindings: [{ kind: 'session-agent'|'realm'|'sip-interface'|'ip-profile'|'ip-group'
+                     |'signaling-group', name }],
+}
+```
+
+The IR is the asset (DESIGN_1: "translation is then a rendering problem"). Parsers:
+Acme/Oracle `sip-manipulation` -> `header-rule` -> `element-rule` blocks from a running
+config; AudioCodes `.ini` MessageManipulations table rows; Ribbon SMM rule text.
+`explainRule` is the feature the user asked for — plain-English intent ("rewrites the
+From user to the trunk's main billing number on egress"), a correctness check (does the
+condition ever match given the target? is a `store` referenced before it is set? is the
+operation on a header the SBC will regenerate anyway? missing msg-type? a regex that
+also matches the wrong direction?), and improvement suggestions (narrow the condition,
+use `manipulate` instead of delete+add, precedence hazards). Cite RFCs when a rule
+breaks protocol rules (e.g. rewriting a `Via` branch -> RFC 3261 8.1.1.7).
+`matchAgainstAnalysis` closes the loop: which configured rules explain the diffs the
+capture actually shows, and which observed manipulations no rule accounts for.
+
+### Config-guide KB — `lib/kb.js`
+
+Answer to "can it read vendor guides and determine the right config change": it can
+ingest them, retrieve the relevant passages, and ground a **reviewable draft** in them —
+it must never present the result as a verified change.
+
+```js
+initKb(dataDir)
+addDoc({ userId, filename, buffer, vendor, product }) -> { id, chunks, pages, title }
+listDocs(userId) -> [{ id, filename, title, vendor, product, chunks, addedAt, sizeBytes }]
+deleteDoc(userId, id) -> boolean
+searchKb(userId, query, k) -> [{ docId, docTitle, page, heading, text, score }]
+```
+
+Formats: `.txt .md .html .htm .ini .cfg .conf .cli .log` natively (HTML -> tag-stripped
+text). PDF via a **lazy** `require('pdf-parse')` — if the module is absent, reject with
+`userMessage: 'PDF support needs an optional dependency: npm install pdf-parse'`. Keep
+`pdf-parse` in `optionalDependencies` only, so a core install stays dependency-free.
+Retrieval is BM25-ish keyword scoring over ~1200-char chunks with heading capture —
+**no embeddings** (an embedding model would compete with RFPlex for the GPU, which the
+LLM contract forbids). Store under `data/kb/<userId>/<docId>/{meta.json,chunks.json}`.
+advisor.js accepts an injected retriever: `buildAdvice(analysis, { retrieve })` where
+`retrieve(queryString)` returns KB hits appended to `advice[].kbCitations` as
+`{ docTitle, page, heading, excerpt }`.
+
+## Search — client-side, spec'd here for the UI agents
+
+No server module required. `app.js` builds an in-memory index over the loaded
+AnalysisJSON and supports: bare substring (case-insensitive) across every message's raw
+text, header values, URIs, user parts, Call-IDs, tags, branches, SDP, H.323 numbers, aux
+summaries, finding titles and advice text; **digit-normalized phone search** (strip
+`+ - ( ) space .`, match any 4+ digit substring against normalized user parts, so
+`654321` finds `+33987654321`); and `field:value` filters — `call:`, `leg:`, `callid:`,
+`from:`, `to:`, `method:`, `status:`, `ip:`, `port:`, `codec:`, `proto:` (sip/h323/rtp/
+dns/diameter/stun), `sev:` (crit/warn/notice/info), `has:` (t38/ims/sipi/srtp/dtmf/
+retrans/advice). Results group by **session** (call), each row showing the matched field
+and a highlighted excerpt; selecting a result loads that call's ladder with the match
+highlighted. Debounce 150ms; cap 500 hits with a "more" note.
+
+## New routes
+
+```
+GET    /api/captures/:id/advice                   -> {advice:[Advice]}   (from stored analysis)
+POST   /api/hmr/analyze   {text, captureId}       -> {vendor, confidence, rules:[{rule, explanation, rendered:{...}}], matches}
+POST   /api/kb/docs       raw body, X-Filename    -> {doc}
+GET    /api/kb/docs                               -> [doc]
+DELETE /api/kb/docs/:id                           -> {ok}
+POST   /api/kb/search     {q, k}                  -> {hits:[...]}
+```
+
+`/api/chat` gains the new material in its system prompt: indicators, scenario, advice
+titles, media stream summaries, and (when the question looks config-shaped) the top KB
+hits — with an explicit instruction that citations must come from the supplied Advice
+objects and KB excerpts, and that it must not invent RFC section numbers.
+
+## UI — the Workbench layout
+
+Replace the Wave-1 tab layout in `app.html` with the five-pane arrangement from SIP
+Workbench (the user's reference screenshot), keeping the existing topbar and chat
+drawer. Two agents share these files — **the DOM id contract is frozen**:
+
+```
+#searchbar        text input #search-input + #search-clear + #search-count
+#filter-pane      left-top: session/Call-ID tree (#filter-tree)
+#selection-pane   left-bottom: numbered message list (#selection-list)
+#ladder-pane      centre: #ladder-svg-host + #ladder-toolbar (collapse toggle, zoom, export)
+#time-pane        centre-left gutter inside the ladder pane: #time-gutter
+#info-pane        bottom-right: tabs #info-tabs (Contents|Packet Info|Media|Advice)
+                  + panels #info-contents #info-packet #info-media #info-advice
+#lamps            indicator strip: one .lamp[data-key] per Indicator
+#scenario-chip    scenario summary chip (click -> info-pane Advice tab)
+#rfplex-promo     sidebar promo card
+```
+
+- **#filter-pane**: tree grouped by call -> legs -> transactions (method + status), with
+  a state dot per node and a `xN` retrans badge. Selecting a node scopes the ladder,
+  selection and info panes. Sessions with a `crit` finding get a red edge.
+- **#selection-pane**: the Workbench-style numbered table — `#`, Description
+  (`INVITE`, `401 Unauthorized`, `RTP 200 pkts`), Delta (ms since the previous row, the
+  column engineers actually read), with error rows tinted. Sortable by # or Delta.
+- **#ladder-pane**: multicolour ladder for the selected session. Colours: request
+  `--accent`, 1xx `--notice`, 2xx `#3fb950`, 3xx `#a371f7`, 4xx/5xx/6xx `--crit`,
+  H.323 `#d2a8ff`, media `#39c5cf` dashed, aux (DNS/Diameter/STUN) `#8b949e` dotted.
+  **Error highlighting**: any message carrying a warn/crit finding gets a thicker
+  stroke, a severity dot, and a tooltip with the advice title; retrans collapse rows
+  show `xN`. Hovering a row cross-highlights the same row in #selection-pane.
+- **#time-pane**: absolute timestamp + delta gutter aligned to the ladder rows.
+- **#info-pane**: *Contents* = full redacted raw (mono, wrapped, search term
+  highlighted); *Packet Info* = parsed tree (headers, SDP fields, ISUP params, Q.931
+  IEs); *Media* = the MediaStream/RtcpReport table for the selected session with
+  loss/jitter/MOS and a small loss-over-time sparkline; *Advice* = the Advice cards for
+  the selection — `whatsWrong` / `whyItMatters` / `mechanism`, then fix cards per vendor
+  with copyable config drafts, then citation links (opening in a new tab), then KB
+  citations when present. Every card gets an "explain in chat" button.
+- **#lamps**: a lamp per Indicator, dim when `off`, accent when `on`, amber ring for
+  `partial`, red ring for `issue`; tooltip/aria-label = `detail`; click filters the view
+  to the evidence.
+- **rfplex.ai promotion**: `#rfplex-promo` card in the sidebar — "Also from the same
+  workshop: **RFPlex.ai** — AI that answers RFPs, RFIs and DDQs from your own document
+  library. Self-hosted, EU-sovereign, free during beta." linking
+  `https://rfplex.ai/?utm_source=hiccup&utm_medium=app&utm_campaign=crosslink`
+  (`target="_blank" rel="noopener"`). The same card in the `index.html` footer, plus one
+  line in the chat drawer: "hiccup and RFPlex.ai share the same local-LLM stack."
+  Tasteful, never a modal, never an interstitial.
+- Keep the Buy Me a Coffee link exactly as built.
+- New page `public/hmr.html` + `public/hmr.js`: paste-or-upload SBC config ->
+  vendor detection, per-rule cards (intent / correctness / improvements), a translate-to
+  selector rendering the other two vendors' equivalents, and a "check against a capture"
+  picker calling `matchAgainstAnalysis`.
+- New page `public/kb.html` + `public/kb.js`: upload/list/delete config guides and a
+  search box over them.
+
+## Licensing / distribution (Wave 2 deliverables)
+
+- `LICENSE` — BUSL-1.1 (Business Source License), Licensor "Gavin McFadyen", Licensed
+  Work "hiccup", Additional Use Grant: internal, non-production evaluation and
+  non-commercial use; Change Date: four years from first publication; Change License:
+  Apache-2.0. Mirror the structure of `C:\Users\gavin\RFPlex.ai\LICENSE`.
+- `LICENSE-COMMERCIAL.md` — commercial terms summary + contact, mirroring
+  `C:\Users\gavin\RFPlex.ai\LICENSE-COMMERCIAL.md`.
+- `NOTICE` — short copyright/trademark notice.
+- `README.md` — add a Licence section stating plainly: source-available, **not** open
+  source; production/commercial use needs a licence.
+- `wireshark/hiccup.lua` + `wireshark/README.md` — a Wireshark **bridge** plugin: adds
+  `Tools -> hiccup -> Analyse this capture in hiccup`, resolves the current capture
+  filename, uploads it to `http://127.0.0.1:8400/api/captures` (shelling out to
+  `curl`/PowerShell, since Lua has no HTTP), then opens the browser at the capture. Also
+  `Tools -> hiccup -> Settings...` for host/port/session cookie. Document the limits
+  honestly in its README: Wireshark plugins cannot embed hiccup's UI, and a Lua
+  post-dissector cannot replicate the cross-leg analysis — the bridge is the useful
+  integration.
+- `docs/DECRYPTION.md` — the encrypted-traffic guidance (documentation only, no feature).
+
+## Wave 2 module exports (exact — analyze.js calls these)
+
+| File | Exports |
+|---|---|
+| `lib/rtp.js` | `analyzeMedia(packets, ctx)` -> `{ streams, rtcp, findings }` |
+| `lib/isup.js` | `extractIsup(messages)` -> `{ findings }` (mutates SIP messages: adds `.isup`, `.bodyParts`) |
+| `lib/dns.js` | `extractDns(packets)` -> `{ aux, findings }`; `dnsEvidence(aux)` -> `{ byDest }` |
+| `lib/diameter.js` | `extractDiameter(packets, ctx)` -> `{ aux, findings }` |
+| `lib/ice.js` | `extractIce(packets)` -> `{ aux, findings }` |
+| `lib/detect.js` | `detectIndicators(analysis)` -> `[Indicator]`; `detectScenario(analysis)` -> `Scenario` |
+| `lib/advisor.js` | `buildAdvice(analysis, opts)` -> `{ advice }` |
+| `lib/hmr.js` | `parseConfig`, `explainRule`, `renderRule`, `matchAgainstAnalysis` |
+| `lib/kb.js` | `initKb`, `addDoc`, `listDocs`, `deleteDoc`, `searchKb` |
+
+`ctx` (passed by analyze.js) = `{ messages, legs, calls, warnings }` — read-only apart
+from the documented mutations. Every one of these must be **defensive**: never throw on
+odd input (push a string onto `ctx.warnings` or return empty arrays), because a single
+malformed packet must never fail a whole capture. `detectIndicators` / `detectScenario` /
+`buildAdvice` receive the analysis object **after** media/aux/retrans/diff are attached,
+so they can read `analysis.media`, `analysis.aux`, `analysis.retrans`, `analysis.calls`,
+`analysis.legs`, `analysis.messages`, `analysis.findings`.
