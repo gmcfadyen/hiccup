@@ -1,0 +1,15 @@
+{
+  "name": "hiccup",
+  "version": "0.1.0",
+  "description": "hiccup — SIP trace analysis that finds where the call went wrong",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "fixtures": "node test/make-fixtures.js",
+    "selftest": "node test/selftest.js"
+  },
+  "keywords": ["sip", "voip", "pcap", "sbc", "trace", "analysis", "b2bua", "ims"],
+  "author": "hiccup",
+  "license": "BUSL-1.1",
+  "dependencies": {}
+}
