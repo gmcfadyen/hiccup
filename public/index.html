@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>hiccup — see where the call went wrong</title>
 <meta name="description" content="hiccup — a self-hosted SIP / H.323 trace analyser. two-leg SBC diffs, retransmission classification, SIP↔H.323 correlation.">
+<script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <link rel="icon" type="image/svg+xml" href="/logo.svg">
 <link rel="stylesheet" href="/hiccup.css">
 <style>
@@ -132,9 +133,21 @@
       padding: 22px 0 0;
     }
   }
+
+  .corner-toggle {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 10;
+    width: 34px;
+    padding: 0;
+    font-size: 15px;
+  }
 </style>
 </head>
 <body>
+
+<button class="btn corner-toggle" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
 
 <header class="hero container">
   <img class="logo" src="/logo.svg" alt="hiccup">
@@ -344,6 +357,7 @@
   })();
 })();
 </script>
+<script src="/theme.js"></script>
 
 </body>
 </html>

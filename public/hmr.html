@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>hiccup — header manipulation</title>
+<script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <link rel="icon" href="/logo.svg" type="image/svg+xml">
 
 <!--
@@ -161,6 +162,7 @@
     <a class="topnav-link" href="/kb">guides</a>
   </nav>
   <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
   <a class="coffee-link" href="https://buymeacoffee.com/mcfadyen" target="_blank" rel="noopener">☕ Buy Me a Coffee</a>
   <span id="user-name" class="user-name mono"></span>
   <button id="logout-btn" class="btn" type="button">Sign out</button>
@@ -216,5 +218,6 @@
 </main>
 
 <script src="/hmr.js"></script>
+<script src="/theme.js"></script>
 </body>
 </html>

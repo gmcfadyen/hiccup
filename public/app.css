@@ -725,7 +725,7 @@ mark,
 .sel-row.is-retrans .sel-desc::after {
   content: attr(data-retrans);
   margin-left: 6px;
-  color: var(--warn);
+  color: var(--muted);
   font-family: var(--mono);
   font-size: 11px;
 }
@@ -874,10 +874,10 @@ mark,
 .lad-aux .lad-head { fill: var(--aux-ink); stroke: var(--aux-ink); }
 .lad-aux .lad-label { fill: var(--aux-ink); }
 
-/* retransmission collapse row + ×N badge */
-.lad-retrans .lad-line { stroke-width: 3.2; }
-.lad-badge-bg { fill: var(--panel2); stroke: var(--warn); stroke-width: 1; }
-.lad-badge { fill: var(--warn); font-size: 9.5px; font-weight: 700; }
+/* retransmission collapse row: dealt with silently -- normal stroke weight,
+   no alert styling. The ×N note is muted text (see ladder.js); it is not
+   a finding, so it never earns .has-warn/.has-crit treatment on its own. */
+.lad-badge { fill: var(--muted); font-size: 9.5px; }
 
 /* error highlighting: a message carrying a warn/crit finding */
 .lad-msg.has-warn .lad-line { stroke-width: 3; }

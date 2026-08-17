@@ -628,8 +628,11 @@
       var labelStr = row.label;
       var midX, labelAnchor = 'middle';
       var dash = row.kind === 'media' ? '6 3' : (row.kind === 'aux' ? '1 4' : null);
-      var strokeW = isErrorRow ? (row.sev === 'crit' ? 3.4 : 3)
-        : (row.retransCount > 1 ? 3.2 : 1.6);
+      // Retransmissions are collapsed silently: same stroke weight as any
+      // normal row. Only a genuine finding (has-warn/has-crit, an actual
+      // protocol fault) earns the heavier stroke — being a retransmission
+      // is not itself an alert.
+      var strokeW = isErrorRow ? (row.sev === 'crit' ? 3.4 : 3) : 1.6;
 
       if (srcKey === dstKey) {
         // Self-loop (both ends in the same column, e.g. folded into 'others').
@@ -671,18 +674,14 @@
       var approxLabelW = String(labelStr).length * 6.2;
       var badgeX = labelAnchor === 'middle' ? midX + approxLabelW / 2 + 6 : midX + approxLabelW + 6;
 
-      // ×N badge on a collapsed retransmission burst.
+      // A collapsed retransmission burst gets a quiet ×N note, not an alert:
+      // no border, no pill, no warn colour -- muted text, same visual weight
+      // as any other secondary label. The full detail is one hover away.
       if (row.retransCount > 1) {
         var badgeStr = '×' + row.retransCount;
-        var bw = badgeStr.length * 7 + 10;
-        g.appendChild(svgEl('rect', {
-          x: badgeX, y: y - 16, width: bw, height: 14, rx: 7, 'class': 'lad-badge-bg',
-          fill: C.panel2, stroke: C.warn, 'stroke-width': 1
-        }));
-        var bt = svgText(badgeX + bw / 2, y - 5, badgeStr, 'lad-badge', 'middle');
-        bt.setAttribute('fill', C.warn);
+        var bt = svgText(badgeX, y - 5, badgeStr, 'lad-badge', 'start');
+        bt.setAttribute('fill', C.muted);
         bt.setAttribute('font-size', '9.5');
-        bt.setAttribute('font-weight', '700');
         g.appendChild(bt);
         addTitle(g, (row.collapse && row.collapse.label)
           ? row.collapse.label

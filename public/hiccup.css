@@ -9,6 +9,21 @@
  *   .btn .btn-primary .input .card .chip .sev-crit .sev-warn .sev-notice .sev-info .mono
  */
 
+/*
+ * Theme: three states, matching data-theme on <html>.
+ *   (no attribute)      -> system preference decides (prefers-color-scheme)
+ *   data-theme="dark"   -> forced dark, regardless of system
+ *   data-theme="light"  -> forced light, regardless of system
+ * See /theme.js for the toggle + persistence (localStorage) + the inline
+ * FOUC-prevention snippet each page carries in <head>.
+ *
+ * :root holds DARK values as the default/fallback (unchanged from before
+ * light mode existed). The light palette is defined twice below: once
+ * under the system-preference media query (guarded so an explicit "dark"
+ * choice still wins), and once under the explicit [data-theme="light"]
+ * attribute -- keep the two blocks' values identical.
+ */
+
 :root {
   --bg: #0e1116;
   --panel: #161b22;
@@ -25,6 +40,125 @@
   /* shared helpers (not in the contract list, but pages may rely on them) */
   --border: #232b36;
   --border-strong: #2f3947;
+
+  /* base-rule tokens (below) that used to be hardcoded dark-only colors */
+  --input-bg: #0b0e13;
+  --placeholder: #5a6572;
+  --btn-hover-bg: #232c39;
+  --btn-hover-border: #3d4a5c;
+  --btn-primary-hover: #ffb43a;
+  --btn-primary-text: #1a1205;
+  --row-hover: rgba(255, 255, 255, 0.02);
+  --selection-bg: rgba(245, 166, 35, 0.25);
+  --scrollbar-thumb: #2f3947;
+  --scrollbar-thumb-hover: #3d4a5c;
+  --focus-ring: rgba(245, 166, 35, 0.15);
+
+  /* Wave-2 shared tokens (moved up from below so both theme blocks can
+     redefine them in one place; values unchanged from the original). */
+  --tint-crit: rgba(242, 84, 91, 0.14);
+  --tint-warn: rgba(245, 166, 35, 0.13);
+  --tint-notice: rgba(88, 166, 255, 0.13);
+  --tint-info: rgba(139, 148, 158, 0.10);
+  --tint-crit-strong: rgba(242, 84, 91, 0.24);
+  --tint-warn-strong: rgba(245, 166, 35, 0.22);
+  --tint-notice-strong: rgba(88, 166, 255, 0.24);
+  --tint-info-strong: rgba(139, 148, 158, 0.22);
+  --tint-select: rgba(245, 166, 35, 0.16);
+  --tint-select-border: rgba(245, 166, 35, 0.45);
+  --ok: #3fb950;
+  --redirect: #a371f7;
+  --h323: #d2a8ff;
+  --media-ink: #39c5cf;
+  --aux-ink: #8b949e;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f6f8fa;
+    --panel: #ffffff;
+    --panel2: #eef1f4;
+    --text: #1b1f24;
+    --muted: #57606a;
+    --accent: #9a5b00;
+    --crit: #cf222e;
+    --warn: #9a6700;
+    --notice: #0969da;
+    --info: #57606a;
+    --border: #d0d7de;
+    --border-strong: #afb8c1;
+
+    --input-bg: #ffffff;
+    --placeholder: #8c959f;
+    --btn-hover-bg: #eef1f4;
+    --btn-hover-border: #afb8c1;
+    --btn-primary-hover: #b56b00;
+    --btn-primary-text: #fffaf0;
+    --row-hover: rgba(27, 31, 36, 0.035);
+    --selection-bg: rgba(154, 91, 0, 0.18);
+    --scrollbar-thumb: #d0d7de;
+    --scrollbar-thumb-hover: #afb8c1;
+    --focus-ring: rgba(154, 91, 0, 0.15);
+
+    --tint-crit: rgba(207, 34, 46, 0.10);
+    --tint-warn: rgba(154, 103, 0, 0.12);
+    --tint-notice: rgba(9, 105, 218, 0.10);
+    --tint-info: rgba(87, 96, 106, 0.08);
+    --tint-crit-strong: rgba(207, 34, 46, 0.18);
+    --tint-warn-strong: rgba(154, 103, 0, 0.20);
+    --tint-notice-strong: rgba(9, 105, 218, 0.20);
+    --tint-info-strong: rgba(87, 96, 106, 0.18);
+    --tint-select: rgba(154, 91, 0, 0.14);
+    --tint-select-border: rgba(154, 91, 0, 0.45);
+    --ok: #1a7f37;
+    --redirect: #8250df;
+    --h323: #8250df;
+    --media-ink: #1b7c83;
+    --aux-ink: #57606a;
+  }
+}
+
+:root[data-theme="light"] {
+  --bg: #f6f8fa;
+  --panel: #ffffff;
+  --panel2: #eef1f4;
+  --text: #1b1f24;
+  --muted: #57606a;
+  --accent: #9a5b00;
+  --crit: #cf222e;
+  --warn: #9a6700;
+  --notice: #0969da;
+  --info: #57606a;
+  --border: #d0d7de;
+  --border-strong: #afb8c1;
+
+  --input-bg: #ffffff;
+  --placeholder: #8c959f;
+  --btn-hover-bg: #eef1f4;
+  --btn-hover-border: #afb8c1;
+  --btn-primary-hover: #b56b00;
+  --btn-primary-text: #fffaf0;
+  --row-hover: rgba(27, 31, 36, 0.035);
+  --selection-bg: rgba(154, 91, 0, 0.18);
+  --scrollbar-thumb: #d0d7de;
+  --scrollbar-thumb-hover: #afb8c1;
+  --focus-ring: rgba(154, 91, 0, 0.15);
+
+  --tint-crit: rgba(207, 34, 46, 0.10);
+  --tint-warn: rgba(154, 103, 0, 0.12);
+  --tint-notice: rgba(9, 105, 218, 0.10);
+  --tint-info: rgba(87, 96, 106, 0.08);
+  --tint-crit-strong: rgba(207, 34, 46, 0.18);
+  --tint-warn-strong: rgba(154, 103, 0, 0.20);
+  --tint-notice-strong: rgba(9, 105, 218, 0.20);
+  --tint-info-strong: rgba(87, 96, 106, 0.18);
+  --tint-select: rgba(154, 91, 0, 0.14);
+  --tint-select-border: rgba(154, 91, 0, 0.45);
+  --ok: #1a7f37;
+  --redirect: #8250df;
+  --h323: #8250df;
+  --media-ink: #1b7c83;
+  --aux-ink: #57606a;
 }
 
 /* ---------- base ---------- */
@@ -67,7 +201,7 @@ pre {
 
 img, svg { max-width: 100%; }
 
-::selection { background: rgba(245, 166, 35, 0.25); }
+::selection { background: var(--selection-bg); }
 
 :focus-visible {
   outline: 2px solid var(--accent);
@@ -98,7 +232,7 @@ img, svg { max-width: 100%; }
   background: var(--border-strong);
   border-radius: 6px;
 }
-::-webkit-scrollbar-thumb:hover { background: #3d4a5c; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 
 /* ---------- forms ---------- */
 
@@ -120,16 +254,16 @@ label {
   padding: 8px 10px;
   border-radius: 6px;
   border: 1px solid var(--border-strong);
-  background: #0b0e13;
+  background: var(--input-bg);
   color: var(--text);
 }
 
-.input::placeholder { color: #5a6572; }
+.input::placeholder { color: var(--placeholder); }
 
 .input:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(245, 166, 35, 0.15);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 select.input option { background: var(--panel); }
@@ -163,8 +297,8 @@ textarea.input { resize: vertical; min-height: 70px; }
 }
 
 .btn:hover {
-  background: #232c39;
-  border-color: #3d4a5c;
+  background: var(--btn-hover-bg);
+  border-color: var(--btn-hover-border);
   text-decoration: none;
 }
 
@@ -176,12 +310,12 @@ textarea.input { resize: vertical; min-height: 70px; }
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #1a1205;
+  color: var(--btn-primary-text);
 }
 
 .btn-primary:hover {
-  background: #ffb43a;
-  border-color: #ffb43a;
+  background: var(--btn-primary-hover);
+  border-color: var(--btn-primary-hover);
 }
 
 /* ---------- cards ---------- */
@@ -219,23 +353,23 @@ textarea.input { resize: vertical; min-height: 70px; }
 .sev-info   { color: var(--info); }
 
 .chip.sev-crit {
-  background: rgba(242, 84, 91, 0.14);
-  border-color: rgba(242, 84, 91, 0.4);
+  background: var(--tint-crit);
+  border-color: var(--tint-crit-strong);
 }
 
 .chip.sev-warn {
-  background: rgba(245, 166, 35, 0.14);
-  border-color: rgba(245, 166, 35, 0.4);
+  background: var(--tint-warn);
+  border-color: var(--tint-warn-strong);
 }
 
 .chip.sev-notice {
-  background: rgba(88, 166, 255, 0.14);
-  border-color: rgba(88, 166, 255, 0.4);
+  background: var(--tint-notice);
+  border-color: var(--tint-notice-strong);
 }
 
 .chip.sev-info {
-  background: rgba(139, 148, 158, 0.14);
-  border-color: rgba(139, 148, 158, 0.4);
+  background: var(--tint-info);
+  border-color: var(--tint-info-strong);
 }
 
 /* ---------- tables (sane base; app.css refines) ---------- */
@@ -259,7 +393,7 @@ th {
   letter-spacing: 0.04em;
 }
 
-tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
+tbody tr:hover { background: var(--row-hover); }
 
 /* ============================================================================
  * Wave-2 shared additions.
@@ -269,29 +403,9 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
  * index.html — view-specific styling stays in app.css.
  * ========================================================================== */
 
-/* ---------- shared tokens (additive) ---------- */
-
-:root {
-  /* severity tints — row/card/edge washes that pair with the --crit/--warn/… inks */
-  --tint-crit: rgba(242, 84, 91, 0.14);
-  --tint-warn: rgba(245, 166, 35, 0.13);
-  --tint-notice: rgba(88, 166, 255, 0.13);
-  --tint-info: rgba(139, 148, 158, 0.10);
-
-  /* stronger washes for hover/selection over an already-tinted row */
-  --tint-crit-strong: rgba(242, 84, 91, 0.24);
-  --tint-warn-strong: rgba(245, 166, 35, 0.22);
-
-  /* selection wash (amber, used by tree rows, table rows, ladder rows) */
-  --tint-select: rgba(245, 166, 35, 0.16);
-
-  /* protocol/status inks shared by the ladder, lamps and media tables */
-  --ok: #3fb950;          /* 2xx / healthy */
-  --redirect: #a371f7;    /* 3xx */
-  --h323: #d2a8ff;        /* H.323 / Q.931 */
-  --media-ink: #39c5cf;   /* RTP / RTCP / T.38 */
-  --aux-ink: #8b949e;     /* DNS / Diameter / STUN / DTLS */
-}
+/* Severity tints, protocol/status inks and the rest of the Wave-2 shared
+   tokens now live in the main :root block (and its two theme overrides)
+   near the top of this file, so a single light/dark switch covers them. */
 
 /* ---------- shared utilities ---------- */
 
@@ -394,12 +508,12 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
   white-space: nowrap;
 }
 
-.tree-row:hover { background: rgba(255, 255, 255, 0.04); }
+.tree-row:hover { background: var(--row-hover); }
 
 .tree-row.is-selected,
 .tree-row[aria-selected="true"] {
   background: var(--tint-select);
-  border-color: rgba(245, 166, 35, 0.45);
+  border-color: var(--tint-select-border);
 }
 
 .tree-row:focus-visible {
@@ -424,7 +538,7 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
   cursor: pointer;
 }
 
-.tree-toggle:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }
+.tree-toggle:hover { color: var(--text); background: var(--row-hover); }
 
 .tree-label {
   overflow: hidden;
@@ -449,9 +563,9 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
 }
 
 .tree-badge.is-retrans {
-  color: var(--warn);
-  border-color: rgba(245, 166, 35, 0.45);
-  background: var(--tint-warn);
+  color: var(--muted);
+  border-color: var(--border-strong);
+  background: var(--panel2);
 }
 
 /* ---------- .table-dense (shared: selection list, media, HMR, KB hits) ---------- */
@@ -477,12 +591,12 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
 
 .table-dense td {
   padding: 2px 8px;
-  border-bottom: 1px solid rgba(35, 43, 54, 0.7);
+  border-bottom: 1px solid var(--border);
   vertical-align: top;
 }
 
 .table-dense tbody tr { cursor: default; }
-.table-dense tbody tr:hover { background: rgba(255, 255, 255, 0.035); }
+.table-dense tbody tr:hover { background: var(--row-hover); }
 
 .table-dense tbody tr.is-selected,
 .table-dense tbody tr[aria-selected="true"] {
