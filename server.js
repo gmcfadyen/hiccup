@@ -1,6 +1,7 @@
 // server.js — hiccup HTTP server: routes, auth glue, capture upload/analysis,
-// chat proxy, static files. Plain node http, zero runtime dependencies.
-// Contract: ARCHITECTURE.md §HTTP API. Windows-safe paths throughout.
+// chat proxy, advice/HMR/KB routes, static files. Plain node http, zero runtime
+// dependencies (pdf-parse is an optionalDependency used only inside lib/kb.js).
+// Contract: ARCHITECTURE.md §HTTP API + §Wave 2 §New routes. Windows-safe paths.
 'use strict';
 
 const http = require('http');
@@ -20,6 +21,38 @@ try {
 } catch (e) {
   console.warn('hiccup: lib/analyze.js unavailable (' + (e && e.message) +
     ') — POST /api/captures will return 501 until the analysis engine is deployed');
+}
+
+// The Wave-2 sibling modules (lib/advisor.js, lib/hmr.js, lib/kb.js) are built by
+// other agents, so they get the same treatment as lib/analyze.js above: a lazy
+// try/catch require, warned about once, so a missing or broken module degrades
+// exactly the routes that need it (501) instead of stopping the server booting.
+// A successful load is cached; a failure is retried on the next use, so a module
+// deployed after boot is picked up without a restart.
+const _optCache = new Map();
+const _optWarned = new Set();
+
+/**
+ * Require an optional sibling module, returning null when it cannot be loaded.
+ * Warns once per module path; never throws.
+ * @param {string} rel module path relative to this file, e.g. './lib/kb'
+ * @returns {object|null} the module exports, or null when unavailable
+ */
+function optionalModule(rel) {
+  if (_optCache.has(rel)) return _optCache.get(rel);
+  try {
+    const mod = require(rel);
+    _optCache.set(rel, mod);
+    if (_optWarned.has(rel)) console.log('hiccup: ' + rel + ' is available now');
+    return mod;
+  } catch (e) {
+    if (!_optWarned.has(rel)) {
+      _optWarned.add(rel);
+      console.warn('hiccup: ' + rel + ' unavailable (' + (e && e.message) +
+        ') — the routes that need it answer 501 until it is deployed');
+    }
+    return null;
+  }
 }
 
 let VERSION = '0.0.0';
@@ -67,6 +100,30 @@ function loadConfig() {
 const config = loadConfig();
 auth.initAuth(DATA_DIR, config);
 llm.initLlm(config);
+
+// lib/kb.js keeps the config-guide library under <dataDir>/kb; initialise it at
+// boot when the module is present. A missing kb module is not fatal.
+let kbInitialised = false;
+initKbIfPossible();
+
+/**
+ * Load lib/kb.js (if present) and run initKb(DATA_DIR) exactly once.
+ * @returns {object|null} the kb module when it is usable, else null
+ */
+function initKbIfPossible() {
+  const kb = optionalModule('./lib/kb');
+  if (!kb) return null;
+  if (kbInitialised) return kb;
+  try {
+    if (typeof kb.initKb === 'function') kb.initKb(DATA_DIR);
+    kbInitialised = true;
+    return kb;
+  } catch (e) {
+    console.warn('hiccup: initKb failed (' + (e && e.message) +
+      ') — /api/kb/* will answer 501');
+    return null;
+  }
+}
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : config.port;
 const HOST = process.env.HOST || config.host;
@@ -188,6 +245,50 @@ function parseCookies(req) {
 }
 
 /**
+ * Parse the request's query string. Never throws.
+ * @param {http.IncomingMessage} req
+ * @returns {URLSearchParams}
+ */
+function queryParams(req) {
+  const url = req.url || '';
+  const i = url.indexOf('?');
+  try {
+    return new URLSearchParams(i === -1 ? '' : url.slice(i + 1));
+  } catch {
+    return new URLSearchParams('');
+  }
+}
+
+/**
+ * First non-empty trimmed string among the arguments, capped at 120 chars.
+ * @param {...*} vals candidates (headers, query values, body fields)
+ * @returns {string|null}
+ */
+function firstString(...vals) {
+  for (const v of vals) {
+    if (typeof v !== 'string') continue;
+    const t = v.trim();
+    if (t) return t.slice(0, 120);
+  }
+  return null;
+}
+
+/**
+ * Sanitise a client-supplied X-Filename header: strip any directory part and
+ * non-printable-ASCII bytes, cap the length. Returns '' when nothing usable.
+ * @param {*} raw the header value
+ * @returns {string}
+ */
+function cleanFilename(raw) {
+  return String(raw || '')
+    .trim()
+    .replace(/^.*[\\/]/, '')
+    .replace(/[^ -~]/g, '')
+    .slice(0, 200)
+    .trim();
+}
+
+/**
  * Set the session cookie: HttpOnly, SameSite=Lax, Path=/, Secure when
  * config.baseUrl is https, Expires from the session's expiresAt.
  * @param {http.ServerResponse} res
@@ -303,6 +404,27 @@ function servePublicFile(res, name) {
 }
 
 /**
+ * Serve one of the Wave-2 pages (public/hmr.html, public/kb.html). These are
+ * built by another agent, so a missing file answers a clear JSON 404 rather
+ * than a bare text 404 — the fetch-driven UI can then show the reason.
+ * @param {http.ServerResponse} res
+ * @param {string} name file name inside public/
+ */
+function servePublicPage(res, name) {
+  const file = path.join(PUBLIC_DIR, name);
+  fs.readFile(file, (err, data) => {
+    if (err) {
+      sendJson(res, 404, {
+        error: 'hiccup: public/' + name + ' is not deployed on this server yet',
+      });
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': STATIC_TYPES['.html'] });
+    res.end(data);
+  });
+}
+
+/**
  * Static file server for public/*: extension whitelist + normalize-based
  * traversal guard. Anything outside the whitelist or the directory is a 404.
  * @param {http.ServerResponse} res
@@ -393,9 +515,7 @@ async function handleUpload(req, res, user) {
     sendJson(res, 400, { error: 'empty upload' });
     return;
   }
-  let filename = String(req.headers['x-filename'] || '').trim();
-  filename = filename.replace(/^.*[\\/]/, '').replace(/[ -]/g, '').slice(0, 200);
-  if (!filename) filename = 'capture.bin';
+  const filename = cleanFilename(req.headers['x-filename']) || 'capture.bin';
 
   const id = store.newCaptureId();
   const dir = store.captureDir(DATA_DIR, String(user.id), id);
@@ -422,6 +542,313 @@ async function handleUpload(req, res, user) {
   store.saveJson(path.join(dir, 'meta.json'), meta);
   store.saveJson(path.join(dir, 'analysis.json'), analysis);
   sendJson(res, 200, { id, meta });
+}
+
+/**
+ * Load a capture's stored analysis for this user.
+ * @param {object} user
+ * @param {string} captureId
+ * @returns {object|null} AnalysisJSON, or null when missing/unreadable
+ */
+function loadAnalysis(user, captureId) {
+  const dir = findCaptureDir(user, captureId);
+  if (!dir) return null;
+  const analysis = store.loadJson(path.join(dir, 'analysis.json'), null);
+  return analysis && typeof analysis === 'object' ? analysis : null;
+}
+
+// ---------------------------------------------------------------------------
+// Advice (Wave 2) — GET /api/captures/:id/advice
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /api/captures/:id/advice — the Advice array from the stored analysis.
+ * Analyses written before the advisor pass existed are topped up on the fly
+ * when lib/advisor.js is available; otherwise the list is simply empty.
+ * @param {http.IncomingMessage} req
+ * @param {http.ServerResponse} res
+ * @param {object} user
+ * @param {string} captureId
+ */
+function handleAdvice(req, res, user, captureId) {
+  const analysis = loadAnalysis(user, captureId);
+  if (!analysis) {
+    sendJson(res, 404, { error: 'capture not found' });
+    return;
+  }
+  if (Array.isArray(analysis.advice)) {
+    sendJson(res, 200, { advice: analysis.advice });
+    return;
+  }
+  const advisor = optionalModule('./lib/advisor');
+  if (!advisor || typeof advisor.buildAdvice !== 'function') {
+    sendJson(res, 200, { advice: [] });
+    return;
+  }
+  try {
+    const out = advisor.buildAdvice(analysis, { retrieve: makeKbRetriever(user) });
+    sendJson(res, 200, { advice: (out && Array.isArray(out.advice)) ? out.advice : [] });
+  } catch (e) {
+    console.warn('hiccup: buildAdvice failed for capture ' + captureId + ': ' +
+      (e && e.message));
+    sendJson(res, 200, { advice: [] });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// HMR (Wave 2) — POST /api/hmr/analyze
+// ---------------------------------------------------------------------------
+
+/** Vendors every rule is rendered for, per the HmrRule contract. */
+const HMR_VENDORS = ['oracle-acme', 'audiocodes', 'ribbon'];
+
+/**
+ * POST /api/hmr/analyze {text, captureId?} — parse an SBC config excerpt into
+ * the HMR IR, attach explainRule output and all three vendor renderings per
+ * rule, and (when captureId is given) match the rules against that capture's
+ * stored analysis.
+ * @param {http.IncomingMessage} req
+ * @param {http.ServerResponse} res
+ * @param {object} user
+ */
+async function handleHmrAnalyze(req, res, user) {
+  let body;
+  try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
+  const hmr = optionalModule('./lib/hmr');
+  if (!hmr || typeof hmr.parseConfig !== 'function') {
+    sendJson(res, 501, {
+      error: 'the config-manipulation engine is not deployed on this server yet',
+    });
+    return;
+  }
+  const text = typeof body.text === 'string' ? body.text : '';
+  if (!text.trim()) {
+    sendJson(res, 400, { error: 'text (an SBC config excerpt) is required' });
+    return;
+  }
+  let parsed;
+  try {
+    parsed = hmr.parseConfig(text) || {};
+  } catch (e) {
+    sendJson(res, 422, { error: (e && e.userMessage) || 'could not read this config' });
+    return;
+  }
+  const rules = Array.isArray(parsed.rules) ? parsed.rules : [];
+
+  const ruleEntries = rules.map((rule) => {
+    let explanation = null;
+    if (typeof hmr.explainRule === 'function') {
+      try { explanation = hmr.explainRule(rule) || null; } catch { explanation = null; }
+    }
+    const rendered = {};
+    for (const vendor of HMR_VENDORS) {
+      let out = null;
+      if (typeof hmr.renderRule === 'function') {
+        try {
+          const r = hmr.renderRule(rule, vendor);
+          out = typeof r === 'string' ? r : (r == null ? null : String(r));
+        } catch { out = null; }
+      }
+      rendered[vendor] = out;
+    }
+    return { rule, explanation, rendered };
+  });
+
+  let matches = null;
+  const captureId = body.captureId ? String(body.captureId) : '';
+  if (captureId) {
+    const analysis = loadAnalysis(user, captureId);
+    if (!analysis) {
+      sendJson(res, 404, { error: 'capture not found' });
+      return;
+    }
+    matches = [];
+    if (typeof hmr.matchAgainstAnalysis === 'function') {
+      try {
+        const m = hmr.matchAgainstAnalysis(rules, analysis);
+        if (Array.isArray(m)) matches = m;
+        else if (m && Array.isArray(m.matches)) matches = m.matches;
+      } catch (e) {
+        console.warn('hiccup: matchAgainstAnalysis failed: ' + (e && e.message));
+      }
+    }
+  }
+
+  sendJson(res, 200, {
+    vendor: parsed.vendor || 'unknown',
+    confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0,
+    rules: ruleEntries,
+    matches,
+    warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Config-guide KB (Wave 2) — /api/kb/*
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve lib/kb.js for a request, or answer 501 and return null. Every KB
+ * route is per-user: the caller always passes the session user's id, so a
+ * user can only ever see or delete their own documents.
+ * @param {http.ServerResponse} res
+ * @returns {object|null}
+ */
+function requireKb(res) {
+  const kb = initKbIfPossible();
+  if (!kb) {
+    sendJson(res, 501, {
+      error: 'the config-guide library is not deployed on this server yet',
+    });
+    return null;
+  }
+  return kb;
+}
+
+/**
+ * Per-user KB search that never throws and never rejects.
+ * @param {object} user session user
+ * @param {string} q free-text query
+ * @param {number} k max hits
+ * @returns {Array<object>} searchKb hits (possibly empty)
+ */
+function kbSearchSafe(user, q, k) {
+  const kb = initKbIfPossible();
+  if (!kb || typeof kb.searchKb !== 'function' || !q) return [];
+  try {
+    const hits = kb.searchKb(String(user.id), String(q), k);
+    return Array.isArray(hits) ? hits : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Build the retriever lib/advisor.js expects: `retrieve(query)` -> KB hits.
+ * Hits carry both the searchKb field names and the kbCitations names so
+ * either convention works on the advisor side.
+ * @param {object} user session user
+ * @returns {function(string): Array<object>}
+ */
+function makeKbRetriever(user) {
+  return function retrieve(query) {
+    return kbSearchSafe(user, query, 3).map((h) => ({
+      docId: h.docId,
+      docTitle: h.docTitle,
+      page: h.page,
+      heading: h.heading,
+      text: h.text,
+      excerpt: typeof h.text === 'string' ? h.text.slice(0, 600) : h.text,
+      score: h.score,
+    }));
+  };
+}
+
+/** POST /api/kb/docs — raw document body + X-Filename header. */
+async function handleKbAdd(req, res, user) {
+  const kb = requireKb(res);
+  if (!kb || typeof kb.addDoc !== 'function') {
+    if (kb) sendJson(res, 501, { error: 'this build of lib/kb.js cannot add documents' });
+    req.resume();
+    return;
+  }
+  const maxBytes = (Number(config.maxUploadMb) || CONFIG_DEFAULTS.maxUploadMb) * 1024 * 1024;
+  let buf;
+  try {
+    buf = await readRawBody(req, maxBytes);
+  } catch (e) {
+    if (e && e.code === 'TOO_LARGE') {
+      res.setHeader('Connection', 'close');
+      sendJson(res, 413, {
+        error: 'document exceeds the ' + config.maxUploadMb + ' MB limit',
+      });
+    } else {
+      sendJson(res, 400, { error: 'could not read upload' });
+    }
+    return;
+  }
+  if (!buf.length) {
+    sendJson(res, 400, { error: 'empty upload' });
+    return;
+  }
+  const filename = cleanFilename(req.headers['x-filename']) || 'guide.txt';
+  const q = queryParams(req);
+  const vendor = firstString(req.headers['x-vendor'], q.get('vendor'));
+  const product = firstString(req.headers['x-product'], q.get('product'));
+  let doc;
+  try {
+    doc = await kb.addDoc({ userId: String(user.id), filename, buffer: buf, vendor, product });
+  } catch (e) {
+    sendJson(res, 422, { error: (e && e.userMessage) || 'could not read this document' });
+    return;
+  }
+  sendJson(res, 200, {
+    doc: Object.assign(
+      { filename, vendor, product, sizeBytes: buf.length },
+      (doc && typeof doc === 'object') ? doc : {}
+    ),
+  });
+}
+
+/** GET /api/kb/docs — this user's documents. */
+function handleKbList(req, res, user) {
+  const kb = requireKb(res);
+  if (!kb) return;
+  let docs = null;
+  if (typeof kb.listDocs === 'function') {
+    try { docs = kb.listDocs(String(user.id)); } catch { docs = null; }
+  }
+  sendJson(res, 200, Array.isArray(docs) ? docs : []);
+}
+
+/** DELETE /api/kb/docs/:id — owner only (kb.deleteDoc is scoped by userId). */
+async function handleKbDelete(req, res, user, docId) {
+  const kb = requireKb(res);
+  if (!kb) return;
+  if (typeof kb.deleteDoc !== 'function') {
+    sendJson(res, 501, { error: 'this build of lib/kb.js cannot delete documents' });
+    return;
+  }
+  let ok;
+  try {
+    ok = await kb.deleteDoc(String(user.id), docId);
+  } catch (e) {
+    sendJson(res, 422, { error: (e && e.userMessage) || 'could not delete that document' });
+    return;
+  }
+  if (!ok) {
+    sendJson(res, 404, { error: 'document not found' });
+    return;
+  }
+  sendJson(res, 200, { ok: true });
+}
+
+/** POST /api/kb/search {q, k} — BM25-ish keyword search over this user's docs. */
+async function handleKbSearch(req, res, user) {
+  let body;
+  try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
+  const kb = requireKb(res);
+  if (!kb) return;
+  if (typeof kb.searchKb !== 'function') {
+    sendJson(res, 501, { error: 'this build of lib/kb.js cannot search' });
+    return;
+  }
+  const q = typeof body.q === 'string' ? body.q.trim() : '';
+  if (!q) {
+    sendJson(res, 400, { error: 'q (a search query) is required' });
+    return;
+  }
+  let k = Number(body.k);
+  if (!Number.isFinite(k) || k <= 0) k = 8;
+  k = Math.min(Math.round(k), 50);
+  let hits;
+  try {
+    hits = await kb.searchKb(String(user.id), q, k);
+  } catch (e) {
+    sendJson(res, 422, { error: (e && e.userMessage) || 'could not search the library' });
+    return;
+  }
+  sendJson(res, 200, { hits: Array.isArray(hits) ? hits : [] });
 }
 
 // ---------------------------------------------------------------------------
@@ -518,13 +945,175 @@ function buildScopeText(analysis, scope) {
 }
 
 /**
- * Build the /api/chat system prompt: persona + capture stats + findings
- * summary + scope serialization.
+ * Questions that look config-shaped — the trigger for injecting KB excerpts:
+ * config/configure, header manipulation/HMR wording, a vendor name, or a
+ * "how do I fix/change/configure" phrasing.
+ */
+const CONFIG_QUESTION_RE = new RegExp(
+  '\\b(config|configs|configure|configured|configuration|manipulate|manipulation|' +
+  'manipulations|hmr|sip-manipulation|header-rule|element-rule|smm|message ' +
+  'manipulations|acme|oracle|audiocodes|ribbon|cisco|cube|freeswitch|asterisk|avaya|' +
+  'mitel|3cx|sbc setting|ip profile|ip-profile|session-agent|signaling group)\\b' +
+  '|how (do i|to|can i) (fix|change|configure|stop|prevent|set)' +
+  '|what (do i|should i) (change|configure|set)',
+  'i'
+);
+
+/**
+ * Does this question look config-shaped?
+ * @param {string} text the user's question
+ * @returns {boolean}
+ */
+function looksConfigShaped(text) {
+  try {
+    return CONFIG_QUESTION_RE.test(String(text || ''));
+  } catch {
+    return false;
+  }
+}
+
+/** Sort order for indicator emphasis: problems first. */
+const INDICATOR_RANK = { issue: 0, partial: 1, on: 2, off: 3 };
+
+/**
+ * One prompt block listing every Indicator as key=state, then a detail line
+ * for each indicator that is actually present (issue/partial/on).
+ * @param {object} analysis AnalysisJSON
+ * @returns {string|null} null when the analysis has no indicators
+ */
+function indicatorsText(analysis) {
+  const list = Array.isArray(analysis.indicators) ? analysis.indicators : [];
+  if (!list.length) return null;
+  const pairs = list
+    .filter((i) => i && i.key)
+    .map((i) => i.key + '=' + (i.state || 'unknown'));
+  const lines = ['Indicators (key=state, all keys always reported): ' + pairs.join(', ')];
+  const notable = list
+    .filter((i) => i && i.key && i.state && i.state !== 'off')
+    .sort((a, b) => (INDICATOR_RANK[a.state] != null ? INDICATOR_RANK[a.state] : 9) -
+      (INDICATOR_RANK[b.state] != null ? INDICATOR_RANK[b.state] : 9));
+  for (const i of notable.slice(0, 14)) {
+    lines.push('- ' + i.key + ' [' + i.state + ']' +
+      (i.detail ? ': ' + String(i.detail).slice(0, 220) : ''));
+  }
+  return lines.join('\n');
+}
+
+/**
+ * One prompt block for the detected Scenario (primary + confidence + detail).
+ * @param {object} analysis AnalysisJSON
+ * @returns {string|null}
+ */
+function scenarioText(analysis) {
+  const s = analysis.scenario;
+  if (!s || typeof s !== 'object' || !s.primary) return null;
+  let line = 'Scenario: ' + s.primary;
+  if (typeof s.confidence === 'number') line += ' (confidence ' + s.confidence.toFixed(2) + ')';
+  if (s.detail) line += '\n' + String(s.detail).slice(0, 700);
+  if (Array.isArray(s.alternatives) && s.alternatives.length) {
+    line += '\nAlternatives considered: ' + s.alternatives
+      .slice(0, 3)
+      .map((a) => (a && a.primary) + ' ' + (a && typeof a.confidence === 'number'
+        ? a.confidence.toFixed(2) : '?'))
+      .join(', ');
+  }
+  return line;
+}
+
+/**
+ * One prompt block listing the deterministic Advice objects (id, severity,
+ * title and their pre-verified citation strings) — the model's only permitted
+ * source of protocol citations.
+ * @param {object} analysis AnalysisJSON
+ * @returns {string|null}
+ */
+function adviceText(analysis) {
+  const list = Array.isArray(analysis.advice) ? analysis.advice : [];
+  if (!list.length) return null;
+  const lines = ['Advice available for this capture (deterministic, already ' +
+    'cited — quote these citations verbatim or not at all):'];
+  for (const a of list.slice(0, 20)) {
+    if (!a) continue;
+    let line = '- ' + (a.id || '?') + ' [' + (a.severity || 'info') + '] ' + (a.title || '');
+    const cites = (Array.isArray(a.citations) ? a.citations : [])
+      .filter((c) => c && c.source)
+      .map((c) => c.source + (c.section ? ' ' + c.section : ''));
+    if (cites.length) line += ' — citations: ' + cites.join('; ');
+    const kbCites = (Array.isArray(a.kbCitations) ? a.kbCitations : [])
+      .filter((c) => c && c.docTitle)
+      .map((c) => c.docTitle + (c.page != null ? ' p' + c.page : ''));
+    if (kbCites.length) line += ' — guide refs: ' + kbCites.join('; ');
+    lines.push(line);
+  }
+  if (list.length > 20) lines.push('(and ' + (list.length - 20) + ' more)');
+  return lines.join('\n');
+}
+
+/**
+ * One prompt block summarising the media streams and RTCP reports.
+ * @param {object} analysis AnalysisJSON
+ * @returns {string|null}
+ */
+function mediaText(analysis) {
+  const media = (analysis.media && typeof analysis.media === 'object') ? analysis.media : {};
+  const streams = Array.isArray(media.streams) ? media.streams : [];
+  const rtcp = Array.isArray(media.rtcp) ? media.rtcp : [];
+  if (!streams.length && !rtcp.length) return null;
+  const lines = ['Media: ' + streams.length + ' stream(s), ' + rtcp.length + ' RTCP report(s). ' +
+    'MOS values are simplified-E-model ESTIMATES, not measurements.'];
+  for (const s of streams.slice(0, 12)) {
+    if (!s) continue;
+    const bits = [
+      s.id,
+      s.kind,
+      s.codec,
+      (s.src || '?') + ':' + (s.sport != null ? s.sport : '?') + ' -> ' +
+        (s.dst || '?') + ':' + (s.dport != null ? s.dport : '?'),
+      s.packets != null ? s.packets + ' pkts' : null,
+      s.lossPct != null ? 'loss ' + s.lossPct + '%' : null,
+      s.meanJitterMs != null ? 'jitter mean ' + s.meanJitterMs + 'ms' : null,
+      s.maxJitterMs != null ? 'max ' + s.maxJitterMs + 'ms' : null,
+      s.maxGapMs != null ? 'maxGap ' + s.maxGapMs + 'ms' : null,
+      s.mos != null ? 'MOS~' + s.mos : null,
+      s.oneWay ? 'ONE-WAY (no reverse stream)' : null,
+      Array.isArray(s.legIds) && s.legIds.length ? 'legs ' + s.legIds.join('/') : null,
+    ].filter((b) => b != null && b !== '');
+    lines.push('- ' + bits.join('  '));
+  }
+  if (streams.length > 12) lines.push('(and ' + (streams.length - 12) + ' more streams)');
+  return lines.join('\n');
+}
+
+/**
+ * One prompt block with the retrieved knowledge-base excerpts.
+ * @param {Array<{docTitle?:string,page?:number,heading?:string,text?:string}>} hits
+ * @returns {string|null}
+ */
+function kbHitsText(hits) {
+  const list = Array.isArray(hits) ? hits.filter(Boolean) : [];
+  if (!list.length) return null;
+  const lines = ['Knowledge-base excerpts from vendor guides this user uploaded ' +
+    '(cite as "<document title>, p<page>"; nothing outside these excerpts and the ' +
+    'Advice citations above may be cited):'];
+  list.slice(0, 6).forEach((h, i) => {
+    lines.push('[' + (i + 1) + '] ' + (h.docTitle || 'document') +
+      (h.page != null ? ' p' + h.page : '') +
+      (h.heading ? ' — ' + h.heading : ''));
+    lines.push(String(h.text || h.excerpt || '').slice(0, 900));
+  });
+  return lines.join('\n');
+}
+
+/**
+ * Build the /api/chat system prompt: persona + capture stats + scenario +
+ * indicators + findings summary + advice titles + media summary + KB excerpts
+ * + the scope serialization + the citation rules.
  * @param {object} analysis AnalysisJSON
  * @param {{type:string,id:string}|undefined} scope
+ * @param {Array<object>} [kbHits] KB hits for a config-shaped question
  * @returns {string}
  */
-function buildSystemPrompt(analysis, scope) {
+function buildSystemPrompt(analysis, scope, kbHits) {
   const parts = [];
   parts.push(
     'You are hiccup, an expert SIP/SBC/H.323 engineer explaining a capture to an ' +
@@ -534,6 +1123,10 @@ function buildSystemPrompt(analysis, scope) {
     'credential material in the capture is already redacted; never invent replacements.'
   );
   parts.push('Capture stats: ' + JSON.stringify(analysis.stats || {}));
+  const scenario = scenarioText(analysis);
+  if (scenario) parts.push(scenario);
+  const indicators = indicatorsText(analysis);
+  if (indicators) parts.push(indicators);
   const findings = analysis.findings || [];
   const counts = countFindings(findings);
   const summary = ['Findings: ' + findings.length + ' total (crit ' + counts.crit +
@@ -544,8 +1137,23 @@ function buildSystemPrompt(analysis, scope) {
   }
   if (findings.length > 20) summary.push('(and ' + (findings.length - 20) + ' more)');
   parts.push(summary.join('\n'));
+  const advice = adviceText(analysis);
+  if (advice) parts.push(advice);
+  const media = mediaText(analysis);
+  if (media) parts.push(media);
+  const kb = kbHitsText(kbHits);
+  if (kb) parts.push(kb);
   const scopeText = buildScopeText(analysis, scope);
   if (scopeText) parts.push(scopeText);
+  parts.push(
+    'Citation rules (strict): the ONLY citations you may give are the ones carried by ' +
+    'the Advice objects listed above and the knowledge-base excerpts supplied above. ' +
+    'Never invent, guess or recall an RFC number, an RFC section number, a 3GPP TS ' +
+    'number or an ITU-T reference — if the supporting reference is not in the material ' +
+    'above, explain the mechanism in your own words and say which document the reader ' +
+    'should look it up in, without a section number. Any vendor configuration you ' +
+    'suggest is a reviewable draft, never a verified change.'
+  );
   return parts.join('\n\n');
 }
 
@@ -562,12 +1170,7 @@ async function handleChat(req, res, user) {
     sendJson(res, 400, { error: 'messages array is required' });
     return;
   }
-  const dir = findCaptureDir(user, body.captureId);
-  if (!dir) {
-    sendJson(res, 404, { error: 'capture not found' });
-    return;
-  }
-  const analysis = store.loadJson(path.join(dir, 'analysis.json'), null);
+  const analysis = loadAnalysis(user, body.captureId);
   if (!analysis) {
     sendJson(res, 404, { error: 'capture not found' });
     return;
@@ -581,7 +1184,13 @@ async function handleChat(req, res, user) {
     role: m && m.role === 'assistant' ? 'assistant' : 'user',
     content: String((m && m.content) || ''),
   }));
-  const system = buildSystemPrompt(analysis, body.scope);
+  // Config-shaped questions get the user's own vendor-guide excerpts injected.
+  let question = '';
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === 'user') { question = messages[i].content; break; }
+  }
+  const kbHits = looksConfigShaped(question) ? kbSearchSafe(user, question, 4) : [];
+  const system = buildSystemPrompt(analysis, body.scope, kbHits);
   try {
     const out = await llm.askLlm({ system, messages });
     sendJson(res, 200, { reply: out.text, model: out.model });
@@ -757,12 +1366,16 @@ async function handle(req, res) {
     return;
   }
 
-  const capMatch = pathname.match(/^\/api\/captures\/([A-Za-z0-9_-]{1,64})(\/analysis)?$/);
+  const capMatch = pathname.match(
+    /^\/api\/captures\/([A-Za-z0-9_-]{1,64})(\/analysis|\/advice)?$/);
   if (capMatch) {
     const user = requireAuth(req, res);
     if (!user) return;
     const captureId = capMatch[1];
-    if (capMatch[2] && method === 'GET') {
+    if (capMatch[2] === '/advice' && method === 'GET') {
+      return handleAdvice(req, res, user, captureId);
+    }
+    if (capMatch[2] === '/analysis' && method === 'GET') {
       const dir = findCaptureDir(user, captureId);
       const file = dir ? path.join(dir, 'analysis.json') : null;
       if (!file || !fs.existsSync(file)) {
@@ -798,6 +1411,36 @@ async function handle(req, res) {
     return handleChat(req, res, user);
   }
 
+  // --- hmr: SBC config manipulation rules (Wave 2) ---
+  if (pathname === '/api/hmr/analyze' && method === 'POST') {
+    const user = requireAuth(req, res);
+    if (!user) { req.resume(); return; }
+    return handleHmrAnalyze(req, res, user);
+  }
+
+  // --- kb: the user's config-guide library (Wave 2) ---
+  if (pathname === '/api/kb/docs' && method === 'POST') {
+    const user = requireAuth(req, res);
+    if (!user) { req.resume(); return; }
+    return handleKbAdd(req, res, user);
+  }
+  if (pathname === '/api/kb/docs' && method === 'GET') {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    return handleKbList(req, res, user);
+  }
+  const kbDocMatch = pathname.match(/^\/api\/kb\/docs\/([A-Za-z0-9_-]{1,64})$/);
+  if (kbDocMatch && method === 'DELETE') {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    return handleKbDelete(req, res, user, kbDocMatch[1]);
+  }
+  if (pathname === '/api/kb/search' && method === 'POST') {
+    const user = requireAuth(req, res);
+    if (!user) { req.resume(); return; }
+    return handleKbSearch(req, res, user);
+  }
+
   // --- anything else under /api is a JSON 404 ---
   if (pathname.startsWith('/api/')) {
     sendJson(res, 404, { error: 'not found' });
@@ -808,6 +1451,8 @@ async function handle(req, res) {
   if (method === 'GET' || method === 'HEAD') {
     if (pathname === '/') return servePublicFile(res, 'index.html');
     if (pathname === '/app') return servePublicFile(res, 'app.html');
+    if (pathname === '/hmr') return servePublicPage(res, 'hmr.html');
+    if (pathname === '/kb') return servePublicPage(res, 'kb.html');
     return serveStatic(res, pathname);
   }
 

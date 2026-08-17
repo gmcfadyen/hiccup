@@ -1,0 +1,66 @@
+hiccup -- SIP / H.323 trace analyser
+Copyright (c) 2026 Gavin McFadyen. All rights reserved.
+
+This product is source-available software, NOT open source. It is licensed
+under the Business Source License 1.1 (BSL 1.1); see the LICENSE file in this
+repository for the full terms and for the Additional Use Grant. Production and
+commercial use require a separate commercial licence -- see
+LICENSE-COMMERCIAL.md, or contact licensing@rfplex.ai.
+
+Each released version converts to the Apache License, Version 2.0 on its
+Change Date. For version 0.1.0 and later as published here, the Change Date is
+2030-08-17.
+
+The Business Source License text is copyright (c) 2020 MariaDB Corporation Ab.
+"Business Source License" is a trademark of MariaDB Corporation Ab. MariaDB
+Corporation Ab does not endorse hiccup and is not affiliated with it.
+
+TRADEMARKS
+
+"hiccup" as the name of this software, and the hiccup wordmark and logo, are
+claimed as trademarks of Gavin McFadyen. They are NOT licensed under the BSL
+1.1 or under the Apache-2.0 conversion: source-available status of the code
+grants no right to use the name or the mark.
+
+You may, without permission, refer to hiccup by name in factual descriptions,
+comparisons, reviews, research, journalism, conference talks and similar
+editorial contexts, and display the unmodified logo when linking to hiccup or
+its documentation.
+
+You may not, without a separate written trademark licence, name a product,
+service, company, domain or app using the mark or a confusingly similar
+variation, use the mark in a way that suggests endorsement or affiliation
+where none exists, or register the mark in any jurisdiction. If you fork this
+source you must rename the fork so it is not called "hiccup" or a confusingly
+similar variant, and remove or replace the mark-bearing assets (wordmark,
+logo, favicon) -- while retaining the text of the LICENSE file unchanged,
+including its references to Gavin McFadyen as Licensor.
+
+Trademark enquiries: trademarks@rfplex.ai
+
+THIRD-PARTY COMPONENTS
+
+hiccup has no runtime dependencies. Nothing in node_modules is required to run
+the server, and no third-party code is vendored into lib/, public/ or
+server.js.
+
+Optional, not bundled and not required:
+  - pdf-parse (MIT) -- loaded lazily, only if present, only to ingest PDF
+    vendor guides into the config-guide knowledge base.
+
+hiccup talks to a local Ollama instance if one is running. Ollama and the
+language models it serves are separate works under their own licences and are
+neither bundled with nor distributed by hiccup.
+
+Protocol names, vendor names and product names (Oracle, Acme Packet,
+AudioCodes, Ribbon, Cisco, Asterisk, FreeSWITCH, Wireshark and others) are the
+trademarks of their respective owners and are used here only to identify the
+equipment and file formats hiccup interoperates with. No affiliation or
+endorsement is claimed or implied.
+
+STANDARDS REFERENCES
+
+hiccup cites RFCs (RFC Editor / IETF), 3GPP technical specifications and
+ITU-T recommendations by number, section and title, and links to
+rfc-editor.org. Those documents remain the copyright of their respective
+publishers and are not redistributed here.

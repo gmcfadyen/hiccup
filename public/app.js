@@ -1,19 +1,50 @@
 /*
  * hiccup — app.js
- * App shell: boot/auth, capture sidebar + upload, tab router, renderers
- * (Calls/Flow, Ladder, Retrans, Findings), inspector, chat drawer.
+ * The Workbench app shell: boot/auth, capture sidebar + upload, trace-wide
+ * search, the five Workbench panes (#searchbar #filter-pane #selection-pane
+ * #ladder-pane/#time-pane #info-pane), the indicator lamps, the scenario chip
+ * and the "ask hiccup" chat drawer.
  *
- * All DOM building is vanilla createElement; user-derived data only ever goes
- * through textContent (never innerHTML) — SIP raw text is attacker-controlled.
+ * DOM id contract (ARCHITECTURE.md §UI — the Workbench layout) is frozen and
+ * shared with the UI-shell agent who owns app.html/app.css. This file assumes
+ * every listed id may or may not be present and guards every access; it never
+ * writes layout CSS (only per-element indentation and SVG geometry).
+ *
+ * Security: every piece of capture-derived text (message raw, headers, URIs,
+ * numbers, aux summaries, advice text) goes in through textContent /
+ * createTextNode. innerHTML is never used anywhere in this file.
  */
 (function () {
   'use strict';
+
+  var RFPLEX_URL = 'https://rfplex.ai/?utm_source=hiccup&utm_medium=app&utm_campaign=crosslink';
+
+  var SEV_ORDER = { crit: 0, warn: 1, notice: 2, info: 3 };
+
+  var INFO_TABS = [
+    { key: 'contents', label: 'Contents', panel: 'info-contents' },
+    { key: 'packet', label: 'Packet Info', panel: 'info-packet' },
+    { key: 'media', label: 'Media', panel: 'info-media' },
+    { key: 'advice', label: 'Advice', panel: 'info-advice' }
+  ];
+
+  var SEARCH_FIELDS = {
+    call: 1, leg: 1, callid: 1, from: 1, to: 1, method: 1, status: 1,
+    ip: 1, port: 1, codec: 1, proto: 1, sev: 1, has: 1
+  };
+
+  var IMS_HEADERS = ['p-charging-vector', 'p-charging-function-addresses', 'path',
+    'service-route', 'p-associated-uri', 'p-access-network-info',
+    'p-visited-network-id', 'p-early-media', 'p-preferred-identity', 'feature-caps'];
+
+  var MAX_LADDER_ROWS = 1500;
+  var SEARCH_CAP = 500;
 
   // ---------------------------------------------------------------- helpers
 
   function $(id) { return document.getElementById(id); }
 
-  /** Create an element with optional class and textContent. */
+  /** Create an element with optional class and textContent (never markup). */
   function el(tag, cls, text) {
     var e = document.createElement(tag);
     if (cls) e.className = cls;
@@ -21,15 +52,32 @@
     return e;
   }
 
-  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+  function clear(node) { if (node) { while (node.firstChild) node.removeChild(node.firstChild); } }
+
+  function arr(v) { return Array.isArray(v) ? v : []; }
+
+  /** Array of real objects only — analysis arrays may contain nulls or scalars. */
+  function objs(v) {
+    var src = arr(v), out = [];
+    for (var i = 0; i < src.length; i++) {
+      if (src[i] && typeof src[i] === 'object') out.push(src[i]);
+    }
+    return out;
+  }
+
+  function str(v) { return v == null ? '' : String(v); }
+
+  function nnum(v) { return (typeof v === 'number' && isFinite(v)) ? v : null; }
 
   function p2(n) { return (n < 10 ? '0' : '') + n; }
 
   /** epoch-seconds float → HH:MM:SS.mmm local, or em-dash. */
   function fmtClock(ts) {
-    if (ts == null || !isFinite(ts)) return '—';
-    var d = new Date(ts * 1000);
-    var ms = Math.floor((ts % 1) * 1000);
+    var t = nnum(ts);
+    if (t == null) return '—';
+    var d = new Date(t * 1000);
+    if (isNaN(d.getTime())) return '—';
+    var ms = Math.floor((t - Math.floor(t)) * 1000);
     var p3 = (ms < 10 ? '00' : ms < 100 ? '0' : '') + ms;
     return p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds()) + '.' + p3;
   }
@@ -37,44 +85,205 @@
   function fmtDateTime(iso) {
     if (!iso) return '—';
     var d = new Date(iso);
-    if (isNaN(d.getTime())) return String(iso);
+    if (isNaN(d.getTime())) return str(iso);
     return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) +
       ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
   }
 
   function fmtBytes(n) {
-    if (n == null) return '—';
-    if (n < 1024) return n + ' B';
-    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
-    return (n / (1024 * 1024)).toFixed(1) + ' MB';
+    var v = nnum(n);
+    if (v == null) return '—';
+    if (v < 1024) return v + ' B';
+    if (v < 1024 * 1024) return (v / 1024).toFixed(1) + ' KB';
+    return (v / (1024 * 1024)).toFixed(1) + ' MB';
   }
 
-  var SEV_ORDER = { crit: 0, warn: 1, notice: 2, info: 3 };
+  function fmtNum(v, digits) {
+    var n = nnum(v);
+    if (n == null) return '—';
+    return digits ? n.toFixed(digits) : String(n);
+  }
 
-  function sevChip(sev) {
-    return el('span', 'chip sev-' + (sev || 'info'), sev || 'info');
+  function sevChip(sev) { return el('span', 'chip sev-' + (sev || 'info'), sev || 'info'); }
+
+  function sevRank(s) { return SEV_ORDER[s] == null ? 9 : SEV_ORDER[s]; }
+
+  /** Strip the phone-shaped punctuation the contract lists, then keep digits. */
+  function digitsOf(s) {
+    return str(s).replace(/[+\-()\s.]/g, '').replace(/\D/g, '');
+  }
+
+  /** Best-effort user part of a SIP/SIPS/TEL URI (also handles name-addr form). */
+  function uriUser(u) {
+    var m = /(?:sips?|tel):([^@;>\s,]+)(?:@|$|[;>])/i.exec(str(u));
+    return m ? m[1] : '';
+  }
+
+  function pathOf(o) {
+    if (!o) return '—';
+    return str(o.src == null ? '?' : o.src) + ':' + str(o.sport == null ? '?' : o.sport) +
+      ' → ' + str(o.dst == null ? '?' : o.dst) + ':' + str(o.dport == null ? '?' : o.dport);
+  }
+
+  /** Debounce that never throws out of the timer. */
+  function debounce(fn, ms) {
+    var t = null;
+    return function () {
+      var args = arguments, self = this;
+      if (t) clearTimeout(t);
+      t = setTimeout(function () {
+        t = null;
+        try { fn.apply(self, args); } catch (e) { /* never break the UI */ }
+      }, ms);
+    };
+  }
+
+  /** Copy to clipboard with a legacy fallback; reports on the button itself. */
+  function copyText(text, btn) {
+    var original = btn ? btn.textContent : null;
+    function done(ok) {
+      if (!btn) return;
+      btn.textContent = ok ? 'copied ✓' : 'copy failed';
+      setTimeout(function () { btn.textContent = original; }, 1600);
+    }
+    function legacy() {
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = str(text);
+        ta.setAttribute('readonly', 'readonly');
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = document.execCommand && document.execCommand('copy');
+        document.body.removeChild(ta);
+        done(!!ok);
+      } catch (e) { done(false); }
+    }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(str(text)).then(function () { done(true); }, legacy);
+        return;
+      }
+    } catch (e) { /* fall through */ }
+    legacy();
+  }
+
+  /**
+   * Append text to a parent, wrapping every occurrence of `terms` in
+   * <mark class="hit">. All text goes through createTextNode.
+   */
+  function appendHighlighted(parent, text, terms) {
+    var s = str(text);
+    if (s.length > 400000) s = s.slice(0, 400000) + '\n… (truncated for display)';
+    var list = [];
+    for (var i = 0; i < arr(terms).length; i++) {
+      var t = str(terms[i]).toLowerCase();
+      if (t) list.push(t);
+    }
+    if (!list.length) { parent.appendChild(document.createTextNode(s)); return; }
+    var low = s.toLowerCase();
+    var ranges = [];
+    for (var k = 0; k < list.length; k++) {
+      var at = 0, guard = 0;
+      while (guard++ < 8000) {
+        var idx = low.indexOf(list[k], at);
+        if (idx === -1) break;
+        ranges.push([idx, idx + list[k].length]);
+        at = idx + list[k].length;
+      }
+    }
+    if (!ranges.length) { parent.appendChild(document.createTextNode(s)); return; }
+    ranges.sort(function (a, b) { return a[0] - b[0]; });
+    var merged = [];
+    for (var r = 0; r < ranges.length; r++) {
+      var last = merged[merged.length - 1];
+      if (last && ranges[r][0] <= last[1]) last[1] = Math.max(last[1], ranges[r][1]);
+      else merged.push([ranges[r][0], ranges[r][1]]);
+    }
+    var pos = 0;
+    for (var mi = 0; mi < merged.length; mi++) {
+      if (merged[mi][0] > pos) parent.appendChild(document.createTextNode(s.slice(pos, merged[mi][0])));
+      parent.appendChild(el('mark', 'hit', s.slice(merged[mi][0], merged[mi][1])));
+      pos = merged[mi][1];
+    }
+    if (pos < s.length) parent.appendChild(document.createTextNode(s.slice(pos)));
+  }
+
+  /**
+   * Only http(s) links are ever put in an href — advice/KB citations are
+   * hand-written server-side, but a javascript:/data: URL must never survive.
+   * @returns {string|null} the safe URL, or null when it must not be a link
+   */
+  function safeHref(u) {
+    var s = str(u).trim();
+    if (!s) return null;
+    return /^https?:\/\//i.test(s) ? s : null;
+  }
+
+  /** Shared empty-pane placeholder (.pane-empty comes from hiccup.css). */
+  function emptyNote(parent, title, sub) {
+    var box = el('div', 'pane-empty-wrap');
+    box.appendChild(el('p', 'pane-empty', title));
+    if (sub) box.appendChild(el('p', 'pane-empty', sub));
+    if (parent) parent.appendChild(box);
+    return box;
   }
 
   // ------------------------------------------------------------------ state
 
   var state = {
     user: null,
-    llm: null,               // /api/status .llm
+    llm: null,
     captures: [],
     captureId: null,
     analysis: null,
+
     msgById: {},
     legById: {},
     callById: {},
-    tab: 'calls',
-    selectedCallId: null,
-    selectedMsgId: null,
-    scope: { type: 'capture', id: null },
-    expandRetrans: false,
-    sortAsc: true,
+    findingById: {},
+    msgToLeg: {},
+    legToCall: {},
+    msgToCall: {},
+    collapseByMsg: {},
+    adviceMsgIds: {},
+
+    sel: { type: 'capture', callId: null, legId: null, txKey: null },
+    selectedRowId: null,
+    rows: [],
+    rowById: {},
+    scopeMsgs: [],
+    truncatedRows: 0,
+    pendingScope: null,
+
+    treeExpanded: {},
+    infoTab: 'contents',
+    collapsed: true,
+    zoom: 1,
+    selSort: { key: 'n', asc: true },
+
+    searchQuery: '',
+    searchTerms: [],
+    searchHits: [],
+    searchMatchIds: {},
+    searchActive: false,
+    searchTruncated: false,
+    searchIndex: [],
+
+    lampFilter: null,
+
     chatOpen: false,
     chatBusy: false,
-    chatError: null
+    chatError: null,
+
+    ladderSvg: null,
+    ladderRowEls: {},
+    selRowEls: {},
+    gutterRowEls: {},
+    sortBtns: [],
+    toolbarOwn: true,
+    scrollSyncWired: false
   };
 
   // ------------------------------------------------------------------- boot
@@ -91,13 +300,15 @@
       return;
     }
     var name = $('user-name');
-    if (state.user) name.textContent = state.user.name || state.user.email || '';
+    if (name && state.user) name.textContent = state.user.name || state.user.email || '';
 
     wireStatic();
+    fillRfplexPromo();
+    ensureChatRfplexLine();
     pollStatus();
     setInterval(pollStatus, 60000);
     await loadCaptures();
-    renderMain();
+    renderAll();
   }
 
   async function pollStatus() {
@@ -115,6 +326,7 @@
 
   function renderLlmChip() {
     var chip = $('llm-chip');
+    if (!chip) return;
     var llm = state.llm;
     if (llm && llm.available) {
       chip.textContent = 'LLM: ' + (llm.model || '?');
@@ -124,71 +336,106 @@
       chip.classList.remove('llm-off');
     } else {
       chip.textContent = 'LLM offline';
-      chip.title = 'local model unavailable — analysis features all still work';
+      chip.title = 'local model unavailable — every analysis feature still works';
       chip.classList.add('llm-off');
     }
   }
 
+  // --------------------------------------------------------------- wiring
+
   function wireStatic() {
-    // Tabs.
-    var tabbar = $('tabs');
-    var buttons = tabbar.querySelectorAll('.tab');
-    for (var i = 0; i < buttons.length; i++) {
-      (function (btn) {
-        btn.addEventListener('click', function () {
-          state.tab = btn.getAttribute('data-tab');
-          state.selectedCallId = null;
-          syncTabbar();
-          renderMain();
-        });
-      })(buttons[i]);
+    var logout = $('logout-btn');
+    if (logout) {
+      logout.addEventListener('click', async function () {
+        try { await fetch('/api/auth/logout', { method: 'POST' }); } catch (e) { /* ignore */ }
+        location.href = '/';
+      });
     }
 
-    // Logout.
-    $('logout-btn').addEventListener('click', async function () {
-      try { await fetch('/api/auth/logout', { method: 'POST' }); } catch (e) { /* ignore */ }
-      location.href = '/';
-    });
-
-    // Upload.
+    // Upload (drag-drop + file picker).
     var dz = $('dropzone');
     var input = $('file-input');
-    $('browse-btn').addEventListener('click', function () { input.click(); });
-    input.addEventListener('change', function () {
-      uploadFiles(input.files);
-      input.value = '';
-    });
-    dz.addEventListener('dragover', function (ev) {
-      ev.preventDefault();
-      dz.classList.add('drag');
-    });
-    dz.addEventListener('dragleave', function () { dz.classList.remove('drag'); });
-    dz.addEventListener('drop', function (ev) {
-      ev.preventDefault();
-      dz.classList.remove('drag');
-      if (ev.dataTransfer && ev.dataTransfer.files) uploadFiles(ev.dataTransfer.files);
-    });
+    var browse = $('browse-btn');
+    if (browse && input) browse.addEventListener('click', function () { input.click(); });
+    if (input) {
+      input.addEventListener('change', function () {
+        uploadFiles(input.files);
+        input.value = '';
+      });
+    }
+    if (dz) {
+      dz.addEventListener('dragover', function (ev) { ev.preventDefault(); dz.classList.add('drag'); });
+      dz.addEventListener('dragleave', function () { dz.classList.remove('drag'); });
+      dz.addEventListener('drop', function (ev) {
+        ev.preventDefault();
+        dz.classList.remove('drag');
+        if (ev.dataTransfer && ev.dataTransfer.files) uploadFiles(ev.dataTransfer.files);
+      });
+    }
 
     // Chat drawer.
-    $('chat-toggle').addEventListener('click', function () { toggleChat(!state.chatOpen); });
-    $('chat-close').addEventListener('click', function () { toggleChat(false); });
-    $('chat-form').addEventListener('submit', function (ev) {
-      ev.preventDefault();
-      submitChat();
-    });
-    $('chat-input').addEventListener('keydown', function (ev) {
-      if (ev.key === 'Enter' && !ev.shiftKey) {
-        ev.preventDefault();
-        submitChat();
-      }
-    });
+    var ct = $('chat-toggle');
+    if (ct) ct.addEventListener('click', function () { toggleChat(!state.chatOpen); });
+    var cc = $('chat-close');
+    if (cc) cc.addEventListener('click', function () { toggleChat(false); });
+    var cf = $('chat-form');
+    if (cf) cf.addEventListener('submit', function (ev) { ev.preventDefault(); submitChat(); });
+    var ci = $('chat-input');
+    if (ci) {
+      ci.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); submitChat(); }
+      });
+    }
+
+    wireSearchbar();
+    setupInfoTabs();
+    setupLadderToolbar();
+    setupSelectionSort();
+    setupPaneActions();
+
+    var chip = $('scenario-chip');
+    if (chip) {
+      chip.addEventListener('click', function () {
+        state.infoTab = 'advice';
+        renderInfo();
+      });
+    }
   }
 
-  function syncTabbar() {
-    var buttons = $('tabs').querySelectorAll('.tab');
-    for (var i = 0; i < buttons.length; i++) {
-      buttons[i].classList.toggle('active', buttons[i].getAttribute('data-tab') === state.tab);
-    }
+  function fillRfplexPromo() {
+    var box = $('rfplex-promo');
+    if (!box || box.firstChild) return;   // the shell may already have built it
+    box.appendChild(el('p', 'promo-kicker', 'Also from the same workshop:'));
+    var line = el('p', 'promo-body');
+    var a = el('a', 'promo-link', 'RFPlex.ai');
+    a.href = RFPLEX_URL;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    line.appendChild(a);
+    line.appendChild(document.createTextNode(
+      ' — AI that answers RFPs, RFIs and DDQs from your own document library. ' +
+      'Self-hosted, EU-sovereign, free during beta.'));
+    box.appendChild(line);
+  }
+
+  function ensureChatRfplexLine() {
+    var drawer = $('chat-drawer');
+    if (!drawer || $('chat-rfplex')) return;
+    // app.html may already ship the line (.chat-crosslink) — don't duplicate it.
+    if (drawer.querySelector && drawer.querySelector('.chat-crosslink')) return;
+    if (str(drawer.textContent).indexOf('local-LLM stack') !== -1) return;
+    var line = el('p', 'chat-crosslink muted');
+    line.id = 'chat-rfplex';
+    line.appendChild(document.createTextNode('hiccup and '));
+    var a = el('a', null, 'RFPlex.ai');
+    a.href = RFPLEX_URL;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    line.appendChild(a);
+    line.appendChild(document.createTextNode(' share the same local-LLM stack.'));
+    var msgs = $('chat-messages');
+    if (msgs && msgs.parentNode) msgs.parentNode.insertBefore(line, msgs);
+    else drawer.appendChild(line);
   }
 
   // --------------------------------------------------------------- captures
@@ -197,7 +444,8 @@
     try {
       var r = await fetch('/api/captures');
       if (!r.ok) throw new Error('captures ' + r.status);
-      state.captures = await r.json();
+      var j = await r.json();
+      state.captures = arr(j);
     } catch (e) {
       state.captures = [];
     }
@@ -206,6 +454,7 @@
 
   function setUploadMsg(text, isError) {
     var m = $('upload-msg');
+    if (!m) return;
     if (!text) { m.hidden = true; m.textContent = ''; return; }
     m.hidden = false;
     m.textContent = text;
@@ -214,12 +463,11 @@
 
   async function uploadFiles(fileList) {
     var files = Array.prototype.slice.call(fileList || []);
-    for (var i = 0; i < files.length; i++) {
-      await uploadFile(files[i]);
-    }
+    for (var i = 0; i < files.length; i++) await uploadFile(files[i]);
   }
 
   async function uploadFile(file) {
+    if (!file) return;
     setUploadMsg('Analysing ' + file.name + ' …');
     try {
       var buf = await file.arrayBuffer();
@@ -236,13 +484,14 @@
       }
       setUploadMsg('');
       await loadCaptures();
-      openCapture(j.id);
+      if (j && j.id) openCapture(j.id);
     } catch (e) {
       setUploadMsg('Upload failed: ' + (e && e.message ? e.message : 'network error'), true);
     }
   }
 
   async function deleteCapture(cap) {
+    if (!cap) return;
     if (!confirm('Delete "' + cap.filename + '"? This removes the capture and its analysis.')) return;
     try {
       var r = await fetch('/api/captures/' + encodeURIComponent(cap.id), { method: 'DELETE' });
@@ -254,11 +503,9 @@
     if (state.captureId === cap.id) {
       state.captureId = null;
       state.analysis = null;
-      state.selectedCallId = null;
-      state.selectedMsgId = null;
-      state.scope = { type: 'capture', id: null };
-      renderInspector();
-      renderMain();
+      resetSelection();
+      indexAnalysis();
+      renderAll();
       if (state.chatOpen) renderChat();
     }
     await loadCaptures();
@@ -266,12 +513,11 @@
 
   function renderSidebar() {
     var list = $('capture-list');
+    if (!list) return;
     clear(list);
     if (!state.captures.length) {
-      var empty = el('div', 'empty-note');
-      empty.appendChild(el('p', null, 'No captures yet.'));
-      empty.appendChild(el('p', 'muted-note', 'Upload a pcap, pcapng, or an SBC log/SIP text export to get started.'));
-      list.appendChild(empty);
+      emptyNote(list, 'No captures yet.',
+        'Upload a pcap, pcapng, or an SBC log / SIP text export to get started.');
       return;
     }
     for (var i = 0; i < state.captures.length; i++) {
@@ -282,31 +528,23 @@
         var del = el('button', 'cap-del', '×');
         del.type = 'button';
         del.title = 'delete capture';
-        del.addEventListener('click', function (ev) {
-          ev.stopPropagation();
-          deleteCapture(cap);
-        });
+        del.addEventListener('click', function (ev) { ev.stopPropagation(); deleteCapture(cap); });
         top.appendChild(del);
         row.appendChild(top);
 
-        var sub = el('div', 'cap-sub');
-        sub.appendChild(el('span', 'mono cap-meta',
+        row.appendChild(el('div', 'cap-sub mono',
           fmtDateTime(cap.uploadedAt) + ' · ' + fmtBytes(cap.sizeBytes)));
-        row.appendChild(sub);
 
         var stats = cap.stats || {};
-        var line = el('div', 'cap-stats mono',
+        row.appendChild(el('div', 'cap-stats mono',
           (stats.sipMessages || 0) + ' SIP · ' + (stats.h323Messages || 0) + ' H.323 · ' +
-          (stats.calls || 0) + ' calls');
-        row.appendChild(line);
+          (stats.calls || 0) + ' calls'));
 
         var fc = cap.findingCounts || {};
         var chips = el('div', 'cap-chips');
         var sevs = ['crit', 'warn', 'notice', 'info'];
         for (var s = 0; s < sevs.length; s++) {
-          if (fc[sevs[s]]) {
-            chips.appendChild(el('span', 'chip sev-' + sevs[s], String(fc[sevs[s]])));
-          }
+          if (fc[sevs[s]]) chips.appendChild(el('span', 'chip sev-' + sevs[s], String(fc[sevs[s]])));
         }
         if (chips.firstChild) row.appendChild(chips);
 
@@ -316,778 +554,2907 @@
     }
   }
 
+  function resetSelection() {
+    state.sel = { type: 'capture', callId: null, legId: null, txKey: null };
+    state.selectedRowId = null;
+    state.lampFilter = null;
+    state.treeExpanded = {};
+    state.infoTab = 'contents';
+    state.searchQuery = '';
+    state.searchTerms = [];
+    state.searchHits = [];
+    state.searchMatchIds = {};
+    state.searchActive = false;
+    state.searchTruncated = false;
+    state.searchIndex = [];
+    var si = $('search-input');
+    if (si) si.value = '';
+  }
+
   async function openCapture(id) {
-    var content = $('main-content');
-    clear(content);
-    content.appendChild(el('div', 'empty-note', 'Loading analysis…'));
+    var host = $('ladder-svg-host');
+    if (host) { clear(host); emptyNote(host, 'Loading analysis…'); }
     try {
       var r = await fetch('/api/captures/' + encodeURIComponent(id) + '/analysis');
       if (!r.ok) throw new Error('analysis ' + r.status);
       state.analysis = await r.json();
     } catch (e) {
       state.analysis = null;
-      clear(content);
-      content.appendChild(el('div', 'empty-note err', 'Could not load the analysis for this capture.'));
+      if (host) { clear(host); emptyNote(host, 'Could not load the analysis for this capture.'); }
       return;
     }
     state.captureId = id;
-    state.selectedCallId = null;
-    state.selectedMsgId = null;
-    state.scope = { type: 'capture', id: id };
+    resetSelection();
     indexAnalysis();
+    buildSearchIndex();
     renderSidebar();
-    renderInspector();
-    renderMain();
+    renderAll();
     if (state.chatOpen) renderChat();
   }
+
+  // -------------------------------------------------------- analysis index
 
   function indexAnalysis() {
     state.msgById = {};
     state.legById = {};
     state.callById = {};
+    state.findingById = {};
+    state.msgToLeg = {};
+    state.legToCall = {};
+    state.msgToCall = {};
+    state.collapseByMsg = {};
+    state.adviceMsgIds = {};
+
     var a = state.analysis;
     if (!a) return;
-    var i;
-    for (i = 0; i < (a.messages || []).length; i++) state.msgById[a.messages[i].id] = a.messages[i];
-    for (i = 0; i < (a.legs || []).length; i++) state.legById[a.legs[i].id] = a.legs[i];
-    for (i = 0; i < (a.calls || []).length; i++) state.callById[a.calls[i].id] = a.calls[i];
-  }
+    var i, j, ids;
 
-  // ------------------------------------------------------------- tab router
+    var msgs = arr(a.messages);
+    for (i = 0; i < msgs.length; i++) { if (msgs[i] && msgs[i].id) state.msgById[msgs[i].id] = msgs[i]; }
 
-  function renderMain() {
-    syncTabbar();
-    var content = $('main-content');
-    var scroller = content.querySelector('.scroll-area');
-    var keepTop = scroller ? scroller.scrollTop : 0;
-    var keepLeft = scroller ? scroller.scrollLeft : 0;
-    clear(content);
-
-    if (!state.analysis) {
-      var hero = el('div', 'empty-hero');
-      hero.appendChild(el('h2', null, 'see where the call went wrong'));
-      hero.appendChild(el('p', null, 'Select a capture on the left, or drop a pcap / SBC log to analyse it.'));
-      content.appendChild(hero);
-      return;
+    var legs = arr(a.legs);
+    for (i = 0; i < legs.length; i++) {
+      var leg = legs[i];
+      if (!leg || !leg.id) continue;
+      state.legById[leg.id] = leg;
+      ids = arr(leg.msgIds);
+      for (j = 0; j < ids.length; j++) state.msgToLeg[ids[j]] = leg.id;
     }
 
-    var view;
-    switch (state.tab) {
-      case 'ladder': view = renderLadderTab(); break;
-      case 'retrans': view = renderRetransTab(); break;
-      case 'findings': view = renderFindingsTab(); break;
-      default: view = renderCallsTab(); break;
+    var calls = arr(a.calls);
+    for (i = 0; i < calls.length; i++) {
+      var call = calls[i];
+      if (!call || !call.id) continue;
+      state.callById[call.id] = call;
+      ids = arr(call.legIds);
+      for (j = 0; j < ids.length; j++) state.legToCall[ids[j]] = call.id;
     }
-    content.appendChild(view);
 
-    var scroller2 = content.querySelector('.scroll-area');
-    if (scroller2) { scroller2.scrollTop = keepTop; scroller2.scrollLeft = keepLeft; }
+    for (var mid in state.msgToLeg) {
+      if (Object.prototype.hasOwnProperty.call(state.msgToLeg, mid)) {
+        var cid = state.legToCall[state.msgToLeg[mid]];
+        if (cid) state.msgToCall[mid] = cid;
+      }
+    }
+
+    var findings = arr(a.findings);
+    for (i = 0; i < findings.length; i++) { if (findings[i] && findings[i].id) state.findingById[findings[i].id] = findings[i]; }
+
+    var collapses = (a.retrans && arr(a.retrans.collapses)) || [];
+    for (i = 0; i < collapses.length; i++) {
+      ids = arr(collapses[i] && collapses[i].msgIds);
+      for (j = 0; j < ids.length; j++) state.collapseByMsg[ids[j]] = collapses[i];
+    }
+
+    var advice = arr(a.advice);
+    for (i = 0; i < advice.length; i++) {
+      var fids = arr(advice[i] && advice[i].findingIds);
+      for (j = 0; j < fids.length; j++) {
+        var f = state.findingById[fids[j]];
+        if (!f) continue;
+        var mids = arr(f.msgIds);
+        for (var k = 0; k < mids.length; k++) state.adviceMsgIds[mids[k]] = true;
+      }
+    }
   }
 
-  /** Re-render the main view but keep ladder scroll position (used on select). */
-  function rerenderKeepingScroll() { renderMain(); }
-
-  // -------------------------------------------------------------- Calls tab
-
-  function callStartTs(call) {
-    var first = state.legById[call.legIds[0]];
-    return first ? first.startTs : 0;
+  function mediaStreams() {
+    var a = state.analysis;
+    if (!a || !a.media) return [];
+    return objs(Array.isArray(a.media) ? a.media : a.media.streams);
   }
 
-  function callStopTs(call) {
-    var max = null;
-    for (var i = 0; i < call.legIds.length; i++) {
-      var leg = state.legById[call.legIds[i]];
-      if (leg && leg.endTs != null && (max == null || leg.endTs > max)) max = leg.endTs;
+  function rtcpReports() {
+    var a = state.analysis;
+    if (!a || !a.media || Array.isArray(a.media)) return [];
+    return objs(a.media.rtcp);
+  }
+
+  function auxMessages() { return objs(state.analysis && state.analysis.aux); }
+
+  function indicators() { return objs(state.analysis && state.analysis.indicators); }
+
+  function adviceList() { return objs(state.analysis && state.analysis.advice); }
+
+  function findingsList() { return objs(state.analysis && state.analysis.findings); }
+
+  function collapsesList() {
+    var a = state.analysis;
+    return (a && a.retrans) ? objs(a.retrans.collapses) : [];
+  }
+
+  /** Stable transaction key for the filter tree (SIP CSeq, H.323 message type). */
+  function txKeyOf(m) {
+    if (!m) return 'tx:?';
+    if (m.protocol === 'h323' || m.q931Type) {
+      return 'q931:' + str(m.q931Type || '?') + ':' + str(m.callRef == null ? '' : m.callRef);
     }
-    return max;
+    var c = m.cseq || {};
+    return 'cseq:' + str(c.num == null ? '?' : c.num) + ':' + str(c.method || m.method || '?');
+  }
+
+  function callOf(o, kind) {
+    if (!o) return null;
+    if (kind === 'msg') return state.msgToCall[o.id] || null;
+    var cids = arr(o.callIds);
+    if (cids.length) return cids[0];
+    var lids = arr(o.legIds);
+    for (var i = 0; i < lids.length; i++) {
+      if (state.legToCall[lids[i]]) return state.legToCall[lids[i]];
+    }
+    return null;
+  }
+
+  function legOfCall(callId) {
+    var call = state.callById[callId];
+    if (!call) return [];
+    var out = [];
+    var ids = arr(call.legIds);
+    for (var i = 0; i < ids.length; i++) { if (state.legById[ids[i]]) out.push(state.legById[ids[i]]); }
+    return out;
   }
 
   function callProtocolLabel(call) {
+    if (!call) return 'SIP';
     if (call.type === 'sip-sip') return 'SIP↔SIP';
     if (call.type === 'sip-h323') return 'SIP↔H.323';
-    var leg = state.legById[call.legIds[0]];
+    var leg = state.legById[arr(call.legIds)[0]];
     return leg && leg.protocol === 'h323' ? 'H.323' : 'SIP';
   }
 
-  function callMsgCount(call) {
+  function callHasCrit(callId) {
+    var fs = findingsList();
+    for (var i = 0; i < fs.length; i++) {
+      if (fs[i] && fs[i].severity === 'crit' && arr(fs[i].callIds).indexOf(callId) !== -1) return true;
+    }
+    // a crit finding attached only to one of the call's legs still reddens it
+    var call = state.callById[callId];
+    var legIds = call ? arr(call.legIds) : [];
+    for (i = 0; i < fs.length; i++) {
+      if (!fs[i] || fs[i].severity !== 'crit') continue;
+      var lids = arr(fs[i].legIds);
+      for (var j = 0; j < lids.length; j++) { if (legIds.indexOf(lids[j]) !== -1) return true; }
+    }
+    return false;
+  }
+
+  function legRetransCount(legId) {
     var n = 0;
-    for (var i = 0; i < call.legIds.length; i++) {
-      var leg = state.legById[call.legIds[i]];
-      if (leg) n += (leg.msgIds || []).length;
+    var cs = collapsesList();
+    for (var i = 0; i < cs.length; i++) {
+      if (cs[i] && cs[i].legId === legId) n += (nnum(cs[i].count) || arr(cs[i].msgIds).length);
     }
     return n;
   }
 
-  function renderCallsTab() {
-    var wrap = el('div', 'view');
+  // ------------------------------------------------------- scope → row set
+
+  /** Message ids that belong to the current scope (before the lamp filter). */
+  function scopeMessages() {
     var a = state.analysis;
-    var calls = a.calls || [];
+    if (!a) return [];
+    var all = arr(a.messages);
+    var sel = state.sel;
+    if (sel.type === 'capture') return all;
 
-    if (state.selectedCallId && state.callById[state.selectedCallId]) {
-      wrap.appendChild(renderFlow(state.callById[state.selectedCallId]));
-      return wrap;
+    var legIds = {};
+    if (sel.type === 'call') {
+      var call = state.callById[sel.callId];
+      var ids = call ? arr(call.legIds) : [];
+      for (var i = 0; i < ids.length; i++) legIds[ids[i]] = true;
+    } else if (sel.legId) {
+      legIds[sel.legId] = true;
     }
-
-    if (!calls.length) {
-      wrap.appendChild(el('div', 'empty-note', 'No calls in this capture. The Ladder tab still shows every message (REGISTER, OPTIONS…).'));
-      return wrap;
-    }
-
-    var scroll = el('div', 'scroll-area');
-    var table = el('table', 'calls-table');
-    var thead = el('thead');
-    var hr = el('tr');
-    var cols = ['Start', 'Stop', 'Initial Speaker', 'From', 'To', 'Protocol', 'State', 'Confidence', 'Msgs'];
-    for (var c = 0; c < cols.length; c++) {
-      var th = el('th', null, cols[c]);
-      if (cols[c] === 'Start') {
-        th.className = 'sortable';
-        th.appendChild(el('span', 'sort-arrow', state.sortAsc ? ' ▲' : ' ▼'));
-        th.addEventListener('click', function () {
-          state.sortAsc = !state.sortAsc;
-          renderMain();
-        });
-      }
-      hr.appendChild(th);
-    }
-    thead.appendChild(hr);
-    table.appendChild(thead);
-
-    var sorted = calls.slice().sort(function (x, y) {
-      var d = callStartTs(x) - callStartTs(y);
-      return state.sortAsc ? d : -d;
-    });
-
-    var tbody = el('tbody');
-    for (var i = 0; i < sorted.length; i++) {
-      (function (call) {
-        var ingress = state.legById[call.legIds[0]] || {};
-        var tr = el('tr', 'call-row');
-        tr.appendChild(el('td', 'mono', fmtClock(callStartTs(call))));
-        tr.appendChild(el('td', 'mono', fmtClock(callStopTs(call))));
-        tr.appendChild(el('td', 'mono', (ingress.src || '?') + ':' + (ingress.sport || '?')));
-        tr.appendChild(el('td', 'mono cell-uri', ingress.from || '—'));
-        tr.appendChild(el('td', 'mono cell-uri', ingress.to || '—'));
-        tr.appendChild(el('td', null, callProtocolLabel(call)));
-
-        var stTd = el('td');
-        var stTxt = ingress.state || '—';
-        if (ingress.state === 'failed' && ingress.failCode != null) stTxt += ' (' + ingress.failCode + ')';
-        stTd.appendChild(el('span', 'state-' + (ingress.state || 'na'), stTxt));
-        tr.appendChild(stTd);
-
-        var confTd = el('td', 'conf-cell');
-        if (call.state === 'ambiguous') {
-          confTd.appendChild(el('span', 'chip sev-warn ambiguous-chip', 'AMBIGUOUS'));
-        } else if (call.type === 'single') {
-          confTd.appendChild(el('span', 'muted-note', '—'));
-        } else {
-          var bar = el('span', 'conf-bar');
-          var fill = el('span', 'conf-fill');
-          fill.style.width = Math.round((call.confidence || 0) * 100) + '%';
-          bar.appendChild(fill);
-          confTd.appendChild(bar);
-          confTd.appendChild(el('span', 'mono conf-num', ' ' + Math.round((call.confidence || 0) * 100) + '%'));
-        }
-        tr.appendChild(confTd);
-
-        tr.appendChild(el('td', 'mono', String(callMsgCount(call))));
-
-        tr.addEventListener('click', function () {
-          state.selectedCallId = call.id;
-          state.scope = { type: 'call', id: call.id };
-          renderMain();
-          if (state.chatOpen) renderChat();
-        });
-        tbody.appendChild(tr);
-      })(sorted[i]);
-    }
-    table.appendChild(tbody);
-    scroll.appendChild(table);
-    wrap.appendChild(scroll);
-    return wrap;
-  }
-
-  // -------------------------------------------------------------- Flow view
-
-  function callMessages(call) {
-    var idSet = {};
-    for (var i = 0; i < call.legIds.length; i++) {
-      var leg = state.legById[call.legIds[i]];
-      if (!leg) continue;
-      for (var j = 0; j < (leg.msgIds || []).length; j++) idSet[leg.msgIds[j]] = true;
-    }
-    var msgs = [];
-    var all = state.analysis.messages || [];
-    for (var k = 0; k < all.length; k++) {
-      if (idSet[all[k].id]) msgs.push(all[k]);
-    }
-    return msgs;
-  }
-
-  function callCollapses(call) {
-    var legSet = {};
-    for (var i = 0; i < call.legIds.length; i++) legSet[call.legIds[i]] = true;
     var out = [];
-    var collapses = (state.analysis.retrans && state.analysis.retrans.collapses) || [];
-    for (var j = 0; j < collapses.length; j++) {
-      if (legSet[collapses[j].legId]) out.push(collapses[j]);
+    for (var k = 0; k < all.length; k++) {
+      var m = all[k];
+      if (!m || !m.id) continue;
+      var lid = state.msgToLeg[m.id];
+      if (!legIds[lid]) continue;
+      if (sel.type === 'transaction' && sel.txKey && txKeyOf(m) !== sel.txKey) continue;
+      out.push(m);
     }
     return out;
   }
 
-  function renderFlow(call) {
-    var wrap = el('div', 'flow-view');
-
-    var head = el('div', 'flow-head');
-    var back = el('button', 'btn', '← All calls');
-    back.type = 'button';
-    back.addEventListener('click', function () {
-      state.selectedCallId = null;
-      state.scope = { type: 'capture', id: state.captureId };
-      renderMain();
-      if (state.chatOpen) renderChat();
-    });
-    head.appendChild(back);
-
-    var title = el('span', 'flow-title');
-    title.appendChild(el('strong', null, 'Call ' + call.id));
-    title.appendChild(el('span', 'mono flow-sub',
-      '  ' + callProtocolLabel(call) + ' · ' + call.legIds.join(' → ') + ' · ' + call.state));
-    head.appendChild(title);
-
-    if (call.state === 'ambiguous') {
-      head.appendChild(el('span', 'chip sev-warn ambiguous-chip', 'AMBIGUOUS'));
-    } else if (call.type !== 'single') {
-      head.appendChild(el('span', 'chip', 'confidence ' + Math.round((call.confidence || 0) * 100) + '%'));
+  function scopeLegIds() {
+    var sel = state.sel;
+    if (sel.type === 'call') {
+      var call = state.callById[sel.callId];
+      return call ? arr(call.legIds) : [];
     }
+    if (sel.legId) return [sel.legId];
+    return null;   // capture scope = everything
+  }
 
-    var expand = el('label', 'expand-toggle');
-    var cb = el('input');
-    cb.type = 'checkbox';
-    cb.checked = state.expandRetrans;
-    cb.addEventListener('change', function () {
-      state.expandRetrans = cb.checked;
-      renderMain();
-    });
-    expand.appendChild(cb);
-    expand.appendChild(document.createTextNode(' expand retransmissions'));
-    head.appendChild(expand);
+  function matchesScopeAssoc(o) {
+    var legIds = scopeLegIds();
+    if (!legIds) return true;
+    var sel = state.sel;
+    var cids = arr(o && o.callIds);
+    if (sel.type === 'call' && cids.indexOf(sel.callId) !== -1) return true;
+    var lids = arr(o && o.legIds);
+    for (var i = 0; i < lids.length; i++) { if (legIds.indexOf(lids[i]) !== -1) return true; }
+    return false;
+  }
 
-    wrap.appendChild(head);
+  function activeLamp() {
+    if (!state.lampFilter) return null;
+    var inds = indicators();
+    for (var i = 0; i < inds.length; i++) {
+      if (inds[i] && inds[i].key === state.lampFilter) return inds[i];
+    }
+    return null;
+  }
 
-    // Ambiguity explainer with competing candidates.
-    if (call.state === 'ambiguous' && call.candidates && call.candidates.length) {
-      var amb = el('div', 'card amb-card');
-      amb.appendChild(el('h3', null, 'Ambiguous pairing — hiccup will not guess'));
-      amb.appendChild(el('p', 'muted-note', 'These candidate legs scored too close together to pick a winner:'));
-      for (var ci = 0; ci < call.candidates.length; ci++) {
-        var cand = call.candidates[ci];
-        amb.appendChild(el('div', 'mono amb-cand',
-          cand.legId + ' — confidence ' + Math.round((cand.confidence || 0) * 100) + '%'));
+  /** Rebuild state.rows for the current scope + lamp filter. */
+  function buildScopedRows() {
+    var L = window.Ladder;
+    var msgs = scopeMessages();
+    var streams = mediaStreams().filter(matchesScopeAssoc);
+    var auxes = auxMessages().filter(matchesScopeAssoc);
+
+    var lamp = activeLamp();
+    if (lamp) {
+      var evMsg = {}, evCall = {};
+      var em = arr(lamp.evidenceMsgIds), ec = arr(lamp.evidenceCallIds);
+      var i;
+      for (i = 0; i < em.length; i++) evMsg[em[i]] = true;
+      for (i = 0; i < ec.length; i++) evCall[ec[i]] = true;
+      var anyEvidence = em.length || ec.length;
+      if (anyEvidence) {
+        msgs = msgs.filter(function (m) {
+          return evMsg[m.id] || (state.msgToCall[m.id] && evCall[state.msgToCall[m.id]]);
+        });
+        streams = streams.filter(function (s) {
+          var c = callOf(s, 'media');
+          return (c && evCall[c]) || false;
+        });
+        auxes = auxes.filter(function (x) {
+          var c = callOf(x, 'aux');
+          return (c && evCall[c]) || false;
+        });
       }
-      wrap.appendChild(amb);
     }
 
-    // Per-call ladder.
-    var scroll = el('div', 'scroll-area ladder-wrap');
-    scroll.appendChild(window.Ladder.render({
-      messages: callMessages(call),
-      legs: call.legIds.map(function (id) { return state.legById[id]; }).filter(Boolean),
-      collapses: callCollapses(call),
-      expandRetrans: state.expandRetrans,
-      selectedId: state.selectedMsgId,
-      onSelect: selectMessage
-    }));
-    wrap.appendChild(scroll);
+    var built = (L && typeof L.buildRows === 'function')
+      ? L.buildRows({
+        messages: msgs,
+        collapses: collapsesList(),
+        media: streams,
+        aux: auxes,
+        findings: findingsList(),
+        advice: adviceList(),
+        collapsed: state.collapsed
+      })
+      : { rows: [] };
 
-    // IWF pairing card (sip-h323) or diff category cards (sip-sip).
-    if (call.type === 'sip-h323') {
-      wrap.appendChild(renderIwfCard(call));
-    } else if (call.type === 'sip-sip') {
-      wrap.appendChild(renderDiffCards(call));
+    state.scopeMsgs = msgs;
+    var rows = arr(built.rows);
+    state.truncatedRows = 0;
+    if (rows.length > MAX_LADDER_ROWS) {
+      state.truncatedRows = rows.length - MAX_LADDER_ROWS;
+      rows = rows.slice(0, MAX_LADDER_ROWS);
     }
-
-    return wrap;
+    for (var r = 0; r < rows.length; r++) {
+      if (rows[r].kind === 'msg') rows[r].legId = state.msgToLeg[rows[r].id] || null;
+    }
+    state.rows = rows;
+    state.rowById = {};
+    for (var q = 0; q < rows.length; q++) state.rowById[rows[q].rowId] = rows[q];
+    if (state.selectedRowId && !state.rowById[state.selectedRowId]) state.selectedRowId = null;
   }
 
-  function renderIwfCard(call) {
-    var card = el('div', 'card iwf-card');
-    card.appendChild(el('h3', null, 'IWF pairing'));
-    card.appendChild(el('p', 'muted-note',
-      'This call crosses a SIP↔H.323 interworking function. Pairing is signal-based, not a header diff:'));
-    var pairings = call.pairings || [];
-    if (!pairings.length) {
-      card.appendChild(el('p', 'muted-note', 'No pairing signals recorded.'));
-      return card;
-    }
-    for (var i = 0; i < pairings.length; i++) {
-      var p = pairings[i];
-      var head = el('div', 'iwf-pair mono',
-        p.a + ' ↔ ' + p.b + ' — confidence ' + Math.round((p.confidence || 0) * 100) + '%');
-      card.appendChild(head);
-      var list = el('ul', 'signal-list');
-      var signals = p.signals || [];
-      for (var s = 0; s < signals.length; s++) {
-        var sig = signals[s];
-        var li = el('li', 'signal-item' + (sig.matched ? ' matched' : ''));
-        li.appendChild(el('span', 'sig-mark', sig.matched ? '✓' : '✗'));
-        li.appendChild(el('span', 'mono sig-name', sig.name));
-        li.appendChild(el('span', 'sig-weight mono', ' (' + sig.weight + ')'));
-        if (sig.detail) li.appendChild(el('span', 'sig-detail', ' — ' + sig.detail));
-        list.appendChild(li);
-      }
-      card.appendChild(list);
-    }
-    return card;
+  // ------------------------------------------------------------ render all
+
+  function renderAll() {
+    buildScopedRows();
+    renderLamps();
+    renderScenarioChip();
+    if (state.searchActive) renderSearchResults(); else renderFilterTree();
+    renderSelectionList();
+    renderLadder();
+    renderInfo();
+    renderSearchCount();
   }
 
-  function renderDiffCards(call) {
-    var wrap = el('div', 'diff-wrap');
-    var diffs = call.diffs || [];
-    var any = false;
-
-    for (var d = 0; d < diffs.length; d++) {
-      (function (pair) {
-        var categories = (pair.diff && pair.diff.categories) || [];
-        var nonEmpty = categories.filter(function (c) { return c.items && c.items.length; });
-        if (!nonEmpty.length) return;
-        any = true;
-
-        wrap.appendChild(el('h3', 'diff-pair-title mono', pair.a + ' → ' + pair.b + '  (ingress → egress)'));
-        var grid = el('div', 'diff-grid');
-
-        for (var c = 0; c < nonEmpty.length; c++) {
-          var cat = nonEmpty[c];
-          var card = el('div', 'card diff-card');
-          card.appendChild(el('h4', 'diff-cat-title', cat.title));
-
-          for (var it = 0; it < cat.items.length; it++) {
-            (function (item) {
-              var row = el('div', 'diff-item');
-              var top = el('div', 'diff-item-top');
-              top.appendChild(sevChip(item.severity));
-              top.appendChild(el('span', 'diff-label', item.label));
-              var explain = el('button', 'btn explain-btn', 'explain');
-              explain.type = 'button';
-              explain.title = 'ask hiccup about this';
-              explain.addEventListener('click', function (ev) {
-                ev.stopPropagation();
-                openChatPrefilled(
-                  'Explain this difference between the legs: "' + item.label + '" (' + item.tag +
-                  '). Ingress: ' + (item.ingress == null ? '(absent)' : item.ingress) +
-                  '. Egress: ' + (item.egress == null ? '(absent)' : item.egress) + '.',
-                  { type: 'call', id: call.id });
-              });
-              top.appendChild(explain);
-              row.appendChild(top);
-
-              var vals = el('div', 'diff-vals');
-              var ing = el('div', 'diff-val');
-              ing.appendChild(el('div', 'diff-val-head', 'ingress'));
-              ing.appendChild(el('div', 'mono diff-val-body', item.ingress == null ? '(absent)' : item.ingress));
-              var egr = el('div', 'diff-val');
-              egr.appendChild(el('div', 'diff-val-head', 'egress'));
-              egr.appendChild(el('div', 'mono diff-val-body', item.egress == null ? '(absent)' : item.egress));
-              vals.appendChild(ing);
-              vals.appendChild(egr);
-              row.appendChild(vals);
-
-              if (item.detail) row.appendChild(el('p', 'diff-detail', item.detail));
-              card.appendChild(row);
-            })(cat.items[it]);
-          }
-          grid.appendChild(card);
-        }
-        wrap.appendChild(grid);
-      })(diffs[d]);
-    }
-
-    if (!any) {
-      wrap.appendChild(el('div', 'empty-note', 'No differences detected between the legs of this call.'));
-    }
-    return wrap;
+  /** Re-render everything that depends on the current selection (not the tree). */
+  function renderSelectionDependent() {
+    buildScopedRows();
+    renderSelectionList();
+    renderLadder();
+    renderInfo();
   }
 
-  // ------------------------------------------------------------- Ladder tab
+  // ---------------------------------------------------------- #filter-tree
 
-  function renderLadderTab() {
-    var wrap = el('div', 'view');
-    var a = state.analysis;
-    var messages = a.messages || [];
-
-    var bar = el('div', 'view-toolbar');
-    var expand = el('label', 'expand-toggle');
-    var cb = el('input');
-    cb.type = 'checkbox';
-    cb.checked = state.expandRetrans;
-    cb.addEventListener('change', function () {
-      state.expandRetrans = cb.checked;
-      renderMain();
-    });
-    expand.appendChild(cb);
-    expand.appendChild(document.createTextNode(' expand retransmissions'));
-    bar.appendChild(expand);
-    bar.appendChild(el('span', 'muted-note',
-      messages.length + ' messages · click an arrow to inspect it'));
-    wrap.appendChild(bar);
-
-    if (!messages.length) {
-      wrap.appendChild(el('div', 'empty-note', 'No signalling messages in this capture.'));
-      return wrap;
-    }
-
-    var scroll = el('div', 'scroll-area ladder-wrap');
-    scroll.appendChild(window.Ladder.render({
-      messages: messages,
-      legs: a.legs || [],
-      collapses: (a.retrans && a.retrans.collapses) || [],
-      expandRetrans: state.expandRetrans,
-      selectedId: state.selectedMsgId,
-      onSelect: selectMessage
-    }));
-    wrap.appendChild(scroll);
-    return wrap;
+  function treeKeyExpanded(key, dflt) {
+    if (Object.prototype.hasOwnProperty.call(state.treeExpanded, key)) return !!state.treeExpanded[key];
+    return !!dflt;
   }
 
-  function selectMessage(msgId) {
-    state.selectedMsgId = msgId;
-    state.scope = { type: 'message', id: msgId };
-    renderInspector();
-    rerenderKeepingScroll();
+  /** A small round lifecycle dot (.state-dot + .state-<state> from hiccup.css). */
+  function stateDot(st) {
+    var dot = el('span', 'state-dot state-' + (st || 'unknown'));
+    dot.setAttribute('data-state', str(st || 'unknown'));
+    dot.title = 'state: ' + (st || 'unknown');
+    dot.setAttribute('aria-hidden', 'true');
+    return dot;
+  }
+
+  /**
+   * Build one tree node: `.tree-node > .tree-row (+ .tree-children)`.
+   * Indentation and the guide line come from hiccup.css's .tree-children — this
+   * file never sets layout.
+   * @returns {{node:HTMLElement, children:HTMLElement|null}}
+   */
+  function treeNode(opts) {
+    var node = el('div', 'tree-node' + (opts.kindClass ? ' ' + opts.kindClass : ''));
+    node.setAttribute('role', 'treeitem');
+    if (opts.hasChildren) node.setAttribute('aria-expanded', opts.open ? 'true' : 'false');
+
+    var row = el('div', 'tree-row' +
+      (opts.selected ? ' is-selected' : '') +
+      (opts.edge ? ' edge-' + opts.edge : ''));
+    row.setAttribute('tabindex', '0');
+    if (opts.nodeKey) row.setAttribute('data-node', str(opts.nodeKey));
+    row.setAttribute('aria-selected', opts.selected ? 'true' : 'false');
+    if (opts.title) row.title = opts.title;
+
+    if (opts.hasChildren) {
+      var tog = el('button', 'tree-toggle', opts.open ? '\u25be' : '\u25b8');
+      tog.type = 'button';
+      tog.setAttribute('aria-label', opts.open ? 'collapse' : 'expand');
+      tog.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        state.treeExpanded[opts.nodeKey] = !opts.open;
+        renderFilterTree();
+      });
+      row.appendChild(tog);
+    } else {
+      var pad = el('span', 'tree-toggle');
+      pad.setAttribute('aria-hidden', 'true');
+      row.appendChild(pad);
+    }
+
+    if (opts.state !== undefined) row.appendChild(stateDot(opts.state));
+    if (opts.proto) {
+      row.appendChild(el('span', 'tree-proto is-' + (opts.proto === 'h323' ? 'h323' : 'sip'),
+        opts.proto === 'h323' ? 'H.323' : 'SIP'));
+    }
+    row.appendChild(el('span', 'tree-label', opts.label));
+    if (opts.sub) row.appendChild(el('span', 'tree-sub mono', opts.sub));
+    if (opts.retrans) {
+      var badge = el('span', 'tree-badge is-retrans', '\u00d7' + opts.retrans);
+      badge.title = opts.retrans + ' retransmissions here';
+      row.appendChild(badge);
+    }
+    if (opts.badge) row.appendChild(el('span', 'tree-badge', opts.badge));
+    if (opts.chip) row.appendChild(opts.chip);
+
+    if (opts.onSelect) {
+      row.addEventListener('click', function () { opts.onSelect(); });
+      row.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); opts.onSelect(); }
+      });
+    }
+    node.appendChild(row);
+
+    var children = null;
+    if (opts.hasChildren && opts.open) {
+      children = el('div', 'tree-children');
+      children.setAttribute('role', 'group');
+      node.appendChild(children);
+    }
+    return { node: node, children: children };
+  }
+
+  function selectScope(sel) {
+    state.sel = {
+      type: sel.type || 'capture',
+      callId: sel.callId || null,
+      legId: sel.legId || null,
+      txKey: sel.txKey || null
+    };
+    state.selectedRowId = sel.rowId || null;
+    if (!state.searchActive) renderFilterTree();
+    renderSelectionDependent();
     if (state.chatOpen) renderChat();
   }
 
-  // ------------------------------------------------------------ Retrans tab
+  function isSelectedNode(sel) {
+    var s = state.sel;
+    return s.type === sel.type && str(s.callId) === str(sel.callId) &&
+      str(s.legId) === str(sel.legId) && str(s.txKey) === str(sel.txKey);
+  }
 
-  function renderRetransTab() {
-    var wrap = el('div', 'view');
-    var rt = (state.analysis && state.analysis.retrans) || { collapses: [], aggregate: { buckets: [], stormWindows: [] } };
-    var collapses = rt.collapses || [];
-    var agg = rt.aggregate || { buckets: [], stormWindows: [] };
+  /** #filter-pane's expand-all / collapse-all buttons. */
+  function setAllTreeExpanded(open) {
+    var a = state.analysis;
+    if (!a) return;
+    var map = { other: open };
+    var calls = objs(a.calls), legs = objs(a.legs);
+    var i;
+    for (i = 0; i < calls.length; i++) { if (calls[i].id) map['call:' + calls[i].id] = open; }
+    for (i = 0; i < legs.length; i++) { if (legs[i].id) map['leg:' + legs[i].id] = open; }
+    map.root = true;   // the root stays open, else the pane just looks broken
+    state.treeExpanded = map;
+    renderFilterTree();
+  }
 
-    // Storm strip first — the box-wide view.
-    wrap.appendChild(renderStormStrip(agg));
+  function renderFilterTree() {
+    var host = $('filter-tree');
+    if (!host) return;
+    clear(host);
+    host.setAttribute('role', 'tree');
 
-    var card = el('div', 'card');
-    card.appendChild(el('h3', null, 'Retransmission collapses'));
-    if (!collapses.length) {
-      card.appendChild(el('p', 'muted-note', 'No retransmissions detected — every message got where it was going first time.'));
-      wrap.appendChild(card);
-      return wrap;
+    if (!state.analysis) {
+      emptyNote(host, 'No capture selected.',
+        'Calls, their legs and each transaction appear here. Selecting a node scopes the ladder, the message list and the info pane.');
+      return;
     }
 
-    var scroll = el('div', 'scroll-area');
-    var table = el('table', 'retrans-table');
+    var calls = objs(state.analysis.calls);
+    var legs = objs(state.analysis.legs);
+    var stats = state.analysis.stats || {};
+
+    var rootSel = { type: 'capture' };
+    var root = treeNode({
+      nodeKey: 'root',
+      kindClass: 'is-root',
+      label: 'whole capture',
+      sub: ' ' + (stats.sipMessages || 0) + ' SIP \u00b7 ' + (stats.h323Messages || 0) + ' H.323 \u00b7 ' +
+        calls.length + ' calls',
+      hasChildren: true,
+      open: treeKeyExpanded('root', true),
+      selected: isSelectedNode(rootSel),
+      title: 'select the whole capture',
+      onSelect: function () { selectScope(rootSel); }
+    });
+    host.appendChild(root.node);
+    if (!root.children) return;
+
+    var legsInCalls = {};
+    var i, j;
+    for (i = 0; i < calls.length; i++) {
+      var lids0 = arr(calls[i].legIds);
+      for (j = 0; j < lids0.length; j++) legsInCalls[lids0[j]] = true;
+    }
+
+    var callsOpenDefault = calls.length <= 10;
+    var legsOpenDefault = legs.length <= 12;
+
+    for (i = 0; i < calls.length; i++) {
+      renderCallNode(root.children, calls[i], callsOpenDefault, legsOpenDefault);
+    }
+
+    var orphans = [];
+    for (i = 0; i < legs.length; i++) {
+      if (legs[i].id && !legsInCalls[legs[i].id]) orphans.push(legs[i]);
+    }
+    if (orphans.length) {
+      var otherOpen = treeKeyExpanded('other', orphans.length <= 12);
+      var other = treeNode({
+        nodeKey: 'other',
+        kindClass: 'is-other',
+        label: 'other legs',
+        badge: String(orphans.length),
+        hasChildren: true,
+        open: otherOpen,
+        title: 'legs outside any correlated call \u2014 REGISTER, OPTIONS, SUBSCRIBE, strays'
+      });
+      root.children.appendChild(other.node);
+      if (other.children) {
+        for (i = 0; i < orphans.length; i++) renderLegNode(other.children, orphans[i], null, legsOpenDefault);
+      }
+    }
+
+    if (!calls.length && !orphans.length) {
+      emptyNote(root.children, 'No legs in this capture.',
+        'The ladder still shows every message hiccup could parse.');
+    }
+  }
+
+  function renderCallNode(parent, call, callsOpenDefault, legsOpenDefault) {
+    if (!call || !call.id) return;
+    var sel = { type: 'call', callId: call.id };
+    var nodeKey = 'call:' + call.id;
+    var open = treeKeyExpanded(nodeKey, callsOpenDefault);
+    var lids = arr(call.legIds);
+    var ingress = state.legById[lids[0]] || {};
+    var retrans = 0;
+    for (var i = 0; i < lids.length; i++) retrans += legRetransCount(lids[i]);
+
+    var chip = null;
+    if (call.state === 'ambiguous') {
+      chip = el('span', 'chip sev-warn ambiguous-chip', 'AMBIGUOUS');
+      chip.title = 'hiccup will not guess between competing pairings';
+    } else if (call.type !== 'single') {
+      chip = el('span', 'tree-badge', Math.round((call.confidence || 0) * 100) + '%');
+      chip.title = 'pairing confidence';
+    }
+
+    var built = treeNode({
+      nodeKey: nodeKey,
+      kindClass: 'is-call',
+      label: call.id + ' \u00b7 ' + callProtocolLabel(call),
+      sub: ' ' + str(ingress.from || '?') + ' \u2192 ' + str(ingress.to || '?'),
+      state: ingress.state,
+      hasChildren: lids.length > 0,
+      open: open,
+      retrans: retrans,
+      edge: callHasCrit(call.id) ? 'crit' : null,
+      selected: isSelectedNode(sel),
+      chip: chip,
+      title: 'call ' + call.id + ' \u2014 ' + str(call.state) +
+        (call.type !== 'single' ? ', confidence ' + Math.round((call.confidence || 0) * 100) + '%' : ''),
+      onSelect: function () { selectScope(sel); }
+    });
+    parent.appendChild(built.node);
+    if (!built.children) return;
+
+    for (var k = 0; k < lids.length; k++) {
+      var leg = state.legById[lids[k]];
+      if (leg) renderLegNode(built.children, leg, call.id, legsOpenDefault);
+    }
+  }
+
+  function renderLegNode(parent, leg, callId, legsOpenDefault) {
+    if (!leg || !leg.id) return;
+    var sel = { type: 'leg', callId: callId || null, legId: leg.id };
+    var nodeKey = 'leg:' + leg.id;
+    var txs = legTransactions(leg);
+    var open = treeKeyExpanded(nodeKey, legsOpenDefault);
+
+    var built = treeNode({
+      nodeKey: nodeKey,
+      kindClass: 'is-leg',
+      proto: leg.protocol === 'h323' ? 'h323' : 'sip',
+      label: leg.id + (leg.kind ? ' \u00b7 ' + str(leg.kind) : ''),
+      sub: ' ' + pathOf(leg),
+      state: leg.state,
+      hasChildren: txs.length > 0,
+      open: open,
+      retrans: legRetransCount(leg.id),
+      selected: isSelectedNode(sel),
+      title: (leg.callId ? 'Call-ID ' + leg.callId + ' \u00b7 ' : '') + 'state ' + str(leg.state) +
+        (leg.failCode != null ? ' (' + leg.failCode + ')' : ''),
+      onSelect: function () { selectScope(sel); }
+    });
+    parent.appendChild(built.node);
+    if (!built.children) return;
+
+    for (var i = 0; i < txs.length; i++) {
+      (function (tx) {
+        var tsel = { type: 'transaction', callId: callId || null, legId: leg.id, txKey: tx.key };
+        var tnode = treeNode({
+          nodeKey: 'tx:' + leg.id + ':' + tx.key,
+          kindClass: 'is-tx',
+          label: tx.label,
+          sub: tx.sub,
+          state: tx.state,
+          hasChildren: false,
+          open: false,
+          retrans: tx.retrans,
+          edge: tx.state === 'failed' ? 'warn' : null,
+          selected: isSelectedNode(tsel),
+          title: tx.title,
+          onSelect: function () { selectScope(tsel); }
+        });
+        built.children.appendChild(tnode.node);
+      })(txs[i]);
+    }
+  }
+
+  /** Group a leg's messages into transactions (method + final status). */
+  function legTransactions(leg) {
+    var out = [], byKey = {};
+    var ids = arr(leg && leg.msgIds);
+    for (var i = 0; i < ids.length; i++) {
+      var m = state.msgById[ids[i]];
+      if (!m) continue;
+      var key = txKeyOf(m);
+      var tx = byKey[key];
+      if (!tx) {
+        tx = byKey[key] = {
+          key: key, label: '', sub: '', state: undefined, retrans: 0, count: 0,
+          method: null, worstStatus: null, reason: '', title: ''
+        };
+        out.push(tx);
+      }
+      tx.count++;
+      if (m.retransOf) tx.retrans++;
+      if (m.protocol === 'h323' || m.q931Type) {
+        tx.method = str(m.q931Type || 'H.323');
+        if (m.causeCode != null) tx.worstStatus = m.causeCode;
+      } else {
+        if (m.isRequest && !tx.method) tx.method = str(m.method || '?');
+        if (!tx.method && m.cseq) tx.method = str(m.cseq.method || '?');
+        var st = nnum(m.status);
+        if (st != null && (tx.worstStatus == null || st >= tx.worstStatus)) {
+          tx.worstStatus = st;
+          tx.reason = str(m.reason || '');
+        }
+      }
+    }
+    for (var k = 0; k < out.length; k++) {
+      var t = out[k];
+      t.label = str(t.method || '?');
+      if (t.worstStatus != null) t.label += ' \u2192 ' + t.worstStatus + (t.reason ? ' ' + t.reason : '');
+      t.sub = ' ' + t.count + ' msg' + (t.count === 1 ? '' : 's');
+      if (t.worstStatus != null && t.worstStatus >= 400) t.state = 'failed';
+      else if (t.worstStatus != null && t.worstStatus >= 200 && t.worstStatus < 300) t.state = 'answered';
+      else t.state = 'in-progress';
+      t.title = 'transaction ' + t.key + ' \u2014 ' + t.count + ' message(s)' +
+        (t.retrans ? ', ' + t.retrans + ' retransmission(s)' : '');
+    }
+    return out;
+  }
+
+  // -------------------------------------------------------- #selection-list
+
+  /**
+   * app.css supports two shapes for #selection-list:
+   *   (a) `#selection-list > .sel-row > .sel-n + .sel-desc + .sel-delta` — used
+   *       when the host is a plain container, because app.html already ships the
+   *       static `.sel-head` header row and the `[data-sort]` buttons;
+   *   (b) `#selection-list > table.table-dense` — used when the host is itself a
+   *       <table>; app.css then hides the static header automatically.
+   */
+  function selectionHost() {
+    var node = $('selection-list');
+    if (!node) return null;
+    var isTable = !!(node.tagName && node.tagName.toLowerCase() === 'table');
+    return { node: node, isTable: isTable };
+  }
+
+  /** Wire the pane-header sort buttons (#selection-pane [data-sort]). */
+  function setupSelectionSort() {
+    var pane = $('selection-pane') || document;
+    var btns = pane.querySelectorAll ? pane.querySelectorAll('[data-sort]') : [];
+    for (var i = 0; i < btns.length; i++) {
+      (function (btn) {
+        var key = str(btn.getAttribute('data-sort')).toLowerCase() === 'delta' ? 'delta' : 'n';
+        btn.addEventListener('click', function (ev) {
+          ev.preventDefault();
+          if (state.selSort.key === key) state.selSort.asc = !state.selSort.asc;
+          else state.selSort = { key: key, asc: true };
+          renderSelectionList();
+        });
+      })(btns[i]);
+    }
+    state.sortBtns = btns;
+  }
+
+  function syncSelectionSort() {
+    var btns = state.sortBtns || [];
+    for (var i = 0; i < btns.length; i++) {
+      var key = str(btns[i].getAttribute('data-sort')).toLowerCase() === 'delta' ? 'delta' : 'n';
+      var on = state.selSort.key === key;
+      btns[i].classList.toggle('is-active', on);
+      btns[i].setAttribute('aria-pressed', on ? 'true' : 'false');
+      btns[i].title = on
+        ? ('sorted by ' + key + ', ' + (state.selSort.asc ? 'ascending' : 'descending') + ' — click to reverse')
+        : ('sort by ' + key);
+    }
+  }
+
+  /** Row tint class: crit/warn wash for the rows an engineer must not miss. */
+  function rowTint(row) {
+    if (!row) return null;
+    if (row.sev === 'crit') return 'tint-crit';
+    if (row.sev === 'warn') return 'tint-warn';
+    if (row.colorKey === '4xx' || row.colorKey === '5xx' || row.colorKey === '6xx') return 'tint-crit';
+    if (row.retransCount > 1) return 'tint-warn';
+    if (row.kind === 'media' && nnum(row.obj && row.obj.lossPct) != null && row.obj.lossPct >= 5) return 'tint-crit';
+    if (row.kind === 'media' && row.obj && row.obj.oneWay) return 'tint-warn';
+    return null;
+  }
+
+  function kindLabel(row) {
+    if (!row) return '';
+    if (row.kind === 'media') return 'media';
+    if (row.kind === 'aux') return str((row.obj && row.obj.protocol) || 'aux');
+    return row.proto === 'h323' ? 'H.323' : 'SIP';
+  }
+
+  function kindClass(row) {
+    if (!row) return '';
+    if (row.kind === 'media') return 'is-media';
+    if (row.kind === 'aux') return 'is-aux';
+    return row.proto === 'h323' ? 'is-h323' : 'is-sip';
+  }
+
+  function deltaClass(row) {
+    if (!row || row.deltaMs == null) return '';
+    if (row.deltaMs >= 4000) return ' is-stalled';
+    if (row.deltaMs >= 500) return ' is-slow';
+    return '';
+  }
+
+  function sortedRows() {
+    var rows = state.rows.slice();
+    if (state.selSort.key === 'delta') {
+      rows.sort(function (a, b) {
+        var da = a.deltaMs == null ? -1 : a.deltaMs;
+        var db = b.deltaMs == null ? -1 : b.deltaMs;
+        if (da === db) return a.n - b.n;
+        return state.selSort.asc ? da - db : db - da;
+      });
+    } else if (!state.selSort.asc) {
+      rows.reverse();
+    }
+    return rows;
+  }
+
+  function renderSelectionList() {
+    var target = selectionHost();
+    if (!target) return;
+    syncSelectionSort();
+    state.selRowEls = {};
+    clear(target.node);
+
+    if (!state.analysis) {
+      emptyNote(target.node, 'No capture open.',
+        'Every message of the selected session lands here, numbered, with the delta from the previous row.');
+      return;
+    }
+
+    var rows = sortedRows();
+    if (!rows.length) {
+      emptyNote(target.node, 'Nothing in this selection.',
+        state.lampFilter
+          ? 'The active lamp filter may be hiding everything — click the lamp again to clear it.'
+          : 'Pick a call, leg or transaction in the tree above.');
+      return;
+    }
+
+    if (target.isTable) {
+      renderSelectionTable(target.node, rows);
+    } else {
+      for (var i = 0; i < rows.length; i++) target.node.appendChild(selectionRow(rows[i]));
+      if (state.truncatedRows) {
+        emptyNote(target.node, state.truncatedRows +
+          ' further rows not shown — narrow the selection in the tree.');
+      }
+    }
+  }
+
+  /** Shape (a): a .sel-row grid matching app.html's static .sel-head. */
+  function selectionRow(row) {
+    var tint = rowTint(row);
+    var tr = el('div', 'sel-row sel-kind-' + row.kind +
+      (tint ? ' ' + tint : '') +
+      (row.retransCount > 1 ? ' is-retrans' : '') +
+      (row.rowId === state.selectedRowId ? ' is-selected' : '') +
+      (state.searchMatchIds[row.rowId] ? ' is-match' : ''));
+    tr.setAttribute('data-row-id', row.rowId);
+    tr.setAttribute('tabindex', '0');
+    tr.setAttribute('aria-selected', row.rowId === state.selectedRowId ? 'true' : 'false');
+    if (row.retransCount > 1) tr.setAttribute('data-retrans', '\u00d7' + row.retransCount);
+
+    tr.appendChild(el('span', 'sel-n', String(row.n)));
+
+    var desc = el('span', 'sel-desc');
+    desc.appendChild(el('span', 'sel-kind ' + kindClass(row), kindLabel(row)));
+    var text = el('span', 'sel-text');
+    appendHighlighted(text, row.desc, state.searchTerms);
+    desc.appendChild(text);
+    desc.title = row.desc + (row.adviceTitle ? '  —  ' + row.adviceTitle
+      : (row.findingTitle ? '  —  ' + row.findingTitle : ''));
+    tr.appendChild(desc);
+
+    tr.appendChild(el('span', 'sel-delta' + deltaClass(row),
+      row.deltaMs == null ? '\u2014' : ('+' + row.deltaMs)));
+
+    wireSelectionRow(tr, row);
+    return tr;
+  }
+
+  /** Shape (b): a dense table, when #selection-list is itself a <table>. */
+  function renderSelectionTable(table, rows) {
+    if (!/table-dense/.test(str(table.className))) {
+      table.className = str(table.className ? table.className + ' ' : '') + 'table-dense';
+    }
     var thead = el('thead');
     var hr = el('tr');
-    var cols = ['Collapse', 'Classification', 'Likely cause', 'Confidence'];
-    for (var c = 0; c < cols.length; c++) hr.appendChild(el('th', null, cols[c]));
+    var cols = [
+      { key: 'n', label: '#', cls: 'num' },
+      { key: null, label: 'description', cls: '' },
+      { key: 'delta', label: '\u0394 ms', cls: 'num' }
+    ];
+    for (var c = 0; c < cols.length; c++) {
+      (function (col) {
+        var th = el('th', col.cls + (col.key ? ' sortable' : ''), col.label);
+        if (col.key) {
+          if (state.selSort.key === col.key) {
+            th.appendChild(el('span', 'sort-arrow', state.selSort.asc ? ' \u25b2' : ' \u25bc'));
+          }
+          th.setAttribute('tabindex', '0');
+          th.title = 'sort by ' + col.label;
+          var doSort = function () {
+            if (state.selSort.key === col.key) state.selSort.asc = !state.selSort.asc;
+            else state.selSort = { key: col.key, asc: true };
+            renderSelectionList();
+          };
+          th.addEventListener('click', doSort);
+          th.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); doSort(); }
+          });
+        }
+        hr.appendChild(th);
+      })(cols[c]);
+    }
     thead.appendChild(hr);
     table.appendChild(thead);
 
     var tbody = el('tbody');
-    for (var i = 0; i < collapses.length; i++) {
-      (function (col) {
-        var cls = col.classification || {};
-        var tr = el('tr', 'retrans-row');
-        tr.title = cls.detail || '';
+    for (var i = 0; i < rows.length; i++) {
+      (function (row) {
+        var tint = rowTint(row);
+        var tr = el('tr', 'sel-row sel-kind-' + row.kind +
+          (tint ? ' ' + tint : '') +
+          (row.retransCount > 1 ? ' is-retrans' : '') +
+          (row.rowId === state.selectedRowId ? ' is-selected' : '') +
+          (state.searchMatchIds[row.rowId] ? ' is-match' : ''));
+        tr.setAttribute('data-row-id', row.rowId);
+        tr.setAttribute('tabindex', '0');
+        if (row.retransCount > 1) tr.setAttribute('data-retrans', '\u00d7' + row.retransCount);
 
-        var labelTd = el('td');
-        labelTd.appendChild(el('div', 'retrans-label', col.label || (col.method + ' ×' + col.count)));
-        labelTd.appendChild(el('div', 'mono muted-note',
-          (col.legId || '') + ' · ' + fmtClock(col.firstTs) + ' → ' + fmtClock(col.lastTs)));
-        tr.appendChild(labelTd);
+        tr.appendChild(el('td', 'num sel-n', String(row.n)));
 
-        var codeTd = el('td');
-        codeTd.appendChild(el('span', 'chip mono code-chip code-' + (cls.code || 'unknown'), cls.code || 'unknown'));
-        tr.appendChild(codeTd);
+        var td = el('td', 'sel-desc');
+        td.appendChild(el('span', 'sel-kind ' + kindClass(row), kindLabel(row)));
+        var text = el('span', 'sel-text');
+        appendHighlighted(text, row.desc, state.searchTerms);
+        td.appendChild(text);
+        if (row.retransCount > 1) {
+          var rb = el('span', 'tree-badge is-retrans', '\u00d7' + row.retransCount);
+          rb.title = (row.collapse && row.collapse.label) || (row.retransCount + ' retransmissions');
+          td.appendChild(rb);
+        }
+        tr.appendChild(td);
 
-        tr.appendChild(el('td', 'cause-cell', cls.cause || '—'));
+        tr.appendChild(el('td', 'num sel-delta' + deltaClass(row),
+          row.deltaMs == null ? '\u2014' : ('+' + row.deltaMs)));
 
-        var confTd = el('td', 'conf-cell');
-        var bar = el('span', 'conf-bar');
-        var fill = el('span', 'conf-fill');
-        fill.style.width = Math.round((cls.confidence || 0) * 100) + '%';
-        bar.appendChild(fill);
-        confTd.appendChild(bar);
-        confTd.appendChild(el('span', 'mono conf-num', ' ' + Math.round((cls.confidence || 0) * 100) + '%'));
-        tr.appendChild(confTd);
-
-        tr.addEventListener('click', function () {
-          var first = (col.msgIds && col.msgIds[0]) || null;
-          state.tab = 'ladder';
-          if (first) {
-            state.selectedMsgId = first;
-            state.scope = { type: 'message', id: first };
-          }
-          renderMain();
-          renderInspector();
-          if (state.chatOpen) renderChat();
-        });
+        wireSelectionRow(tr, row);
         tbody.appendChild(tr);
-      })(collapses[i]);
+      })(rows[i]);
     }
     table.appendChild(tbody);
-    scroll.appendChild(table);
-    card.appendChild(scroll);
-    wrap.appendChild(card);
-    return wrap;
+
+    if (state.truncatedRows) {
+      var tf = el('tfoot');
+      var ftr = el('tr');
+      var ftd = el('td');
+      ftd.colSpan = 3;
+      ftd.appendChild(el('span', 'pane-empty',
+        state.truncatedRows + ' further rows not shown — narrow the selection in the tree.'));
+      ftr.appendChild(ftd);
+      tf.appendChild(ftr);
+      table.appendChild(tf);
+    }
   }
 
-  function renderStormStrip(agg) {
-    var card = el('div', 'card storm-card');
-    card.appendChild(el('h3', null, 'Retransmission timeline'));
-    var buckets = (agg.buckets || []).slice().sort(function (a, b) { return a.ts - b.ts; });
-    var windows = agg.stormWindows || [];
+  function wireSelectionRow(node, row) {
+    node.addEventListener('click', function () { selectRow(row.rowId); });
+    node.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); selectRow(row.rowId); }
+    });
+    node.addEventListener('mouseenter', function () { crossHighlight(row.rowId, true); });
+    node.addEventListener('mouseleave', function () { crossHighlight(row.rowId, false); });
+    state.selRowEls[row.rowId] = node;
+  }
 
-    if (!buckets.length) {
-      card.appendChild(el('p', 'muted-note', 'No retransmissions in this capture.'));
-      return card;
+  /** Hover cross-highlight between the ladder and #selection-list. */
+  function crossHighlight(rowId, on) {
+    var a = state.selRowEls[rowId];
+    if (a) a.classList.toggle('is-cross', !!on);
+    var b = state.ladderRowEls[rowId];
+    if (b) {
+      // SVG elements: className is read-only in older engines, so use the attribute.
+      var cls = str(b.getAttribute('class')).replace(/\s*is-cross\b/g, '');
+      b.setAttribute('class', on ? cls + ' is-cross' : cls);
+    }
+    var g = state.gutterRowEls[rowId];
+    if (g) g.classList.toggle('is-cross', !!on);
+  }
+
+  function selectRow(rowId) {
+    state.selectedRowId = rowId || null;
+    renderSelectionList();
+    renderLadder();
+    renderInfo();
+    if (state.chatOpen) renderChat();
+  }
+
+  // ------------------------------------------------------------ ladder pane
+
+  function setupLadderToolbar() {
+    var bar = $('ladder-toolbar');
+    if (!bar) return;
+    var existing = bar.querySelectorAll('[data-action]');
+    if (existing.length) {
+      state.toolbarOwn = false;
+      for (var i = 0; i < existing.length; i++) {
+        (function (btn) {
+          btn.addEventListener('click', function (ev) {
+            ev.preventDefault();
+            toolbarAction(str(btn.getAttribute('data-action')).toLowerCase());
+          });
+        })(existing[i]);
+      }
+      return;
+    }
+    state.toolbarOwn = true;
+    clear(bar);
+
+    var collapseBtn = el('button', 'btn lad-btn', 'collapse retrans');
+    collapseBtn.type = 'button';
+    collapseBtn.id = 'lad-collapse-btn';
+    collapseBtn.title = 'fold each retransmission burst into one row with an ×N badge';
+    collapseBtn.addEventListener('click', function () { toolbarAction('collapse'); });
+    bar.appendChild(collapseBtn);
+
+    var zo = el('button', 'btn lad-btn', '−');
+    zo.type = 'button';
+    zo.title = 'zoom out';
+    zo.setAttribute('aria-label', 'zoom out');
+    zo.addEventListener('click', function () { toolbarAction('zoom-out'); });
+    bar.appendChild(zo);
+
+    var zlabel = el('span', 'lad-zoom-label mono', '100%');
+    zlabel.id = 'lad-zoom-label';
+    bar.appendChild(zlabel);
+
+    var zi = el('button', 'btn lad-btn', '+');
+    zi.type = 'button';
+    zi.title = 'zoom in';
+    zi.setAttribute('aria-label', 'zoom in');
+    zi.addEventListener('click', function () { toolbarAction('zoom-in'); });
+    bar.appendChild(zi);
+
+    var zr = el('button', 'btn lad-btn', 'reset');
+    zr.type = 'button';
+    zr.title = 'reset zoom';
+    zr.addEventListener('click', function () { toolbarAction('zoom-reset'); });
+    bar.appendChild(zr);
+
+    var ex = el('button', 'btn lad-btn', 'export SVG');
+    ex.type = 'button';
+    ex.title = 'download this ladder as an SVG file';
+    ex.addEventListener('click', function () { toolbarAction('export'); });
+    bar.appendChild(ex);
+
+    var count = el('span', 'lad-rowcount muted', '');
+    count.id = 'lad-rowcount';
+    bar.appendChild(count);
+  }
+
+  /**
+   * Ladder toolbar actions. Matched by substring so both this file's own control
+   * names and app.html's prefixed ones ('ladder-collapse-retrans',
+   * 'ladder-zoom-in', 'ladder-export', …) resolve to the same behaviour.
+   */
+  function toolbarAction(action) {
+    var a = str(action).toLowerCase();
+    if (a.indexOf('export') !== -1) { exportLadderSvg(); return; }
+    if (a.indexOf('collapse') !== -1 || a.indexOf('retrans') !== -1 || a.indexOf('expand') !== -1) {
+      state.collapsed = !state.collapsed;
+      renderSelectionDependent();
+      syncLadderToolbar();
+      return;
+    }
+    if (a.indexOf('zoom') !== -1) {
+      if (a.indexOf('in') !== -1) state.zoom = Math.min(3, Math.round((state.zoom + 0.15) * 100) / 100);
+      else if (a.indexOf('out') !== -1) state.zoom = Math.max(0.4, Math.round((state.zoom - 0.15) * 100) / 100);
+      else state.zoom = 1;
+      renderLadder();
+      syncLadderToolbar();
+    }
+  }
+
+  /**
+   * Wire the buttons app.html ships outside #ladder-toolbar:
+   * #filter-pane [data-action=tree-expand-all|tree-collapse-all] and
+   * #info-pane [data-action=explain-selection].
+   */
+  function setupPaneActions() {
+    var i;
+    var fp = $('filter-pane');
+    if (fp && fp.querySelectorAll) {
+      var tb = fp.querySelectorAll('[data-action]');
+      for (i = 0; i < tb.length; i++) {
+        (function (btn) {
+          var a = str(btn.getAttribute('data-action')).toLowerCase();
+          if (a.indexOf('tree') === -1) return;
+          var open = a.indexOf('expand') !== -1;
+          btn.addEventListener('click', function (ev) { ev.preventDefault(); setAllTreeExpanded(open); });
+        })(tb[i]);
+      }
+    }
+    var ip = $('info-pane');
+    if (ip && ip.querySelectorAll) {
+      var eb = ip.querySelectorAll('[data-action]');
+      for (i = 0; i < eb.length; i++) {
+        (function (btn) {
+          var a = str(btn.getAttribute('data-action')).toLowerCase();
+          if (a.indexOf('explain') === -1) return;
+          btn.addEventListener('click', function (ev) {
+            ev.preventDefault();
+            explainCurrentSelection();
+          });
+        })(eb[i]);
+      }
+    }
+  }
+
+  /** "explain in chat" for whatever is selected right now. */
+  function explainCurrentSelection() {
+    var row = selectedRow();
+    if (row && row.kind === 'msg') {
+      var m = row.obj || {};
+      openChatPrefilled('Explain this ' + (m.protocol === 'h323' ? 'H.323' : 'SIP') +
+        ' message: what is it doing in this call, and is anything wrong with it?',
+        { type: 'message', id: row.id });
+      return;
+    }
+    if (row) {
+      openChatPrefilled('Explain this ' + row.kind + ' observation: "' + row.desc + '".', chatScope());
+      return;
+    }
+    var sel = state.sel;
+    if (sel.type === 'call' && sel.callId) {
+      openChatPrefilled('Walk me through call ' + sel.callId +
+        ': what happened, and is anything wrong with it?', { type: 'call', id: sel.callId });
+    } else if (sel.legId) {
+      openChatPrefilled('Walk me through leg ' + sel.legId + ': what happened on it?',
+        { type: 'leg', id: sel.legId });
+    } else {
+      openChatPrefilled('Summarise this capture: what is it, and what is wrong with it?',
+        { type: 'capture', id: state.captureId });
+    }
+  }
+
+  function syncLadderToolbar() {
+    var bar = $('ladder-toolbar');
+    if (!bar) return;
+    var cb = $('lad-collapse-btn');
+    if (cb) {
+      cb.textContent = state.collapsed ? 'collapse retrans' : 'expand retrans';
+      cb.setAttribute('aria-pressed', state.collapsed ? 'true' : 'false');
+      cb.classList.toggle('is-active', state.collapsed);
+    }
+    var zl = $('lad-zoom-label');
+    if (zl) zl.textContent = Math.round(state.zoom * 100) + '%';
+    var rc = $('lad-rowcount');
+    if (rc) {
+      rc.textContent = state.rows.length
+        ? (state.rows.length + ' rows' + (state.truncatedRows ? ' (+' + state.truncatedRows + ' hidden)' : ''))
+        : '';
+    }
+    // Shell-supplied controls: reflect state on anything carrying data-action.
+    var owned = bar.querySelectorAll('[data-action]');
+    for (var i = 0; i < owned.length; i++) {
+      var a = str(owned[i].getAttribute('data-action')).toLowerCase();
+      if (a.indexOf('collapse') !== -1 || a.indexOf('retrans') !== -1) {
+        owned[i].setAttribute('aria-pressed', state.collapsed ? 'true' : 'false');
+        owned[i].classList.toggle('is-active', state.collapsed);
+        owned[i].title = state.collapsed
+          ? 'retransmissions are collapsed to one row with an \u00d7N badge — click to expand'
+          : 'retransmissions are expanded — click to collapse them';
+      }
+      if (a.indexOf('zoom') !== -1 && a.indexOf('reset') !== -1) {
+        owned[i].textContent = Math.round(state.zoom * 100) + '%';
+      }
+    }
+  }
+
+  function exportLadderSvg() {
+    var L = window.Ladder;
+    if (!L || !state.ladderSvg) return;
+    var text = L.toSvgString(state.ladderSvg);
+    if (!text) return;
+    try {
+      var blob = new Blob([text], { type: 'image/svg+xml;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'hiccup-ladder-' + (state.captureId || 'capture') + '.svg';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { try { URL.revokeObjectURL(url); } catch (e) { /* ignore */ } }, 2000);
+    } catch (e) { /* export is a convenience, never fatal */ }
+  }
+
+  function renderLadder() {
+    var host = $('ladder-svg-host');
+    var L = window.Ladder;
+    state.ladderRowEls = {};
+
+    if (host) {
+      clear(host);
+      if (!state.analysis) {
+        emptyNote(host, 'see where the call went wrong',
+          'Select a capture on the left, or drop a pcap / SBC log to analyse it.');
+      } else if (!L || typeof L.render !== 'function') {
+        emptyNote(host, 'Ladder renderer unavailable.');
+      } else {
+        var svg = L.render({
+          rows: state.rows,
+          messages: arr(state.scopeMsgs),
+          legs: (function () {
+            var ids = scopeLegIds();
+            if (!ids) return arr(state.analysis.legs);
+            var out = [];
+            for (var i = 0; i < ids.length; i++) { if (state.legById[ids[i]]) out.push(state.legById[ids[i]]); }
+            return out;
+          })(),
+          collapses: collapsesList(),
+          media: mediaStreams(),
+          aux: auxMessages(),
+          findings: findingsList(),
+          advice: adviceList(),
+          collapsed: state.collapsed,
+          selectedId: state.selectedRowId,
+          matchIds: state.searchMatchIds,
+          zoom: state.zoom,
+          onSelect: function (rowId) { selectRow(rowId); },
+          onHover: function (rowId) {
+            if (rowId) crossHighlight(rowId, true);
+            else {
+              for (var k in state.selRowEls) {
+                if (Object.prototype.hasOwnProperty.call(state.selRowEls, k)) {
+                  state.selRowEls[k].classList.remove('is-cross');
+                }
+              }
+              for (var k2 in state.gutterRowEls) {
+                if (Object.prototype.hasOwnProperty.call(state.gutterRowEls, k2)) {
+                  state.gutterRowEls[k2].classList.remove('is-cross');
+                }
+              }
+            }
+          }
+        });
+        state.ladderSvg = svg;
+        host.appendChild(svg);
+        var groups = svg.querySelectorAll('[data-row-id]');
+        for (var g = 0; g < groups.length; g++) {
+          state.ladderRowEls[groups[g].getAttribute('data-row-id')] = groups[g];
+        }
+      }
     }
 
+    // #time-gutter — a .tg-spacer + one .tg-row per ladder row at the same row
+    // height, so it lines up with the arrows without any layout CSS here.
+    var gut = $('time-gutter');
+    state.gutterRowEls = {};
+    if (gut) {
+      clear(gut);
+      if (L && typeof L.timeGutter === 'function' && state.analysis) {
+        gut.appendChild(L.timeGutter(state.rows, state.zoom, state.selectedRowId));
+        var grows = gut.querySelectorAll('[data-row-id]');
+        for (var gi = 0; gi < grows.length; gi++) {
+          state.gutterRowEls[grows[gi].getAttribute('data-row-id')] = grows[gi];
+        }
+      }
+    }
+
+    wireScrollSync();
+    syncLadderToolbar();
+  }
+
+  /** Keep #time-pane's vertical scroll locked to the ladder's, whichever scrolls. */
+  function wireScrollSync() {
+    if (state.scrollSyncWired) return;
+    var host = $('ladder-svg-host');
+    var pane = $('time-pane') || (function () { var g = $('time-gutter'); return g && g.parentNode; })();
+    if (!host || !pane || host === pane) return;
+    var syncing = false;
+    function mirror(from, to) {
+      return function () {
+        if (syncing) return;
+        syncing = true;
+        try { to.scrollTop = from.scrollTop; } catch (e) { /* ignore */ }
+        syncing = false;
+      };
+    }
+    host.addEventListener('scroll', mirror(host, pane));
+    pane.addEventListener('scroll', mirror(pane, host));
+    state.scrollSyncWired = true;
+  }
+
+  // -------------------------------------------------------------- #lamps
+
+  function renderLamps() {
+    var host = $('lamps');
+    if (!host) return;
+    clear(host);
+    var inds = indicators();
+    if (!inds.length) {
+      host.appendChild(el('span', 'lamps-empty', state.analysis
+        ? 'no protocol indicators for this capture'
+        : 'indicators light up once a capture is analysed \u2014 one lamp per protocol feature hiccup found, dim when absent.'));
+      return;
+    }
+    for (var i = 0; i < inds.length; i++) {
+      (function (ind) {
+        if (!ind.key) return;
+        var st = str(ind.state || 'off');
+        var active = state.lampFilter === ind.key;
+        var lamp = el('button', 'lamp lamp-' + st + (active ? ' is-active' : ''));
+        lamp.type = 'button';
+        lamp.setAttribute('data-key', str(ind.key));
+        lamp.setAttribute('data-state', st);
+        lamp.setAttribute('aria-pressed', active ? 'true' : 'false');
+        var detail = str(ind.detail || '');
+        var label = str(ind.label || ind.key);
+        lamp.title = label + ' \u2014 ' + st + (detail ? '. ' + detail : '');
+        lamp.setAttribute('aria-label', label + ': ' + st + (detail ? '. ' + detail : ''));
+        lamp.appendChild(el('span', 'lamp-dot'));
+        lamp.appendChild(el('span', 'lamp-label', label));
+        lamp.addEventListener('click', function () { toggleLamp(ind); });
+        host.appendChild(lamp);
+      })(inds[i]);
+    }
+  }
+
+  /** Clicking a lamp filters every pane down to that indicator's evidence. */
+  function toggleLamp(ind) {
+    if (state.lampFilter === ind.key) {
+      state.lampFilter = null;
+    } else {
+      var mids = arr(ind.evidenceMsgIds);
+      var cids = arr(ind.evidenceCallIds);
+      state.lampFilter = (mids.length || cids.length) ? ind.key : null;
+      if (cids.length && state.callById[cids[0]]) {
+        state.sel = { type: 'call', callId: cids[0], legId: null, txKey: null };
+      } else {
+        state.sel = { type: 'capture', callId: null, legId: null, txKey: null };
+      }
+      state.selectedRowId = mids.length ? mids[0] : null;
+      if (!mids.length && !cids.length) {
+        // Nothing to filter to — still say why, in the info pane.
+        state.infoTab = 'advice';
+      }
+    }
+    renderAll();
+    if (state.chatOpen) renderChat();
+  }
+
+  function renderScenarioChip() {
+    var chip = $('scenario-chip');
+    if (!chip) return;
+    var sc = state.analysis && state.analysis.scenario;
+    if (!sc || !sc.primary) {
+      chip.textContent = 'scenario: \u2014';
+      chip.title = state.analysis
+        ? 'hiccup could not classify this capture'
+        : 'no capture open';
+      chip.hidden = true;
+      return;
+    }
+    chip.hidden = false;
+    var pct = Math.round((nnum(sc.confidence) || 0) * 100);
+    chip.textContent = 'scenario: ' + str(sc.primary) + ' \u00b7 ' + pct + '%';
+    chip.title = (str(sc.detail || '') || ('scenario: ' + sc.primary)) +
+      '  \u2014  click for the full read-out in the Advice tab';
+  }
+
+  // ----------------------------------------------------------- #info-pane
+
+  function normTab(v) {
+    var s = str(v).toLowerCase();
+    if (s.indexOf('content') !== -1) return 'contents';
+    if (s.indexOf('packet') !== -1) return 'packet';
+    if (s.indexOf('media') !== -1) return 'media';
+    if (s.indexOf('advice') !== -1) return 'advice';
+    return null;
+  }
+
+  function setupInfoTabs() {
+    var host = $('info-tabs');
+    if (!host) return;
+    var existing = host.querySelectorAll('[data-tab], [data-panel], button');
+    var wired = 0;
+    for (var i = 0; i < existing.length; i++) {
+      var btn = existing[i];
+      var key = normTab(btn.getAttribute('data-tab')) ||
+        normTab(btn.getAttribute('data-panel')) ||
+        normTab(btn.textContent);
+      if (!key) continue;
+      btn.setAttribute('data-tab', key);
+      (function (k, b) {
+        b.addEventListener('click', function (ev) {
+          ev.preventDefault();
+          state.infoTab = k;
+          renderInfo();
+        });
+      })(key, btn);
+      wired++;
+    }
+    if (wired) return;
+
+    clear(host);
+    host.setAttribute('role', 'tablist');
+    for (var t = 0; t < INFO_TABS.length; t++) {
+      (function (spec) {
+        var b = el('button', 'info-tab', spec.label);
+        b.type = 'button';
+        b.setAttribute('data-tab', spec.key);
+        b.setAttribute('role', 'tab');
+        b.addEventListener('click', function () { state.infoTab = spec.key; renderInfo(); });
+        host.appendChild(b);
+      })(INFO_TABS[t]);
+    }
+  }
+
+  /**
+   * Move the tab state. app.css accepts either convention, and app.html's own
+   * chrome script uses `.is-active` + `hidden` + aria-selected together — so we
+   * move all three, or a programmatic tab switch would leave the panel hidden by
+   * the `.info-body:has(.is-active)` rule.
+   */
+  function syncInfoTabs() {
+    var host = $('info-tabs');
+    if (host) {
+      var btns = host.querySelectorAll('[data-tab]');
+      for (var i = 0; i < btns.length; i++) {
+        var on = btns[i].getAttribute('data-tab') === state.infoTab;
+        btns[i].classList.toggle('is-active', on);
+        btns[i].setAttribute('aria-selected', on ? 'true' : 'false');
+      }
+    }
+    for (var t = 0; t < INFO_TABS.length; t++) {
+      var panel = $(INFO_TABS[t].panel);
+      if (!panel) continue;
+      var active = INFO_TABS[t].key === state.infoTab;
+      panel.hidden = !active;
+      panel.classList.toggle('is-active', active);
+    }
+  }
+
+  function selectedRow() {
+    return state.selectedRowId ? (state.rowById[state.selectedRowId] || null) : null;
+  }
+
+  function renderInfo() {
+    syncInfoTabs();
+    renderInfoContents();
+    renderInfoPacket();
+    renderInfoMedia();
+    renderInfoAdvice();
+  }
+
+  function infoHeader(parent, row) {
+    var head = el('div', 'info-head');
+    if (row) {
+      head.appendChild(el('strong', null,
+        str(row.kind === 'msg' ? 'message ' : (row.kind === 'media' ? 'stream ' : 'aux ')) + row.rowId));
+      head.appendChild(el('span', 'mono muted', ' ' + fmtClock(row.ts) + ' \u00b7 ' + pathOf(row)));
+      var explain = el('button', 'explain-btn', 'explain in chat');
+      explain.type = 'button';
+      explain.addEventListener('click', function () {
+        var q, scope;
+        if (row.kind === 'msg') {
+          var m = row.obj || {};
+          q = 'Explain this ' + (m.protocol === 'h323' ? 'H.323' : 'SIP') +
+            ' message: what is it doing in this call, and is anything wrong with it?';
+          scope = { type: 'message', id: row.id };
+        } else if (row.kind === 'media') {
+          q = 'Explain this media stream (' + row.desc + '). Is the loss/jitter a problem, and what would cause it?';
+          scope = chatScope();
+        } else {
+          q = 'Explain this ' + str((row.obj && row.obj.protocol) || 'auxiliary') +
+            ' observation: "' + str(row.obj && row.obj.summary) + '". What does it mean for the call?';
+          scope = chatScope();
+        }
+        openChatPrefilled(q, scope);
+      });
+      head.appendChild(explain);
+    }
+    parent.appendChild(head);
+  }
+
+  function renderInfoContents() {
+    var panel = $('info-contents');
+    if (!panel) return;
+    clear(panel);
+    var row = selectedRow();
+    if (!state.analysis) { emptyNote(panel, 'No capture open.'); return; }
+    if (!row) {
+      emptyNote(panel, 'Nothing selected.',
+        'Pick a message in the ladder or the selection list to read its full text here — redacted, monospaced, with search terms highlighted.');
+      return;
+    }
+    infoHeader(panel, row);
+
+    if (row.kind === 'msg') {
+      var m = row.obj || {};
+      panel.appendChild(el('h4', 'ptree-title',
+        m.protocol === 'h323' ? 'raw (hex \u2014 Q.931 / H.225)' : 'raw (redacted)'));
+      var pre = el('pre', 'mono info-raw');
+      appendHighlighted(pre, m.raw, state.searchTerms);
+      panel.appendChild(pre);
+      panel.appendChild(el('p', 'pane-empty',
+        'Digest credentials are redacted server-side before the analysis is stored.'));
+      return;
+    }
+
+    if (row.kind === 'media') {
+      var st = row.obj || {};
+      var g = ptreeGroup(ptree(panel), 'media stream');
+      kv(g, 'kind', st.kind);
+      kv(g, 'path', pathOf(st));
+      kv(g, 'ssrc', st.ssrc);
+      kv(g, 'codec', str(st.codec) + (st.clockRate ? ' @ ' + st.clockRate : ''));
+      kv(g, 'packets', st.packets);
+      kv(g, 'bytes', fmtBytes(st.bytes));
+      kv(g, 'duration', st.durationSec == null ? null : st.durationSec + ' s');
+      if (st.kind === 'srtp') {
+        panel.appendChild(el('p', 'pane-empty',
+          'SRTP: the payload is encrypted. hiccup reports header-derived statistics only and never attempts decryption.'));
+      }
+      return;
+    }
+
+    var x = row.obj || {};
+    panel.appendChild(el('h4', 'ptree-title', str(x.protocol || 'aux').toUpperCase() + ' observation'));
+    var sum = el('p', 'mono info-aux-summary');
+    appendHighlighted(sum, x.summary, state.searchTerms);
+    panel.appendChild(sum);
+    if (x.raw) {
+      var praw = el('pre', 'mono info-raw');
+      appendHighlighted(praw, x.raw, state.searchTerms);
+      panel.appendChild(praw);
+    } else {
+      panel.appendChild(el('p', 'pane-empty', 'No raw bytes retained for this observation.'));
+    }
+  }
+
+  /** One `.ptree-row` of the parsed-packet tree: key + monospace value. */
+  function kv(group, k, v, flagged) {
+    if (v == null || v === '') return;
+    var row = el('div', 'ptree-row' + (flagged ? ' is-flagged' : ''));
+    row.appendChild(el('span', 'ptree-key', k));
+    var val = el('span', 'ptree-val mono');
+    appendHighlighted(val, String(v), state.searchTerms);
+    row.appendChild(val);
+    group.appendChild(row);
+  }
+
+  /** A titled `.ptree-group` inside a `.ptree`. */
+  function ptreeGroup(parent, title) {
+    var g = el('div', 'ptree-group');
+    if (title) g.appendChild(el('div', 'ptree-title', title));
+    parent.appendChild(g);
+    return g;
+  }
+
+  function ptree(parent) {
+    var t = el('div', 'ptree');
+    parent.appendChild(t);
+    return t;
+  }
+
+  /**
+   * Generic value tree for per-protocol `detail` objects — every leaf rendered
+   * with textContent, nested as .ptree-group/.ptree-row so app.css styles it.
+   */
+  function valueTree(container, value, depth) {
+    depth = depth || 0;
+    if (value === null || value === undefined) {
+      container.appendChild(el('span', 'ptree-val muted', '\u2014'));
+      return;
+    }
+    var t = typeof value;
+    if (t === 'string' || t === 'number' || t === 'boolean') {
+      var span = el('span', 'ptree-val mono');
+      appendHighlighted(span, String(value), state.searchTerms);
+      container.appendChild(span);
+      return;
+    }
+    if (depth > 6) {
+      var flat = el('span', 'ptree-val mono');
+      try { flat.textContent = JSON.stringify(value).slice(0, 400); }
+      catch (e) { flat.textContent = '(unserializable)'; }
+      container.appendChild(flat);
+      return;
+    }
+    if (Array.isArray(value)) {
+      if (!value.length) { container.appendChild(el('span', 'ptree-val muted', '(empty)')); return; }
+      var list = el('div', 'tree-children');
+      for (var i = 0; i < value.length; i++) {
+        var item = el('div', 'ptree-row');
+        item.appendChild(el('span', 'ptree-key', '[' + i + ']'));
+        valueTree(item, value[i], depth + 1);
+        list.appendChild(item);
+      }
+      container.appendChild(list);
+      return;
+    }
+    var keys = [];
+    try { keys = Object.keys(value); } catch (e) { keys = []; }
+    if (!keys.length) { container.appendChild(el('span', 'ptree-val muted', '(empty)')); return; }
+    var box = el('div', 'tree-children');
+    for (var k = 0; k < keys.length; k++) {
+      if (keys[k] === 'raw' && typeof value[keys[k]] === 'string' && value[keys[k]].length > 600) continue;
+      var node = el('div', 'ptree-row');
+      node.appendChild(el('span', 'ptree-key', keys[k]));
+      valueTree(node, value[keys[k]], depth + 1);
+      box.appendChild(node);
+    }
+    container.appendChild(box);
+  }
+
+  function section(parent, title) {
+    var h = el('h4', 'ptree-title info-sub', title);
+    parent.appendChild(h);
+    return h;
+  }
+
+  function renderInfoPacket() {
+    var panel = $('info-packet');
+    if (!panel) return;
+    clear(panel);
+    var row = selectedRow();
+    if (!state.analysis) { emptyNote(panel, 'No capture open.'); return; }
+    if (!row) {
+      emptyNote(panel, 'Nothing selected.',
+        'The parsed view: SIP headers and SDP, ISUP parameters for SIP-I bodies, Q.931 information elements for H.323 — field by field.');
+      return;
+    }
+    infoHeader(panel, row);
+    var tree = ptree(panel);
+
+    if (row.kind !== 'msg') {
+      var dg = ptreeGroup(tree, str(row.kind === 'media' ? 'stream' : (row.obj && row.obj.protocol) || 'aux') + ' detail');
+      valueTree(dg, (row.obj && row.obj.detail) || row.obj, 0);
+      return;
+    }
+
+    var m = row.obj || {};
+
+    if (m.protocol === 'h323' || m.q931Type) {
+      var hg = ptreeGroup(tree, 'Q.931 / H.225');
+      kv(hg, 'message type', m.q931Type);
+      kv(hg, 'summary', m.summary);
+      kv(hg, 'time', fmtClock(m.ts));
+      kv(hg, 'path', pathOf(m) + ' (' + str(m.transport) + ')');
+      kv(hg, 'size', m.size == null ? null : m.size + ' B');
+
+      var ig = ptreeGroup(tree, 'information elements');
+      kv(ig, 'call reference', m.callRef == null ? null : m.callRef + ' (flag ' + (m.callRefFlag ? 1 : 0) + ')');
+      kv(ig, 'Calling Party Number (0x6C)', m.calling);
+      kv(ig, 'Called Party Number (0x70)', m.called);
+      if (m.causeCode != null) {
+        kv(ig, 'Cause (0x08)', m.causeCode + (m.causeText ? ' \u2014 ' + m.causeText : ''), true);
+      }
+      kv(ig, 'User-User (0x7E) callIdentifier', m.guid);
+      kv(ig, 'fastStart', m.hasFastStart ? 'present (heuristic)' : 'not seen');
+      if (!ig.querySelector || !ig.querySelector('.ptree-row')) {
+        ig.appendChild(el('p', 'pane-empty', 'No decodable IEs in this message.'));
+      }
+      if (Array.isArray(m.ies) && m.ies.length) {
+        valueTree(ptreeGroup(tree, 'additional IEs'), m.ies, 0);
+      }
+      return;
+    }
+
+    var g = ptreeGroup(tree, m.isRequest ? 'request' : 'response');
+    kv(g, 'line', m.isRequest
+      ? (str(m.method) + ' ' + str(m.requestUri || ''))
+      : ('SIP/2.0 ' + str(m.status) + ' ' + str(m.reason || '')),
+      !m.isRequest && nnum(m.status) != null && m.status >= 400);
+    kv(g, 'time', fmtClock(m.ts));
+    kv(g, 'path', pathOf(m) + ' (' + str(m.transport) + ')');
+    kv(g, 'Call-ID', m.callId);
+    kv(g, 'From', str(m.fromUri) + (m.fromTag ? ';tag=' + m.fromTag : ''));
+    kv(g, 'To', str(m.toUri) + (m.toTag ? ';tag=' + m.toTag : ''));
+    if (m.cseq) kv(g, 'CSeq', str(m.cseq.num) + ' ' + str(m.cseq.method));
+    kv(g, 'branch', m.branch);
+    kv(g, 'Contact', m.contact);
+    kv(g, 'body type', m.bodyType);
+    kv(g, 'size', m.size == null ? null : m.size + ' B');
+    if (m.retransOf) kv(g, 'retransmission of', m.retransOf, true);
+    var legId = state.msgToLeg[m.id];
+    if (legId) {
+      kv(g, 'leg', legId + (state.legToCall[legId] ? ' (call ' + state.legToCall[legId] + ')' : ''));
+    }
+
+    var headers = arr(m.headers);
+    var hg2 = ptreeGroup(tree, 'headers');
+    if (!headers.length) {
+      hg2.appendChild(el('p', 'pane-empty', 'No headers parsed.'));
+    } else {
+      for (var i = 0; i < headers.length; i++) {
+        if (!headers[i]) continue;
+        kv(hg2, str(headers[i].name), headers[i].value);
+      }
+    }
+
+    if (m.sdp) {
+      var sg = ptreeGroup(tree, 'SDP');
+      if (m.sdp.origin) {
+        kv(sg, 'o= origin', str(m.sdp.origin.user) + ' ' + str(m.sdp.origin.sessId) + ' ' +
+          str(m.sdp.origin.sessVersion) + ' IN ' + str(m.sdp.origin.addr));
+      }
+      kv(sg, 'c= connection', m.sdp.connection);
+      var sattrs = arr(m.sdp.sessionAttrs);
+      if (sattrs.length) kv(sg, 'session a=', sattrs.join('  \u00b7  '));
+
+      var mblocks = arr(m.sdp.media);
+      if (!mblocks.length) {
+        sg.appendChild(el('p', 'pane-empty', 'No m= blocks.'));
+      } else {
+        for (var b = 0; b < mblocks.length; b++) {
+          var mb = mblocks[b] || {};
+          var mg = ptreeGroup(tree, 'm=' + str(mb.type || '?') + ' block');
+          kv(mg, 'm=', str(mb.type) + ' ' + str(mb.port) + ' ' + str(mb.proto));
+          var pls = arr(mb.payloads).map(function (pl) {
+            if (!pl) return '';
+            return str(pl.pt) + ' ' + str(pl.codec || '?') + (pl.rate ? '/' + pl.rate : '') +
+              (pl.fmtp ? ' (' + pl.fmtp + ')' : '');
+          }).filter(Boolean);
+          if (pls.length) kv(mg, 'payloads', pls.join('  \u00b7  '));
+          kv(mg, 'ptime', mb.ptime);
+          kv(mg, 'direction', mb.direction);
+          var ma = arr(mb.attrs);
+          if (ma.length) kv(mg, 'a=', ma.join('  \u00b7  '));
+        }
+      }
+    }
+
+    if (m.isup) {
+      var ig2 = ptreeGroup(tree, 'ISUP (SIP-I)');
+      kv(ig2, 'message type', m.isup.messageType);
+      kv(ig2, 'called party', m.isup.calledParty);
+      kv(ig2, 'calling party', m.isup.callingParty);
+      if (m.isup.causeCode != null) {
+        kv(ig2, 'cause', m.isup.causeCode + (m.isup.causeText ? ' \u2014 ' + m.isup.causeText : ''), true);
+      }
+      kv(ig2, 'nature of connection', m.isup.natureOfConnection);
+      var params = arr(m.isup.params);
+      if (params.length) {
+        var pg = ptreeGroup(tree, 'ISUP parameters');
+        for (var pi = 0; pi < params.length; pi++) {
+          if (params[pi]) kv(pg, str(params[pi].name), params[pi].value);
+        }
+      } else {
+        ig2.appendChild(el('p', 'pane-empty', 'No ISUP parameters decoded.'));
+      }
+    }
+
+    if (Array.isArray(m.bodyParts) && m.bodyParts.length) {
+      for (var bp = 0; bp < m.bodyParts.length; bp++) {
+        var part = m.bodyParts[bp] || {};
+        var bg = ptreeGroup(tree, 'body part \u2014 ' + str(part.contentType || '?') +
+          (part.disposition ? ' (' + part.disposition + ')' : ''));
+        var ppre = el('pre', 'mono info-raw');
+        appendHighlighted(ppre, part.body, state.searchTerms);
+        bg.appendChild(ppre);
+      }
+    }
+
+    var col = state.collapseByMsg[m.id];
+    if (col) {
+      var cg = ptreeGroup(tree, 'retransmission collapse');
+      kv(cg, 'label', col.label, true);
+      kv(cg, 'count', col.count);
+      kv(cg, 'outcome', col.outcome);
+      if (col.classification) {
+        kv(cg, 'classification', str(col.classification.code) +
+          ' (' + Math.round((col.classification.confidence || 0) * 100) + '%)');
+        kv(cg, 'likely cause', col.classification.cause);
+        kv(cg, 'evidence', col.classification.detail);
+      }
+    }
+  }
+
+  // ------------------------------------------------------------ Media tab
+
+  /**
+   * A small loss-over-time sparkline. Prefers the RTCP fraction-lost series for
+   * this SSRC; falls back to bucketed silence/black-hole gaps.
+   * @returns {HTMLElement} a .spark-host wrapping an svg.spark
+   */
+  function lossSparkline(stream) {
     var SVGNS = 'http://www.w3.org/2000/svg';
-    var minTs = Math.floor(buckets[0].ts);
-    var maxTs = Math.floor(buckets[buckets.length - 1].ts);
-    var span = Math.max(1, maxTs - minTs + 1);
-    var PADL = 10, PADR = 10;
-    var plotW = Math.max(300, Math.min(880, span * 14));
-    var W = PADL + plotW + PADR;
-    var plotH = 64, base = 78, H = 100;
-    var maxCount = 1;
-    for (var b = 0; b < buckets.length; b++) maxCount = Math.max(maxCount, buckets[b].retransCount);
-
+    var W = 96, H = 18;
+    var host = el('div', 'spark-host');
     var svg = document.createElementNS(SVGNS, 'svg');
-    svg.setAttribute('width', W);
-    svg.setAttribute('height', H);
     svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
-    svg.setAttribute('class', 'storm-svg');
+    svg.setAttribute('preserveAspectRatio', 'none');
+    svg.setAttribute('class', 'spark');
+    svg.setAttribute('role', 'img');
+    host.appendChild(svg);
 
-    function tsX(ts) { return PADL + ((ts - minTs) / span) * plotW; }
-    var bw = Math.max(3, Math.floor(plotW / span) - 2);
+    var series = [], label = '', isLoss = true;
+    var reports = rtcpReports();
+    var ssrc = stream && stream.ssrc;
+    if (ssrc != null) {
+      var pts = [];
+      for (var i = 0; i < reports.length; i++) {
+        var rep = reports[i];
+        var blocks = arr(rep && rep.blocks);
+        for (var b = 0; b < blocks.length; b++) {
+          if (blocks[b] && blocks[b].ssrc === ssrc && nnum(blocks[b].fractionLostPct) != null) {
+            pts.push({ ts: nnum(rep.ts), v: blocks[b].fractionLostPct });
+          }
+        }
+      }
+      pts.sort(function (a, b2) { return (a.ts || 0) - (b2.ts || 0); });
+      if (pts.length > 1) {
+        series = pts.map(function (pt) { return pt.v; });
+        label = 'RTCP fraction-lost over time (%)';
+      }
+    }
+    if (!series.length) {
+      var gaps = arr(stream && stream.gaps);
+      var first = nnum(stream && stream.firstTs);
+      var last = nnum(stream && stream.lastTs);
+      var buckets = 24;
+      var vals = [];
+      for (var z = 0; z < buckets; z++) vals.push(0);
+      if (gaps.length && first != null && last != null && last > first) {
+        for (var gi = 0; gi < gaps.length; gi++) {
+          var ts = nnum(gaps[gi] && gaps[gi].ts);
+          if (ts == null) continue;
+          var idx = Math.min(buckets - 1, Math.max(0, Math.floor(((ts - first) / (last - first)) * buckets)));
+          vals[idx] += nnum(gaps[gi].ms) || 0;
+        }
+        series = vals;
+        label = 'silence / black-hole gap milliseconds over the stream';
+        isLoss = false;
+      }
+    }
 
-    // Storm windows tinted behind the bars.
-    for (var w = 0; w < windows.length; w++) {
-      var win = windows[w];
-      var rx = tsX(win.startTs);
-      var rw = Math.max(bw, tsX(win.endTs) - rx + bw);
+    var title = document.createElementNS(SVGNS, 'title');
+    if (!series.length) {
+      title.textContent = 'no loss series available' +
+        (nnum(stream && stream.lossPct) != null ? ' (overall ' + stream.lossPct + '% lost)' : '');
+      svg.appendChild(title);
+      var axis = document.createElementNS(SVGNS, 'line');
+      axis.setAttribute('x1', 1); axis.setAttribute('y1', H - 1.5);
+      axis.setAttribute('x2', W - 1); axis.setAttribute('y2', H - 1.5);
+      axis.setAttribute('class', 'spark-axis');
+      svg.appendChild(axis);
+      host.title = title.textContent;
+      return host;
+    }
+    title.textContent = label;
+    svg.appendChild(title);
+    host.title = label;
+
+    var max = 0;
+    for (var s2 = 0; s2 < series.length; s2++) max = Math.max(max, series[s2]);
+    if (max <= 0) max = 1;
+    var step = (W - 2) / series.length;
+    var bw = Math.max(1, step - 1);
+    for (var k = 0; k < series.length; k++) {
+      if (!(series[k] > 0)) continue;
+      var h = Math.max(1.5, (series[k] / max) * (H - 3));
       var rect = document.createElementNS(SVGNS, 'rect');
-      rect.setAttribute('x', rx);
-      rect.setAttribute('y', 6);
-      rect.setAttribute('width', rw);
-      rect.setAttribute('height', base - 6);
-      rect.setAttribute('class', 'storm-window');
+      rect.setAttribute('x', 1 + k * step);
+      rect.setAttribute('y', H - 1 - h);
+      rect.setAttribute('width', bw);
+      rect.setAttribute('height', h);
+      rect.setAttribute('class', 'spark-bar' + (isLoss ? ' is-loss' : ' spark-gap'));
       svg.appendChild(rect);
     }
+    return host;
+  }
 
-    // 1s bucket bars.
-    for (var i = 0; i < buckets.length; i++) {
-      var bu = buckets[i];
-      var h = Math.max(2, (bu.retransCount / maxCount) * plotH);
-      var bar = document.createElementNS(SVGNS, 'rect');
-      bar.setAttribute('x', tsX(Math.floor(bu.ts)));
-      bar.setAttribute('y', base - h);
-      bar.setAttribute('width', bw);
-      bar.setAttribute('height', h);
-      bar.setAttribute('class', 'storm-bar');
-      var t = document.createElementNS(SVGNS, 'title');
-      t.textContent = fmtClock(bu.ts) + ' — ' + bu.retransCount + ' retransmissions across ' + bu.legsAffected + ' leg(s)';
-      bar.appendChild(t);
-      svg.appendChild(bar);
+  function renderInfoMedia() {
+    var panel = $('info-media');
+    if (!panel) return;
+    clear(panel);
+    if (!state.analysis) { emptyNote(panel, 'No capture open.'); return; }
+
+    var streams = mediaStreams().filter(matchesScopeAssoc);
+    var reports = rtcpReports().filter(matchesScopeAssoc);
+
+    if (!streams.length && !reports.length) {
+      emptyNote(panel, 'No media in this selection.',
+        mediaStreams().length
+          ? 'This selection has no RTP/RTCP associated with it — widen it to the whole capture in the tree.'
+          : 'This capture has no RTP/RTCP: signalling only, or an analysis produced before the media module existed.');
+      return;
     }
 
-    // Axis labels.
-    var t0 = document.createElementNS(SVGNS, 'text');
-    t0.setAttribute('x', PADL); t0.setAttribute('y', H - 6);
-    t0.setAttribute('class', 'storm-axis');
-    t0.textContent = fmtClock(minTs);
-    svg.appendChild(t0);
-    var t1 = document.createElementNS(SVGNS, 'text');
-    t1.setAttribute('x', W - PADR); t1.setAttribute('y', H - 6);
-    t1.setAttribute('text-anchor', 'end');
-    t1.setAttribute('class', 'storm-axis');
-    t1.textContent = fmtClock(maxTs);
-    svg.appendChild(t1);
-
-    var scroll = el('div', 'scroll-area');
-    scroll.appendChild(svg);
-    card.appendChild(scroll);
-
-    if (windows.length) {
-      for (var v = 0; v < windows.length; v++) {
-        var vw = windows[v];
-        var verdict = el('p', 'storm-verdict');
-        verdict.appendChild(el('span', 'chip sev-crit', vw.verdict || 'box-wide'));
-        verdict.appendChild(document.createTextNode(
-          ' ' + vw.legsAffected + ' legs retransmitting together (' + vw.retransCount +
-          ' retransmissions, ' + fmtClock(vw.startTs) + ' – ' + fmtClock(vw.endTs) +
-          '). This is the box melting, not one broken call.'));
-        card.appendChild(verdict);
+    if (streams.length) {
+      section(panel, 'streams');
+      var scroll = el('div', 'scroll-area');
+      var table = el('table', 'table-dense media-table');
+      var thead = el('thead');
+      var hr = el('tr');
+      var cols = ['stream', 'kind', 'path', 'ssrc', 'codec', 'pkts', 'loss %', 'jitter ms mean/max', 'MOS', 'loss over time'];
+      for (var c = 0; c < cols.length; c++) {
+        var th = el('th', /pkts|loss %|jitter|MOS/.test(cols[c]) ? 'num' : null, cols[c]);
+        if (cols[c] === 'MOS') {
+          th.title = 'ESTIMATE only — ITU-T G.107 simplified E-model from packet loss and jitter, not a listening test';
+        }
+        hr.appendChild(th);
       }
-    } else {
-      card.appendChild(el('p', 'muted-note', 'No box-wide storms — retransmissions are call-local.'));
+      thead.appendChild(hr);
+      table.appendChild(thead);
+
+      var tbody = el('tbody');
+      for (var i = 0; i < streams.length; i++) {
+        (function (st) {
+          var tint = (nnum(st.lossPct) != null && st.lossPct >= 5) ? ' tint-crit'
+            : (st.oneWay || (nnum(st.lossPct) != null && st.lossPct >= 1) ? ' tint-warn' : '');
+          var tr = el('tr', 'media-row' + tint);
+          tr.appendChild(el('td', 'mono', str(st.id)));
+          var kindTd = el('td', 'mono', str(st.kind));
+          if (st.kind === 'srtp') kindTd.title = 'encrypted — statistics from headers only, no decryption attempted';
+          tr.appendChild(kindTd);
+          tr.appendChild(el('td', 'mono', pathOf(st)));
+          tr.appendChild(el('td', 'mono', st.ssrc == null ? '\u2014' : String(st.ssrc)));
+          tr.appendChild(el('td', 'mono', str(st.codec || '\u2014')));
+          tr.appendChild(el('td', 'num', st.packets == null ? '\u2014' : String(st.packets)));
+
+          var lossTd = el('td', 'num', fmtNum(st.lossPct, 2));
+          if (nnum(st.lossPct) != null && st.lossPct >= 5) lossTd.classList.add('sev-crit');
+          else if (nnum(st.lossPct) != null && st.lossPct >= 1) lossTd.classList.add('sev-warn');
+          tr.appendChild(lossTd);
+
+          tr.appendChild(el('td', 'num', fmtNum(st.meanJitterMs, 1) + ' / ' + fmtNum(st.maxJitterMs, 1)));
+
+          var mosTd = el('td', 'num');
+          var mos = el('span', 'mos' + (nnum(st.mos) != null && st.mos < 3.6 ? ' sev-warn' : ''), fmtNum(st.mos, 1));
+          mosTd.appendChild(mos);
+          var est = el('span', 'badge-estimate', 'est.');
+          est.title = 'estimate' + (st.mosMethod ? ' \u2014 method: ' + st.mosMethod : '');
+          mosTd.appendChild(est);
+          tr.appendChild(mosTd);
+
+          var sparkTd = el('td');
+          sparkTd.appendChild(lossSparkline(st));
+          tr.appendChild(sparkTd);
+
+          var flags = [];
+          if (st.oneWay) flags.push('one-way — no reverse stream seen for a paired leg');
+          if (nnum(st.maxGapMs) != null && st.maxGapMs > 0) flags.push('max gap ' + st.maxGapMs + 'ms');
+          if (nnum(st.outOfOrder) ) flags.push(st.outOfOrder + ' out of order');
+          if (st.ssrcChanges) flags.push(st.ssrcChanges + ' SSRC change(s)');
+          if (st.markerResets) flags.push(st.markerResets + ' marker reset(s)');
+          if (arr(st.dtmfEvents).length) flags.push(arr(st.dtmfEvents).length + ' RFC 4733 DTMF event(s)');
+          if (flags.length) tr.title = flags.join('  \u00b7  ');
+          tbody.appendChild(tr);
+        })(streams[i]);
+      }
+      table.appendChild(tbody);
+      scroll.appendChild(table);
+      panel.appendChild(scroll);
+      panel.appendChild(el('p', 'spark-caption',
+        'MOS is an ESTIMATE derived from loss and jitter (ITU-T G.107 simplified) — not a listening test. ' +
+        'The sparkline is RTCP fraction-lost where available, otherwise silence gaps.'));
+    }
+
+    if (reports.length) {
+      section(panel, 'RTCP');
+      var rscroll = el('div', 'scroll-area');
+      var rtable = el('table', 'table-dense rtcp-table');
+      var rhead = el('thead');
+      var rhr = el('tr');
+      var rcols = ['time', 'path', 'type', 'ssrc', 'cname', 'fraction lost %', 'cumulative lost', 'jitter', 'RTT ms'];
+      for (var rc = 0; rc < rcols.length; rc++) {
+        rhr.appendChild(el('th', /lost|jitter|RTT/.test(rcols[rc]) ? 'num' : null, rcols[rc]));
+      }
+      rhead.appendChild(rhr);
+      rtable.appendChild(rhead);
+      var rbody = el('tbody');
+      for (var r = 0; r < reports.length; r++) {
+        var rep = reports[r] || {};
+        var blocks = arr(rep.blocks);
+        if (!blocks.length) blocks = [null];
+        for (var b = 0; b < blocks.length; b++) {
+          var blk = blocks[b] || {};
+          var trr = el('tr', 'rtcp-row' +
+            (nnum(blk.fractionLostPct) != null && blk.fractionLostPct >= 5 ? ' tint-crit' : ''));
+          trr.appendChild(el('td', 'mono', fmtClock(rep.ts)));
+          trr.appendChild(el('td', 'mono', pathOf(rep)));
+          trr.appendChild(el('td', 'mono', str(rep.type || '\u2014')));
+          trr.appendChild(el('td', 'mono',
+            blk.ssrc == null ? str(rep.ssrc == null ? '\u2014' : rep.ssrc) : String(blk.ssrc)));
+          trr.appendChild(el('td', 'mono', str(rep.cname || '\u2014')));
+          trr.appendChild(el('td', 'num', fmtNum(blk.fractionLostPct, 2)));
+          trr.appendChild(el('td', 'num', blk.cumulativeLost == null ? '\u2014' : String(blk.cumulativeLost)));
+          trr.appendChild(el('td', 'num', blk.jitter == null ? '\u2014' : String(blk.jitter)));
+          trr.appendChild(el('td', 'num', fmtNum(blk.rttMs, 1)));
+          rbody.appendChild(trr);
+        }
+      }
+      rtable.appendChild(rbody);
+      rscroll.appendChild(rtable);
+      panel.appendChild(rscroll);
+    }
+  }
+
+  // ----------------------------------------------------------- Advice tab
+
+  /** Does this Advice object touch the current scope? */
+  function adviceInScope(a) {
+    var sel = state.sel;
+    if (sel.type === 'capture' && !state.selectedRowId) return true;
+    var fids = arr(a && a.findingIds);
+    if (!fids.length) return sel.type === 'capture';
+    var legIds = scopeLegIds();
+    for (var i = 0; i < fids.length; i++) {
+      var f = state.findingById[fids[i]];
+      if (!f) continue;
+      if (sel.type === 'call' && arr(f.callIds).indexOf(sel.callId) !== -1) return true;
+      if (state.selectedRowId && arr(f.msgIds).indexOf(state.selectedRowId) !== -1) return true;
+      if (legIds) {
+        var lids = arr(f.legIds);
+        for (var j = 0; j < lids.length; j++) { if (legIds.indexOf(lids[j]) !== -1) return true; }
+        var mids = arr(f.msgIds);
+        for (var k = 0; k < mids.length; k++) {
+          if (legIds.indexOf(state.msgToLeg[mids[k]]) !== -1) return true;
+        }
+      } else {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function findingInScope(f) {
+    var sel = state.sel;
+    if (sel.type === 'capture') return true;
+    var legIds = scopeLegIds();
+    if (sel.type === 'call' && arr(f.callIds).indexOf(sel.callId) !== -1) return true;
+    if (legIds) {
+      var lids = arr(f.legIds);
+      for (var j = 0; j < lids.length; j++) { if (legIds.indexOf(lids[j]) !== -1) return true; }
+      var mids = arr(f.msgIds);
+      for (var k = 0; k < mids.length; k++) {
+        if (legIds.indexOf(state.msgToLeg[mids[k]]) !== -1) return true;
+      }
+    }
+    return false;
+  }
+
+  function renderInfoAdvice() {
+    var panel = $('info-advice');
+    if (!panel) return;
+    clear(panel);
+    if (!state.analysis) { emptyNote(panel, 'No capture open.'); return; }
+
+    // Scenario block — the "what am I even looking at" header.
+    var sc = state.analysis.scenario;
+    if (sc && sc.primary) {
+      var scard = el('div', 'advice-card scenario-card');
+      var stop = el('div', 'advice-title');
+      stop.appendChild(el('span', 'chip', str(sc.primary)));
+      stop.appendChild(el('span', 'mono muted',
+        ' confidence ' + Math.round((nnum(sc.confidence) || 0) * 100) + '%'));
+      scard.appendChild(stop);
+      if (sc.detail) scard.appendChild(el('p', 'advice-block', str(sc.detail)));
+      var sigs = objs(sc.signals);
+      if (sigs.length) {
+        var sul = el('ul', 'fix-steps');
+        for (var si = 0; si < sigs.length; si++) {
+          var sg = sigs[si];
+          var sli = el('li', null);
+          sli.appendChild(el('span', 'mono', str(sg.name)));
+          if (sg.weight != null) sli.appendChild(el('span', 'muted', ' (' + sg.weight + ')'));
+          if (sg.detail) sli.appendChild(document.createTextNode(' \u2014 ' + str(sg.detail)));
+          sul.appendChild(sli);
+        }
+        scard.appendChild(sul);
+      }
+      var alts = objs(sc.alternatives);
+      if (alts.length) {
+        scard.appendChild(el('p', 'pane-empty', 'alternatives: ' + alts.map(function (a) {
+          return str(a.primary) + ' ' + Math.round((a.confidence || 0) * 100) + '%';
+        }).join('  \u00b7  ')));
+      }
+      panel.appendChild(scard);
+    }
+
+    var advice = adviceList().filter(adviceInScope);
+    advice.sort(function (a, b) { return sevRank(a.severity) - sevRank(b.severity); });
+
+    if (advice.length) {
+      for (var i = 0; i < advice.length; i++) panel.appendChild(adviceCard(advice[i]));
+    }
+
+    // Findings fallback (Wave-1 captures have no advice at all).
+    var findings = findingsList().filter(findingInScope);
+    findings.sort(function (a, b) { return sevRank(a.severity) - sevRank(b.severity); });
+    var covered = {};
+    for (var a2 = 0; a2 < advice.length; a2++) {
+      var fids = arr(advice[a2].findingIds);
+      for (var f2 = 0; f2 < fids.length; f2++) covered[fids[f2]] = true;
+    }
+    var uncovered = findings.filter(function (f) { return !f || !f.id || !covered[f.id]; });
+    if (uncovered.length) {
+      section(panel, advice.length ? 'Other findings' : 'Findings');
+      if (!advice.length) {
+        panel.appendChild(el('p', 'pane-empty',
+          'This analysis has no advisory objects — findings are shown raw. ' +
+          'Re-upload the capture once the advisor module is live to get cited fixes.'));
+      }
+      for (var u = 0; u < uncovered.length; u++) panel.appendChild(findingCard(uncovered[u]));
+    }
+
+    // Retransmission classification for this scope.
+    var cols = collapsesList().filter(function (c) {
+      var legIds = scopeLegIds();
+      if (!legIds) return true;
+      return legIds.indexOf(c && c.legId) !== -1;
+    });
+    if (cols.length) {
+      section(panel, 'Retransmissions');
+      for (var c2 = 0; c2 < cols.length; c2++) panel.appendChild(collapseCard(cols[c2]));
+    }
+
+    var storms = (state.analysis.retrans && state.analysis.retrans.aggregate &&
+      arr(state.analysis.retrans.aggregate.stormWindows)) || [];
+    if (storms.length && state.sel.type === 'capture') {
+      section(panel, 'Box-wide storms');
+      for (var s3 = 0; s3 < storms.length; s3++) {
+        var w = storms[s3] || {};
+        var stormCard = el('div', 'advice-card sev-crit');
+        var stormTop = el('div', 'advice-title');
+        stormTop.appendChild(sevChip('crit'));
+        stormTop.appendChild(el('span', 'chip', str(w.verdict || 'box-wide')));
+        stormTop.appendChild(el('span', 'advice-title-text',
+          str(w.legsAffected) + ' legs retransmitting together'));
+        stormCard.appendChild(stormTop);
+        stormCard.appendChild(el('p', 'advice-block',
+          str(w.retransCount) + ' retransmissions between ' + fmtClock(w.startTs) + ' and ' +
+          fmtClock(w.endTs) + '. This is the box melting, not one broken call — look at licence ' +
+          'exhaustion, CPU, or an unreachable session agent before you look at the call.'));
+        panel.appendChild(stormCard);
+      }
+    }
+
+    if (!panel.firstChild) {
+      emptyNote(panel, 'Nothing to advise on for this selection.',
+        'hiccup found no warn/crit conditions here. Widen the selection to the whole capture in the tree.');
+    }
+  }
+
+  function explainButton(question, scope, label) {
+    var b = el('button', 'explain-btn', label || 'explain in chat');
+    b.type = 'button';
+    b.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      openChatPrefilled(question, scope);
+    });
+    return b;
+  }
+
+  function adviceCard(a) {
+    if (!a) {
+      var stub = el('div', 'advice-card');
+      stub.appendChild(el('p', 'pane-empty', '(empty advice)'));
+      return stub;
+    }
+    var card = el('div', 'advice-card sev-' + str(a.severity || 'info'));
+    var top = el('div', 'advice-title');
+    top.appendChild(sevChip(a.severity));
+    top.appendChild(el('span', 'advice-title-text', str(a.title || '(untitled advice)')));
+    top.appendChild(explainButton(
+      'Explain this advice in your own words: "' + str(a.title) + '". ' +
+      'Use only the supplied Advice object and its citations — do not invent RFC section numbers.',
+      firstScopeForAdvice(a)));
+    card.appendChild(top);
+
+    function block(labelText, text, extra) {
+      if (!text) return;
+      var wrap = el('p', 'advice-block' + (extra ? ' ' + extra : ''));
+      wrap.appendChild(el('span', 'advice-label', labelText));
+      var span = el('span', 'advice-text');
+      appendHighlighted(span, text, state.searchTerms);
+      wrap.appendChild(span);
+      card.appendChild(wrap);
+    }
+    block('what is wrong', a.whatsWrong, 'is-whats-wrong');
+    block('why it matters', a.whyItMatters, 'is-why');
+    block('mechanism', a.mechanism, 'is-mechanism');
+
+    var fixes = objs(a.fixes);
+    for (var i = 0; i < fixes.length; i++) card.appendChild(fixCard(fixes[i]));
+
+    var cites = objs(a.citations);
+    if (cites.length) {
+      var ul = el('ul', 'citation-list');
+      for (var c = 0; c < cites.length; c++) {
+        var cit = cites[c];
+        var li = el('li', 'citation');
+        var label = str(cit.source || 'reference') + (cit.section ? ' ' + cit.section : '');
+        var href = safeHref(cit.url);
+        if (href) {
+          var link = el('a', 'citation-link', label);
+          link.href = href;
+          link.target = '_blank';
+          link.rel = 'noopener';
+          link.title = 'opens in a new tab';
+          li.appendChild(link);
+        } else {
+          li.appendChild(el('span', 'citation-link is-unlinked', label));
+        }
+        if (cit.title) li.appendChild(el('span', 'citation-title', ' ' + str(cit.title)));
+        if (cit.note) li.appendChild(el('span', 'citation-note', ' \u2014 ' + str(cit.note)));
+        ul.appendChild(li);
+      }
+      card.appendChild(ul);
+    }
+
+    var kbs = objs(a.kbCitations);
+    if (kbs.length) {
+      var kul = el('ul', 'kb-list');
+      for (var k = 0; k < kbs.length; k++) {
+        var kb = kbs[k];
+        var kli = el('li', 'kb-hit');
+        kli.appendChild(el('span', 'kb-src', str(kb.docTitle || 'document')));
+        if (kb.page != null) kli.appendChild(el('span', 'kb-page', ' p.' + kb.page));
+        if (kb.heading) kli.appendChild(el('span', 'kb-page', ' \u00b7 ' + str(kb.heading)));
+        if (kb.excerpt) {
+          var q = el('div', 'kb-excerpt');
+          appendHighlighted(q, kb.excerpt, state.searchTerms);
+          kli.appendChild(q);
+        }
+        kul.appendChild(kli);
+      }
+      card.appendChild(kul);
+      card.appendChild(el('p', 'pane-empty',
+        'Guide excerpts ground a reviewable draft — they are not a verified change.'));
     }
     return card;
   }
 
-  // ----------------------------------------------------------- Findings tab
-
-  function renderFindingsTab() {
-    var wrap = el('div', 'view');
-    var findings = (state.analysis && state.analysis.findings) || [];
-    if (!findings.length) {
-      wrap.appendChild(el('div', 'empty-note', 'No findings — this capture looks clean.'));
-      return wrap;
+  function fixCard(fix) {
+    var box = el('div', 'fix-card');
+    if (!fix) { box.appendChild(el('p', 'pane-empty', '(empty fix)')); return box; }
+    var head = el('div', 'fix-head');
+    head.appendChild(el('span', 'chip fix-target', str(fix.target || 'generic')));
+    if (fix.confidence) {
+      var conf = el('span', 'chip fix-conf', str(fix.confidence));
+      conf.title = 'how likely this fix is to be the right one here';
+      head.appendChild(conf);
     }
+    head.appendChild(el('span', 'fix-summary', str(fix.summary || '')));
+    box.appendChild(head);
 
-    var sorted = findings.slice().sort(function (a, b) {
-      return (SEV_ORDER[a.severity] != null ? SEV_ORDER[a.severity] : 9) -
-             (SEV_ORDER[b.severity] != null ? SEV_ORDER[b.severity] : 9);
-    });
-
-    var list = el('div', 'findings-list');
-    for (var i = 0; i < sorted.length; i++) {
-      (function (f) {
-        var row = el('div', 'card finding-row');
-        var top = el('div', 'finding-top');
-        top.appendChild(sevChip(f.severity));
-        top.appendChild(el('span', 'chip mono', f.category || '?'));
-        top.appendChild(el('strong', 'finding-title', f.title || '(untitled)'));
-        var explain = el('button', 'btn explain-btn', 'explain');
-        explain.type = 'button';
-        explain.addEventListener('click', function (ev) {
-          ev.stopPropagation();
-          openChatPrefilled('Explain this finding: "' + (f.title || '') + '". What causes it and what should I check?',
-            { type: 'finding', id: f.id });
-        });
-        top.appendChild(explain);
-        row.appendChild(top);
-        if (f.detail) row.appendChild(el('p', 'finding-detail', f.detail));
-
-        var refs = [];
-        if (f.callIds && f.callIds.length) refs.push('calls: ' + f.callIds.join(', '));
-        if (f.legIds && f.legIds.length) refs.push('legs: ' + f.legIds.join(', '));
-        if (f.msgIds && f.msgIds.length) refs.push('msgs: ' + f.msgIds.join(', '));
-        if (refs.length) row.appendChild(el('p', 'mono muted-note', refs.join(' · ')));
-
-        row.addEventListener('click', function () { focusFinding(f); });
-        list.appendChild(row);
-      })(sorted[i]);
+    var steps = arr(fix.steps);
+    if (steps.length) {
+      var ol = el('ol', 'fix-steps');
+      for (var i = 0; i < steps.length; i++) ol.appendChild(el('li', null, str(steps[i])));
+      box.appendChild(ol);
     }
-    wrap.appendChild(list);
-    return wrap;
+    if (fix.config) {
+      var wrap = el('div', 'config-wrap');
+      var pre = el('pre', 'mono fix-config');
+      pre.textContent = str(fix.config);           // draft config — textContent only
+      wrap.appendChild(pre);
+      var copy = el('button', 'copy-btn', 'copy');
+      copy.type = 'button';
+      copy.title = 'copy this draft to the clipboard — review before applying';
+      copy.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        copyText(str(fix.config), copy);
+      });
+      wrap.appendChild(copy);
+      box.appendChild(wrap);
+      box.appendChild(el('p', 'pane-empty', 'Draft only — review before applying to a live box.'));
+    }
+    if (fix.caution) box.appendChild(el('p', 'fix-caution', str(fix.caution)));
+    return box;
   }
 
-  /** Jump from a finding to the view that best shows it. */
-  function focusFinding(f) {
-    if (f.callIds && f.callIds.length && state.callById[f.callIds[0]]) {
-      state.tab = 'calls';
-      state.selectedCallId = f.callIds[0];
-      state.scope = { type: 'call', id: f.callIds[0] };
-    } else if (f.category === 'retrans') {
-      state.tab = 'retrans';
-      state.scope = { type: 'finding', id: f.id };
-    } else if (f.msgIds && f.msgIds.length && state.msgById[f.msgIds[0]]) {
-      state.tab = 'ladder';
-      state.selectedMsgId = f.msgIds[0];
-      state.scope = { type: 'message', id: f.msgIds[0] };
-      renderInspector();
-    } else if (f.legIds && f.legIds.length) {
-      // Find the call containing this leg.
-      var calls = state.analysis.calls || [];
-      for (var i = 0; i < calls.length; i++) {
-        if (calls[i].legIds.indexOf(f.legIds[0]) !== -1) {
-          state.tab = 'calls';
-          state.selectedCallId = calls[i].id;
-          state.scope = { type: 'call', id: calls[i].id };
-          break;
-        }
-      }
+  function firstScopeForAdvice(a) {
+    var fids = arr(a && a.findingIds);
+    for (var i = 0; i < fids.length; i++) {
+      var f = state.findingById[fids[i]];
+      if (!f) continue;
+      if (arr(f.callIds).length) return { type: 'call', id: arr(f.callIds)[0] };
+      if (arr(f.msgIds).length) return { type: 'message', id: arr(f.msgIds)[0] };
+      if (f.id) return { type: 'finding', id: f.id };
     }
-    renderMain();
+    return chatScope();
+  }
+
+  function findingCard(f) {
+    var card = el('div', 'advice-card finding-card sev-' + str(f && f.severity || 'info'));
+    if (!f) { card.appendChild(el('p', 'pane-empty', '(empty finding)')); return card; }
+    var top = el('div', 'advice-title');
+    top.appendChild(sevChip(f.severity));
+    top.appendChild(el('span', 'chip mono', str(f.category || '?')));
+    top.appendChild(el('span', 'advice-title-text', str(f.title || '(untitled)')));
+    top.appendChild(explainButton(
+      'Explain this finding: "' + str(f.title) + '". What causes it and what should I check?',
+      f.id ? { type: 'finding', id: f.id } : chatScope()));
+    card.appendChild(top);
+    if (f.detail) {
+      var p2 = el('p', 'advice-block');
+      appendHighlighted(p2, f.detail, state.searchTerms);
+      card.appendChild(p2);
+    }
+    var refs = [];
+    if (arr(f.callIds).length) refs.push('calls: ' + arr(f.callIds).join(', '));
+    if (arr(f.legIds).length) refs.push('legs: ' + arr(f.legIds).join(', '));
+    if (arr(f.msgIds).length) refs.push('msgs: ' + arr(f.msgIds).join(', '));
+    if (refs.length) {
+      var jump = el('button', 'explain-btn', refs.join('  \u00b7  '));
+      jump.type = 'button';
+      jump.title = 'jump to the first referenced object';
+      jump.addEventListener('click', function (ev) { ev.stopPropagation(); jumpToFinding(f); });
+      card.appendChild(jump);
+    }
+    return card;
+  }
+
+  function collapseCard(col) {
+    var card = el('div', 'advice-card retrans-card sev-warn');
+    if (!col) { card.appendChild(el('p', 'pane-empty', '(empty collapse)')); return card; }
+    var cls = col.classification || {};
+    var top = el('div', 'advice-title');
+    top.appendChild(el('span', 'chip mono code-chip code-' + str(cls.code || 'unknown'),
+      str(cls.code || 'unknown')));
+    top.appendChild(el('span', 'advice-title-text',
+      str(col.label || (str(col.method) + ' \u00d7' + str(col.count)))));
+    if (cls.confidence != null) {
+      top.appendChild(el('span', 'chip mono', Math.round((cls.confidence || 0) * 100) + '%'));
+    }
+    top.appendChild(explainButton(
+      'Explain this retransmission pattern: "' + str(col.label) + '" classified as ' +
+      str(cls.code) + '. What would cause it and how do I confirm it?',
+      col.legId ? { type: 'leg', id: col.legId } : chatScope()));
+    card.appendChild(top);
+    if (cls.cause) {
+      var cp = el('p', 'advice-block');
+      cp.appendChild(el('span', 'advice-label', 'likely cause'));
+      cp.appendChild(document.createTextNode(str(cls.cause)));
+      card.appendChild(cp);
+    }
+    if (cls.detail) {
+      var dp = el('p', 'advice-block');
+      dp.appendChild(el('span', 'advice-label', 'evidence'));
+      dp.appendChild(document.createTextNode(str(cls.detail)));
+      card.appendChild(dp);
+    }
+    card.appendChild(el('p', 'pane-empty',
+      str(col.legId || '') + '  \u00b7  ' + fmtClock(col.firstTs) + ' \u2192 ' + fmtClock(col.lastTs) +
+      '  \u00b7  outcome ' + str(col.outcome || '?')));
+    var first = arr(col.msgIds)[0];
+    if (first) {
+      var show = el('button', 'explain-btn', 'show in ladder');
+      show.type = 'button';
+      show.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        if (col.legId && state.legById[col.legId]) {
+          state.sel = { type: 'leg', callId: state.legToCall[col.legId] || null, legId: col.legId, txKey: null };
+        }
+        state.selectedRowId = first;
+        renderAll();
+      });
+      card.appendChild(show);
+    }
+    return card;
+  }
+
+  function jumpToFinding(f) {
+    if (!f) return;
+    var cids = arr(f.callIds), lids = arr(f.legIds), mids = arr(f.msgIds);
+    if (cids.length && state.callById[cids[0]]) {
+      state.sel = { type: 'call', callId: cids[0], legId: null, txKey: null };
+    } else if (lids.length && state.legById[lids[0]]) {
+      state.sel = { type: 'leg', callId: state.legToCall[lids[0]] || null, legId: lids[0], txKey: null };
+    } else if (mids.length && state.msgToLeg[mids[0]]) {
+      var lg = state.msgToLeg[mids[0]];
+      state.sel = { type: 'leg', callId: state.legToCall[lg] || null, legId: lg, txKey: null };
+    }
+    if (mids.length) state.selectedRowId = mids[0];
+    renderAll();
     if (state.chatOpen) renderChat();
   }
 
-  // -------------------------------------------------------------- inspector
+  // -------------------------------------------------------------- search
 
-  function renderInspector() {
-    var panel = $('inspector');
-    clear(panel);
-    var m = state.selectedMsgId ? state.msgById[state.selectedMsgId] : null;
-    if (!m) {
-      panel.hidden = true;
+  function wireSearchbar() {
+    var input = $('search-input');
+    var clearBtn = $('search-clear');
+    if (input) {
+      var run = debounce(function () {
+        state.searchQuery = input.value || '';
+        runSearch();
+      }, 150);
+      input.addEventListener('input', run);
+      input.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Escape') { ev.preventDefault(); clearSearch(); }
+        if (ev.key === 'Enter') { ev.preventDefault(); state.searchQuery = input.value || ''; runSearch(); }
+      });
+      input.setAttribute('placeholder',
+        'search raw, headers, numbers…  or call: leg: callid: from: to: method: status: ip: port: codec: proto: sev: has:');
+      input.setAttribute('title',
+        'Substring search over raw messages, headers, URIs, Call-IDs, tags, branches, SDP, ' +
+        'H.323 numbers, aux summaries, findings and advice.\n' +
+        'Digits are matched phone-normalized: 654321 finds +33987654321.\n' +
+        'Filters: call: leg: callid: from: to: method: status: ip: port: codec: ' +
+        'proto:(sip|h323|rtp|dns|diameter|stun) sev:(crit|warn|notice|info) ' +
+        'has:(t38|ims|sipi|srtp|dtmf|retrans|advice)');
+    }
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function (ev) { ev.preventDefault(); clearSearch(); });
+      clearBtn.title = 'clear the search';
+    }
+  }
+
+  function clearSearch() {
+    var input = $('search-input');
+    if (input) input.value = '';
+    state.searchQuery = '';
+    state.searchTerms = [];
+    state.searchHits = [];
+    state.searchMatchIds = {};
+    state.searchActive = false;
+    state.searchTruncated = false;
+    renderSearchCount();
+    renderFilterTree();
+    renderSelectionList();
+    renderLadder();
+    renderInfo();
+  }
+
+  function pushField(fields, name, text) {
+    if (text == null || text === '') return;
+    var s = String(text);
+    fields.push({ field: name, text: s, low: s.toLowerCase() });
+  }
+
+  function buildSearchIndex() {
+    state.searchIndex = [];
+    var a = state.analysis;
+    if (!a) return;
+    var idx = state.searchIndex;
+    var i, j;
+
+    // --- signalling messages
+    var msgs = arr(a.messages);
+    for (i = 0; i < msgs.length; i++) {
+      var m = msgs[i];
+      if (!m || !m.id) continue;
+      var fields = [];
+      var digits = [];
+      var codecs = [];
+      var tags = {};
+      var isH = m.protocol === 'h323' || !!m.q931Type;
+
+      if (isH) {
+        pushField(fields, 'summary', m.summary);
+        pushField(fields, 'q931', m.q931Type);
+        pushField(fields, 'calling', m.calling);
+        pushField(fields, 'called', m.called);
+        if (m.causeCode != null) pushField(fields, 'cause', m.causeCode + ' ' + str(m.causeText));
+        pushField(fields, 'guid', m.guid);
+        pushField(fields, 'raw (hex)', m.raw);
+        digits.push(digitsOf(m.calling), digitsOf(m.called));
+      } else {
+        pushField(fields, 'line', m.isRequest
+          ? (str(m.method) + ' ' + str(m.requestUri))
+          : ('SIP/2.0 ' + str(m.status) + ' ' + str(m.reason)));
+        pushField(fields, 'Call-ID', m.callId);
+        pushField(fields, 'From', m.fromUri);
+        pushField(fields, 'To', m.toUri);
+        pushField(fields, 'Contact', m.contact);
+        pushField(fields, 'from-tag', m.fromTag);
+        pushField(fields, 'to-tag', m.toTag);
+        pushField(fields, 'branch', m.branch);
+        var hdrs = arr(m.headers);
+        for (j = 0; j < hdrs.length; j++) {
+          if (!hdrs[j] || hdrs[j].name == null) continue;
+          pushField(fields, str(hdrs[j].name), hdrs[j].value);
+          var hn = str(hdrs[j].name).toLowerCase();
+          if (IMS_HEADERS.indexOf(hn) !== -1) tags.ims = true;
+        }
+        if (m.sdp) {
+          pushField(fields, 'SDP', m.sdp.raw);
+          var mb = arr(m.sdp.media);
+          for (j = 0; j < mb.length; j++) {
+            var blk = mb[j] || {};
+            if (str(blk.type).toLowerCase() === 'image' || /udptl|t38/i.test(str(blk.proto))) tags.t38 = true;
+            if (/savp/i.test(str(blk.proto))) tags.srtp = true;
+            var pls = arr(blk.payloads);
+            for (var p = 0; p < pls.length; p++) {
+              if (!pls[p]) continue;
+              if (pls[p].codec) codecs.push(String(pls[p].codec));
+              if (/telephone-event/i.test(str(pls[p].codec))) tags.dtmf = true;
+            }
+            var attrs = arr(blk.attrs);
+            for (var at = 0; at < attrs.length; at++) {
+              if (/^a?=?\s*crypto/i.test(str(attrs[at]))) tags.srtp = true;
+              if (/telephone-event/i.test(str(attrs[at]))) tags.dtmf = true;
+              if (/t38|udptl/i.test(str(attrs[at]))) tags.t38 = true;
+              if (/curr:|des:|conf:/i.test(str(attrs[at]))) tags.ims = true;
+            }
+          }
+          var satt = arr(m.sdp.sessionAttrs);
+          for (var s2 = 0; s2 < satt.length; s2++) {
+            if (/^a?=?\s*crypto/i.test(str(satt[s2]))) tags.srtp = true;
+            if (/ice-ufrag/i.test(str(satt[s2]))) tags['stun-ice'] = true;
+          }
+        }
+        if (m.isup) {
+          tags.sipi = true;
+          pushField(fields, 'ISUP', str(m.isup.messageType) + ' ' + str(m.isup.calledParty) + ' ' + str(m.isup.callingParty));
+          var ips = arr(m.isup.params);
+          for (var ip = 0; ip < ips.length; ip++) {
+            if (ips[ip]) pushField(fields, 'ISUP ' + str(ips[ip].name), ips[ip].value);
+          }
+          digits.push(digitsOf(m.isup.calledParty), digitsOf(m.isup.callingParty));
+        }
+        var bps = arr(m.bodyParts);
+        for (var bp = 0; bp < bps.length; bp++) {
+          if (!bps[bp]) continue;
+          pushField(fields, 'body ' + str(bps[bp].contentType), bps[bp].body);
+          if (/isup/i.test(str(bps[bp].contentType))) tags.sipi = true;
+        }
+        pushField(fields, 'raw', m.raw);
+        digits.push(digitsOf(uriUser(m.fromUri)), digitsOf(uriUser(m.toUri)), digitsOf(uriUser(m.requestUri)));
+        if (/application\/isup/i.test(str(m.bodyType)) || /application\/isup/i.test(str(m.raw).slice(0, 4000))) tags.sipi = true;
+      }
+
+      if (m.retransOf || state.collapseByMsg[m.id]) tags.retrans = true;
+      if (state.adviceMsgIds[m.id]) tags.advice = true;
+
+      var legId = state.msgToLeg[m.id] || null;
+      var leg = legId ? state.legById[legId] : null;
+      if (leg) {
+        digits.push(digitsOf(leg.fromUser), digitsOf(leg.toUser));
+        if (leg.kind === 'register') { /* nothing extra */ }
+      }
+
+      var sev = null;
+      var fs = findingsList();
+      for (j = 0; j < fs.length; j++) {
+        if (fs[j] && arr(fs[j].msgIds).indexOf(m.id) !== -1) {
+          if (sev == null || sevRank(fs[j].severity) < sevRank(sev)) sev = fs[j].severity;
+        }
+      }
+
+      idx.push({
+        kind: 'msg',
+        id: m.id,
+        rowId: m.id,
+        callId: state.msgToCall[m.id] || null,
+        legId: legId,
+        proto: isH ? 'h323' : 'sip',
+        method: str(isH ? m.q931Type : (m.method || (m.cseq && m.cseq.method))),
+        status: nnum(m.status),
+        callid: str(m.callId),
+        fromUri: str(m.fromUri), toUri: str(m.toUri),
+        ips: [str(m.src), str(m.dst)],
+        ports: [nnum(m.sport), nnum(m.dport)],
+        codecs: codecs,
+        sev: sev,
+        tags: tags,
+        fields: fields,
+        digits: digits.join(' ')
+      });
+    }
+
+    // --- media streams
+    var streams = mediaStreams();
+    for (i = 0; i < streams.length; i++) {
+      var s = streams[i];
+      if (!s) continue;
+      var mf = [];
+      pushField(mf, 'stream', str(s.id) + ' ' + str(s.kind) + ' ' + str(s.codec) +
+        ' ssrc=' + str(s.ssrc) + ' ' + pathOf(s));
+      pushField(mf, 'stats', 'packets=' + str(s.packets) + ' lost=' + str(s.lost) +
+        ' lossPct=' + str(s.lossPct) + ' jitter=' + str(s.meanJitterMs) + ' mos=' + str(s.mos));
+      var mtags = {};
+      if (s.kind === 'srtp') mtags.srtp = true;
+      if (s.kind === 't38-udptl') mtags.t38 = true;
+      if (arr(s.dtmfEvents).length) mtags.dtmf = true;
+      idx.push({
+        kind: 'media', id: str(s.id), rowId: str(s.id),
+        callId: callOf(s, 'media'), legId: arr(s.legIds)[0] || null,
+        proto: 'rtp', method: '', status: null, callid: '',
+        fromUri: '', toUri: '',
+        ips: [str(s.src), str(s.dst)], ports: [nnum(s.sport), nnum(s.dport)],
+        codecs: s.codec ? [String(s.codec)] : [],
+        sev: null, tags: mtags, fields: mf, digits: ''
+      });
+    }
+
+    // --- aux observations
+    var auxes = auxMessages();
+    for (i = 0; i < auxes.length; i++) {
+      var x = auxes[i];
+      if (!x) continue;
+      var xf = [];
+      pushField(xf, 'summary', x.summary);
+      var detailText = '';
+      try { detailText = JSON.stringify(x.detail); } catch (e) { detailText = ''; }
+      pushField(xf, 'detail', detailText);
+      pushField(xf, 'raw', x.raw);
+      idx.push({
+        kind: 'aux', id: str(x.id), rowId: str(x.id),
+        callId: callOf(x, 'aux'), legId: arr(x.legIds)[0] || null,
+        proto: str(x.protocol || 'aux'), method: '', status: null, callid: '',
+        fromUri: '', toUri: '',
+        ips: [str(x.src), str(x.dst)], ports: [nnum(x.sport), nnum(x.dport)],
+        codecs: [], sev: null, tags: {}, fields: xf, digits: ''
+      });
+    }
+
+    // --- findings
+    var fsAll = findingsList();
+    for (i = 0; i < fsAll.length; i++) {
+      var f = fsAll[i];
+      if (!f) continue;
+      var ff = [];
+      pushField(ff, 'finding', str(f.title));
+      pushField(ff, 'detail', str(f.detail));
+      idx.push({
+        kind: 'finding', id: str(f.id), rowId: arr(f.msgIds)[0] || null,
+        callId: arr(f.callIds)[0] || (arr(f.legIds).length ? state.legToCall[arr(f.legIds)[0]] : null) || null,
+        legId: arr(f.legIds)[0] || null,
+        proto: '', method: '', status: null, callid: '', fromUri: '', toUri: '',
+        ips: [], ports: [], codecs: [], sev: f.severity || null,
+        tags: {}, fields: ff, digits: ''
+      });
+    }
+
+    // --- advice
+    var adv = adviceList();
+    for (i = 0; i < adv.length; i++) {
+      var ad = adv[i];
+      if (!ad) continue;
+      var af = [];
+      pushField(af, 'advice', str(ad.title));
+      pushField(af, 'whatsWrong', str(ad.whatsWrong));
+      pushField(af, 'whyItMatters', str(ad.whyItMatters));
+      pushField(af, 'mechanism', str(ad.mechanism));
+      var fixes = arr(ad.fixes);
+      for (j = 0; j < fixes.length; j++) {
+        if (!fixes[j]) continue;
+        pushField(af, 'fix ' + str(fixes[j].target), str(fixes[j].summary) + ' ' +
+          arr(fixes[j].steps).join(' ') + ' ' + str(fixes[j].config));
+      }
+      var cites = arr(ad.citations);
+      for (j = 0; j < cites.length; j++) {
+        if (!cites[j]) continue;
+        pushField(af, 'citation', str(cites[j].source) + ' ' + str(cites[j].section) + ' ' + str(cites[j].title));
+      }
+      var firstF = state.findingById[arr(ad.findingIds)[0]];
+      idx.push({
+        kind: 'advice', id: str(ad.id), rowId: (firstF && arr(firstF.msgIds)[0]) || null,
+        callId: (firstF && arr(firstF.callIds)[0]) || null,
+        legId: (firstF && arr(firstF.legIds)[0]) || null,
+        proto: '', method: '', status: null, callid: '', fromUri: '', toUri: '',
+        ips: [], ports: [], codecs: [], sev: ad.severity || null,
+        tags: { advice: true }, fields: af, digits: ''
+      });
+    }
+  }
+
+  /** Split a query into bare terms + field:value filters. */
+  function parseQuery(q) {
+    var terms = [], filters = [];
+    var re = /"([^"]*)"|(\S+)/g;
+    var m;
+    while ((m = re.exec(str(q))) !== null) {
+      var quoted = m[1] != null;
+      var tok = quoted ? m[1] : m[2];
+      if (!tok) continue;
+      if (!quoted) {
+        var c = tok.indexOf(':');
+        if (c > 0) {
+          var name = tok.slice(0, c).toLowerCase();
+          if (SEARCH_FIELDS[name]) {
+            var v = tok.slice(c + 1);
+            if (v !== '') filters.push({ field: name, value: v, low: v.toLowerCase() });
+            continue;
+          }
+        }
+      }
+      terms.push(tok);
+    }
+    return { terms: terms, filters: filters };
+  }
+
+  function isDigitQuery(t) {
+    var s = str(t);
+    if (!/^[+\-()\s.\d]+$/.test(s)) return false;
+    return digitsOf(s).length >= 4;
+  }
+
+  function filterPass(item, f) {
+    var v = f.low;
+    var i;
+    switch (f.field) {
+      case 'call': return str(item.callId).toLowerCase() === v || str(item.callId).toLowerCase().indexOf(v) === 0;
+      case 'leg': return str(item.legId).toLowerCase() === v || str(item.legId).toLowerCase().indexOf(v) === 0;
+      case 'callid': return str(item.callid).toLowerCase().indexOf(v) !== -1;
+      case 'from':
+        return str(item.fromUri).toLowerCase().indexOf(v) !== -1 ||
+          (isDigitQuery(f.value) && item.digits.indexOf(digitsOf(f.value)) !== -1);
+      case 'to':
+        return str(item.toUri).toLowerCase().indexOf(v) !== -1 ||
+          (isDigitQuery(f.value) && item.digits.indexOf(digitsOf(f.value)) !== -1);
+      case 'method': return str(item.method).toLowerCase().indexOf(v) !== -1;
+      case 'status': return item.status != null && String(item.status).indexOf(f.value) === 0;
+      case 'ip':
+        for (i = 0; i < item.ips.length; i++) { if (item.ips[i].toLowerCase().indexOf(v) !== -1) return true; }
+        return false;
+      case 'port':
+        for (i = 0; i < item.ports.length; i++) { if (item.ports[i] != null && String(item.ports[i]) === f.value) return true; }
+        return false;
+      case 'codec':
+        for (i = 0; i < item.codecs.length; i++) { if (item.codecs[i].toLowerCase().indexOf(v) !== -1) return true; }
+        return false;
+      case 'proto': return str(item.proto).toLowerCase() === v || str(item.proto).toLowerCase().indexOf(v) === 0;
+      case 'sev': return str(item.sev).toLowerCase() === v;
+      case 'has': return !!item.tags[v];
+      default: return true;
+    }
+  }
+
+  function excerptAround(text, term, terms) {
+    var s = str(text);
+    var low = s.toLowerCase();
+    var at = term ? low.indexOf(str(term).toLowerCase()) : 0;
+    if (at < 0) at = 0;
+    var start = Math.max(0, at - 42);
+    var end = Math.min(s.length, at + Math.max(24, str(term).length) + 48);
+    var out = (start > 0 ? '…' : '') + s.slice(start, end).replace(/[\r\n\t]+/g, ' ⏎ ') + (end < s.length ? '…' : '');
+    return out;
+  }
+
+  function runSearch() {
+    var q = str(state.searchQuery).trim();
+    if (!q) { clearSearch(); return; }
+    if (!state.analysis) { renderSearchCount(); return; }
+    if (!state.searchIndex.length) buildSearchIndex();
+
+    var parsed = parseQuery(q);
+    var lows = parsed.terms.map(function (t) { return str(t).toLowerCase(); });
+    var digitTerms = parsed.terms.map(function (t) { return isDigitQuery(t) ? digitsOf(t) : null; });
+
+    state.searchTerms = parsed.terms.slice();
+    var hits = [];
+    var matchIds = {};
+    var truncated = false;
+    var idx = state.searchIndex;
+
+    for (var i = 0; i < idx.length; i++) {
+      var item = idx[i];
+      var ok = true, fi;
+      for (fi = 0; fi < parsed.filters.length; fi++) {
+        if (!filterPass(item, parsed.filters[fi])) { ok = false; break; }
+      }
+      if (!ok) continue;
+
+      var hitField = null, hitText = null, hitTerm = null;
+      if (lows.length) {
+        for (var t = 0; t < lows.length; t++) {
+          var found = false;
+          for (var fdi = 0; fdi < item.fields.length; fdi++) {
+            if (item.fields[fdi].low.indexOf(lows[t]) !== -1) {
+              found = true;
+              if (!hitField) {
+                hitField = item.fields[fdi].field;
+                hitText = item.fields[fdi].text;
+                hitTerm = parsed.terms[t];
+              }
+              break;
+            }
+          }
+          if (!found && digitTerms[t] && item.digits && item.digits.indexOf(digitTerms[t]) !== -1) {
+            found = true;
+            if (!hitField) {
+              hitField = 'number (digit-normalized)';
+              hitText = item.digits;
+              hitTerm = digitTerms[t];
+            }
+          }
+          if (!found) { ok = false; break; }
+        }
+      } else {
+        hitField = 'filter';
+        hitText = item.fields.length ? item.fields[0].text : str(item.id);
+        hitTerm = '';
+      }
+      if (!ok) continue;
+
+      if (hits.length >= SEARCH_CAP) { truncated = true; break; }
+      hits.push({
+        kind: item.kind,
+        id: item.id,
+        rowId: item.rowId,
+        callId: item.callId,
+        legId: item.legId,
+        field: hitField,
+        excerpt: excerptAround(hitText, hitTerm, parsed.terms),
+        sev: item.sev
+      });
+      if (item.rowId) matchIds[item.rowId] = true;
+    }
+
+    state.searchHits = hits;
+    state.searchMatchIds = matchIds;
+    state.searchTruncated = truncated;
+    state.searchActive = true;
+
+    renderSearchCount();
+    renderSearchResults();
+    renderSelectionList();
+    renderLadder();
+    renderInfo();
+  }
+
+  function renderSearchCount() {
+    var node = $('search-count');
+    if (!node) return;
+    if (!state.searchActive) {
+      node.textContent = 'no search';
+      node.title = '';
+      node.classList.remove('is-hits');
       return;
     }
-    panel.hidden = false;
+    var sessions = {};
+    var n = 0;
+    for (var i = 0; i < state.searchHits.length; i++) {
+      sessions[str(state.searchHits[i].callId || 'none')] = true;
+      n++;
+    }
+    var sessCount = Object.keys(sessions).length;
+    if (!n) {
+      node.textContent = 'no matches';
+      node.title = 'nothing in this capture matched the query';
+      node.classList.remove('is-hits');
+      return;
+    }
+    node.classList.add('is-hits');
+    node.textContent = (state.searchTruncated ? SEARCH_CAP + '+' : String(n)) + ' hits · ' +
+      sessCount + ' session' + (sessCount === 1 ? '' : 's');
+    node.title = state.searchTruncated
+      ? 'capped at ' + SEARCH_CAP + ' hits — narrow the query with a field filter such as call: or method:'
+      : n + ' hits across ' + sessCount + ' session(s)';
+  }
 
-    var head = el('div', 'insp-head');
-    head.appendChild(el('strong', null, 'Message ' + m.id));
-    var spacer = el('span', 'topbar-spacer');
-    head.appendChild(spacer);
-    var explain = el('button', 'btn explain-btn', 'explain this');
-    explain.type = 'button';
-    explain.addEventListener('click', function () {
-      openChatPrefilled('Explain this ' + (m.protocol === 'h323' ? 'H.323' : 'SIP') +
-        ' message: what is it doing in this call, and is anything wrong with it?',
-        { type: 'message', id: m.id });
-    });
-    head.appendChild(explain);
-    var close = el('button', 'btn chat-close', '×');
-    close.type = 'button';
-    close.title = 'close inspector';
-    close.addEventListener('click', function () {
-      state.selectedMsgId = null;
-      state.scope = state.selectedCallId
-        ? { type: 'call', id: state.selectedCallId }
-        : { type: 'capture', id: state.captureId };
-      renderInspector();
-      rerenderKeepingScroll();
-      if (state.chatOpen) renderChat();
-    });
-    head.appendChild(close);
-    panel.appendChild(head);
+  /**
+   * Search results take over #filter-tree while a query is active: they are
+   * grouped by session (call), which is exactly the tree's own grouping.
+   */
+  function renderSearchResults() {
+    var host = $('filter-tree');
+    if (!host) return;
+    clear(host);
 
-    var summary = el('dl', 'insp-summary');
-    function kv(k, v) {
-      if (v == null || v === '') return;
-      summary.appendChild(el('dt', null, k));
-      summary.appendChild(el('dd', 'mono', String(v)));
+    var head = el('div', 'tree-row search-results-head');
+    head.appendChild(el('span', 'tree-label', 'search results'));
+    var back = el('button', 'tree-toggle search-clear-inline', '\u00d7');
+    back.type = 'button';
+    back.title = 'clear the search and go back to the session tree';
+    back.setAttribute('aria-label', 'clear search');
+    back.addEventListener('click', function (ev) { ev.stopPropagation(); clearSearch(); });
+    head.appendChild(back);
+    host.appendChild(head);
+
+    if (!state.searchHits.length) {
+      emptyNote(host, 'No matches.',
+        'Try a shorter substring, a phone-number fragment (digits are matched ignoring + - ( ) spaces), or a filter like method:INVITE or has:retrans.');
+      return;
     }
 
-    if (m.protocol === 'h323') {
-      kv('Type', m.q931Type);
-      kv('Summary', m.summary);
-      kv('Time', fmtClock(m.ts));
-      kv('Path', m.src + ':' + m.sport + ' → ' + m.dst + ':' + m.dport + ' (' + m.transport + ')');
-      kv('Call ref', m.callRef + (m.callRefFlag ? ' (flag 1)' : ' (flag 0)'));
-      kv('Calling', m.calling);
-      kv('Called', m.called);
-      if (m.causeCode != null) kv('Cause', m.causeCode + (m.causeText ? ' — ' + m.causeText : ''));
-      kv('GUID', m.guid);
-      kv('Fast start', m.hasFastStart ? 'yes' : 'no');
-      kv('Size', m.size + ' B');
-    } else {
-      kv('Line', m.isRequest
-        ? (m.method + ' ' + (m.requestUri || ''))
-        : ('SIP/2.0 ' + m.status + ' ' + (m.reason || '')));
-      kv('Time', fmtClock(m.ts));
-      kv('Path', m.src + ':' + m.sport + ' → ' + m.dst + ':' + m.dport + ' (' + m.transport + ')');
-      kv('Call-ID', m.callId);
-      kv('From', m.fromUri + (m.fromTag ? ';tag=' + m.fromTag : ''));
-      kv('To', m.toUri + (m.toTag ? ';tag=' + m.toTag : ''));
-      if (m.cseq) kv('CSeq', m.cseq.num + ' ' + m.cseq.method);
-      kv('Branch', m.branch);
-      kv('Body', m.bodyType);
-      kv('Size', m.size + ' B');
-      if (m.retransOf) kv('Retransmission of', m.retransOf);
+    var order = [], groups = {};
+    for (var i = 0; i < state.searchHits.length; i++) {
+      var h = state.searchHits[i];
+      var key = str(h.callId || '');
+      if (!groups[key]) { groups[key] = []; order.push(key); }
+      groups[key].push(h);
     }
-    panel.appendChild(summary);
 
-    panel.appendChild(el('h4', 'insp-raw-title', m.protocol === 'h323' ? 'Raw (hex)' : 'Raw'));
-    var pre = el('pre', 'mono insp-raw');
-    pre.textContent = m.raw || '';   // textContent only — raw is untrusted
-    panel.appendChild(pre);
+    for (var g = 0; g < order.length; g++) {
+      (function (key) {
+        var call = key ? state.callById[key] : null;
+        var ingress = call ? (state.legById[arr(call.legIds)[0]] || {}) : {};
+        var node = treeNode({
+          nodeKey: 'hits:' + key,
+          kindClass: 'is-call',
+          label: call ? (call.id + ' \u00b7 ' + callProtocolLabel(call)) : 'not tied to a call',
+          sub: call ? (' ' + str(ingress.from || '?') + ' \u2192 ' + str(ingress.to || '?')) : null,
+          state: call ? ingress.state : undefined,
+          badge: groups[key].length + ' hit' + (groups[key].length === 1 ? '' : 's'),
+          edge: (key && callHasCrit(key)) ? 'crit' : null,
+          hasChildren: true,
+          open: true,
+          selected: !!(call && isSelectedNode({ type: 'call', callId: call.id })),
+          title: call ? ('select call ' + call.id) : 'matches with no call association',
+          onSelect: call ? function () { selectScopeFromSearch({ type: 'call', callId: call.id }, null); } : null
+        });
+        host.appendChild(node.node);
+        if (!node.children) return;
+
+        var list = groups[key];
+        for (var k = 0; k < list.length; k++) {
+          (function (hit) {
+            var row = el('div', 'tree-node is-hit');
+            var line = el('div', 'tree-row search-hit');
+            line.setAttribute('tabindex', '0');
+            line.appendChild(el('span', 'tree-toggle'));
+            line.appendChild(el('span', 'tree-badge hit-kind', hit.kind));
+            line.appendChild(el('span', 'tree-label mono', str(hit.id) + ' ' + str(hit.field)));
+            if (hit.sev) line.appendChild(sevChip(hit.sev));
+            var ex = el('span', 'tree-sub mono hit-excerpt');
+            appendHighlighted(ex, hit.excerpt, state.searchTerms);
+            line.appendChild(ex);
+            line.title = str(hit.field) + ': ' + str(hit.excerpt);
+            var act = function () { openSearchHit(hit); };
+            line.addEventListener('click', act);
+            line.addEventListener('keydown', function (ev) {
+              if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); act(); }
+            });
+            row.appendChild(line);
+            node.children.appendChild(row);
+          })(list[k]);
+        }
+      })(order[g]);
+    }
+
+    if (state.searchTruncated) {
+      emptyNote(host, 'More matches exist — capped at ' + SEARCH_CAP + '.',
+        'Narrow the query with a filter (call:, method:, has:…).');
+    }
+  }
+
+  function selectScopeFromSearch(sel, rowId) {
+    state.sel = {
+      type: sel.type || 'capture',
+      callId: sel.callId || null,
+      legId: sel.legId || null,
+      txKey: sel.txKey || null
+    };
+    state.selectedRowId = rowId || null;
+    buildScopedRows();
+    renderSelectionList();
+    renderLadder();
+    renderInfo();
+    if (state.chatOpen) renderChat();
+  }
+
+  /** Click a result → select that call, highlight the match in ladder + info. */
+  function openSearchHit(hit) {
+    if (!hit) return;
+    var sel = { type: 'capture' };
+    if (hit.callId && state.callById[hit.callId]) sel = { type: 'call', callId: hit.callId };
+    else if (hit.legId && state.legById[hit.legId]) {
+      sel = { type: 'leg', callId: state.legToCall[hit.legId] || null, legId: hit.legId };
+    }
+    if (hit.kind === 'advice' || hit.kind === 'finding') state.infoTab = 'advice';
+    else if (hit.kind === 'media') state.infoTab = 'media';
+    else state.infoTab = 'contents';
+    selectScopeFromSearch(sel, hit.rowId || null);
   }
 
   // ------------------------------------------------------------ chat drawer
@@ -1098,122 +3465,151 @@
   function chatHistory() {
     try {
       var raw = sessionStorage.getItem(chatKey());
-      var arr = raw ? JSON.parse(raw) : [];
-      return Array.isArray(arr) ? arr : [];
+      var parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
     } catch (e) { return []; }
   }
 
   function saveChat(hist) {
-    try { sessionStorage.setItem(chatKey(), JSON.stringify(hist)); } catch (e) { /* full */ }
+    try { sessionStorage.setItem(chatKey(), JSON.stringify(hist)); } catch (e) { /* quota */ }
   }
 
   function toggleChat(open) {
-    state.chatOpen = open;
-    $('chat-drawer').hidden = !open;
-    $('chat-toggle').classList.toggle('active', open);
+    state.chatOpen = !!open;
+    var drawer = $('chat-drawer');
+    if (drawer) drawer.hidden = !open;
+    var toggle = $('chat-toggle');
+    if (toggle) toggle.classList.toggle('active', !!open);
     if (open) {
       renderChat();
-      $('chat-input').focus();
+      var input = $('chat-input');
+      if (input) input.focus();
     }
   }
 
+  /** Map the Workbench selection onto the server's scope contract. */
+  function chatScope() {
+    if (state.selectedRowId && state.msgById[state.selectedRowId]) {
+      return { type: 'message', id: state.selectedRowId };
+    }
+    var sel = state.sel;
+    if (sel.type === 'call' && sel.callId) return { type: 'call', id: sel.callId };
+    if ((sel.type === 'leg' || sel.type === 'transaction') && sel.legId) return { type: 'leg', id: sel.legId };
+    return { type: 'capture', id: state.captureId };
+  }
+
   function scopeLabel() {
-    var s = state.scope || { type: 'capture' };
-    if (s.type === 'capture' || !s.id) return 'whole capture';
-    return s.type + ' ' + s.id;
+    var s = chatScope();
+    if (!s || s.type === 'capture' || !s.id) return 'whole capture';
+    var extra = '';
+    if (state.sel.type === 'transaction' && state.sel.txKey) extra = ' · ' + state.sel.txKey;
+    return s.type + ' ' + s.id + extra;
   }
 
   function renderChat() {
     var llm = state.llm;
     var available = !!(llm && llm.available);
 
-    // Model chip + RFPlex-sharing hint.
     var modelChip = $('chat-model');
-    modelChip.textContent = available ? (llm.model || '') : 'offline';
+    if (modelChip) modelChip.textContent = available ? str(llm.model) : 'offline';
+
     var hint = $('chat-hint');
-    if (available && llm.source === 'rfplex') {
-      hint.hidden = false;
-      hint.textContent = (llm.model || 'model') +
-        ' — shares its brain with RFPlex — answers may queue behind RFPlex work';
-    } else {
-      hint.hidden = true;
-      hint.textContent = '';
+    if (hint) {
+      if (available && llm.source === 'rfplex') {
+        hint.hidden = false;
+        hint.textContent = str(llm.model || 'model') +
+          ' — shares its brain with RFPlex — answers may queue behind RFPlex work';
+      } else {
+        hint.hidden = true;
+        hint.textContent = '';
+      }
     }
 
-    // Scope chip.
     var scopeBox = $('chat-scope');
-    clear(scopeBox);
-    scopeBox.appendChild(el('span', 'muted-note', 'scope: '));
-    scopeBox.appendChild(el('span', 'chip mono', scopeLabel()));
-    if (state.scope && state.scope.type !== 'capture') {
-      var reset = el('button', 'btn scope-reset', '× whole capture');
-      reset.type = 'button';
-      reset.title = 'reset scope to the whole capture';
-      reset.addEventListener('click', function () {
-        state.scope = { type: 'capture', id: state.captureId };
-        renderChat();
-      });
-      scopeBox.appendChild(reset);
+    if (scopeBox) {
+      clear(scopeBox);
+      scopeBox.appendChild(el('span', 'muted', 'scope: '));
+      scopeBox.appendChild(el('span', 'chip mono', scopeLabel()));
+      var cur = chatScope();
+      if (cur && cur.type !== 'capture') {
+        var reset = el('button', 'btn scope-reset', '\u00d7 whole capture');
+        reset.type = 'button';
+        reset.title = 'reset the scope to the whole capture';
+        reset.addEventListener('click', function () {
+          state.sel = { type: 'capture', callId: null, legId: null, txKey: null };
+          state.selectedRowId = null;
+          renderAll();
+          renderChat();
+        });
+        scopeBox.appendChild(reset);
+      }
     }
 
-    // Messages.
     var box = $('chat-messages');
-    clear(box);
-    if (!state.captureId) {
-      box.appendChild(el('div', 'empty-note', 'Open a capture first — hiccup answers about what it can see.'));
-    } else {
-      var hist = chatHistory();
-      if (!hist.length && !state.chatBusy) {
-        var welcome = el('div', 'empty-note');
-        welcome.appendChild(el('p', null, 'Ask about this capture or about SIP/H.323 in general.'));
-        welcome.appendChild(el('p', 'muted-note', 'Try: "why is this call ambiguous?" · "what does Session-Expires do?" · "what stripped the PAI header?"'));
-        box.appendChild(welcome);
+    if (box) {
+      clear(box);
+      if (!state.captureId) {
+        emptyNote(box, 'Open a capture first — hiccup answers about what it can see.');
+      } else {
+        var hist = chatHistory();
+        if (!hist.length && !state.chatBusy) {
+          emptyNote(box, 'Ask about this capture or about SIP/H.323 in general.',
+            'Try: "why is this call ambiguous?" \u00b7 "what does Session-Expires do?" \u00b7 "what stripped the PAI header?"');
+        }
+        for (var i = 0; i < hist.length; i++) {
+          var bubble = el('div', 'chat-bubble ' + (hist[i].role === 'user' ? 'from-user' : 'from-bot'));
+          bubble.textContent = str(hist[i].content);
+          box.appendChild(bubble);
+        }
+        if (state.chatBusy) {
+          var busy = el('div', 'chat-bubble from-bot busy');
+          busy.appendChild(el('span', 'spinner'));
+          busy.appendChild(document.createTextNode(' thinking…'));
+          box.appendChild(busy);
+        }
       }
-      for (var i = 0; i < hist.length; i++) {
-        var mrow = el('div', 'chat-bubble ' + (hist[i].role === 'user' ? 'from-user' : 'from-bot'));
-        mrow.textContent = hist[i].content;
-        box.appendChild(mrow);
-      }
-      if (state.chatBusy) {
-        var busy = el('div', 'chat-bubble from-bot busy');
-        busy.appendChild(el('span', 'spinner'));
-        busy.appendChild(document.createTextNode(' thinking…'));
-        box.appendChild(busy);
-      }
+      box.scrollTop = box.scrollHeight;
     }
-    box.scrollTop = box.scrollHeight;
 
-    // Error line.
     var errBox = $('chat-error');
-    if (state.chatError) {
-      errBox.hidden = false;
-      errBox.textContent = state.chatError;
-    } else {
-      errBox.hidden = true;
-      errBox.textContent = '';
+    if (errBox) {
+      if (state.chatError) { errBox.hidden = false; errBox.textContent = state.chatError; }
+      else { errBox.hidden = true; errBox.textContent = ''; }
     }
 
-    // Availability: offline note replaces the input.
     var form = $('chat-form');
     var offline = $('chat-offline');
     if (!available) {
-      offline.hidden = false;
-      form.hidden = true;
+      if (offline) offline.hidden = false;
+      if (form) form.hidden = true;
     } else {
-      offline.hidden = true;
-      form.hidden = !state.captureId;
-      $('chat-send').disabled = state.chatBusy;
-      $('chat-input').disabled = state.chatBusy;
+      if (offline) offline.hidden = true;
+      if (form) form.hidden = !state.captureId;
+      var send = $('chat-send');
+      if (send) send.disabled = state.chatBusy;
+      var input = $('chat-input');
+      if (input) input.disabled = state.chatBusy;
     }
   }
 
-  /** Open the drawer with a prefilled question and a scope (explain buttons). */
+  /** Open the drawer with a prefilled question and an explicit scope. */
   function openChatPrefilled(question, scope) {
-    if (scope) state.scope = scope;
+    if (scope && scope.type) {
+      // Reflect the requested scope in the Workbench selection where we can.
+      if (scope.type === 'message' && state.msgById[scope.id]) {
+        var lg = state.msgToLeg[scope.id];
+        if (lg) state.sel = { type: 'leg', callId: state.legToCall[lg] || null, legId: lg, txKey: null };
+        state.selectedRowId = scope.id;
+      } else if (scope.type === 'call' && state.callById[scope.id]) {
+        state.sel = { type: 'call', callId: scope.id, legId: null, txKey: null };
+      } else if (scope.type === 'leg' && state.legById[scope.id]) {
+        state.sel = { type: 'leg', callId: state.legToCall[scope.id] || null, legId: scope.id, txKey: null };
+      }
+      state.pendingScope = scope;
+    }
     toggleChat(true);
     var input = $('chat-input');
-    input.value = question;
-    input.focus();
+    if (input) { input.value = str(question); input.focus(); }
   }
 
   async function submitChat() {
@@ -1221,7 +3617,8 @@
     var llm = state.llm;
     if (!llm || !llm.available) return;
     var input = $('chat-input');
-    var text = input.value.trim();
+    if (!input) return;
+    var text = str(input.value).trim();
     if (!text) return;
     input.value = '';
     state.chatError = null;
@@ -1232,6 +3629,9 @@
     state.chatBusy = true;
     renderChat();
 
+    var scope = state.pendingScope || chatScope();
+    state.pendingScope = null;
+
     try {
       var r = await fetch('/api/chat', {
         method: 'POST',
@@ -1239,7 +3639,7 @@
         body: JSON.stringify({
           captureId: state.captureId,
           messages: hist.map(function (m) { return { role: m.role, content: m.content }; }),
-          scope: state.scope
+          scope: scope
         })
       });
       var j = null;
@@ -1250,7 +3650,7 @@
       } else if (!r.ok) {
         state.chatError = (j && j.error) || ('chat failed (' + r.status + ')');
       } else {
-        hist.push({ role: 'assistant', content: j.reply, model: j.model });
+        hist.push({ role: 'assistant', content: str(j && j.reply), model: j && j.model });
         saveChat(hist);
       }
     } catch (e) {

@@ -11,5 +11,8 @@
   "keywords": ["sip", "voip", "pcap", "sbc", "trace", "analysis", "b2bua", "ims"],
   "author": "hiccup",
   "license": "BUSL-1.1",
-  "dependencies": {}
+  "dependencies": {},
+  "optionalDependencies": {
+    "pdf-parse": "^2.4.5"
+  }
 }

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hiccup — config guides</title>
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
+
+<!--
+  Fallback chrome styles, deliberately placed BEFORE the stylesheet links so that
+  app.css (owned by another agent) wins wherever it styles the shared topbar.
+  These only keep the header usable if app.css has not been deployed yet.
+-->
+<style>
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 18px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border, #232b36);
+  }
+  .topbar-spacer { flex: 1 1 auto; }
+  .logo { font-size: 20px; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
+  .logo:hover { text-decoration: none; }
+  .logo-bump { position: relative; top: -3px; display: inline-block; color: var(--accent); }
+  .coffee-link { font-size: 13px; color: var(--muted); }
+  .user-name { font-size: 13px; color: var(--muted); }
+  .topnav { display: flex; align-items: center; gap: 2px; margin-left: 10px; }
+  .topnav-link { padding: 3px 9px; border-radius: 6px; color: var(--muted); font-size: 13px; font-weight: 600; }
+  .topnav-link:hover { background: var(--panel2); color: var(--text); text-decoration: none; }
+  .topnav-link.is-current { background: var(--panel2); color: var(--text); }
+  mark { background: rgba(245, 166, 35, 0.32); color: var(--text); border-radius: 2px; padding: 0 1px; }
+</style>
+
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/app.css">
+
+<!--
+  Page-scoped styles: kb-/kbp- prefixed class names only. The topbar, .topnav*,
+  .promo-card and the global <mark> highlight come from hiccup.css + app.css and are
+  deliberately NOT redefined here. Search-hit cards use kbp-* so they cannot collide
+  with app.css's .kb-hit / .kb-excerpt (those belong to the Advice tab's KB citations).
+-->
+<style>
+  .page { max-width: 1040px; margin: 0 auto; padding: 22px 20px 64px; }
+  .page-head h1 { font-size: 22px; margin-bottom: 4px; }
+  .page-lede { color: var(--muted); max-width: 80ch; }
+
+  .kb-section { margin-top: 20px; }
+  .kb-section-title { font-size: 16px; margin: 0 0 10px; }
+
+  .kb-dropzone {
+    border: 1px dashed var(--border-strong, #2f3947);
+    border-radius: 10px;
+    background: var(--panel);
+    padding: 22px 18px;
+    text-align: center;
+  }
+  .kb-dropzone.drag { border-color: var(--accent); background: var(--panel2); }
+  .kb-dz-title { font-weight: 600; margin-bottom: 2px; }
+  .kb-dz-sub { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+  .kb-tag-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    margin: 14px auto 0;
+    max-width: 560px;
+    text-align: left;
+  }
+  .kb-tag { flex: 1 1 200px; margin: 0; }
+  .kb-tag > span { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 3px; }
+  .kb-msg { margin: 10px 0 0; font-size: 13px; color: var(--muted); min-height: 18px; }
+  .kb-msg.err { color: var(--crit); }
+
+  .kb-note {
+    margin: 12px 0 0;
+    padding: 12px 14px;
+    border-left: 3px solid var(--notice);
+    border-radius: 0 6px 6px 0;
+    background: var(--panel2);
+    font-size: 14px;
+  }
+  .kb-note p:last-child { margin-bottom: 0; }
+  .kb-note code { font-size: 13px; }
+
+  .kb-table-wrap { overflow-x: auto; }
+  table.kb-table { min-width: 720px; }
+  table.kb-table td { vertical-align: top; }
+  .kb-doc-title { font-weight: 600; }
+  .kb-doc-file { display: block; font-size: 12.5px; color: var(--muted); }
+  .kb-num { text-align: right; white-space: nowrap; }
+  .kb-del { padding: 4px 10px; font-size: 13px; font-weight: 600; }
+
+  .kb-search-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+  .kb-search-row .kb-query { flex: 1 1 320px; }
+  .kb-count { font-size: 13px; color: var(--muted); margin: 10px 0 0; }
+
+  .kbp-hit { margin-top: 10px; padding: 14px 16px; }
+  .kbp-hit-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .kbp-hit-title { font-weight: 600; }
+  .kbp-hit-heading { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
+  .kbp-excerpt {
+    margin: 8px 0 0;
+    font-size: 13.5px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .kb-empty { color: var(--muted); }
+  .promo-card { margin-top: 28px; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/app" aria-label="hiccup">hic<span class="logo-bump">c</span>up</a>
+  <nav class="topnav" aria-label="tools">
+    <a class="topnav-link" href="/app">workbench</a>
+    <a class="topnav-link" href="/hmr">HMR</a>
+    <a class="topnav-link is-current" href="/kb" aria-current="page">guides</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <a class="coffee-link" href="https://buymeacoffee.com/mcfadyen" target="_blank" rel="noopener">☕ Buy Me a Coffee</a>
+  <span id="user-name" class="user-name mono"></span>
+  <button id="logout-btn" class="btn" type="button">Sign out</button>
+</header>
+
+<main class="page">
+
+  <div class="page-head">
+    <h1>Config guides</h1>
+    <p class="page-lede">
+      What this is for: grounding config suggestions in the vendor's own guide — upload the
+      SBC documentation you trust and hiccup cites its passages instead of guessing.
+    </p>
+  </div>
+
+  <section class="kb-section">
+    <div id="kb-dropzone" class="kb-dropzone">
+      <p class="kb-dz-title">Drop vendor guides here</p>
+      <p class="kb-dz-sub">.txt · .md · .html · .ini · .cfg · .conf · .cli · .log — PDF needs an optional dependency</p>
+      <button id="kb-browse" class="btn" type="button">Choose file…</button>
+      <input id="kb-file" type="file" multiple
+        accept=".txt,.md,.html,.htm,.ini,.cfg,.conf,.cli,.log,.pdf" hidden>
+      <div class="kb-tag-row">
+        <label class="kb-tag" for="kb-vendor">
+          <span>Vendor (optional)</span>
+          <input id="kb-vendor" class="input" type="text" autocomplete="off"
+            placeholder="oracle-acme, audiocodes, ribbon…">
+        </label>
+        <label class="kb-tag" for="kb-product">
+          <span>Product (optional)</span>
+          <input id="kb-product" class="input" type="text" autocomplete="off"
+            placeholder="Acme Packet 4600, Mediant 4000…">
+        </label>
+      </div>
+      <p id="kb-msg" class="kb-msg" role="status" aria-live="polite"></p>
+    </div>
+    <div id="kb-note" class="kb-note" hidden></div>
+  </section>
+
+  <section class="kb-section">
+    <h2 class="kb-section-title">Your guides <span id="kb-doc-count" class="chip"></span></h2>
+    <div id="kb-docs" class="kb-table-wrap"></div>
+  </section>
+
+  <section class="kb-section">
+    <h2 class="kb-section-title">Search the guides</h2>
+    <form id="kb-search-form">
+      <div class="kb-search-row">
+        <input id="kb-query" class="input kb-query" type="search" autocomplete="off"
+          placeholder="e.g. session-expires refresher, sip-manipulation store, coder group">
+        <button id="kb-search-btn" class="btn btn-primary" type="submit">Search</button>
+      </div>
+    </form>
+    <p id="kb-count" class="kb-count"></p>
+    <div id="kb-results"></div>
+  </section>
+
+  <aside class="promo-card" aria-label="also from the same workshop">
+    <p><span class="promo-kicker">also from the same workshop</span>
+      <a href="https://rfplex.ai/?utm_source=hiccup&amp;utm_medium=app&amp;utm_campaign=crosslink"
+        target="_blank" rel="noopener"><strong>RFPlex.ai</strong></a>
+      — AI that answers RFPs, RFIs and DDQs from your own document library.
+      Self-hosted, EU-sovereign, free during beta.</p>
+  </aside>
+
+</main>
+
+<script src="/kb.js"></script>
+</body>
+</html>

@@ -3,15 +3,42 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>hiccup</title>
+<title>hiccup — workbench</title>
 <link rel="icon" href="/logo.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/hiccup.css">
 <link rel="stylesheet" href="/app.css">
 </head>
-<body>
+<!--
+  hiccup — the SIP Workbench five-pane layout (ARCHITECTURE.md §UI — the Workbench layout).
+
+  The DOM id contract is FROZEN. Every id below marked CONTRACT is populated by app.js
+  and must keep its name and its place in the tree:
+
+    #searchbar #search-input #search-clear #search-count
+    #filter-pane #filter-tree
+    #selection-pane #selection-list
+    #ladder-pane #ladder-svg-host #ladder-toolbar #time-pane #time-gutter
+    #info-pane #info-tabs #info-contents #info-packet #info-media #info-advice
+    #lamps #scenario-chip #rfplex-promo
+
+  Wave-1 chrome kept verbatim: #llm-chip #chat-toggle #user-name #logout-btn, the
+  Buy Me a Coffee link, the sidebar dropzone (#dropzone #browse-btn #file-input
+  #upload-msg #capture-list) and the whole chat drawer (#chat-* ids).
+
+  Placeholder copy lives INSIDE each container so a renderer that clears the node
+  removes it for free.
+-->
+<body class="app">
+
+<a class="skip-link" href="#ladder-pane">skip to the ladder</a>
 
 <header class="topbar">
   <a class="logo" href="/app" aria-label="hiccup">hic<span class="logo-bump">c</span>up</a>
+  <nav class="topnav" aria-label="tools">
+    <a class="topnav-link is-current" href="/app" aria-current="page">workbench</a>
+    <a class="topnav-link" href="/hmr">HMR</a>
+    <a class="topnav-link" href="/kb">guides</a>
+  </nav>
   <span class="topbar-spacer"></span>
   <span id="llm-chip" class="chip llm-chip" title="local model status">LLM …</span>
   <button id="chat-toggle" class="btn" type="button">ask hiccup</button>
@@ -22,7 +49,9 @@
 
 <div id="layout">
 
-  <aside id="sidebar">
+  <!-- ============================ sidebar: captures + crosslink ============ -->
+  <aside id="sidebar" class="sidebar" aria-label="captures">
+
     <div id="dropzone" class="dropzone">
       <p class="dz-title">Drop a capture here</p>
       <p class="dz-sub">.pcap · .pcapng · .cap · .txt · .log</p>
@@ -30,20 +59,185 @@
       <input id="file-input" type="file" multiple hidden>
       <p id="upload-msg" class="upload-msg" hidden></p>
     </div>
-    <div id="capture-list" class="capture-list"></div>
+
+    <div class="sidebar-section">
+      <h2 class="sidebar-title">captures</h2>
+      <div id="capture-list" class="capture-list scroll-area">
+        <p class="pane-empty">no captures yet — drop a pcap or an SBC log above and
+        hiccup analyses it on upload.</p>
+      </div>
+    </div>
+
+    <!-- CONTRACT #rfplex-promo — tasteful sidebar crosslink, never a modal -->
+    <aside id="rfplex-promo" class="promo-card" aria-label="also from the same workshop">
+      <p><span class="promo-kicker">also from the same workshop</span>
+        <a href="https://rfplex.ai/?utm_source=hiccup&amp;utm_medium=app&amp;utm_campaign=crosslink"
+           target="_blank" rel="noopener"><strong>RFPlex.ai</strong></a>
+        — AI that answers RFPs, RFIs and DDQs from your own document library.
+        Self-hosted, EU-sovereign, free during beta.</p>
+    </aside>
+
   </aside>
 
-  <main id="main">
-    <nav id="tabs" class="tabbar" aria-label="views">
-      <button class="tab active" data-tab="calls" type="button">Calls</button>
-      <button class="tab" data-tab="ladder" type="button">Ladder</button>
-      <button class="tab" data-tab="retrans" type="button">Retrans</button>
-      <button class="tab" data-tab="findings" type="button">Findings</button>
-    </nav>
-    <div id="main-content" class="main-content"></div>
-  </main>
+  <!-- ============================ search ================================== -->
+  <!-- CONTRACT #searchbar / #search-input / #search-clear / #search-count -->
+  <div id="searchbar" role="search">
+    <label class="sr-only" for="search-input">search the trace</label>
+    <input id="search-input" class="input search-input mono" type="text"
+           autocomplete="off" spellcheck="false" enterkeyhint="search"
+           placeholder="search the trace — 654321 · from:alice · method:INVITE · sev:crit · has:t38"
+           title="bare text matches anything (raw messages, headers, URIs, Call-IDs, tags, branches, SDP, aux summaries, findings, advice). 4+ digits match phone numbers ignoring + - ( ) spaces. Filters: call: leg: callid: from: to: method: status: ip: port: codec: proto: sev: has:">
+    <button id="search-clear" type="button" class="search-clear" aria-label="clear the search" title="clear">×</button>
+    <span id="search-count" class="search-count" role="status" aria-live="polite">no search</span>
+    <span class="search-syntax mono" aria-hidden="true">call: leg: callid: from: to: method: status: ip: port: codec: proto: sev: has:</span>
+  </div>
 
-  <aside id="inspector" class="inspector" hidden></aside>
+  <!-- ============================ lamps strip ============================= -->
+  <div id="lamps-row" class="lamps-row">
+    <!-- CONTRACT #scenario-chip — click opens the info pane's Advice tab -->
+    <button id="scenario-chip" class="chip chip-btn scenario-chip" type="button"
+            aria-label="detected scenario — opens the Advice tab">scenario: —</button>
+
+    <!-- CONTRACT #lamps — one .lamp[data-key][data-state] per Indicator -->
+    <div id="lamps" class="lamps scroll-x" role="group" aria-label="protocol indicators">
+      <span class="lamps-empty">indicators light up once a capture is analysed — one lamp
+      per protocol feature hiccup found, dim when absent.</span>
+    </div>
+
+    <div class="lamp-legend" aria-label="lamp legend">
+      <span class="lamp lamp-legend-item" data-state="on" aria-hidden="true">present</span>
+      <span class="lamp lamp-legend-item" data-state="partial" aria-hidden="true">partial</span>
+      <span class="lamp lamp-legend-item" data-state="issue" aria-hidden="true">issue</span>
+      <span class="lamp lamp-legend-item" data-state="off" aria-hidden="true">absent</span>
+    </div>
+  </div>
+
+  <!-- ============================ left-top: session tree ================== -->
+  <!-- CONTRACT #filter-pane / #filter-tree -->
+  <section id="filter-pane" class="pane" aria-label="sessions">
+    <header class="pane-head">
+      <h2 class="pane-title">sessions</h2>
+      <span class="pane-tools">
+        <button class="pane-btn" type="button" data-action="tree-expand-all" title="expand all">expand</button>
+        <button class="pane-btn" type="button" data-action="tree-collapse-all" title="collapse all">collapse</button>
+      </span>
+    </header>
+    <div class="pane-body scroll-area">
+      <div id="filter-tree" class="tree" tabindex="0" aria-label="calls, legs and transactions">
+        <p class="pane-empty">no capture selected — calls, their legs and each
+        transaction appear here. selecting a node scopes the ladder, the message list
+        and the info pane.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ centre-top: ladder ===================== -->
+  <!-- CONTRACT #ladder-pane / #ladder-toolbar / #time-pane / #time-gutter / #ladder-svg-host -->
+  <section id="ladder-pane" class="pane pane-ladder" aria-label="ladder diagram">
+    <header id="ladder-toolbar" class="pane-head ladder-toolbar" aria-label="ladder controls">
+      <h2 class="pane-title">ladder</h2>
+      <span class="pane-tools">
+        <button class="pane-btn" type="button" data-action="ladder-collapse-retrans"
+                aria-pressed="true" title="collapse retransmissions into one row with an ×N badge">retrans ×N</button>
+        <span class="pane-tool-group" role="group" aria-label="zoom">
+          <button class="pane-btn" type="button" data-action="ladder-zoom-out" aria-label="zoom out" title="zoom out">−</button>
+          <button class="pane-btn" type="button" data-action="ladder-zoom-reset" title="reset zoom">100%</button>
+          <button class="pane-btn" type="button" data-action="ladder-zoom-in" aria-label="zoom in" title="zoom in">+</button>
+        </span>
+        <button class="pane-btn" type="button" data-action="ladder-export" title="export the ladder as SVG">export</button>
+      </span>
+    </header>
+    <div class="ladder-body">
+      <div id="time-pane" class="time-pane" aria-label="timestamps and deltas">
+        <div class="time-head">time · Δ</div>
+        <div id="time-gutter" class="time-gutter mono"></div>
+      </div>
+      <div id="ladder-svg-host" class="ladder-host scroll-area" tabindex="0">
+        <p class="pane-empty">the ladder for the selected session is drawn here — one
+        column per host:port, arrows coloured by class, retransmissions collapsed to a
+        single ×N row.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ left-bottom: message list ============== -->
+  <!-- CONTRACT #selection-pane / #selection-list -->
+  <section id="selection-pane" class="pane" aria-label="messages in the selection">
+    <header class="pane-head">
+      <h2 class="pane-title">selection</h2>
+      <span class="pane-tools">
+        <button class="pane-btn sel-sort is-active" type="button" data-sort="n"
+                aria-label="sort by number" title="sort by capture order">#</button>
+        <button class="pane-btn sel-sort" type="button" data-sort="delta"
+                aria-label="sort by delta" title="sort by delta">Δ</button>
+      </span>
+    </header>
+    <div class="sel-head" aria-hidden="true">
+      <span class="sel-c-n">#</span>
+      <span class="sel-c-desc">description</span>
+      <span class="sel-c-delta">Δ ms</span>
+    </div>
+    <div class="pane-body scroll-area">
+      <div id="selection-list" class="sel-list" tabindex="0" aria-label="numbered message list">
+        <p class="pane-empty">every message of the selected session lands here, numbered,
+        with the delta from the previous row — the column engineers actually read.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ bottom-right: info pane ================ -->
+  <!-- CONTRACT #info-pane / #info-tabs / #info-contents / #info-packet / #info-media / #info-advice -->
+  <section id="info-pane" class="pane" aria-label="details for the selection">
+    <div id="info-tabs" class="info-tabs" role="tablist" aria-label="detail views">
+      <button class="info-tab is-active" type="button" role="tab" id="info-tab-contents"
+              data-panel="info-contents" aria-controls="info-contents" aria-selected="true">Contents</button>
+      <button class="info-tab" type="button" role="tab" id="info-tab-packet"
+              data-panel="info-packet" aria-controls="info-packet" aria-selected="false">Packet Info</button>
+      <button class="info-tab" type="button" role="tab" id="info-tab-media"
+              data-panel="info-media" aria-controls="info-media" aria-selected="false">Media</button>
+      <button class="info-tab" type="button" role="tab" id="info-tab-advice"
+              data-panel="info-advice" aria-controls="info-advice" aria-selected="false">Advice</button>
+      <span class="topbar-spacer"></span>
+      <button class="pane-btn" type="button" data-action="explain-selection"
+              title="open the chat scoped to the current selection">explain in chat</button>
+    </div>
+    <div class="info-body">
+
+      <div id="info-contents" class="info-panel scroll-area is-active" role="tabpanel"
+           aria-labelledby="info-tab-contents" tabindex="0">
+        <p class="pane-empty">pick a message in the ladder or the selection list to read
+        its full text here — redacted, monospaced, with search terms highlighted.</p>
+      </div>
+
+      <div id="info-packet" class="info-panel scroll-area" role="tabpanel"
+           aria-labelledby="info-tab-packet" tabindex="0" hidden>
+        <p class="pane-empty">the parsed view: SIP headers and SDP, ISUP parameters for
+        SIP-I bodies, Q.931 information elements for H.323 — field by field.</p>
+      </div>
+
+      <div id="info-media" class="info-panel scroll-area" role="tabpanel"
+           aria-labelledby="info-tab-media" tabindex="0" hidden>
+        <p class="pane-empty">RTP / RTCP streams for the selected session: packets, loss,
+        jitter, gaps and an estimated MOS, with a loss-over-time sparkline.</p>
+      </div>
+
+      <div id="info-advice" class="info-panel scroll-area" role="tabpanel"
+           aria-labelledby="info-tab-advice" tabindex="0" hidden>
+        <p class="pane-empty">what is wrong, why it matters, the mechanism, then fix
+        cards per vendor with copyable draft config and RFC citations. deterministic —
+        no invented section numbers.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- pane resizers: layout chrome only, no data -->
+  <div class="rz rz-col" id="rz-col-top" role="separator" aria-orientation="vertical"
+       aria-label="resize the sessions pane" tabindex="0"></div>
+  <div class="rz rz-row" id="rz-row" role="separator" aria-orientation="horizontal"
+       aria-label="resize the ladder pane" tabindex="0"></div>
+  <div class="rz rz-col" id="rz-col-bottom" role="separator" aria-orientation="vertical"
+       aria-label="resize the selection pane" tabindex="0"></div>
 
 </div>
 
@@ -54,6 +248,7 @@
     <span class="topbar-spacer"></span>
     <button id="chat-close" class="btn chat-close" type="button" aria-label="close chat">×</button>
   </div>
+  <p class="chat-crosslink muted">hiccup and RFPlex.ai share the same local-LLM stack.</p>
   <div id="chat-scope" class="chat-scope"></div>
   <div id="chat-hint" class="chat-hint" hidden></div>
   <div id="chat-messages" class="chat-messages"></div>
@@ -67,6 +262,168 @@
     <button id="chat-send" class="btn btn-primary" type="submit">Send</button>
   </form>
 </aside>
+
+<script>
+/*
+ * Layout chrome only — pane resizing and info-tab switching. No data, no fetch,
+ * no app state: app.js owns everything that fills a pane. Both behaviours are
+ * additive and idempotent; if app.js binds its own tab handling the result is the
+ * same (hidden + .is-active + aria-selected all move together).
+ */
+(function () {
+  'use strict';
+
+  var layout = document.getElementById('layout');
+  if (!layout) return;
+
+  // ---------------------------------------------------------------- resizers
+
+  var STORE = 'hiccup.layout.v1';
+  var MIN_COL = 190, MAX_COL = 640;
+
+  function readNum(v, fallback) {
+    var n = parseFloat(v);
+    return isFinite(n) ? n : fallback;
+  }
+
+  function cssVar(name, fallback) {
+    return readNum(getComputedStyle(layout).getPropertyValue(name), fallback);
+  }
+
+  function persist() {
+    try {
+      localStorage.setItem(STORE, JSON.stringify({
+        left: layout.style.getPropertyValue('--w-left'),
+        top: layout.style.getPropertyValue('--r-top'),
+        bot: layout.style.getPropertyValue('--r-bot')
+      }));
+    } catch (e) { /* private mode / quota — layout just won't persist */ }
+  }
+
+  try {
+    var saved = JSON.parse(localStorage.getItem(STORE) || 'null');
+    if (saved) {
+      if (saved.left) layout.style.setProperty('--w-left', saved.left);
+      if (saved.top) layout.style.setProperty('--r-top', saved.top);
+      if (saved.bot) layout.style.setProperty('--r-bot', saved.bot);
+    }
+  } catch (e) { /* ignore malformed storage */ }
+
+  function setLeft(px) {
+    px = Math.max(MIN_COL, Math.min(MAX_COL, px));
+    layout.style.setProperty('--w-left', px.toFixed(0) + 'px');
+  }
+
+  function setRows(topPx, botPx) {
+    if (topPx < 120 || botPx < 120) return;
+    layout.style.setProperty('--r-top', topPx.toFixed(0) + 'fr');
+    layout.style.setProperty('--r-bot', botPx.toFixed(0) + 'fr');
+  }
+
+  function rowSizes() {
+    var top = document.getElementById('ladder-pane');
+    var bot = document.getElementById('info-pane');
+    return {
+      top: top ? top.getBoundingClientRect().height : 0,
+      bot: bot ? bot.getBoundingClientRect().height : 0
+    };
+  }
+
+  function startDrag(handle, ev) {
+    var vertical = handle.classList.contains('rz-col');
+    var startX = ev.clientX, startY = ev.clientY;
+    var startLeft = cssVar('--w-left', 288);
+    var rows = rowSizes();
+    handle.classList.add('is-dragging');
+    document.body.classList.add('is-resizing');
+
+    function move(e) {
+      if (vertical) setLeft(startLeft + (e.clientX - startX));
+      else {
+        var d = e.clientY - startY;
+        setRows(rows.top + d, rows.bot - d);
+      }
+    }
+    function up() {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      handle.classList.remove('is-dragging');
+      document.body.classList.remove('is-resizing');
+      persist();
+    }
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+    ev.preventDefault();
+  }
+
+  var handles = layout.querySelectorAll('.rz');
+  for (var i = 0; i < handles.length; i++) {
+    (function (handle) {
+      handle.addEventListener('pointerdown', function (e) { startDrag(handle, e); });
+      handle.addEventListener('dblclick', function () {
+        layout.style.removeProperty(handle.classList.contains('rz-col') ? '--w-left' : '--r-top');
+        if (!handle.classList.contains('rz-col')) layout.style.removeProperty('--r-bot');
+        persist();
+      });
+      handle.addEventListener('keydown', function (e) {
+        var vertical = handle.classList.contains('rz-col');
+        var rows = rowSizes();
+        if (vertical && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+          setLeft(cssVar('--w-left', 288) + (e.key === 'ArrowLeft' ? -16 : 16));
+        } else if (!vertical && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+          var d = e.key === 'ArrowUp' ? -24 : 24;
+          setRows(rows.top + d, rows.bot - d);
+        } else {
+          return;
+        }
+        e.preventDefault();
+        persist();
+      });
+    })(handles[i]);
+  }
+
+  // -------------------------------------------------------------- info tabs
+
+  var tabsHost = document.getElementById('info-tabs');
+  if (!tabsHost) return;
+  var tabs = tabsHost.querySelectorAll('.info-tab');
+
+  function selectTab(tab) {
+    for (var t = 0; t < tabs.length; t++) {
+      var on = tabs[t] === tab;
+      tabs[t].classList.toggle('is-active', on);
+      tabs[t].setAttribute('aria-selected', on ? 'true' : 'false');
+      var panel = document.getElementById(tabs[t].getAttribute('data-panel') || '');
+      if (panel) {
+        panel.hidden = !on;
+        panel.classList.toggle('is-active', on);
+      }
+    }
+  }
+
+  for (var k = 0; k < tabs.length; k++) {
+    (function (tab) {
+      tab.addEventListener('click', function () { selectTab(tab); });
+      tab.addEventListener('keydown', function (e) {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        var idx = Array.prototype.indexOf.call(tabs, tab);
+        var next = tabs[(idx + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+        if (next) { selectTab(next); next.focus(); }
+        e.preventDefault();
+      });
+    })(tabs[k]);
+  }
+
+  // Scenario chip opens the Advice tab (contract: click -> info-pane Advice tab).
+  var chip = document.getElementById('scenario-chip');
+  var adviceTab = document.getElementById('info-tab-advice');
+  if (chip && adviceTab) {
+    chip.addEventListener('click', function () { selectTab(adviceTab); });
+  }
+})();
+</script>
 
 <script src="/ladder.js"></script>
 <script src="/app.js"></script>

@@ -260,3 +260,322 @@ th {
 }
 
 tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
+
+/* ============================================================================
+ * Wave-2 shared additions.
+ *
+ * Everything below is ADDITIVE: no Wave-1 variable or class above is changed.
+ * These primitives are shared by app.html (workbench), hmr.html, kb.html and
+ * index.html — view-specific styling stays in app.css.
+ * ========================================================================== */
+
+/* ---------- shared tokens (additive) ---------- */
+
+:root {
+  /* severity tints — row/card/edge washes that pair with the --crit/--warn/… inks */
+  --tint-crit: rgba(242, 84, 91, 0.14);
+  --tint-warn: rgba(245, 166, 35, 0.13);
+  --tint-notice: rgba(88, 166, 255, 0.13);
+  --tint-info: rgba(139, 148, 158, 0.10);
+
+  /* stronger washes for hover/selection over an already-tinted row */
+  --tint-crit-strong: rgba(242, 84, 91, 0.24);
+  --tint-warn-strong: rgba(245, 166, 35, 0.22);
+
+  /* selection wash (amber, used by tree rows, table rows, ladder rows) */
+  --tint-select: rgba(245, 166, 35, 0.16);
+
+  /* protocol/status inks shared by the ladder, lamps and media tables */
+  --ok: #3fb950;          /* 2xx / healthy */
+  --redirect: #a371f7;    /* 3xx */
+  --h323: #d2a8ff;        /* H.323 / Q.931 */
+  --media-ink: #39c5cf;   /* RTP / RTCP / T.38 */
+  --aux-ink: #8b949e;     /* DNS / Diameter / STUN / DTLS */
+}
+
+/* ---------- shared utilities ---------- */
+
+/* visually hidden but read by screen readers */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* any box that scrolls internally instead of growing the page */
+.scroll-area {
+  overflow: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* placeholder copy shown inside an empty pane/panel */
+.pane-empty {
+  margin: 0;
+  padding: 10px 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.pane-empty + .pane-empty { padding-top: 0; }
+
+/* ---------- severity tints ---------- */
+
+.tint-crit   { background: var(--tint-crit); }
+.tint-warn   { background: var(--tint-warn); }
+.tint-notice { background: var(--tint-notice); }
+.tint-info   { background: var(--tint-info); }
+
+/* left edge marker — a session/row/card carrying a finding of that severity */
+.edge-crit   { box-shadow: inset 3px 0 0 var(--crit); }
+.edge-warn   { box-shadow: inset 3px 0 0 var(--warn); }
+.edge-notice { box-shadow: inset 3px 0 0 var(--notice); }
+.edge-info   { box-shadow: inset 3px 0 0 var(--info); }
+
+/* a small round state dot — colour via .sev-*/.state-* or an inline colour */
+.state-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+/* leg/call lifecycle colours (Leg.state) */
+.state-answered   { color: var(--ok); }
+.state-completed  { color: var(--ok); }
+.state-in-progress { color: var(--notice); }
+.state-failed     { color: var(--crit); }
+.state-canceled   { color: var(--warn); }
+.state-no-answer  { color: var(--warn); }
+
+/* ---------- .tree (shared: session tree, parsed-packet tree, KB outline) ---------- */
+
+.tree {
+  margin: 0;
+  padding: 4px 4px 8px;
+  list-style: none;
+  font-size: 12.5px;
+}
+
+.tree ul,
+.tree ol,
+.tree-children {
+  margin: 0;
+  padding: 0 0 0 10px;
+  list-style: none;
+}
+
+.tree-children {
+  margin-left: 6px;
+  border-left: 1px solid var(--border);
+}
+
+.tree li { list-style: none; }
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tree-row:hover { background: rgba(255, 255, 255, 0.04); }
+
+.tree-row.is-selected,
+.tree-row[aria-selected="true"] {
+  background: var(--tint-select);
+  border-color: rgba(245, 166, 35, 0.45);
+}
+
+.tree-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.tree-toggle {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tree-toggle:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }
+
+.tree-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-sub {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.tree-badge {
+  flex: none;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--panel2);
+  border: 1px solid var(--border-strong);
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  font-family: var(--mono);
+}
+
+.tree-badge.is-retrans {
+  color: var(--warn);
+  border-color: rgba(245, 166, 35, 0.45);
+  background: var(--tint-warn);
+}
+
+/* ---------- .table-dense (shared: selection list, media, HMR, KB hits) ---------- */
+
+.table-dense {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.table-dense thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 4px 8px;
+  background: var(--panel2);
+  border-bottom: 1px solid var(--border-strong);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.table-dense td {
+  padding: 2px 8px;
+  border-bottom: 1px solid rgba(35, 43, 54, 0.7);
+  vertical-align: top;
+}
+
+.table-dense tbody tr { cursor: default; }
+.table-dense tbody tr:hover { background: rgba(255, 255, 255, 0.035); }
+
+.table-dense tbody tr.is-selected,
+.table-dense tbody tr[aria-selected="true"] {
+  background: var(--tint-select);
+}
+
+.table-dense tbody tr:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.table-dense .num {
+  text-align: right;
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+
+/* ---------- .lamp base (state styling lives in app.css) ---------- */
+
+.lamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 190px;
+  padding: 1px 8px 1px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--panel2);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.7;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* the dot: an inner .lamp-dot when the builder makes one, else a ::before */
+.lamp-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.lamp:not(:has(.lamp-dot))::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.lamp-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- .promo-card (rfplex.ai crosslink — app sidebar + index footer) ---------- */
+
+.promo-card {
+  display: block;
+  max-width: 420px;
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(245, 166, 35, 0.07), rgba(245, 166, 35, 0)) ,
+    var(--panel);
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.promo-card p { margin: 0; }
+
+.promo-card strong { color: var(--text); }
+
+.promo-card a { font-weight: 600; }
+
+/* centred variant used in the index.html footer */
+.promo-footer { margin: 16px auto 0; }
+
+.promo-kicker {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}

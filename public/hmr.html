@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hiccup — header manipulation</title>
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
+
+<!--
+  Fallback chrome styles, deliberately placed BEFORE the stylesheet links so that
+  app.css (owned by another agent) wins wherever it styles the shared topbar.
+  These only keep the header usable if app.css has not been deployed yet.
+-->
+<style>
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 18px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border, #232b36);
+  }
+  .topbar-spacer { flex: 1 1 auto; }
+  .logo { font-size: 20px; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
+  .logo:hover { text-decoration: none; }
+  .logo-bump { position: relative; top: -3px; display: inline-block; color: var(--accent); }
+  .coffee-link { font-size: 13px; color: var(--muted); }
+  .user-name { font-size: 13px; color: var(--muted); }
+  .topnav { display: flex; align-items: center; gap: 2px; margin-left: 10px; }
+  .topnav-link { padding: 3px 9px; border-radius: 6px; color: var(--muted); font-size: 13px; font-weight: 600; }
+  .topnav-link:hover { background: var(--panel2); color: var(--text); text-decoration: none; }
+  .topnav-link.is-current { background: var(--panel2); color: var(--text); }
+</style>
+
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/app.css">
+
+<!--
+  Page-scoped styles: hmr-prefixed class names only. The topbar, .topnav*,
+  .promo-card, .config-wrap/pre.fix-config/.copy-btn and .citation-link primitives
+  come from hiccup.css + app.css and are deliberately NOT redefined here.
+-->
+<style>
+  .page { max-width: 1140px; margin: 0 auto; padding: 22px 20px 64px; }
+  .page-head h1 { font-size: 22px; margin-bottom: 4px; }
+  .page-lede { color: var(--muted); max-width: 78ch; }
+
+  .hmr-input-card { margin: 16px 0 22px; }
+  .hmr-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-top: 12px; }
+  .hmr-row > * { margin: 0; }
+  .hmr-field { display: flex; flex-direction: column; gap: 4px; }
+  .hmr-field > span { font-size: 13px; color: var(--muted); }
+  .hmr-field select.input, .hmr-field .input { width: auto; min-width: 220px; }
+  textarea.hmr-text { min-height: 200px; font-family: var(--mono); font-size: 12.5px; }
+  .hmr-file-name { font-size: 13px; color: var(--muted); }
+  .btn.hmr-big { padding: 11px 24px; font-size: 15px; }
+  .hmr-status { margin: 12px 0 0; font-size: 13px; color: var(--muted); min-height: 18px; }
+  .hmr-status.err { color: var(--crit); }
+
+  .hmr-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 14px; }
+  .hmr-summary-vendor { font-size: 17px; font-weight: 700; }
+  .hmr-conf-bar {
+    position: relative;
+    width: 120px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--panel2);
+    overflow: hidden;
+  }
+  .hmr-conf-fill { position: absolute; inset: 0 auto 0 0; background: var(--accent); }
+
+  .hmr-warnings { margin: 0 0 14px; padding-left: 18px; font-size: 13px; color: var(--warn); }
+
+  .hmr-rule-card { margin-bottom: 16px; }
+  .hmr-rule-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .hmr-rule-name { font-size: 16px; font-weight: 700; }
+  .hmr-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .hmr-section { margin-top: 14px; }
+  .hmr-section-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .hmr-intent {
+    font-size: 16px;
+    line-height: 1.5;
+    margin: 0;
+    padding: 12px 14px;
+    border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+    background: var(--panel2);
+  }
+  .hmr-snippet { margin: 0; font-size: 12.5px; white-space: pre-wrap; word-break: break-word; }
+  details.hmr-details { margin-top: 6px; }
+  details.hmr-details > summary {
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--muted);
+    list-style: none;
+  }
+  details.hmr-details > summary::-webkit-details-marker { display: none; }
+  details.hmr-details > summary::before { content: '▸ '; }
+  details.hmr-details[open] > summary::before { content: '▾ '; }
+  details.hmr-details > summary:hover { color: var(--text); }
+
+  .hmr-ok { color: var(--ok, #3fb950); font-weight: 600; }
+  .hmr-issues { list-style: none; margin: 0; padding: 0; }
+  .hmr-issue {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px;
+    padding: 7px 0;
+    border-top: 1px solid var(--border, #232b36);
+  }
+  .hmr-issue:first-child { border-top: 0; }
+  .hmr-issue-detail { flex: 1 1 340px; min-width: 240px; }
+  .hmr-cite { font-size: 13px; white-space: nowrap; }
+
+  .hmr-improve { list-style: none; margin: 0; padding: 0; }
+  .hmr-improve li { padding: 6px 0; border-top: 1px solid var(--border, #232b36); }
+  .hmr-improve li:first-child { border-top: 0; }
+  .hmr-rationale { display: block; font-size: 13px; color: var(--muted); }
+
+  .hmr-translate-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .hmr-draft-warn {
+    margin: 8px 0 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--warn);
+  }
+  /* the draft block reuses .config-wrap / pre.fix-config / .copy-btn from app.css;
+     only the type scale is bumped for a full-width page instead of the info pane */
+  pre.hmr-draft { font-size: 12.5px; white-space: pre-wrap; word-break: break-word; }
+  .hmr-copy-note { display: block; margin: 4px 0 0; font-size: 12.5px; color: var(--ok, #3fb950); }
+
+  .hmr-match { padding: 7px 0; border-top: 1px solid var(--border, #232b36); }
+  .hmr-match:first-child { border-top: 0; }
+  .hmr-match-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .hmr-ids { font-size: 12.5px; color: var(--muted); }
+  .chip.verdict-observed {
+    background: rgba(63, 185, 80, 0.14);
+    border-color: rgba(63, 185, 80, 0.4);
+    color: var(--ok, #3fb950);
+  }
+
+  .hmr-empty { color: var(--muted); }
+  .promo-card { margin-top: 28px; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/app" aria-label="hiccup">hic<span class="logo-bump">c</span>up</a>
+  <nav class="topnav" aria-label="tools">
+    <a class="topnav-link" href="/app">workbench</a>
+    <a class="topnav-link is-current" href="/hmr" aria-current="page">HMR</a>
+    <a class="topnav-link" href="/kb">guides</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <a class="coffee-link" href="https://buymeacoffee.com/mcfadyen" target="_blank" rel="noopener">☕ Buy Me a Coffee</a>
+  <span id="user-name" class="user-name mono"></span>
+  <button id="logout-btn" class="btn" type="button">Sign out</button>
+</header>
+
+<main class="page">
+
+  <div class="page-head">
+    <h1>Header manipulation rules</h1>
+    <p class="page-lede">
+      Paste an SBC config (or pick a file) and hiccup reads the header-manipulation rules
+      back to you in plain English, checks them for the usual mistakes, and can re-render
+      any rule for another vendor. Drafts are for review — hiccup never applies config.
+    </p>
+  </div>
+
+  <section class="card hmr-input-card">
+    <label for="hmr-text">SBC config — Oracle/Acme <span class="mono">sip-manipulation</span>,
+      AudioCodes <span class="mono">.ini</span> MessageManipulations, or Ribbon SMM rules</label>
+    <textarea id="hmr-text" class="input mono hmr-text" spellcheck="false"
+      placeholder="sip-manipulation&#10;    name                  fix-from&#10;    header-rule&#10;        name              From&#10;        header-name       From&#10;        action            manipulate&#10;        …"></textarea>
+
+    <div class="hmr-row">
+      <button id="hmr-analyze" class="btn btn-primary hmr-big" type="button">Analyse config</button>
+      <button id="hmr-browse" class="btn" type="button">Choose config file…</button>
+      <input id="hmr-file" type="file"
+        accept=".cfg,.ini,.txt,.conf,.cli,.log,.smm,.xml,text/plain" hidden>
+      <span id="hmr-file-name" class="hmr-file-name"></span>
+      <span class="topbar-spacer"></span>
+      <label class="hmr-field" for="hmr-capture">
+        <span>Check against a capture</span>
+        <select id="hmr-capture" class="input"></select>
+      </label>
+      <button id="hmr-clear" class="btn" type="button">Clear</button>
+    </div>
+
+    <p id="hmr-status" class="hmr-status" role="status" aria-live="polite"></p>
+  </section>
+
+  <section id="hmr-summary" class="hmr-summary" hidden></section>
+  <ul id="hmr-warnings" class="hmr-warnings" hidden></ul>
+  <section id="hmr-rules"></section>
+  <section id="hmr-orphans"></section>
+
+  <aside class="promo-card" aria-label="also from the same workshop">
+    <p><span class="promo-kicker">also from the same workshop</span>
+      <a href="https://rfplex.ai/?utm_source=hiccup&amp;utm_medium=app&amp;utm_campaign=crosslink"
+        target="_blank" rel="noopener"><strong>RFPlex.ai</strong></a>
+      — AI that answers RFPs, RFIs and DDQs from your own document library.
+      Self-hosted, EU-sovereign, free during beta.</p>
+  </aside>
+
+</main>
+
+<script src="/hmr.js"></script>
+</body>
+</html>
