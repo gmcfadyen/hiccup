@@ -6,7 +6,17 @@
 <title>hiccup — see where the call went wrong</title>
 <meta name="description" content="hiccup — a self-hosted SIP / H.323 trace analyser. two-leg SBC diffs, retransmission classification, SIP↔H.323 correlation.">
 <script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
-<link rel="icon" type="image/svg+xml" href="/logo.svg">
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="hiccup — see where the call went wrong">
+<meta property="og:description" content="a self-hosted SIP / H.323 trace analyser. two-leg SBC diffs, retransmission classification, SIP↔H.323 correlation.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
 <link rel="stylesheet" href="/hiccup.css">
 <style>
   /* landing-page layout on top of the shared design system (hiccup.css) */
@@ -21,10 +31,29 @@
     width: auto;
   }
 
+  .hero-lockup {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .hero-lockup .mascot {
+    height: 110px;
+    width: auto;
+  }
+
   .tagline {
     font-size: 24px;
     font-weight: 600;
     margin: 18px 0 10px;
+  }
+
+  .mascot-line {
+    color: var(--muted);
+    font-size: 14px;
+    margin: 0 0 6px;
   }
 
   .hero .sub {
@@ -150,8 +179,12 @@
 <button class="btn corner-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
 
 <header class="hero container">
-  <img class="logo" src="/logo.svg" alt="hiccup">
+  <div class="hero-lockup">
+    <img class="mascot" src="/brand/mascot-hero-480.png" alt="" width="480" height="427">
+    <span class="logo brand-wordmark" role="img" aria-label="hiccup.monster"></span>
+  </div>
   <p class="tagline">see where the call went wrong</p>
+  <p class="mascot-line">a big friendly monster lives at hiccup.monster — its whole job is fixing yours.</p>
   <p class="sub">a self-hosted SIP / H.323 trace analyser for the SBC-curious.
   upload a pcap or paste an SBC log — get the ladder, the deltas, and a diagnosis
   instead of two 200-line INVITEs to eyeball.</p>

@@ -468,7 +468,16 @@ stats, findingCounts}`.
 
 Files: `index.html` (landing + auth), `app.html` (the tool), `hiccup.css` (shared design
 system), `app.css` (app-view styles; app.html links both), `app.js`, `ladder.js` (pure
-rendering helpers loaded by app.html), `logo.svg`.
+rendering helpers loaded by app.html), `brand/` (favicons, mascot and wordmark artwork).
+
+`brand/` holds the raster brand set: `favicon.ico` (16/32/48/64) plus `icon-32/180/192/512`,
+`apple-touch-icon.png` and `icon-maskable-512.png` (opaque, for tiles that get masked),
+`mascot-hero*.png` and `mascot-wand-480.png`, `lockup-900.png`, `social-card.png`
+(1200x630 og:image) and the two wordmark inkings. The wordmark ships as
+`wordmark-on-light.png` / `wordmark-on-dark.png` and is placed with the
+`.brand-wordmark` class rather than an `<img>`, because only CSS can see the theme
+state on `<html>` — see the block at the foot of `hiccup.css`. The superseded
+`logo.svg` / `monster.svg` are kept but no longer referenced.
 
 `hiccup.css` owns the design system and MUST define: CSS vars `--bg --panel --panel2
 --text --muted --accent --crit --warn --notice --info --mono`, and classes `.btn
@@ -1598,3 +1607,128 @@ the sticky element's height, which is the standard, low-risk fix for
 exactly this failure mode. Report what you checked and what (if anything)
 needed fixing — this is meant to be a real audit with a real, possibly
 short, list of findings, not padding out a report with restated theory.
+
+
+---
+
+# Wave 6 — In-app feedback with structural context
+
+**Why this exists.** Gavin needs to know what users think AND what they were
+looking at when they thought it, because "the ladder is confusing" is
+unactionable without knowing which capture shape produced it. The whole design
+question is therefore: how much context can be attached before the feature
+starts leaking the very data hiccup promises to keep still?
+
+## The privacy boundary — the load-bearing decision
+
+hiccup's own footer says **"self-hosted · your traces never leave this box."**
+A feedback feature that shipped trace content off the box would make that a
+lie. So the boundary is drawn explicitly and enforced **server-side**, not by
+trusting whatever the browser posts.
+
+**ALLOWED in `context` (structural — describes the *shape* of what was on
+screen, never its content):**
+
+| field | example | why it is safe |
+|---|---|---|
+| `page` | `"/app"` | route only |
+| `appVersion` | `"0.1.0"` | build id |
+| `captureFormat` | `"pcap"` \| `"pcapng"` \| `"text"` | format, not content |
+| `captureBytes` | `40660` | size only |
+| `counts` | `{sip:88, h323:0, calls:12, legs:13}` | cardinality only |
+| `scenario` | `{key:"call-centre", confidence:0.85}` | hiccup's own classification |
+| `scopeType` | `"capture"\|"call"\|"leg"\|"transaction"` | selection *kind* |
+| `scopeIds` | `{callId:"c4", legId:"d4"}` | hiccup-generated ids, meaningless outside this capture |
+| `selectedRow` | `{kind:"msg", method:"REFER", status:null}` | SIP method/status verbs only |
+| `lamps` | `[{key:"refer-transfer", state:"issue"}]` | protocol feature names |
+| `adviceRuleIds` | `["indicator-issue"]` | rule ids, never rendered advice text |
+| `viewport` | `{w:2036, h:1040}` | layout debugging |
+| `userAgent` | UA string | browser bugs |
+| `theme` | `"dark"` | theme-specific bugs |
+
+**FORBIDDEN — never collected, and stripped server-side if a client sends it
+anyway:** raw message text (`raw`), header values, SDP bodies, phone numbers /
+From / To / P-Asserted-Identity, IP addresses and ports, the capture bytes,
+**the capture filename** (routinely carries customer names) and **the current
+search term** (users search by phone number). The last two are genuinely useful
+for reproduction and were still rejected — that is the deliberate trade.
+
+`sanitizeContext()` in `lib/feedback.js` is an **allow-list**: it builds a fresh
+object from known keys and known primitive types. Unknown keys are dropped
+silently. This means a future UI change cannot widen the boundary by accident —
+widening requires editing the allow-list, in this file's table, on purpose.
+
+**The user sees it before it sends.** The modal renders the exact JSON that will
+be posted, in a collapsible panel, plus a toggle to submit with no context at
+all. Consent is informed or it is not consent.
+
+## Data shapes
+
+```
+Feedback {
+  id: string,              // "fb_" + 12 hex
+  ts: number,              // epoch ms
+  userId: string,          // who submitted (server-side, never client-supplied)
+  email: string,           // denormalised for the digest
+  kind: 'bug' | 'idea' | 'confusing' | 'praise' | 'other',
+  rating: number|null,     // 1-5, optional
+  comment: string,         // <= 4000 chars, trimmed
+  context: object|null,    // sanitizeContext() output, or null if declined
+  read: boolean            // admin viewer toggles this
+}
+```
+
+Stored as one JSON array at `data/feedback/feedback.json` via `store.js`'s
+atomic `saveJson`. A flat file is right here: this is low-volume human input,
+and the alternative (a per-record directory like captures) buys nothing.
+
+## HTTP
+
+| method | path | who |
+|---|---|---|
+| POST | `/api/feedback` | any signed-in user |
+| GET | `/api/admin/feedback` | site admin |
+| POST | `/api/admin/feedback/:id/read` | site admin |
+| POST | `/api/admin/feedback/digest/send?dry=1` | site admin |
+| GET | `/admin/feedback` | site admin (page) |
+
+**`requireSiteAdmin()` is new.** `lib/auth.js` already stamps
+`role: 'admin'` on the first user (`_users.length === 0 ? 'admin' : 'user'`)
+but **nothing has ever gated on it** — the only "admin" checks in server.js
+today are team owner/admin, a different concept living in `lib/teams.js`. This
+wave adds the site-wide gate. It is deliberately NOT the team role: a team
+admin administers their own team, not the whole box.
+
+Rate limit: 5 submissions per user per hour, in-memory. Abuse here is noise in
+Gavin's inbox, not a security boundary, so an in-memory counter that resets on
+restart is proportionate.
+
+## Weekly digest
+
+In-process timer, checked every 15 minutes, fires **Monday 09:00 local**,
+matching RFPlex's existing growth-digest cadence. The last-sent ISO week is
+persisted to `data/feedback/digest-state.json`, so:
+
+- a service restart mid-week does **not** re-send that week's digest, and
+- a box that was off on Monday still sends when it next comes up that week.
+
+Both failure modes are real for a home-lab box that reboots for Windows
+updates; a bare `setInterval(7 days)` gets both wrong.
+
+`lib/mail.js` is a zero-dependency SMTP client over `node:tls`, ported from
+RFPlex's proven `sendSmtp()` (same Resend account, same AUTH LOGIN +
+multipart/alternative shape). It reads `data/email-config.json` and, when that
+file is absent or incomplete, **degrades to a logged no-op**: an unconfigured
+mailer must never take the analyser down, and hiccup's core job has nothing to
+do with email.
+
+## UI
+
+`public/feedback.js` is a standalone widget, loaded by `app.html`, `hmr.html`,
+`kb.html` and `team.html`. It reuses Wave-5A's `.overlay` shell and focus-trap
+conventions rather than inventing a second modal idiom. On pages that are not
+the workbench there is no capture, so `collectContext()` returns just the
+page-level fields — the same allow-list, fewer populated keys.
+
+The widget owns `#feedback-open` (topbar button), `#feedback-modal`,
+`#feedback-form`, `#feedback-context-toggle` and `#feedback-context-pre`.

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hiccup — status</title>
+<meta name="robots" content="noindex">
+<script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/app.css">
+<style>
+  .topbar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 18px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar-spacer { flex: 1 1 auto; }
+  .logo { font-size: 20px; font-weight: 700; color: var(--text); }
+  .logo:hover { text-decoration: none; }
+  .logo-bump { position: relative; top: -3px; display: inline-block; color: var(--accent); }
+
+  .st-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .st-card { padding: 12px 14px; }
+  .st-card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 0 0 8px; }
+  .st-row { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; font-size: 13px; }
+  .st-row dt { color: var(--muted); }
+  .st-row dd { margin: 0; text-align: right; word-break: break-word; }
+  .st-ok { color: var(--ok); font-weight: 600; }
+  .st-bad { color: var(--crit); font-weight: 600; }
+  .st-warn { color: var(--warn); font-weight: 600; }
+</style>
+</head>
+<!--
+  hiccup — admin status (ARCHITECTURE.md "Wave 6").
+
+  Same gating story as admin-feedback.html: the PAGE is static and served to any
+  signed-in user; GET /api/admin/status is what is actually gated, by
+  requireSiteAdmin() → config.adminEmails. Never treat an unlinked URL as access
+  control.
+
+  The API reports "configured"/"not configured" for secrets rather than values,
+  so a screenshot of this page is not a credential leak.
+-->
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/app" aria-label="hiccup">hic<span class="logo-bump">c</span>up</a>
+  <nav class="topnav" aria-label="tools">
+    <a class="topnav-link" href="/app">workbench</a>
+    <a class="topnav-link" href="/hmr">HMR</a>
+    <a class="topnav-link" href="/kb">guides</a>
+    <a class="topnav-link" href="/team">team</a>
+    <a class="topnav-link is-current" href="/admin/status" aria-current="page">status</a>
+    <a class="topnav-link" href="/admin/feedback">feedback</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn" id="st-refresh" type="button">refresh</button>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+</header>
+
+<main class="fb-admin">
+  <div class="fb-admin-head">
+    <div>
+      <h1>Status</h1>
+      <p class="muted" id="st-summary">loading…</p>
+    </div>
+  </div>
+  <p id="st-msg" class="feedback-msg" role="status" aria-live="polite"></p>
+  <div id="st-body" class="st-grid"></div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  function card(title, rows) {
+    var c = el('section', 'card st-card');
+    c.appendChild(el('h2', null, title));
+    var dl = el('dl');
+    rows.forEach(function (r) {
+      if (r[1] == null) return;
+      var row = el('div', 'st-row');
+      row.appendChild(el('dt', null, r[0]));
+      var dd = el('dd', r[2] || null, String(r[1]));
+      row.appendChild(dd);
+      dl.appendChild(row);
+    });
+    c.appendChild(dl);
+    return c;
+  }
+
+  function dur(s) {
+    if (s == null) return null;
+    var d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+    if (d) return d + 'd ' + h + 'h';
+    if (h) return h + 'h ' + m + 'm';
+    return m + 'm';
+  }
+
+  function render(s) {
+    var host = $('st-body');
+    host.textContent = '';
+
+    $('st-summary').textContent = 'hiccup v' + s.version + ' · up ' + dur(s.uptimeSeconds) +
+      ' · signed in as ' + (s.you && s.you.email);
+
+    host.appendChild(card('Process', [
+      ['version', s.version],
+      ['node', s.node],
+      ['platform', s.platform],
+      ['pid', s.pid],
+      ['uptime', dur(s.uptimeSeconds)],
+      ['memory', s.memoryMb + ' MB'],
+      ['analysis engine', s.engine && s.engine.analysis ? 'loaded' : 'MISSING',
+        s.engine && s.engine.analysis ? 'st-ok' : 'st-bad']
+    ]));
+
+    var llm = s.llm || {};
+    host.appendChild(card('LLM', [
+      ['state', llm.state || llm.status || 'unknown'],
+      ['model', llm.model || null],
+      ['reachable', llm.ok === undefined ? null : (llm.ok ? 'yes' : 'no'),
+        llm.ok ? 'st-ok' : 'st-bad'],
+      ['note', llm.note || llm.detail || null]
+    ]));
+
+    host.appendChild(card('Data', [
+      ['users', s.users],
+      ['capture accounts', s.captures && s.captures.accounts],
+      ['captures', s.captures && s.captures.total],
+      ['disk used', s.disk ? (s.disk.mb + ' MB') : null],
+      ['files', s.disk && s.disk.files],
+      ['data dir', s.dataDir]
+    ]));
+
+    var f = s.feedback || {};
+    host.appendChild(card('Feedback', [
+      ['total', f.total],
+      ['unread', f.unread, f.unread ? 'st-warn' : null],
+      ['last 7 days', f.last7d],
+      ['digest due now', f.dueNow === undefined ? null : (f.dueNow ? 'yes' : 'no')],
+      ['digest last sent', (f.digest && f.digest.lastSentWeek) || 'never'],
+      ['mail', s.mail && s.mail.configured ? 'configured' : 'NOT configured',
+        s.mail && s.mail.configured ? 'st-ok' : 'st-warn']
+    ]));
+
+    var c = s.config || {};
+    host.appendChild(card('Config', [
+      ['baseUrl', c.baseUrl],
+      ['listen', c.host + ':' + c.port],
+      ['max upload', c.maxUploadMb + ' MB'],
+      ['google sign-in', c.googleSignIn,
+        c.googleSignIn === 'configured' ? 'st-ok' : null],
+      ['digest recipient', c.digestRecipient || 'none', c.digestRecipient ? null : 'st-warn'],
+      ['admins', (c.adminEmails || []).join(', ') || 'first user only']
+    ]));
+
+    host.appendChild(card('Models (preferred order)',
+      (c.preferredModels || []).map(function (m, i) { return [String(i + 1), m]; })));
+  }
+
+  async function load() {
+    $('st-msg').textContent = '';
+    try {
+      var r = await fetch('/api/admin/status', { cache: 'no-store' });
+      if (r.status === 401) { location = '/'; return; }
+      if (r.status === 403) {
+        $('st-summary').textContent = 'You are not a site admin.';
+        $('st-msg').textContent = 'This page is only useful to the site administrator.';
+        return;
+      }
+      if (!r.ok) {
+        $('st-msg').textContent = 'could not load status (' + r.status + ')';
+        $('st-msg').className = 'feedback-msg is-err';
+        return;
+      }
+      render(await r.json());
+    } catch (e) {
+      $('st-msg').textContent = 'could not reach the server';
+      $('st-msg').className = 'feedback-msg is-err';
+    }
+  }
+
+  $('st-refresh').addEventListener('click', load);
+  load();
+})();
+</script>
+<script src="/theme.js"></script>
+</body>
+</html>

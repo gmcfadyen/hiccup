@@ -82,7 +82,11 @@ body.is-resizing {
 
 .topbar {
   flex: none;
-  height: var(--topbar-h);
+  /* --topbar-h is declared on body.app, so only the workbench defines it. The
+     other three pages that share this chrome (hmr/kb/team) were falling back to
+     an auto height and coming out ~11px shorter than the workbench; the literal
+     keeps the shared topbar one height everywhere. */
+  height: var(--topbar-h, 44px);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -91,22 +95,21 @@ body.is-resizing {
   border-bottom: 1px solid var(--border);
 }
 
+/* The brand lockup: monster head + the stacked "hiccup.monster" logotype, both
+   drawn by .brand-mark / .brand-wordmark in hiccup.css. Sized to sit inside the
+   44px --topbar-h with breathing room. */
 .topbar .logo {
-  font-family: var(--mono);
-  font-size: 19px;
-  font-weight: 600;
-  color: var(--text);
-  letter-spacing: -0.01em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
   text-decoration: none;
 }
 
 .topbar .logo:hover { text-decoration: none; }
 
-.topbar .logo-bump {
-  display: inline-block;
-  color: var(--accent);
-  transform: translateY(-3px);
-}
+.topbar .logo .brand-mark { height: 30px; }
+.topbar .logo .brand-wordmark { height: 26px; }
 
 .topbar-spacer { flex: 1 1 auto; }
 
@@ -1903,6 +1906,70 @@ tr.skel-sel-row > td { padding: 5px 8px; }
 
 .chat-input { flex: 1 1 auto; min-height: 44px; font-size: 13px; }
 
+/* ===================================== flagged-message hover summary card = */
+
+/*
+ * #sev-hovercard — the "what's wrong here" popup for a warn/crit row, shown on
+ * hover/focus from the ladder, the selection list and the time gutter alike.
+ * Positioned by app.js in viewport coords, hence position:fixed. It is purely
+ * informational and never interactive (pointer-events:none), so it can sit
+ * under the cursor without stealing the hover it was triggered by — which also
+ * means it needs no focus trap, no dismiss affordance and no aria-modal.
+ * z-index sits below .overlay's 100 so a palette/dialog always wins.
+ */
+#sev-hovercard {
+  position: fixed;
+  z-index: 90;
+  max-width: 380px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong, var(--border));
+  border-left-width: 3px;
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+#sev-hovercard[hidden] { display: none; }
+
+#sev-hovercard.is-crit { border-left-color: var(--crit); }
+#sev-hovercard.is-warn { border-left-color: var(--warn); }
+
+.hovercard-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+  text-align: left;
+}
+
+.hovercard-sev {
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+#sev-hovercard.is-crit .hovercard-sev { color: var(--crit); }
+#sev-hovercard.is-warn .hovercard-sev { color: var(--warn); }
+
+.hovercard-title { font-weight: 600; }
+
+.hovercard-body {
+  margin: 0;
+  color: var(--muted);
+}
+
+.hovercard-foot {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+  opacity: 0.85;
+}
+
 /* ================================================ Wave-5A: modal overlays = */
 
 /*
@@ -2136,3 +2203,142 @@ tr.skel-sel-row > td { padding: 5px 8px; }
      popover to the viewport instead of the (now short/wide) sidebar box. */
   .project-manage-panel { position: fixed; top: calc(var(--topbar-h) + 10px); right: 10px; bottom: 10px; left: 10px; }
 }
+
+/* ============================================ Wave-6: feedback widget ===== */
+
+/*
+ * The launcher only creates itself when a page has no #feedback-open in its
+ * topbar, so this floating style is the fallback, not the norm.
+ */
+.feedback-launcher {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 80;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+.feedback-panel { width: min(560px, 94vw); }
+
+.feedback-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px 8px;
+}
+
+.feedback-head h2 { margin: 0; font-size: 18px; }
+
+.feedback-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 16px 16px;
+  overflow-y: auto;
+}
+
+.feedback-label {
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.feedback-comment { resize: vertical; min-height: 96px; font-family: inherit; }
+
+.feedback-context {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel2);
+}
+
+.feedback-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.feedback-check input { margin-top: 2px; flex: none; }
+
+.feedback-context-toggle {
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 12.5px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.feedback-context-pre {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  max-height: 200px;
+  overflow: auto;
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: 11.5px;
+  line-height: 1.5;
+  white-space: pre;
+}
+
+.feedback-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.feedback-msg { margin: 10px 0 0; font-size: 13px; min-height: 18px; }
+.feedback-msg.is-err { color: var(--crit); }
+.feedback-msg.is-ok { color: var(--ok); }
+
+.feedback-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+/* ------------------------------------------------ admin feedback viewer -- */
+
+.fb-admin { max-width: 900px; margin: 0 auto; padding: 22px 20px 64px; }
+.fb-admin-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.fb-admin-head h1 { font-size: 22px; margin-bottom: 4px; }
+
+.fb-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 14px 0; }
+
+.fb-item {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.fb-item.is-unread { border-left-color: var(--accent); }
+.fb-item.is-read { opacity: 0.72; }
+
+.fb-item-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.fb-kind { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent); }
+.fb-when, .fb-who { font-size: 12px; color: var(--muted); }
+.fb-comment { margin: 8px 0 0; white-space: pre-wrap; }
+
+.fb-context {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--panel2);
+  font-size: 11.5px;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.fb-empty { color: var(--muted); margin-top: 20px; }

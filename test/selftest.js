@@ -1041,6 +1041,151 @@ async function main() {
     if (problems.length) throw new Error(problems.join('; '));
   });
 
+  // ---------------------------------------------------------------- wave 6
+  // The privacy boundary from ARCHITECTURE.md "Wave 6". These are the tests
+  // that matter most in this file: sanitizeContext() is the single thing
+  // standing between a feedback submission and a phone number leaving the box,
+  // so it is tested against a deliberately hostile payload, not a tidy one.
+
+  await t('wave6: lib/feedback.js and lib/mail.js load', () => {
+    const f = require(path.join(ROOT, 'lib', 'feedback.js'));
+    const m = require(path.join(ROOT, 'lib', 'mail.js'));
+    for (const fn of ['save', 'list', 'setRead', 'since', 'sanitizeContext',
+      'buildDigest', 'digestDue', 'isoWeek', 'getDigestState', 'setDigestSent']) {
+      ok(typeof f[fn] === 'function', 'feedback.' + fn + ' missing');
+    }
+    for (const fn of ['send', 'isConfigured', 'loadConfig']) {
+      ok(typeof m[fn] === 'function', 'mail.' + fn + ' missing');
+    }
+  });
+
+  await t('wave6: sanitizeContext keeps structural context', () => {
+    const f = require(path.join(ROOT, 'lib', 'feedback.js'));
+    const c = f.sanitizeContext({
+      page: '/app',
+      counts: { sip: 88, calls: 12 },
+      scopeIds: { callId: 'c4', legId: 'd4' },
+      selectedRow: { kind: 'msg', method: 'REFER', status: 486 },
+      lamps: [{ key: 'refer-transfer', state: 'issue' }],
+      adviceRuleIds: ['indicator-issue'],
+    });
+    eq(c.page, '/app', 'page');
+    eq(c.counts.sip, 88, 'counts.sip');
+    eq(c.scopeIds.callId, 'c4', 'scopeIds.callId');
+    eq(c.selectedRow.method, 'REFER', 'selectedRow.method');
+    eq(c.selectedRow.status, 486, 'selectedRow.status');
+    eq(c.lamps[0].key, 'refer-transfer', 'lamps[0].key');
+    eq(c.adviceRuleIds[0], 'indicator-issue', 'adviceRuleIds[0]');
+  });
+
+  await t('wave6: sanitizeContext strips EVERY forbidden field (the privacy boundary)', () => {
+    const f = require(path.join(ROOT, 'lib', 'feedback.js'));
+    const c = f.sanitizeContext({
+      page: '/app',
+      filename: 'acme-corp-outage.pcap',   // carries customer names
+      searchTerm: '+33610000303',          // users search by phone number
+      raw: 'INVITE sip:+33610000303@pbx SIP/2.0',
+      fromUser: '+33612345678',
+      toUser: '+33900001111',
+      srcIp: '198.51.100.10',
+      headers: [{ name: 'To', value: 'sip:+33900001111@x' }],
+      sdp: 'c=IN IP4 198.51.100.10',
+    });
+    const json = JSON.stringify(c);
+    const banned = ['acme-corp', '+33610000303', '+33612345678', '+33900001111',
+      '198.51.100.10', 'INVITE sip:', 'c=IN IP4'];
+    for (const b of banned) {
+      ok(json.indexOf(b) === -1, 'forbidden value leaked into context: ' + b);
+    }
+    const allowed = ['page', 'appVersion', 'theme', 'userAgent', 'viewport',
+      'captureFormat', 'captureBytes', 'counts', 'scenario', 'scopeType',
+      'scopeIds', 'selectedRow', 'lamps', 'adviceRuleIds'];
+    for (const k of Object.keys(c)) {
+      ok(allowed.indexOf(k) !== -1, 'unexpected key survived the allow-list: ' + k);
+    }
+  });
+
+  await t('wave6: sanitizeContext bounds strings and strips control characters', () => {
+    const f = require(path.join(ROOT, 'lib', 'feedback.js'));
+    const c = f.sanitizeContext({
+      page: 'a\x00b\x1fc\x7fd',
+      scopeIds: { callId: 'x'.repeat(500) },
+    });
+    ok(!/[\x00-\x1f\x7f]/.test(c.page), 'control chars survived: ' + JSON.stringify(c.page));
+    ok(c.scopeIds.callId.length <= 40, 'oversized id not bounded');
+    eq(f.sanitizeContext('not-an-object'), null, 'non-object');
+    eq(f.sanitizeContext({ evil: 'x' }), null, 'nothing allowed survives');
+  });
+
+  await t('wave6: save/list/setRead round-trip, with sanitising applied on save', () => {
+    const f = require(path.join(ROOT, 'lib', 'feedback.js'));
+    const dir = path.join(TMP_DATA, 'wave6-' + Date.now());
+    fs.mkdirSync(dir, { recursive: true });
+    const rec = f.save(dir, {
+      userId: 'u1', email: 'a@b.c', kind: 'bug', rating: 4,
+      comment: '  the ladder is confusing  ',
+      context: { page: '/app', filename: 'acme-corp.pcap' },
+    });
+    ok(/^fb_[0-9a-f]{12}$/.test(rec.id), 'bad id: ' + rec.id);
+    eq(rec.comment, 'the ladder is confusing', 'comment trimmed');
+    eq(rec.read, false, 'starts unread');
+    ok(JSON.stringify(rec.context).indexOf('acme-corp') === -1, 'save() did not sanitise');
+
+    f.save(dir, { userId: 'u2', email: 'd@e.f', kind: 'bogus', rating: 99, comment: 'second' });
+    const all = f.list(dir);
+    eq(all.length, 2, 'record count');
+    eq(all[0].comment, 'second', 'newest first');
+    eq(all[0].kind, 'other', 'unknown kind coerced');
+    eq(all[0].rating, 5, 'rating clamped');
+
+    let threw = false;
+    try { f.save(dir, { comment: '   ' }); } catch { threw = true; }
+    ok(threw, 'empty comment was accepted');
+    eq(f.setRead(dir, rec.id, true).read, true, 'setRead');
+    eq(f.setRead(dir, 'fb_nope', true), null, 'setRead unknown id');
+  });
+
+  await t('wave6: digest is null when empty, escapes HTML when not', () => {
+    const f = require(path.join(ROOT, 'lib', 'feedback.js'));
+    eq(f.buildDigest([]), null, 'empty digest');
+    const d = f.buildDigest([{ ts: Date.now(), kind: 'bug', comment: '<script>x</script>', email: 'a@b' }]);
+    ok(d && d.subject && d.text && d.html, 'digest incomplete');
+    ok(d.html.indexOf('<script>') === -1, 'digest html not escaped');
+  });
+
+  await t('wave6: digestDue is restart-safe (no double-send, no skipped week)', () => {
+    const f = require(path.join(ROOT, 'lib', 'feedback.js'));
+    const dir = path.join(TMP_DATA, 'wave6-digest-' + Date.now());
+    fs.mkdirSync(dir, { recursive: true });
+    const monEarly = new Date('2026-08-17T08:00:00');
+    const monLate = new Date('2026-08-17T10:00:00');
+    const wed = new Date('2026-08-19T03:00:00');
+    const sun = new Date('2026-08-23T12:00:00');
+    eq(f.digestDue(dir, monEarly), false, 'Monday before 09:00');
+    eq(f.digestDue(dir, monLate), true, 'Monday after 09:00');
+    // The box is a home-lab machine that reboots for Windows updates: a digest
+    // whose moment passed while the service was down must still go out.
+    eq(f.digestDue(dir, wed), true, 'missed Monday still due midweek');
+    eq(f.digestDue(dir, sun), false, 'Sunday belongs to the closing week');
+    f.setDigestSent(dir, f.isoWeek(monLate));
+    eq(f.digestDue(dir, wed), false, 'resent in the same week after a restart');
+    eq(f.digestDue(dir, new Date('2026-08-24T10:00:00')), true, 'next week');
+  });
+
+  await t('wave6: mail degrades to a no-op when unconfigured (never takes the box down)', async () => {
+    const m = require(path.join(ROOT, 'lib', 'mail.js'));
+    const dir = path.join(TMP_DATA, 'wave6-mail-' + Date.now());
+    fs.mkdirSync(dir, { recursive: true });
+    eq(m.isConfigured(dir), false, 'isConfigured with no config file');
+    eq(m.loadConfig(dir), null, 'loadConfig with no config file');
+    const r = await m.send(dir, { to: 'x@y.z', subject: 's', text: 't', html: '<p>t</p>' });
+    eq(r.sent, false, 'send() reported a send');
+    ok(typeof r.reason === 'string' && r.reason, 'send() gave no reason');
+    // A config missing the password is unusable and must be treated as absent.
+    fs.writeFileSync(path.join(dir, 'email-config.json'), JSON.stringify({ user: 'a@b.c' }), 'utf8');
+    eq(m.isConfigured(dir), false, 'partial config treated as configured');
+  });
+
   console.log('NOTE (wave3): HTTP-route-level behavior — a malformed X-Project-Id header or ?project=' +
     ' filter degrading to a clean 4xx, and a suspended member\'s existing session 401ing on the next ' +
     'request — is NOT exercised by this file. server.js has no module.exports and calls server.listen() ' +

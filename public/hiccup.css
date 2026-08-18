@@ -32,11 +32,20 @@
   --muted: #8b949e;
   /* --accent is the interactive/brand highlight (links, focus rings, the
      primary button, SIP request arrows) -- deliberately NOT the same value
-     as --warn any more (it used to be, byte-for-byte, which made every
-     ordinary link/button/focus-ring visually read as a warning). --warn
-     stays a conventional yellow/gold/orange; --accent is a brighter, bolder
-     gold pushed toward yellow so the two are unambiguous side by side. */
-  --accent: #ffc857;
+     as --warn (it used to be, byte-for-byte, which made every ordinary
+     link/button/focus-ring visually read as a warning).
+
+     It is now the hiccup.monster brand teal, which settles that argument by
+     hue rather than by lightness: the old gold sat 3 degrees off --warn and
+     leaned on brightness alone to stay distinct, where teal is ~138 degrees
+     away and cannot be mistaken for a warning at any weight.
+
+     The cost is at the other end of the wheel -- teal lands between --ok
+     (128 deg) and --notice (212 deg), roughly 40 deg from each, so those
+     three must be kept apart on lightness. --ok stays a distinctly yellower
+     green and --notice a distinctly bluer blue; do not drift either toward
+     cyan. Contrast on --bg is 9.0:1. */
+  --accent: #2dc7ba;
   --crit: #f2545b;
   --warn: #f5a623;
   --notice: #58a6ff;
@@ -52,13 +61,13 @@
   --placeholder: #5a6572;
   --btn-hover-bg: #232c39;
   --btn-hover-border: #3d4a5c;
-  --btn-primary-hover: #ffd66e;
-  --btn-primary-text: #1a1205;
+  --btn-primary-hover: #45dbcb;
+  --btn-primary-text: #05201d;
   --row-hover: rgba(255, 255, 255, 0.02);
-  --selection-bg: rgba(255, 200, 87, 0.25);
+  --selection-bg: rgba(45, 199, 186, 0.25);
   --scrollbar-thumb: #2f3947;
   --scrollbar-thumb-hover: #3d4a5c;
-  --focus-ring: rgba(255, 200, 87, 0.15);
+  --focus-ring: rgba(45, 199, 186, 0.15);
 
   /* Wave-2 shared tokens (moved up from below so both theme blocks can
      redefine them in one place; values unchanged from the original). */
@@ -70,8 +79,8 @@
   --tint-warn-strong: rgba(245, 166, 35, 0.22);
   --tint-notice-strong: rgba(88, 166, 255, 0.24);
   --tint-info-strong: rgba(139, 148, 158, 0.22);
-  --tint-select: rgba(255, 200, 87, 0.16);
-  --tint-select-border: rgba(255, 200, 87, 0.45);
+  --tint-select: rgba(45, 199, 186, 0.16);
+  --tint-select-border: rgba(45, 199, 186, 0.45);
   --ok: #3fb950;
   --redirect: #a371f7;
   --h323: #d2a8ff;
@@ -81,7 +90,7 @@
   /* app.css color-token pass: severity/accent variants and component-scoped
      washes that app.css needed but didn't have an exact existing token for.
      See the light blocks below for the themed equivalents. */
-  --mark-bg: rgba(255, 200, 87, 0.32);
+  --mark-bg: rgba(45, 199, 186, 0.32);
   --row-hover-strong: rgba(255, 255, 255, 0.035);
   --tint-warn-border: rgba(245, 166, 35, 0.5);
   --tint-crit-border: rgba(242, 84, 91, 0.4);
@@ -94,7 +103,7 @@
   --border-faint: rgba(35, 43, 54, 0.5);
   --text-soft: #c3ccd6;
   --tint-warn-ink: #e7d3ae;
-  --accent-wash: rgba(255, 200, 87, 0.07);
+  --accent-wash: rgba(45, 199, 186, 0.07);
 }
 
 @media (prefers-color-scheme: light) {
@@ -104,7 +113,7 @@
     --panel2: #eef1f4;
     --text: #1b1f24;
     --muted: #57606a;
-    --accent: #b8430e;
+    --accent: #0d6e67;
     --crit: #cf222e;
     --warn: #9a6700;
     --notice: #0969da;
@@ -116,13 +125,13 @@
     --placeholder: #8c959f;
     --btn-hover-bg: #eef1f4;
     --btn-hover-border: #afb8c1;
-    --btn-primary-hover: #d3530e;
-    --btn-primary-text: #fffaf0;
+    --btn-primary-hover: #0f8b81;
+    --btn-primary-text: #f2fbfa;
     --row-hover: rgba(27, 31, 36, 0.035);
-    --selection-bg: rgba(184, 67, 14, 0.18);
+    --selection-bg: rgba(13, 110, 103, 0.18);
     --scrollbar-thumb: #d0d7de;
     --scrollbar-thumb-hover: #afb8c1;
-    --focus-ring: rgba(184, 67, 14, 0.15);
+    --focus-ring: rgba(13, 110, 103, 0.15);
 
     --tint-crit: rgba(207, 34, 46, 0.10);
     --tint-warn: rgba(154, 103, 0, 0.12);
@@ -132,15 +141,15 @@
     --tint-warn-strong: rgba(154, 103, 0, 0.20);
     --tint-notice-strong: rgba(9, 105, 218, 0.20);
     --tint-info-strong: rgba(87, 96, 106, 0.18);
-    --tint-select: rgba(184, 67, 14, 0.14);
-    --tint-select-border: rgba(184, 67, 14, 0.45);
+    --tint-select: rgba(13, 110, 103, 0.14);
+    --tint-select-border: rgba(13, 110, 103, 0.45);
     --ok: #1a7f37;
     --redirect: #8250df;
     --h323: #8250df;
     --media-ink: #1b7c83;
     --aux-ink: #57606a;
 
-    --mark-bg: rgba(184, 67, 14, 0.32);
+    --mark-bg: rgba(13, 110, 103, 0.32);
     --row-hover-strong: rgba(27, 31, 36, 0.06);
     --tint-warn-border: rgba(154, 103, 0, 0.5);
     --tint-crit-border: rgba(207, 34, 46, 0.4);
@@ -153,7 +162,7 @@
     --border-faint: rgba(208, 215, 222, 0.5);
     --text-soft: #2c323a;
     --tint-warn-ink: #5c3d10;
-    --accent-wash: rgba(184, 67, 14, 0.07);
+    --accent-wash: rgba(13, 110, 103, 0.07);
   }
 }
 
@@ -163,7 +172,7 @@
   --panel2: #eef1f4;
   --text: #1b1f24;
   --muted: #57606a;
-  --accent: #b8430e;
+  --accent: #0d6e67;
   --crit: #cf222e;
   --warn: #9a6700;
   --notice: #0969da;
@@ -175,13 +184,13 @@
   --placeholder: #8c959f;
   --btn-hover-bg: #eef1f4;
   --btn-hover-border: #afb8c1;
-  --btn-primary-hover: #d3530e;
-  --btn-primary-text: #fffaf0;
+  --btn-primary-hover: #0f8b81;
+  --btn-primary-text: #f2fbfa;
   --row-hover: rgba(27, 31, 36, 0.035);
-  --selection-bg: rgba(184, 67, 14, 0.18);
+  --selection-bg: rgba(13, 110, 103, 0.18);
   --scrollbar-thumb: #d0d7de;
   --scrollbar-thumb-hover: #afb8c1;
-  --focus-ring: rgba(184, 67, 14, 0.15);
+  --focus-ring: rgba(13, 110, 103, 0.15);
 
   --tint-crit: rgba(207, 34, 46, 0.10);
   --tint-warn: rgba(154, 103, 0, 0.12);
@@ -191,15 +200,15 @@
   --tint-warn-strong: rgba(154, 103, 0, 0.20);
   --tint-notice-strong: rgba(9, 105, 218, 0.20);
   --tint-info-strong: rgba(87, 96, 106, 0.18);
-  --tint-select: rgba(184, 67, 14, 0.14);
-  --tint-select-border: rgba(184, 67, 14, 0.45);
+  --tint-select: rgba(13, 110, 103, 0.14);
+  --tint-select-border: rgba(13, 110, 103, 0.45);
   --ok: #1a7f37;
   --redirect: #8250df;
   --h323: #8250df;
   --media-ink: #1b7c83;
   --aux-ink: #57606a;
 
-  --mark-bg: rgba(184, 67, 14, 0.32);
+  --mark-bg: rgba(13, 110, 103, 0.32);
   --row-hover-strong: rgba(27, 31, 36, 0.06);
   --tint-warn-border: rgba(154, 103, 0, 0.5);
   --tint-crit-border: rgba(207, 34, 46, 0.4);
@@ -212,7 +221,7 @@
   --border-faint: rgba(208, 215, 222, 0.5);
   --text-soft: #2c323a;
   --tint-warn-ink: #5c3d10;
-  --accent-wash: rgba(184, 67, 14, 0.07);
+  --accent-wash: rgba(13, 110, 103, 0.07);
 }
 
 /* ---------- base ---------- */
@@ -827,4 +836,43 @@ tbody tr:hover { background: var(--row-hover); }
   background: var(--tint-select);
   border-color: var(--tint-select-border);
   color: var(--text);
+}
+
+/* ---------- .brand-wordmark ---------- */
+
+/*
+ * The "hiccup.monster" logotype, as artwork rather than text. It ships in two
+ * inkings — navy-on-light and cream-on-dark — so it needs the same three-state
+ * treatment as the palette at the top of this file. An <img> could not do this:
+ * the theme lives on <html>, and CSS does not cross into an image's own tree,
+ * so the swap has to happen on a background-image out here.
+ *
+ * Callers set the height; width follows from the aspect ratio.
+ */
+.brand-wordmark {
+  display: inline-block;
+  aspect-ratio: 720 / 311;
+  background: url("/brand/wordmark-on-dark.png") center / contain no-repeat;
+}
+
+/* The monster head. Teal on cream reads on either surface, so unlike the
+   wordmark this one needs no per-theme inking. */
+.brand-mark {
+  display: inline-block;
+  aspect-ratio: 1;
+  background: url("/brand/mark-64.png") center / contain no-repeat;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .brand-wordmark {
+    background-image: url("/brand/wordmark-on-light.png");
+  }
+}
+
+:root[data-theme="light"] .brand-wordmark {
+  background-image: url("/brand/wordmark-on-light.png");
+}
+
+:root[data-theme="dark"] .brand-wordmark {
+  background-image: url("/brand/wordmark-on-dark.png");
 }

@@ -108,9 +108,9 @@
   // the warn washes — a selected row is not a warning.
   var FALLBACK = {
     bg: '#0e1116', text: '#dce3ea', muted: '#8b949e', border: '#2f3947',
-    accent: '#ffc857', notice: '#58a6ff', crit: '#f2545b', warn: '#f5a623',
+    accent: '#2dc7ba', notice: '#58a6ff', crit: '#f2545b', warn: '#f5a623',
     ok: '#3fb950', redirect: '#a371f7', h323: '#d2a8ff', media: '#39c5cf',
-    selFill: 'rgba(255,200,87,0.16)', selStroke: 'rgba(255,200,87,0.45)',
+    selFill: 'rgba(45,199,186,0.16)', selStroke: 'rgba(45,199,186,0.45)',
     matchFill: 'rgba(88,166,255,0.13)'
   };
 
@@ -277,7 +277,7 @@
       for (j = 0; j < ids.length; j++) {
         var id = ids[j];
         if (!id) continue;
-        var cur = out[id] || (out[id] = { sev: null, findingTitle: null, adviceTitle: null });
+        var cur = out[id] || (out[id] = { sev: null, findingTitle: null, adviceTitle: null, adviceId: null });
         var next = worseSev(f.severity, cur.sev);
         if (cur.sev == null || next !== cur.sev) {
           cur.sev = next;
@@ -298,10 +298,29 @@
           var e = out[mids[k]] || (out[mids[k]] = {
             sev: fin.severity || null,
             findingTitle: str(fin.title || '') || null,
-            adviceTitle: null
+            adviceTitle: null,
+            adviceId: null
           });
-          if (!e.adviceTitle) e.adviceTitle = str(a.title || '') || null;
+          if (!e.adviceTitle) { e.adviceTitle = str(a.title || '') || null; e.adviceId = a.id || null; }
         }
+      }
+    }
+    // Some rules (e.g. the indicator-issue catch-all) go straight from
+    // detection to an Advice card with no backing Finding at all — findingIds
+    // is empty, so the loop above never sees them. Apply the advice's OWN
+    // severity/msgIds directly so those messages still light up; worseSev()
+    // means a real finding on the same message is never downgraded by this.
+    for (i = 0; i < advice.length; i++) {
+      var a2 = advice[i];
+      if (!a2 || !a2.severity) continue;
+      var ownMids = arr(a2.msgIds);
+      for (j = 0; j < ownMids.length; j++) {
+        var mid = ownMids[j];
+        if (!mid) continue;
+        var e2 = out[mid] || (out[mid] = { sev: null, findingTitle: null, adviceTitle: null, adviceId: null });
+        var next2 = worseSev(a2.severity, e2.sev);
+        if (e2.sev == null || next2 !== e2.sev) e2.sev = next2;
+        if (!e2.adviceTitle) { e2.adviceTitle = str(a2.title || '') || null; e2.adviceId = a2.id || null; }
       }
     }
     return out;
@@ -372,6 +391,7 @@
         sev: sev ? sev.sev : null,
         findingTitle: sev ? sev.findingTitle : null,
         adviceTitle: sev ? sev.adviceTitle : null,
+        adviceId: sev ? sev.adviceId : null,
         legId: null,          // filled by app.js (it owns the leg index)
         obj: m
       });
