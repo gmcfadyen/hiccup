@@ -58,7 +58,7 @@
   <span class="topbar-spacer"></span>
   <span id="llm-chip" class="chip llm-chip" title="local model status">LLM …</span>
   <button id="chat-toggle" class="btn" type="button">ask hiccup</button>
-  <button class="btn theme-toggle" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
   <a class="coffee-link" href="https://buymeacoffee.com/mcfadyen" target="_blank" rel="noopener">☕ Buy Me a Coffee</a>
   <span id="user-name" class="user-name mono"></span>
   <button id="logout-btn" class="btn" type="button">Sign out</button>
@@ -100,7 +100,7 @@
     <div id="project-manage-panel" class="card project-manage-panel" aria-label="manage projects" hidden>
       <div class="pm-head">
         <h3>Manage projects</h3>
-        <button id="project-manage-close" class="btn" type="button" aria-label="close">×</button>
+        <button id="project-manage-close" class="btn icon-btn" type="button" aria-label="close">×</button>
       </div>
       <div id="project-manage-list" class="project-manage-list scroll-area">
         <p class="pane-empty">no projects yet — create one below.</p>
@@ -136,7 +136,7 @@
            autocomplete="off" spellcheck="false" enterkeyhint="search"
            placeholder="search the trace — 654321 · from:alice · method:INVITE · sev:crit · has:t38"
            title="bare text matches anything (raw messages, headers, URIs, Call-IDs, tags, branches, SDP, aux summaries, findings, advice). 4+ digits match phone numbers ignoring + - ( ) spaces. Filters: call: leg: callid: from: to: method: status: ip: port: codec: proto: sev: has:">
-    <button id="search-clear" type="button" class="search-clear" aria-label="clear the search" title="clear">×</button>
+    <button id="search-clear" type="button" class="search-clear icon-btn" aria-label="clear the search" title="clear">×</button>
     <span id="search-count" class="search-count" role="status" aria-live="polite">no search</span>
     <span class="search-syntax mono" aria-hidden="true">call: leg: callid: from: to: method: status: ip: port: codec: proto: sev: has:</span>
   </div>
@@ -187,9 +187,9 @@
       <h2 class="pane-title">ladder</h2>
       <span class="pane-tools">
         <span class="pane-tool-group" role="group" aria-label="zoom">
-          <button class="pane-btn" type="button" data-action="ladder-zoom-out" aria-label="zoom out" title="zoom out">−</button>
+          <button class="pane-btn icon-btn" type="button" data-action="ladder-zoom-out" aria-label="zoom out" title="zoom out">−</button>
           <button class="pane-btn" type="button" data-action="ladder-zoom-reset" title="reset zoom">100%</button>
-          <button class="pane-btn" type="button" data-action="ladder-zoom-in" aria-label="zoom in" title="zoom in">+</button>
+          <button class="pane-btn icon-btn" type="button" data-action="ladder-zoom-in" aria-label="zoom in" title="zoom in">+</button>
         </span>
         <button class="pane-btn" type="button" data-action="ladder-export" title="export the ladder as SVG">export</button>
       </span>
@@ -213,9 +213,9 @@
     <header class="pane-head">
       <h2 class="pane-title">selection</h2>
       <span class="pane-tools">
-        <button class="pane-btn sel-sort is-active" type="button" data-sort="n"
+        <button class="pane-btn sel-sort icon-btn is-active" type="button" data-sort="n"
                 aria-label="sort by number" title="sort by capture order">#</button>
-        <button class="pane-btn sel-sort" type="button" data-sort="delta"
+        <button class="pane-btn sel-sort icon-btn" type="button" data-sort="delta"
                 aria-label="sort by delta" title="sort by delta">Δ</button>
       </span>
     </header>
@@ -290,7 +290,7 @@
     <strong>ask hiccup</strong>
     <span id="chat-model" class="chip"></span>
     <span class="topbar-spacer"></span>
-    <button id="chat-close" class="btn chat-close" type="button" aria-label="close chat">×</button>
+    <button id="chat-close" class="btn chat-close icon-btn" type="button" aria-label="close chat">×</button>
   </div>
 
   <section id="chat-advice" class="chat-advice" tabindex="-1"

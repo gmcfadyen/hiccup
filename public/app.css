@@ -141,6 +141,11 @@ body.is-resizing {
 
 .topbar .btn { padding: 4px 10px; font-size: 13px; }
 
+/* the theme toggle is the only icon-only control up here — drop the text
+   button's side padding so .icon-btn's hit area comes out square (32x32)
+   rather than a 37px-wide slab next to the real text buttons */
+.topbar .icon-btn { padding: 0; }
+
 .llm-chip { font-family: var(--mono); }
 .llm-chip.is-ok { color: var(--ok); }
 .llm-chip.is-off { color: var(--muted); }
@@ -316,17 +321,17 @@ body.chat-open #layout { margin-right: var(--chat-w); }
   white-space: nowrap;
 }
 
+/* Box, wash and hover/focus treatment come from .icon-btn (hiccup.css); this
+   was a ~12x14px target before. 24px — the §2.5.8 floor, not .icon-btn's 32px
+   default — with negative margins so the hit area grows into .capture-row's own
+   padding instead of adding 13px to every row in the sidebar. */
 .cap-del {
-  flex: none;
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
+  --icon-btn-size: 24px;
+  margin: -3px -4px -3px 0;
   font-size: 14px;
-  line-height: 1;
-  padding: 0 2px;
 }
 
+/* deleting is destructive: keep the crit ink on hover, over .icon-btn's wash */
 .cap-del:hover { color: var(--crit); }
 
 .cap-sub,
@@ -468,29 +473,24 @@ body.chat-open #layout { margin-right: var(--chat-w); }
 .search-input {
   flex: 1 1 auto;
   min-width: 0;
-  padding: 5px 28px 5px 10px;
+  /* right padding clears the (now wider) .search-clear sitting over it */
+  padding: 5px 34px 5px 10px;
   font-size: 13px;
 }
 
-/* sits in flow but pulled back over the input's right padding — no absolute
-   positioning, which a flex container would resolve to the wrong static spot */
+/* Sits in flow but pulled back over the input's right padding — no absolute
+   positioning, which a flex container would resolve to the wrong static spot.
+   Box and hover/focus wash come from .icon-btn (hiccup.css); it was exactly
+   24x24 here, i.e. sitting on §2.5.8's floor with nothing in hand. 28px rather
+   than the 32px default so it still leaves daylight inside the 32px-tall
+   field. */
 .search-clear {
+  --icon-btn-size: 28px;
   position: relative;
   z-index: 1;
-  flex: none;
-  margin-left: -30px;
-  width: 24px;
-  height: 24px;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--muted);
+  margin-left: -32px;
   font-size: 15px;
-  line-height: 1;
-  cursor: pointer;
 }
-
-.search-clear:hover { color: var(--text); background: var(--panel2); }
 
 .search-count {
   flex: none;
@@ -712,6 +712,16 @@ mark,
 }
 
 .pane-btn:hover { color: var(--text); border-color: var(--btn-hover-border); }
+
+/* The icon-only pane buttons (ladder zoom −/+, the # / Δ sort toggles) measured
+   ~23x21.6px. .icon-btn takes them to the §2.5.8 floor of 24px, which is as far
+   as a 26px .pane-head goes — so nothing in the header moves. .pane-btn already
+   draws a full-size bordered box at rest, which is the discoverability the wash
+   exists to provide, so only the hover/focus tint is inherited here. */
+.pane-btn.icon-btn {
+  --icon-btn-size: 24px;
+  padding: 0 4px;
+}
 
 /* A toggle in its "on" position is a selection, not a warning — accent wash. */
 .pane-btn.is-active,

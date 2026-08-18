@@ -575,10 +575,23 @@ tbody tr:hover { background: var(--row-hover); }
   outline-offset: 1px;
 }
 
+/*
+ * The expander is an icon-only control, so it owes WCAG 2.2 §2.5.8 a 24x24
+ * pointer target — it used to be 14x14. The box is 24x24 and the negative
+ * margins hand 10px of width and 4px of height back to the layout, so the
+ * column stays the 14px it always was and the row pitch grows by 0.6px
+ * (23.4 -> 24) instead of by 5px: a dense tree keeps its density and adjacent
+ * expanders end up exactly edge to edge rather than overlapping.
+ * --icon-btn-size matches, so .icon-btn (bottom of this file, on the real
+ * <button> only) does not push it back up to its 32px default. The
+ * non-interactive alignment spacer shares the rule so leaf rows still line up.
+ */
 .tree-toggle {
+  --icon-btn-size: 24px;
   flex: none;
-  width: 14px;
-  height: 14px;
+  width: 24px;
+  height: 24px;
+  margin: -2px -5px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -643,6 +656,19 @@ tbody tr:hover { background: var(--row-hover); }
   white-space: nowrap;
 }
 
+/*
+ * Focus Not Obscured (WCAG 2.2 §2.4.11). The header above is the app's only
+ * position:sticky layer, and app.js gives both the rows and the sortable
+ * headers tabindex="0" — so keyboard-walking a long table (#info-media's
+ * stream tables, #selection-list in its <table> shape) scrolls the focused
+ * <tr> up under a 25px opaque band that hides it completely. Reserving that
+ * band on the scrollport (and on the row itself, for engines without :has())
+ * makes the browser's own scroll-into-view stop 28px short instead.
+ */
+.table-dense tbody tr { scroll-margin-top: 28px; }
+
+.scroll-area:has(.table-dense thead) { scroll-padding-top: 28px; }
+
 .table-dense td {
   padding: 2px 8px;
   border-bottom: 1px solid var(--border);
@@ -670,12 +696,18 @@ tbody tr:hover { background: var(--row-hover); }
 
 /* ---------- .lamp base (state styling lives in app.css) ---------- */
 
+/*
+ * A lamp is a filter button, so it is a pointer target: at 1px of block
+ * padding its pill measured 22.7px tall and missed WCAG 2.2 §2.5.8's 24px
+ * minimum on the short axis. 2px takes it to 24.7px. It keeps its text label,
+ * so it is not an .icon-btn — the shortfall was only ever vertical.
+ */
 .lamp {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   max-width: 190px;
-  padding: 1px 8px 1px 6px;
+  padding: 2px 8px 2px 6px;
   border: 1px solid var(--border-strong);
   border-radius: 999px;
   background: var(--panel2);
@@ -746,4 +778,53 @@ tbody tr:hover { background: var(--row-hover); }
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+}
+
+/* ---------- .icon-btn (Target Size — WCAG 2.2 §2.5.8) ---------- */
+
+/*
+ * Shared treatment for controls whose entire label is a glyph (x, -, +, the
+ * theme toggle's sun/moon, the tree expander, the # / delta sort toggles).
+ * Such a control needs a pointer target of at least 24x24 CSS px, and the
+ * padding that buys it has to be real click/tap area rather than a drawn box.
+ *
+ * The extra area is also made discoverable rather than merely present:
+ * --accent-wash at rest, the stronger --tint-select (plus its border) on hover
+ * and focus. --accent is the interactive highlight, deliberately not --warn, so
+ * none of this reads as a severity state.
+ *
+ * --icon-btn-size IS the hit area. A context too dense for the 32px default may
+ * lower it in its own rule (the tree expander and the capture-row delete take
+ * 24px, #search-clear takes 28px) but never below 24px — that is the criterion,
+ * not a preference. The 32px lives in the var() fallback rather than as a
+ * declaration here on purpose: this block is deliberately last in the file, so
+ * a --icon-btn-size declared here would out-cascade every same-specificity
+ * override written above it (.tree-toggle's, for one) and silently win.
+ *
+ * Last in the file so it beats the .btn and .tree-toggle boxes it is combined
+ * with. app.css loads after this file and so still owns per-control positioning
+ * and any severity ink: see .search-clear, .cap-del and .pane-btn.icon-btn.
+ */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-width: var(--icon-btn-size, 32px);
+  min-height: var(--icon-btn-size, 32px);
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--accent-wash);
+  color: var(--muted);
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.icon-btn:hover,
+.icon-btn:focus-visible {
+  background: var(--tint-select);
+  border-color: var(--tint-select-border);
+  color: var(--text);
 }

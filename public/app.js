@@ -609,7 +609,8 @@
         var row = el('div', 'capture-row' + (cap.id === state.captureId ? ' active' : ''));
         var top = el('div', 'cap-top');
         top.appendChild(el('span', 'cap-name', cap.filename));
-        var del = el('button', 'cap-del', '×');
+        // .icon-btn: WCAG 2.2 SC 2.5.8 hit area for a glyph-only control
+        var del = el('button', 'cap-del icon-btn', '×');
         del.type = 'button';
         del.title = 'delete capture';
         del.addEventListener('click', function (ev) { ev.stopPropagation(); deleteCapture(cap); });
@@ -1315,7 +1316,8 @@
     if (opts.title) row.title = opts.title;
 
     if (opts.hasChildren) {
-      var tog = el('button', 'tree-toggle', opts.open ? '\u25be' : '\u25b8');
+      // .icon-btn goes on the real expander only; the spacer below stays inert
+      var tog = el('button', 'tree-toggle icon-btn', opts.open ? '\u25be' : '\u25b8');
       tog.type = 'button';
       tog.setAttribute('aria-label', opts.open ? 'collapse' : 'expand');
       tog.addEventListener('click', function (ev) {
@@ -3755,7 +3757,7 @@
 
     var head = el('div', 'tree-row search-results-head');
     head.appendChild(el('span', 'tree-label', 'search results'));
-    var back = el('button', 'tree-toggle search-clear-inline', '\u00d7');
+    var back = el('button', 'tree-toggle search-clear-inline icon-btn', '\u00d7');
     back.type = 'button';
     back.title = 'clear the search and go back to the session tree';
     back.setAttribute('aria-label', 'clear search');
