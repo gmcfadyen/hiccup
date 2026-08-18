@@ -85,6 +85,14 @@ const CONFIG_DEFAULTS = {
   // store and it silently transfers to a stranger. When this list is non-empty
   // it is authoritative and the role is ignored entirely.
   adminEmails: ['360gav@gmail.com'],
+  // GDPR Art. 25 (data protection by default): mask caller/callee digits in the
+  // DERIVED analysis unless the uploader opts out per capture via the
+  // X-Mask-Numbers header. The uploaded file itself is never altered.
+  maskNumbersByDefault: true,
+  // GDPR Art. 5(1)(e) (storage limitation): delete captures older than this.
+  // 0 disables the sweep — which is a real choice, not a safe default, so it
+  // is stated here rather than left implicit.
+  captureRetentionDays: 0,
 };
 
 /**
@@ -636,9 +644,23 @@ async function handleUpload(req, res, user) {
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'original.bin'), buf);
 
+  // GDPR: caller/callee masking. lib/analyze.js has always had
+  // redactNumbersInMessage() behind an opts.redactNumbers flag, but nothing
+  // ever set it — the masking was written and then left unreachable. The
+  // header lets the uploader decide per capture; config.maskNumbersByDefault
+  // decides when they say nothing (Art. 25, data protection BY DEFAULT).
+  //
+  // Note this only masks the DERIVED analysis. original.bin above is the
+  // user's own unmodified file and is never rewritten — masking a trace you
+  // uploaded yourself, in place, would be destroying your own evidence.
+  const maskHeader = req.headers['x-mask-numbers'];
+  const maskNumbers = (maskHeader == null || String(maskHeader).trim() === '')
+    ? config.maskNumbersByDefault !== false
+    : /^(1|true|yes|on)$/i.test(String(maskHeader).trim());
+
   let analysis;
   try {
-    analysis = await analyzeCapture(buf);
+    analysis = await analyzeCapture(buf, { redactNumbers: maskNumbers });
   } catch (e) {
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best effort */ }
     sendJson(res, 422, { error: (e && e.userMessage) || 'could not parse this file' });
@@ -650,6 +672,7 @@ async function handleUpload(req, res, user) {
     filename,
     uploadedAt: new Date().toISOString(),
     sizeBytes: buf.length,
+    maskedNumbers: maskNumbers,   // shown in the UI so nobody wonders why numbers are "…"
     stats: analysis.stats,
     findingCounts: countFindings(analysis.findings),
     projectId,
@@ -1057,6 +1080,129 @@ async function handleFeedbackSubmit(req, res, user) {
     return;
   }
   sendJson(res, 200, { ok: true, id: rec.id });
+}
+
+// ---------------------------------------------------------------------------
+// GDPR subject rights — Art. 15/20 (access + portability) and Art. 17 (erasure)
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /api/me/export — everything held about the signed-in user, as one JSON.
+ *
+ * Capture BYTES are deliberately excluded and listed as metadata instead: the
+ * originals are already downloadable per capture, and inlining base64 pcaps
+ * would turn a rights request into a multi-hundred-megabyte response. The
+ * export says plainly that they are excluded and where to get them, so this is
+ * a documented scope decision rather than a silent omission.
+ */
+function handleMeExport(req, res, user) {
+  const uid = resolveAccountUid(user.id);
+  const out = {
+    exportedAt: new Date().toISOString(),
+    note: 'Everything hiccup holds about this account. Capture FILE CONTENTS are ' +
+      'not inlined — download them individually from /api/captures/:id/original.',
+    account: sanitizeUser(user),
+    storageAccountId: uid,
+  };
+
+  try { out.captures = store.listCaptures(DATA_DIR, uid); } catch { out.captures = []; }
+
+  try {
+    const projects = optionalModule('./lib/projects');
+    out.projects = (projects && typeof projects.listProjects === 'function')
+      ? projects.listProjects(uid) : [];
+  } catch { out.projects = []; }
+
+  try {
+    const teams = initTeamsIfPossible();
+    out.team = (teams && typeof teams.getTeamView === 'function')
+      ? teams.getTeamView(user.id) : null;
+  } catch { out.team = null; }
+
+  try {
+    const kb = optionalModule('./lib/kb');
+    out.kbDocuments = (kb && typeof kb.listDocs === 'function') ? kb.listDocs(uid) : [];
+  } catch { out.kbDocuments = []; }
+
+  try {
+    const fb = require('./lib/feedback');
+    out.feedback = fb.list(DATA_DIR).filter((r) => r && r.userId === user.id);
+  } catch { out.feedback = []; }
+
+  res.writeHead(200, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Content-Disposition': 'attachment; filename="hiccup-export-' +
+      new Date().toISOString().slice(0, 10) + '.json"',
+    'Cache-Control': 'no-store',
+  });
+  res.end(JSON.stringify(out, null, 2));
+}
+
+/**
+ * DELETE /api/me {confirm:"DELETE"} — erase this account and its data.
+ *
+ * Requires an explicit typed confirmation because this is irreversible and
+ * there is no undo anywhere in the system.
+ *
+ * SHARED-DATA HAZARD, handled deliberately: under Wave 3 a team's captures
+ * live under the TEAM's accountUid, not the individual's. Deleting a team
+ * member's account must therefore NOT delete the shared library — that would
+ * let one departing member destroy their colleagues' data. So captures are
+ * only removed when the user's storage account is their own (uid === user.id).
+ * A team member who leaves has their membership and personal records removed;
+ * the team's shared captures stay with the team.
+ */
+async function handleMeDelete(req, res, user) {
+  let body;
+  try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
+  if (String(body && body.confirm) !== 'DELETE') {
+    sendJson(res, 400, { error: 'send {"confirm":"DELETE"} to confirm this irreversible deletion' });
+    return;
+  }
+
+  const uid = resolveAccountUid(user.id);
+  const solo = uid === user.id;
+  const removed = { captures: 0, sharedLibraryKept: !solo, feedback: 0, team: false, account: false };
+
+  if (solo) {
+    try {
+      for (const cap of store.listCaptures(DATA_DIR, uid)) {
+        if (store.deleteCapture(DATA_DIR, uid, cap.id)) removed.captures++;
+      }
+    } catch { /* keep going — a partial erase still beats none */ }
+  }
+
+  try {
+    const teams = initTeamsIfPossible();
+    // removeMember(actingUserId, targetUserId) - removing yourself is a leave.
+    if (teams && typeof teams.removeMember === 'function') removed.team = !!teams.removeMember(user.id, user.id);
+  } catch { /* not on a team, or the module cannot do it */ }
+
+  try {
+    const fb = require('./lib/feedback');
+    const mine = fb.list(DATA_DIR).filter((r) => r && r.userId === user.id);
+    // Feedback is retained but de-identified: the comment is operationally
+    // useful to keep, the person behind it is not. Erasure of the personal
+    // data is what Art. 17 requires, not destruction of the observation.
+    for (const r of mine) {
+      if (typeof fb.anonymise === 'function') fb.anonymise(DATA_DIR, r.id);
+      removed.feedback++;
+    }
+  } catch { /* best effort */ }
+
+  try {
+    if (typeof auth.deleteUser === 'function') removed.account = !!auth.deleteUser(user.id);
+  } catch { /* reported below */ }
+
+  clearSessionCookie(res);
+  sendJson(res, 200, {
+    ok: true,
+    removed,
+    note: removed.account
+      ? 'Account deleted.'
+      : 'Data removed, but the account record could not be deleted automatically — ' +
+        'contact the administrator to finish erasure.',
+  });
 }
 
 /** Recursive byte total for a directory. Bounded so it cannot walk forever. */
@@ -2081,6 +2227,20 @@ async function handle(req, res) {
     if (!user) return;
     sendJson(res, 200, { user: sanitizeUser(user) });
     return;
+  }
+
+  // --- GDPR subject rights ---
+  if (pathname === '/api/me/export' && method === 'GET') {
+    const user = requireAuth(req, res);
+    if (!user) { req.resume(); return; }
+    req.resume();
+    return handleMeExport(req, res, user);
+  }
+
+  if (pathname === '/api/me' && method === 'DELETE') {
+    const user = requireAuth(req, res);
+    if (!user) { req.resume(); return; }
+    return handleMeDelete(req, res, user);
   }
 
   // --- team (Wave 3) --- two routes are public (accepting an invite happens
