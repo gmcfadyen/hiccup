@@ -1253,6 +1253,81 @@ async function main() {
     eq(r.sweepDue(d2), true, 'dry run stamped the day');
   });
 
+  // hmr-generate: plain-English -> HMR rule. The tests that matter are the
+  // two regressions found while building it (a greedy value capture, and
+  // plural SIP method names not matching), plus one case per intent so a
+  // future edit to the shared BOUNDARY/INTENTS table cannot silently break
+  // one of them without a red test.
+
+  await t('hmr-generate: delete-header intent, direction and plural method name', () => {
+    const g = require(path.join(ROOT, 'lib', 'hmr-generate.js'));
+    const out = g.generateRule('strip the P-Asserted-Identity header on outbound INVITEs');
+    eq(out.ok, true, 'ok');
+    eq(out.matchedIntent, 'delete-header', 'matchedIntent');
+    eq(out.rule.target.header, 'P-Asserted-Identity', 'target.header');
+    eq(out.rule.operation, 'delete', 'operation');
+    eq(out.rule.scope.direction, 'out', 'scope.direction');
+    ok(out.rule.scope.methods.indexOf('INVITE') !== -1, 'plural "INVITEs" did not match method INVITE');
+  });
+
+  await t('hmr-generate: add-header value stops at the trailing clause, not the rest of the sentence', () => {
+    const g = require(path.join(ROOT, 'lib', 'hmr-generate.js'));
+    // Regression: this used to capture "id on outbound calls" as the value
+    // instead of stopping at " on" — see BOUNDARY in lib/hmr-generate.js.
+    const out = g.generateRule('add a Privacy header set to id on outbound calls');
+    eq(out.ok, true, 'ok');
+    eq(out.matchedIntent, 'add-header', 'matchedIntent');
+    eq(out.rule.target.header, 'Privacy', 'target.header');
+    ok(!!out.rule.value, 'value was not extracted at all');
+    eq(out.rule.value.text, 'id', 'value text (greedy capture regression)');
+  });
+
+  await t('hmr-generate: replace-in-header and store-header intents', () => {
+    const g = require(path.join(ROOT, 'lib', 'hmr-generate.js'));
+    const rep = g.generateRule('replace the From display name with "Anonymous"');
+    eq(rep.ok, true, 'replace ok');
+    eq(rep.matchedIntent, 'replace-in-header', 'replace matchedIntent');
+    eq(rep.rule.value.text, 'Anonymous', 'replace value');
+
+    const store = g.generateRule('store the Diversion header for later');
+    eq(store.ok, true, 'store ok');
+    eq(store.matchedIntent, 'store-header', 'store matchedIntent');
+    eq(store.rule.operation, 'store', 'store operation');
+  });
+
+  await t('hmr-generate: no header/action recognised asks instead of guessing', () => {
+    const g = require(path.join(ROOT, 'lib', 'hmr-generate.js'));
+    const out = g.generateRule('make calls sound better somehow');
+    eq(out.ok, false, 'ok must be false with nothing to build');
+    eq(out.rule, null, 'no rule fabricated');
+    ok(out.questions.length > 0, 'must ask rather than guess');
+  });
+
+  await t('hmr-generate: empty description is rejected, not thrown', () => {
+    const g = require(path.join(ROOT, 'lib', 'hmr-generate.js'));
+    const out = g.generateRule('');
+    eq(out.ok, false, 'ok');
+    ok(out.warnings.length > 0, 'warnings');
+  });
+
+  await t('hmr-generate: buildRegex reads a "starts with" condition and tests its own example', () => {
+    const g = require(path.join(ROOT, 'lib', 'hmr-generate.js'));
+    const r = g.buildRegex('the calling number starts with "0033", e.g. "0033123456789"');
+    eq(r.pattern, '^0033', 'pattern');
+    eq(r.tested.length, 1, 'tested one embedded example');
+    eq(r.tested[0].matched, true, 'the pattern must match its own worked example');
+  });
+
+  await t('hmr-generate: a valid rule renders on every vendor without throwing', () => {
+    const g = require(path.join(ROOT, 'lib', 'hmr-generate.js'));
+    const out = g.generateRule('strip the P-Asserted-Identity header on outbound INVITEs');
+    eq(out.ok, true, 'ok');
+    for (const v of ['oracle-acme', 'audiocodes', 'ribbon', 'generic']) {
+      ok(typeof out.drafts[v] === 'string' && out.drafts[v].length > 0, v + ' draft is empty');
+    }
+    ok(!!out.explain && !!out.explain.intent, 'explainRule produced no summary');
+  });
+
   console.log('NOTE (wave3): HTTP-route-level behavior — a malformed X-Project-Id header or ?project=' +
     ' filter degrading to a clean 4xx, and a suspended member\'s existing session 401ing on the next ' +
     'request — is NOT exercised by this file. server.js has no module.exports and calls server.listen() ' +
