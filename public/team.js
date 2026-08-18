@@ -15,6 +15,10 @@
  */
 (function () {
   'use strict';
+  // public/i18n.js publishes window._t from a blocking <head> script. The local
+  // alias keeps this file working — in English — if that script is ever missing,
+  // rather than throwing a ReferenceError out of every render.
+  var _t = (window && window._t) || function (s) { return s; };
 
   // ---------------------------------------------------------------- helpers
 
@@ -42,9 +46,16 @@
       ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
   }
 
-  /** Server error shape is {error} or {userMessage} depending on the route. */
+  /**
+   * Server error shape is {error} or {userMessage} depending on the route.
+   *
+   * Run through _t(): server.js sends English sentences with no `code` field, and
+   * because the catalogue is keyed on the source text the sentence IS its own key,
+   * so these localise with no server change and no error-code refactor. An
+   * untranslated sentence falls back to the English the server sent.
+   */
   function errMsg(payload, fallback) {
-    return (payload && (payload.error || payload.userMessage)) || fallback;
+    return _t((payload && (payload.error || payload.userMessage)) || '') || fallback;
   }
 
   // ------------------------------------------------------------------ state
@@ -91,14 +102,14 @@
     $('team-create-form').addEventListener('submit', function (ev) {
       ev.preventDefault();
       var name = ($('team-name-input').value || '').trim();
-      if (!name) { setCreateError('Enter a name for your team.'); return; }
+      if (!name) { setCreateError(_t('Enter a name for your team.')); return; }
       createTeam(name);
     });
 
     $('team-invite-form').addEventListener('submit', function (ev) {
       ev.preventDefault();
       var email = ($('team-invite-email').value || '').trim();
-      if (!email) { setInviteError('Enter an email address.'); return; }
+      if (!email) { setInviteError(_t('Enter an email address.')); return; }
       createInvite(email);
     });
 
@@ -114,7 +125,7 @@
     $('team-error').hidden = mode !== 'error';
     $('team-create').hidden = mode !== 'no-team';
     $('team-view').hidden = mode !== 'team';
-    if (mode === 'error') $('team-error-text').textContent = message || 'Something went wrong.';
+    if (mode === 'error') $('team-error-text').textContent = message || _t('Something went wrong.');
     if (mode === 'team') renderTeamView();
   }
 
@@ -126,11 +137,11 @@
       if (res.status === 401) { location.href = '/'; return; }
       try { payload = await res.json(); } catch (e) { payload = null; }
     } catch (e) {
-      setTopState('error', 'Could not reach the server. Is hiccup still running?');
+      setTopState('error', _t('Could not reach the server. Is hiccup still running?'));
       return;
     }
     if (!res.ok) {
-      setTopState('error', errMsg(payload, 'Could not load your team (status ' + res.status + ').'));
+      setTopState('error', errMsg(payload, _t('Could not load your team (status ') + res.status + ').'));
       return;
     }
 
@@ -152,7 +163,7 @@
     setCreateError('');
     var btn = $('team-create-btn');
     btn.disabled = true;
-    btn.textContent = 'Creating…';
+    btn.textContent = _t('Creating…');
     var res = null, payload = null;
     try {
       res = await fetch('/api/team', {
@@ -164,14 +175,14 @@
       try { payload = await res.json(); } catch (e) { payload = null; }
     } catch (e) {
       btn.disabled = false;
-      btn.textContent = 'Create team';
-      setCreateError('Could not reach the server.');
+      btn.textContent = _t('Create team');
+      setCreateError(_t('Could not reach the server.'));
       return;
     }
     btn.disabled = false;
-    btn.textContent = 'Create team';
+    btn.textContent = _t('Create team');
     if (!res.ok) {
-      setCreateError(errMsg(payload, 'Could not create the team (status ' + res.status + ').'));
+      setCreateError(errMsg(payload, _t('Could not create the team (status ') + res.status + ').'));
       return;
     }
     $('team-name-input').value = '';
@@ -193,14 +204,14 @@
     var team = state.team || {};
 
     var head = el('div', 'team-summary-head');
-    head.appendChild(el('h2', null, team.name || 'Your team'));
+    head.appendChild(el('h2', null, team.name || _t('Your team')));
     if (isStr(state.myRole)) head.appendChild(el('span', 'chip team-role-' + state.myRole, state.myRole));
     host.appendChild(head);
 
     var meLabel = (state.me && (state.me.name || state.me.email)) || 'you';
     host.appendChild(el('p', 'team-summary-me',
-      'Signed in as ' + meLabel + '. Every member sees every capture and guide — there is ' +
-      'no per-project permission.'));
+      _t('Signed in as ') + meLabel + _t('. Every member sees every capture and guide — there is ') +
+      _t('no per-project permission.')));
   }
 
   // -------------------------------------------------------------- invite
@@ -227,7 +238,7 @@
     setInviteError('');
     var btn = $('team-invite-btn');
     btn.disabled = true;
-    btn.textContent = 'Creating…';
+    btn.textContent = _t('Creating…');
     var res = null, payload = null;
     try {
       res = await fetch('/api/team/invite', {
@@ -239,14 +250,14 @@
       try { payload = await res.json(); } catch (e) { payload = null; }
     } catch (e) {
       btn.disabled = false;
-      btn.textContent = 'Create invite link';
-      setInviteError('Could not reach the server.');
+      btn.textContent = _t('Create invite link');
+      setInviteError(_t('Could not reach the server.'));
       return;
     }
     btn.disabled = false;
-    btn.textContent = 'Create invite link';
+    btn.textContent = _t('Create invite link');
     if (!res.ok) {
-      setInviteError(errMsg(payload, 'Could not create an invite (status ' + res.status + ').'));
+      setInviteError(errMsg(payload, _t('Could not create an invite (status ') + res.status + ').'));
       return;
     }
     state.lastInvite = payload || null;
@@ -277,13 +288,13 @@
     if (!state.myCanManage || !state.pendingInvites.length) return;
 
     var wrap = el('div', 'team-pending');
-    wrap.appendChild(el('div', 'team-pending-title', 'Pending invites'));
+    wrap.appendChild(el('div', 'team-pending-title', _t('Pending invites')));
     for (var i = 0; i < state.pendingInvites.length; i++) {
       var inv = state.pendingInvites[i];
       if (!inv || typeof inv !== 'object' || !isStr(inv.email)) continue;
       var row = el('div', 'team-pending-row');
       row.appendChild(el('span', 'mono', inv.email));
-      if (inv.expiresAt) row.appendChild(el('span', 'muted team-pending-exp', 'expires ' + fmtDateTime(inv.expiresAt)));
+      if (inv.expiresAt) row.appendChild(el('span', 'muted team-pending-exp', _t('expires ') + fmtDateTime(inv.expiresAt)));
       wrap.appendChild(row);
     }
     if (wrap.children.length > 1) host.appendChild(wrap);
@@ -296,15 +307,15 @@
     if (!text) return;
     copyText(text).then(function () {
       var btn = $('team-invite-copy');
-      btn.textContent = 'Copied';
+      btn.textContent = _t('Copied');
       btn.classList.add('is-copied');
       msg.textContent = '';
       setTimeout(function () {
-        btn.textContent = 'Copy';
+        btn.textContent = _t('Copy');
         btn.classList.remove('is-copied');
       }, 1600);
     }, function () {
-      msg.textContent = 'Copy blocked by the browser — the link is selected, press Ctrl/Cmd+C.';
+      msg.textContent = _t('Copy blocked by the browser — the link is selected, press Ctrl/Cmd+C.');
       input.select();
     });
   }
@@ -388,7 +399,7 @@
 
     if (!state.members.length) {
       var empty = el('div', 'team-empty');
-      empty.appendChild(el('p', null, 'No members yet.'));
+      empty.appendChild(el('p', null, _t('No members yet.')));
       host.appendChild(empty);
       return;
     }
@@ -396,7 +407,7 @@
     var table = el('table', 'table-dense team-table');
     var thead = el('thead');
     var hrow = el('tr');
-    ['Name', 'Email', 'Role', 'Status', 'Actions'].forEach(function (h) {
+    ['Name', _t('Email'), _t('Role'), _t('Status'), _t('Actions')].forEach(function (h) {
       hrow.appendChild(el('th', null, h));
     });
     thead.appendChild(hrow);
@@ -413,7 +424,7 @@
 
         var tdName = el('td');
         tdName.appendChild(document.createTextNode(member.name || member.email || member.userId));
-        if (self) tdName.appendChild(el('span', 'team-you-tag', '(you)'));
+        if (self) tdName.appendChild(el('span', 'team-you-tag', _t('(you)')));
         row.appendChild(tdName);
 
         row.appendChild(el('td', 'mono', member.email || ''));
@@ -432,32 +443,32 @@
         var tdActions = el('td');
         var actions = el('div', 'team-actions');
         var perms = memberActions(member);
-        var name = member.name || member.email || 'this member';
+        var name = member.name || member.email || _t('this member');
         var busy = !!state.membersBusy[member.userId];
 
         if (perms.canRole) {
-          var roleBtn = el('button', 'btn', perms.roleTo === 'admin' ? 'Make admin' : 'Revoke admin');
+          var roleBtn = el('button', 'btn', perms.roleTo === 'admin' ? _t('Make admin') : _t('Revoke admin'));
           roleBtn.type = 'button';
           roleBtn.disabled = busy;
           roleBtn.addEventListener('click', function () {
-            patchMember(member.userId, { role: perms.roleTo }, 'Updated ' + name + '.');
+            patchMember(member.userId, { role: perms.roleTo }, _t('Updated ') + name + '.');
           });
           actions.appendChild(roleBtn);
         }
 
         if (perms.canSuspend) {
-          var susBtn = el('button', 'btn', perms.suspendTo ? 'Suspend' : 'Restore');
+          var susBtn = el('button', 'btn', perms.suspendTo ? _t('Suspend') : _t('Restore'));
           susBtn.type = 'button';
           susBtn.disabled = busy;
           susBtn.addEventListener('click', function () {
             patchMember(member.userId, { suspended: perms.suspendTo },
-              (perms.suspendTo ? 'Suspended ' : 'Restored ') + name + '.');
+              (perms.suspendTo ? _t('Suspended ') : _t('Restored ')) + name + '.');
           });
           actions.appendChild(susBtn);
         }
 
         if (perms.canRemove) {
-          var rmBtn = el('button', 'btn', 'Remove');
+          var rmBtn = el('button', 'btn', _t('Remove'));
           rmBtn.type = 'button';
           rmBtn.disabled = busy;
           rmBtn.addEventListener('click', function () { removeMember(member.userId, name); });
@@ -478,7 +489,7 @@
   async function patchMember(userId, body, successMsg) {
     if (state.membersBusy[userId]) return;
     state.membersBusy[userId] = true;
-    setMembersMsg('Updating…');
+    setMembersMsg(_t('Updating…'));
     renderMembers();
 
     var res = null, payload = null;
@@ -492,27 +503,27 @@
       try { payload = await res.json(); } catch (e) { payload = null; }
     } catch (e) {
       state.membersBusy[userId] = false;
-      setMembersMsg('Could not reach the server.', true);
+      setMembersMsg(_t('Could not reach the server.'), true);
       renderMembers();
       return;
     }
     state.membersBusy[userId] = false;
     if (!res.ok) {
-      setMembersMsg(errMsg(payload, 'That action failed (status ' + res.status + ').'), true);
+      setMembersMsg(errMsg(payload, _t('That action failed (status ') + res.status + ').'), true);
       renderMembers();
       return;
     }
-    setMembersMsg(successMsg || 'Updated.');
+    setMembersMsg(successMsg || _t('Updated.'));
     await loadTeam();
   }
 
   async function removeMember(userId, name) {
     if (state.membersBusy[userId]) return;
-    if (!confirm('Remove ' + name + ' from the team? They will lose access to every ' +
-      'shared capture and guide.')) return;
+    if (!confirm(_t('Remove ') + name + _t(' from the team? They will lose access to every ') +
+      _t('shared capture and guide.'))) return;
 
     state.membersBusy[userId] = true;
-    setMembersMsg('Removing…');
+    setMembersMsg(_t('Removing…'));
     renderMembers();
 
     var res = null, payload = null;
@@ -522,17 +533,17 @@
       try { payload = await res.json(); } catch (e) { payload = null; }
     } catch (e) {
       state.membersBusy[userId] = false;
-      setMembersMsg('Could not reach the server.', true);
+      setMembersMsg(_t('Could not reach the server.'), true);
       renderMembers();
       return;
     }
     state.membersBusy[userId] = false;
     if (!res.ok) {
-      setMembersMsg(errMsg(payload, 'Remove failed (status ' + res.status + ').'), true);
+      setMembersMsg(errMsg(payload, _t('Remove failed (status ') + res.status + ').'), true);
       renderMembers();
       return;
     }
-    setMembersMsg('Removed ' + name + '.');
+    setMembersMsg(_t('Removed ') + name + '.');
     await loadTeam();
   }
 

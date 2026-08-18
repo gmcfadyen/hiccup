@@ -331,6 +331,17 @@ label {
 
 select.input option { background: var(--panel); }
 
+/* Language chooser, built by public/i18n.js into every [data-lang-switcher]
+   anchor. Sits next to the theme toggle and has to behave the same way in a
+   flex topbar, so it opts out of .input's full-width block layout. */
+.lang-select {
+  display: inline-block;
+  width: auto;
+  flex: none;
+  padding: 4px 6px;
+  font-size: 12.5px;
+}
+
 textarea.input { resize: vertical; min-height: 70px; }
 
 .form-error {

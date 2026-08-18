@@ -3,8 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>hiccup — config guides</title>
+<title data-i18n>hiccup — config guides</title>
 <script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<!-- Language, resolved before any markup is parsed — same FOUC-safe shape as the
+     theme line above, and for a stronger reason: _t() and its catalogue must both
+     exist before app.js's first render. document.write gives a blocking load with
+     no fetch race and no build step. -->
+<script>(function(){try{var L=localStorage.getItem('hiccup-lang');if(!/^(en|fr|es|de)$/.test(L||''))L=String(navigator.language||'en').slice(0,2).toLowerCase();if(!/^(en|fr|es|de)$/.test(L))L='en';document.documentElement.lang=L;if(L!=='en')document.write('<script src="/i18n/'+L+'.js"><\/script>');}catch(e){}})();</script>
+<script src="/i18n.js"></script>
 <link rel="icon" href="/brand/favicon.ico" sizes="32x32">
 <link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
@@ -121,26 +127,27 @@
 
 <header class="topbar">
   <a class="logo" href="/app" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
-  <nav class="topnav" aria-label="tools">
-    <a class="topnav-link" href="/app">workbench</a>
+  <nav data-i18n-attrs="aria-label" class="topnav" aria-label="tools">
+    <a data-i18n class="topnav-link" href="/app">workbench</a>
     <a class="topnav-link" href="/hmr">HMR</a>
-    <a class="topnav-link is-current" href="/kb" aria-current="page">guides</a>
-    <a class="topnav-link" href="/team">team</a>
-    <a class="topnav-link" href="/settings">settings</a>
+    <a data-i18n class="topnav-link is-current" href="/kb" aria-current="page">guides</a>
+    <a data-i18n class="topnav-link" href="/team">team</a>
+    <a data-i18n class="topnav-link" href="/settings">settings</a>
   </nav>
   <span class="topbar-spacer"></span>
-  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
-  <button id="feedback-open" class="btn" type="button" title="Send feedback about hiccup">feedback</button>
+  <span data-lang-switcher></span>
+  <button data-i18n-attrs="aria-label" class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <button data-i18n data-i18n-attrs="title" id="feedback-open" class="btn" type="button" title="Send feedback about hiccup">feedback</button>
   <a class="coffee-link" href="https://buymeacoffee.com/mcfadyen" target="_blank" rel="noopener">☕ Buy Me a Coffee</a>
   <span id="user-name" class="user-name mono"></span>
-  <button id="logout-btn" class="btn" type="button">Sign out</button>
+  <button data-i18n id="logout-btn" class="btn" type="button">Sign out</button>
 </header>
 
 <main class="page">
 
   <div class="page-head">
-    <h1>Config guides</h1>
-    <p class="page-lede">
+    <h1 data-i18n>Config guides</h1>
+    <p data-i18n class="page-lede">
       What this is for: grounding config suggestions in the vendor's own guide — upload the
       SBC documentation you trust and hiccup cites its passages instead of guessing.
     </p>
@@ -148,20 +155,20 @@
 
   <section class="kb-section">
     <div id="kb-dropzone" class="kb-dropzone">
-      <p class="kb-dz-title">Drop vendor guides here</p>
-      <p class="kb-dz-sub">.txt · .md · .html · .ini · .cfg · .conf · .cli · .log — PDF needs an optional dependency</p>
-      <button id="kb-browse" class="btn" type="button">Choose file…</button>
+      <p data-i18n class="kb-dz-title">Drop vendor guides here</p>
+      <p data-i18n class="kb-dz-sub">.txt · .md · .html · .ini · .cfg · .conf · .cli · .log — PDF needs an optional dependency</p>
+      <button data-i18n id="kb-browse" class="btn" type="button">Choose file…</button>
       <input id="kb-file" type="file" multiple
         accept=".txt,.md,.html,.htm,.ini,.cfg,.conf,.cli,.log,.pdf" hidden>
       <div class="kb-tag-row">
         <label class="kb-tag" for="kb-vendor">
-          <span>Vendor (optional)</span>
-          <input id="kb-vendor" class="input" type="text" autocomplete="off"
+          <span data-i18n>Vendor (optional)</span>
+          <input data-i18n-attrs="placeholder" id="kb-vendor" class="input" type="text" autocomplete="off"
             placeholder="oracle-acme, audiocodes, ribbon…">
         </label>
         <label class="kb-tag" for="kb-product">
-          <span>Product (optional)</span>
-          <input id="kb-product" class="input" type="text" autocomplete="off"
+          <span data-i18n>Product (optional)</span>
+          <input data-i18n-attrs="placeholder" id="kb-product" class="input" type="text" autocomplete="off"
             placeholder="Acme Packet 4600, Mediant 4000…">
         </label>
       </div>
@@ -171,25 +178,25 @@
   </section>
 
   <section class="kb-section">
-    <h2 class="kb-section-title">Your guides <span id="kb-doc-count" class="chip"></span></h2>
+    <h2 data-i18n class="kb-section-title">Your guides <span id="kb-doc-count" class="chip"></span></h2>
     <div id="kb-docs" class="kb-table-wrap"></div>
   </section>
 
   <section class="kb-section">
-    <h2 class="kb-section-title">Search the guides</h2>
+    <h2 data-i18n class="kb-section-title">Search the guides</h2>
     <form id="kb-search-form">
       <div class="kb-search-row">
-        <input id="kb-query" class="input kb-query" type="search" autocomplete="off"
+        <input data-i18n-attrs="placeholder" id="kb-query" class="input kb-query" type="search" autocomplete="off"
           placeholder="e.g. session-expires refresher, sip-manipulation store, coder group">
-        <button id="kb-search-btn" class="btn btn-primary" type="submit">Search</button>
+        <button data-i18n id="kb-search-btn" class="btn btn-primary" type="submit">Search</button>
       </div>
     </form>
     <p id="kb-count" class="kb-count"></p>
     <div id="kb-results"></div>
   </section>
 
-  <aside class="promo-card" aria-label="also from the same workshop">
-    <p><span class="promo-kicker">also from the same workshop</span>
+  <aside data-i18n-attrs="aria-label" class="promo-card" aria-label="also from the same workshop">
+    <p data-i18n><span data-i18n class="promo-kicker">also from the same workshop</span>
       <a href="https://rfplex.ai/?utm_source=hiccup&amp;utm_medium=app&amp;utm_campaign=crosslink"
         target="_blank" rel="noopener"><strong>RFPlex.ai</strong></a>
       — AI that answers RFPs, RFIs and DDQs from your own document library.

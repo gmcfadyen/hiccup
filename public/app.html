@@ -3,9 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>hiccup — workbench</title>
+<title data-i18n>hiccup — workbench</title>
 <meta name="robots" content="noindex">
 <script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<!-- Language, resolved before any markup is parsed — same FOUC-safe shape as the
+     theme line above, and for a stronger reason: _t() and its catalogue must both
+     exist before app.js's first render. document.write gives a blocking load with
+     no fetch race and no build step. -->
+<script>(function(){try{var L=localStorage.getItem('hiccup-lang');if(!/^(en|fr|es|de)$/.test(L||''))L=String(navigator.language||'en').slice(0,2).toLowerCase();if(!/^(en|fr|es|de)$/.test(L))L='en';document.documentElement.lang=L;if(L!=='en')document.write('<script src="/i18n/'+L+'.js"><\/script>');}catch(e){}})();</script>
+<script src="/i18n.js"></script>
 <link rel="icon" href="/brand/favicon.ico" sizes="32x32">
 <link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
@@ -85,88 +91,89 @@
 -->
 <body class="app">
 
-<a class="skip-link" href="#ladder-pane">skip to the ladder</a>
+<a data-i18n class="skip-link" href="#ladder-pane">skip to the ladder</a>
 
 <header class="topbar">
   <a class="logo" href="/app" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
-  <nav class="topnav" aria-label="tools">
-    <a class="topnav-link is-current" href="/app" aria-current="page">workbench</a>
+  <nav data-i18n-attrs="aria-label" class="topnav" aria-label="tools">
+    <a data-i18n class="topnav-link is-current" href="/app" aria-current="page">workbench</a>
     <a class="topnav-link" href="/hmr">HMR</a>
-    <a class="topnav-link" href="/kb">guides</a>
-    <a class="topnav-link" href="/team">team</a>
-    <a class="topnav-link" href="/settings">settings</a>
+    <a data-i18n class="topnav-link" href="/kb">guides</a>
+    <a data-i18n class="topnav-link" href="/team">team</a>
+    <a data-i18n class="topnav-link" href="/settings">settings</a>
   </nav>
   <span class="topbar-spacer"></span>
-  <span id="llm-chip" class="chip llm-chip" title="local model status">LLM …</span>
+  <span data-i18n data-i18n-attrs="title" id="llm-chip" class="chip llm-chip" title="local model status">LLM …</span>
   <button id="chat-toggle" class="btn" type="button">ask hiccup</button>
   <!-- Wave-5A #command-palette-open — the discoverable half of Ctrl/Cmd+K.
        .icon-btn gives it the shared ≥24px target + hover/focus wash. -->
-  <button id="command-palette-open" class="btn icon-btn" type="button"
+  <button data-i18n-attrs="title,aria-label" id="command-palette-open" class="btn icon-btn" type="button"
           aria-haspopup="dialog" aria-label="Open the command palette"
           title="Commands — Ctrl+K (⌘K on a Mac)">⌘</button>
-  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
-  <button id="feedback-open" class="btn" type="button" title="Send feedback about hiccup">feedback</button>
+  <span data-lang-switcher></span>
+  <button data-i18n-attrs="aria-label" class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <button data-i18n data-i18n-attrs="title" id="feedback-open" class="btn" type="button" title="Send feedback about hiccup">feedback</button>
   <a class="coffee-link" href="https://buymeacoffee.com/mcfadyen" target="_blank" rel="noopener">☕ Buy Me a Coffee</a>
   <span id="user-name" class="user-name mono"></span>
-  <button id="logout-btn" class="btn" type="button">Sign out</button>
+  <button data-i18n id="logout-btn" class="btn" type="button">Sign out</button>
 </header>
 
 <div id="layout">
 
   <!-- ============================ sidebar: captures + crosslink ============ -->
-  <aside id="sidebar" class="sidebar" aria-label="captures">
+  <aside data-i18n-attrs="aria-label" id="sidebar" class="sidebar" aria-label="captures">
 
     <div id="dropzone" class="dropzone">
-      <p class="dz-title">Drop a capture here</p>
+      <p data-i18n class="dz-title">Drop a capture here</p>
       <p class="dz-sub">.pcap · .pcapng · .cap · .txt · .log</p>
-      <button id="browse-btn" class="btn" type="button">Choose file…</button>
+      <button data-i18n id="browse-btn" class="btn" type="button">Choose file…</button>
       <input id="file-input" type="file" multiple hidden>
       <label class="dz-field" for="upload-project">
-        <span>Project</span>
-        <select id="upload-project" class="input"><option value="">Unfiled</option></select>
+        <span data-i18n>Project</span>
+        <select id="upload-project" class="input"><option data-i18n value="">Unfiled</option></select>
       </label>
       <p id="upload-msg" class="upload-msg" hidden></p>
     </div>
 
     <div class="sidebar-section">
-      <h2 class="sidebar-title">captures</h2>
+      <h2 data-i18n class="sidebar-title">captures</h2>
       <div class="project-filter-row">
-        <select id="project-filter" class="input" aria-label="filter captures by project">
-          <option value="">All captures</option>
-          <option value="unfiled">Unfiled</option>
+        <select data-i18n-attrs="aria-label" id="project-filter" class="input" aria-label="filter captures by project">
+          <option data-i18n value="">All captures</option>
+          <option data-i18n value="unfiled">Unfiled</option>
         </select>
-        <button id="project-manage-toggle" class="pane-btn" type="button">+ manage projects</button>
+        <button data-i18n id="project-manage-toggle" class="pane-btn" type="button">+ manage projects</button>
       </div>
       <div id="capture-list" class="capture-list scroll-area">
-        <p class="pane-empty">no captures yet — drop a pcap or an SBC log above and
+        <p data-i18n class="pane-empty">no captures yet — drop a pcap or an SBC log above and
         the monster gets to work.</p>
       </div>
     </div>
 
     <!-- CONTRACT project-manage-panel — inline create/rename/delete, never a modal -->
-    <div id="project-manage-panel" class="card project-manage-panel" aria-label="manage projects" hidden>
+    <div data-i18n-attrs="aria-label" id="project-manage-panel" class="card project-manage-panel" aria-label="manage projects" hidden>
       <div class="pm-head">
-        <h3>Manage projects</h3>
-        <button id="project-manage-close" class="btn icon-btn" type="button" aria-label="close">×</button>
+        <h3 data-i18n>Manage projects</h3>
+        <button data-i18n-attrs="aria-label" id="project-manage-close" class="btn icon-btn" type="button" aria-label="close">×</button>
       </div>
       <div id="project-manage-list" class="project-manage-list scroll-area">
-        <p class="pane-empty">no projects yet — create one below.</p>
+        <p data-i18n class="pane-empty">no projects yet — create one below.</p>
       </div>
       <form id="project-create-form" class="project-create-form" novalidate>
-        <label for="project-create-name">New project</label>
-        <input id="project-create-name" class="input" type="text" autocomplete="off"
+        <label data-i18n for="project-create-name">New project</label>
+        <input data-i18n-attrs="placeholder" id="project-create-name" class="input" type="text" autocomplete="off"
           placeholder="Project name" maxlength="80">
-        <label for="project-create-desc">Description (optional)</label>
-        <input id="project-create-desc" class="input" type="text" autocomplete="off"
+        <label data-i18n for="project-create-desc">Description (optional)</label>
+        <input data-i18n-attrs="placeholder" id="project-create-desc" class="input" type="text" autocomplete="off"
           placeholder="What is this project for?">
-        <button class="btn btn-primary" type="submit">Create project</button>
+        <button data-i18n class="btn btn-primary" type="submit">Create project</button>
       </form>
       <p id="project-manage-msg" class="project-manage-msg" role="status" aria-live="polite"></p>
     </div>
 
     <!-- CONTRACT #rfplex-promo — tasteful sidebar crosslink, never a modal -->
-    <aside id="rfplex-promo" class="promo-card" aria-label="also from the same workshop">
-      <p><span class="promo-kicker">also from the same workshop</span>
+    <aside data-i18n-attrs="aria-label" id="rfplex-promo" class="promo-card" aria-label="also from the same workshop">
+      <p data-i18n><span data-i18n class="promo-kicker">also from the same workshop</span>
         <a href="https://rfplex.ai/?utm_source=hiccup&amp;utm_medium=app&amp;utm_campaign=crosslink"
            target="_blank" rel="noopener"><strong>RFPlex.ai</strong></a>
         — AI that answers RFPs, RFIs and DDQs from your own document library.
@@ -178,50 +185,50 @@
   <!-- ============================ search ================================== -->
   <!-- CONTRACT #searchbar / #search-input / #search-clear / #search-count -->
   <div id="searchbar" role="search">
-    <label class="sr-only" for="search-input">search the trace</label>
-    <input id="search-input" class="input search-input mono" type="text"
+    <label data-i18n class="sr-only" for="search-input">search the trace</label>
+    <input data-i18n-attrs="title,placeholder" id="search-input" class="input search-input mono" type="text"
            autocomplete="off" spellcheck="false" enterkeyhint="search"
            placeholder="search the trace — 654321 · from:alice · method:INVITE · sev:crit · has:t38"
            title="bare text matches anything (raw messages, headers, URIs, Call-IDs, tags, branches, SDP, aux summaries, findings, advice). 4+ digits match phone numbers ignoring + - ( ) spaces. Filters: call: leg: callid: from: to: method: status: ip: port: codec: proto: sev: has:">
-    <button id="search-clear" type="button" class="search-clear icon-btn" aria-label="clear the search" title="clear">×</button>
-    <span id="search-count" class="search-count" role="status" aria-live="polite">no search</span>
+    <button data-i18n-attrs="title,aria-label" id="search-clear" type="button" class="search-clear icon-btn" aria-label="clear the search" title="clear">×</button>
+    <span data-i18n id="search-count" class="search-count" role="status" aria-live="polite">no search</span>
     <span class="search-syntax mono" aria-hidden="true">call: leg: callid: from: to: method: status: ip: port: codec: proto: sev: has:</span>
   </div>
 
   <!-- ============================ lamps strip ============================= -->
   <div id="lamps-row" class="lamps-row">
     <!-- CONTRACT #scenario-chip — click opens/focuses the drawer's advice section -->
-    <button id="scenario-chip" class="chip chip-btn scenario-chip" type="button"
+    <button data-i18n data-i18n-attrs="aria-label" id="scenario-chip" class="chip chip-btn scenario-chip" type="button"
             aria-label="detected scenario — opens the advice drawer">scenario: —</button>
 
     <!-- CONTRACT #lamps — one .lamp[data-key][data-state] per Indicator -->
-    <div id="lamps" class="lamps scroll-x" role="group" aria-label="protocol indicators">
-      <span class="lamps-empty">indicators light up once a capture is analysed — one lamp
+    <div data-i18n-attrs="aria-label" id="lamps" class="lamps scroll-x" role="group" aria-label="protocol indicators">
+      <span data-i18n class="lamps-empty">indicators light up once a capture is analysed — one lamp
       per protocol feature hiccup found.</span>
     </div>
 
     <!-- No "absent" swatch: renderLamps() drops off-state indicators entirely,
          so the legend only names states that can actually appear. -->
-    <div class="lamp-legend" aria-label="lamp legend">
-      <span class="lamp lamp-legend-item" data-state="on" aria-hidden="true">present</span>
-      <span class="lamp lamp-legend-item" data-state="partial" aria-hidden="true">partial</span>
-      <span class="lamp lamp-legend-item" data-state="issue" aria-hidden="true">issue</span>
+    <div data-i18n-attrs="aria-label" class="lamp-legend" aria-label="lamp legend">
+      <span data-i18n class="lamp lamp-legend-item" data-state="on" aria-hidden="true">present</span>
+      <span data-i18n class="lamp lamp-legend-item" data-state="partial" aria-hidden="true">partial</span>
+      <span data-i18n class="lamp lamp-legend-item" data-state="issue" aria-hidden="true">issue</span>
     </div>
   </div>
 
   <!-- ============================ left-top: session tree ================== -->
   <!-- CONTRACT #filter-pane / #filter-tree -->
-  <section id="filter-pane" class="pane" aria-label="sessions">
+  <section data-i18n-attrs="aria-label" id="filter-pane" class="pane" aria-label="sessions">
     <header class="pane-head">
-      <h2 class="pane-title">sessions</h2>
+      <h2 data-i18n class="pane-title">sessions</h2>
       <span class="pane-tools">
-        <button class="pane-btn" type="button" data-action="tree-expand-all" title="expand all">expand</button>
-        <button class="pane-btn" type="button" data-action="tree-collapse-all" title="collapse all">collapse</button>
+        <button data-i18n data-i18n-attrs="title" class="pane-btn" type="button" data-action="tree-expand-all" title="expand all">expand</button>
+        <button data-i18n data-i18n-attrs="title" class="pane-btn" type="button" data-action="tree-collapse-all" title="collapse all">collapse</button>
       </span>
     </header>
     <div class="pane-body scroll-area">
-      <div id="filter-tree" class="tree" tabindex="0" aria-label="calls, legs and transactions">
-        <p class="pane-empty">no capture selected — calls, their legs and each
+      <div data-i18n-attrs="aria-label" id="filter-tree" class="tree" tabindex="0" aria-label="calls, legs and transactions">
+        <p data-i18n class="pane-empty">no capture selected — calls, their legs and each
         transaction appear here. selecting a node scopes the ladder, the message list
         and the info pane.</p>
       </div>
@@ -230,25 +237,25 @@
 
   <!-- ============================ centre-top: ladder ===================== -->
   <!-- CONTRACT #ladder-pane / #ladder-toolbar / #time-pane / #time-gutter / #ladder-svg-host -->
-  <section id="ladder-pane" class="pane pane-ladder" aria-label="ladder diagram">
-    <header id="ladder-toolbar" class="pane-head ladder-toolbar" aria-label="ladder controls">
-      <h2 class="pane-title">ladder</h2>
+  <section data-i18n-attrs="aria-label" id="ladder-pane" class="pane pane-ladder" aria-label="ladder diagram">
+    <header data-i18n-attrs="aria-label" id="ladder-toolbar" class="pane-head ladder-toolbar" aria-label="ladder controls">
+      <h2 data-i18n class="pane-title">ladder</h2>
       <span class="pane-tools">
-        <span class="pane-tool-group" role="group" aria-label="zoom">
-          <button class="pane-btn icon-btn" type="button" data-action="ladder-zoom-out" aria-label="zoom out" title="zoom out">−</button>
-          <button class="pane-btn" type="button" data-action="ladder-zoom-reset" title="reset zoom">100%</button>
-          <button class="pane-btn icon-btn" type="button" data-action="ladder-zoom-in" aria-label="zoom in" title="zoom in">+</button>
+        <span data-i18n-attrs="aria-label" class="pane-tool-group" role="group" aria-label="zoom">
+          <button data-i18n-attrs="title,aria-label" class="pane-btn icon-btn" type="button" data-action="ladder-zoom-out" aria-label="zoom out" title="zoom out">−</button>
+          <button data-i18n-attrs="title" class="pane-btn" type="button" data-action="ladder-zoom-reset" title="reset zoom">100%</button>
+          <button data-i18n-attrs="title,aria-label" class="pane-btn icon-btn" type="button" data-action="ladder-zoom-in" aria-label="zoom in" title="zoom in">+</button>
         </span>
-        <button class="pane-btn" type="button" data-action="ladder-export" title="export the ladder as SVG">export</button>
+        <button data-i18n data-i18n-attrs="title" class="pane-btn" type="button" data-action="ladder-export" title="export the ladder as SVG">export</button>
       </span>
     </header>
     <div class="ladder-body">
-      <div id="time-pane" class="time-pane" aria-label="timestamps and deltas">
-        <div class="time-head">time · Δ</div>
+      <div data-i18n-attrs="aria-label" id="time-pane" class="time-pane" aria-label="timestamps and deltas">
+        <div data-i18n class="time-head">time · Δ</div>
         <div id="time-gutter" class="time-gutter mono"></div>
       </div>
       <div id="ladder-svg-host" class="ladder-host scroll-area" tabindex="0">
-        <p class="pane-empty">the ladder for the selected session is drawn here — one
+        <p data-i18n class="pane-empty">the ladder for the selected session is drawn here — one
         column per host:port, arrows coloured by class, retransmissions collapsed to a
         single ×N row.</p>
       </div>
@@ -257,24 +264,24 @@
 
   <!-- ============================ left-bottom: message list ============== -->
   <!-- CONTRACT #selection-pane / #selection-list -->
-  <section id="selection-pane" class="pane" aria-label="messages in the selection">
+  <section data-i18n-attrs="aria-label" id="selection-pane" class="pane" aria-label="messages in the selection">
     <header class="pane-head">
-      <h2 class="pane-title">selection</h2>
+      <h2 data-i18n class="pane-title">selection</h2>
       <span class="pane-tools">
-        <button class="pane-btn sel-sort icon-btn is-active" type="button" data-sort="n"
+        <button data-i18n-attrs="title,aria-label" class="pane-btn sel-sort icon-btn is-active" type="button" data-sort="n"
                 aria-label="sort by number" title="sort by capture order">#</button>
-        <button class="pane-btn sel-sort icon-btn" type="button" data-sort="delta"
+        <button data-i18n-attrs="title,aria-label" class="pane-btn sel-sort icon-btn" type="button" data-sort="delta"
                 aria-label="sort by delta" title="sort by delta">Δ</button>
       </span>
     </header>
     <div class="sel-head" aria-hidden="true">
       <span class="sel-c-n">#</span>
-      <span class="sel-c-desc">description</span>
-      <span class="sel-c-delta">Δ ms</span>
+      <span data-i18n class="sel-c-desc">description</span>
+      <span data-i18n class="sel-c-delta">Δ ms</span>
     </div>
     <div class="pane-body scroll-area">
-      <div id="selection-list" class="sel-list" tabindex="0" aria-label="numbered message list">
-        <p class="pane-empty">every message of the selected session lands here, numbered,
+      <div data-i18n-attrs="aria-label" id="selection-list" class="sel-list" tabindex="0" aria-label="numbered message list">
+        <p data-i18n class="pane-empty">every message of the selected session lands here, numbered,
         with the delta from the previous row — the column engineers actually read.</p>
       </div>
     </div>
@@ -283,35 +290,35 @@
   <!-- ============================ bottom-right: info pane ================ -->
   <!-- CONTRACT #info-pane / #info-tabs / #info-contents / #info-packet / #info-media
        (Wave 4: Advice is no longer a tab here — it lives in #chat-advice) -->
-  <section id="info-pane" class="pane" aria-label="details for the selection">
-    <div id="info-tabs" class="info-tabs" role="tablist" aria-label="detail views">
-      <button class="info-tab is-active" type="button" role="tab" id="info-tab-contents"
+  <section data-i18n-attrs="aria-label" id="info-pane" class="pane" aria-label="details for the selection">
+    <div data-i18n-attrs="aria-label" id="info-tabs" class="info-tabs" role="tablist" aria-label="detail views">
+      <button data-i18n class="info-tab is-active" type="button" role="tab" id="info-tab-contents"
               data-panel="info-contents" aria-controls="info-contents" aria-selected="true">Contents</button>
-      <button class="info-tab" type="button" role="tab" id="info-tab-packet"
+      <button data-i18n class="info-tab" type="button" role="tab" id="info-tab-packet"
               data-panel="info-packet" aria-controls="info-packet" aria-selected="false">Packet Info</button>
-      <button class="info-tab" type="button" role="tab" id="info-tab-media"
+      <button data-i18n class="info-tab" type="button" role="tab" id="info-tab-media"
               data-panel="info-media" aria-controls="info-media" aria-selected="false">Media</button>
       <span class="topbar-spacer"></span>
-      <button class="pane-btn" type="button" data-action="explain-selection"
+      <button data-i18n data-i18n-attrs="title" class="pane-btn" type="button" data-action="explain-selection"
               title="open the chat scoped to the current selection">explain in chat</button>
     </div>
     <div class="info-body">
 
       <div id="info-contents" class="info-panel scroll-area is-active" role="tabpanel"
            aria-labelledby="info-tab-contents" tabindex="0">
-        <p class="pane-empty">pick a message in the ladder or the selection list to read
+        <p data-i18n class="pane-empty">pick a message in the ladder or the selection list to read
         its full text here — redacted, monospaced, with search terms highlighted.</p>
       </div>
 
       <div id="info-packet" class="info-panel scroll-area" role="tabpanel"
            aria-labelledby="info-tab-packet" tabindex="0" hidden>
-        <p class="pane-empty">the parsed view: SIP headers and SDP, ISUP parameters for
+        <p data-i18n class="pane-empty">the parsed view: SIP headers and SDP, ISUP parameters for
         SIP-I bodies, Q.931 information elements for H.323 — field by field.</p>
       </div>
 
       <div id="info-media" class="info-panel scroll-area" role="tabpanel"
            aria-labelledby="info-tab-media" tabindex="0" hidden>
-        <p class="pane-empty">RTP / RTCP streams for the selected session: packets, loss,
+        <p data-i18n class="pane-empty">RTP / RTCP streams for the selected session: packets, loss,
         jitter, gaps and an estimated MOS, with a loss-over-time sparkline.</p>
       </div>
 
@@ -319,11 +326,11 @@
   </section>
 
   <!-- pane resizers: layout chrome only, no data -->
-  <div class="rz rz-col" id="rz-col-top" role="separator" aria-orientation="vertical"
+  <div data-i18n-attrs="aria-label" class="rz rz-col" id="rz-col-top" role="separator" aria-orientation="vertical"
        aria-label="resize the sessions pane" tabindex="0"></div>
-  <div class="rz rz-row" id="rz-row" role="separator" aria-orientation="horizontal"
+  <div data-i18n-attrs="aria-label" class="rz rz-row" id="rz-row" role="separator" aria-orientation="horizontal"
        aria-label="resize the ladder pane" tabindex="0"></div>
-  <div class="rz rz-col" id="rz-col-bottom" role="separator" aria-orientation="vertical"
+  <div data-i18n-attrs="aria-label" class="rz rz-col" id="rz-col-bottom" role="separator" aria-orientation="vertical"
        aria-label="resize the selection pane" tabindex="0"></div>
 
 </div>
@@ -350,34 +357,34 @@
     <strong>ask hiccup</strong>
     <span id="chat-model" class="chip"></span>
     <span class="topbar-spacer"></span>
-    <button id="chat-close" class="btn chat-close icon-btn" type="button" aria-label="close chat">×</button>
+    <button data-i18n-attrs="aria-label" id="chat-close" class="btn chat-close icon-btn" type="button" aria-label="close chat">×</button>
   </div>
 
-  <section id="chat-advice" class="chat-advice" tabindex="-1"
+  <section data-i18n-attrs="aria-label" id="chat-advice" class="chat-advice" tabindex="-1"
            aria-label="advice for the current selection">
     <div class="chat-advice-head">
-      <h2 class="chat-advice-title">advice</h2>
+      <h2 data-i18n class="chat-advice-title">advice</h2>
       <span id="chat-advice-count" class="chip mono chat-advice-count"></span>
     </div>
     <div id="chat-advice-body" class="chat-advice-body scroll-area">
-      <p class="pane-empty">what is wrong, why it matters, the mechanism, then fix
+      <p data-i18n class="pane-empty">what is wrong, why it matters, the mechanism, then fix
       cards per vendor with copyable draft config and RFC citations. deterministic —
       no invented section numbers.</p>
     </div>
   </section>
 
-  <p class="chat-crosslink muted">hiccup and RFPlex.ai share the same local-LLM stack.</p>
+  <p data-i18n class="chat-crosslink muted">hiccup and RFPlex.ai share the same local-LLM stack.</p>
   <div id="chat-scope" class="chat-scope"></div>
   <div id="chat-hint" class="chat-hint" hidden></div>
   <div id="chat-messages" class="chat-messages"></div>
   <div id="chat-error" class="chat-error" hidden></div>
-  <div id="chat-offline" class="chat-offline" hidden>
+  <div data-i18n id="chat-offline" class="chat-offline" hidden>
     local model offline — chat is unavailable. Every other feature still works.
   </div>
   <form id="chat-form" class="chat-form">
-    <textarea id="chat-input" class="input chat-input" rows="2"
+    <textarea data-i18n-attrs="placeholder" id="chat-input" class="input chat-input" rows="2"
       placeholder="Ask about this capture, SIP, H.323…"></textarea>
-    <button id="chat-send" class="btn btn-primary" type="submit">Send</button>
+    <button data-i18n id="chat-send" class="btn btn-primary" type="submit">Send</button>
   </form>
 </aside>
 
@@ -393,15 +400,15 @@
   <div id="command-palette-backdrop" class="overlay-backdrop"></div>
   <div class="overlay-panel palette-panel" role="dialog" aria-modal="true"
        aria-labelledby="command-palette-title">
-    <h2 id="command-palette-title" class="sr-only">Command palette</h2>
-    <input id="command-palette-input" class="input palette-input" type="text"
+    <h2 data-i18n id="command-palette-title" class="sr-only">Command palette</h2>
+    <input data-i18n-attrs="placeholder" id="command-palette-input" class="input palette-input" type="text"
            role="combobox" aria-expanded="true" aria-controls="command-palette-list"
            aria-autocomplete="list" autocomplete="off" spellcheck="false"
            placeholder="Type a command — theme, HMR, media, sign out…">
-    <div id="command-palette-list" class="palette-list scroll-area" role="listbox"
+    <div data-i18n-attrs="aria-label" id="command-palette-list" class="palette-list scroll-area" role="listbox"
          aria-label="commands"></div>
-    <p id="command-palette-empty" class="pane-empty" hidden>No command matches that.</p>
-    <p class="palette-foot mono" aria-hidden="true">↑ ↓ move · ⏎ run · esc close</p>
+    <p data-i18n id="command-palette-empty" class="pane-empty" hidden>No command matches that.</p>
+    <p data-i18n class="palette-foot mono" aria-hidden="true">↑ ↓ move · ⏎ run · esc close</p>
   </div>
 </div>
 
@@ -416,36 +423,36 @@
   <div class="overlay-panel shortcuts-panel" role="dialog" aria-modal="true"
        aria-labelledby="shortcuts-help-title">
     <div class="shortcuts-head">
-      <h2 id="shortcuts-help-title">Keyboard shortcuts</h2>
-      <button id="shortcuts-help-close" class="btn icon-btn" type="button"
+      <h2 data-i18n id="shortcuts-help-title">Keyboard shortcuts</h2>
+      <button data-i18n-attrs="aria-label" id="shortcuts-help-close" class="btn icon-btn" type="button"
               aria-label="close">×</button>
     </div>
     <dl class="shortcut-grid">
       <dt><kbd class="mono">Ctrl</kbd> <kbd class="mono">K</kbd></dt>
-      <dd>Open the command palette (<kbd class="mono">⌘</kbd> <kbd class="mono">K</kbd> on a Mac).
+      <dd data-i18n>Open the command palette (<kbd class="mono">⌘</kbd> <kbd class="mono">K</kbd> on a Mac).
         The one shortcut that still works while you are typing — except in the
         chat box, where it would interrupt a half-written question.</dd>
 
       <dt><kbd class="mono">/</kbd></dt>
-      <dd>Focus the trace search.</dd>
+      <dd data-i18n>Focus the trace search.</dd>
 
       <dt><kbd class="mono">j</kbd> / <kbd class="mono">k</kbd></dt>
-      <dd>Move down / up one row in whichever list you last selected in — the
+      <dd data-i18n>Move down / up one row in whichever list you last selected in — the
         sessions tree or the selection list.</dd>
 
       <dt><kbd class="mono">?</kbd></dt>
-      <dd>This list.</dd>
+      <dd data-i18n>This list.</dd>
 
       <dt><kbd class="mono">esc</kbd></dt>
-      <dd>Close the palette or this dialog · else clear and leave the search ·
+      <dd data-i18n>Close the palette or this dialog · else clear and leave the search ·
         else close the chat drawer when it is covering the panes on a narrow
         screen.</dd>
 
       <dt><kbd class="mono">tab</kbd></dt>
-      <dd>Inside a dialog, cycles within it. Closing returns you to wherever you
+      <dd data-i18n>Inside a dialog, cycles within it. Closing returns you to wherever you
         were.</dd>
     </dl>
-    <p class="shortcuts-foot muted">Single-key shortcuts never fire while you are
+    <p data-i18n class="shortcuts-foot muted">Single-key shortcuts never fire while you are
       typing in a field — <kbd class="mono">j</kbd> in the search box types a j.</p>
   </div>
 </div>

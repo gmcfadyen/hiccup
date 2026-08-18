@@ -11,6 +11,10 @@
  */
 (function () {
   'use strict';
+  // public/i18n.js publishes window._t from a blocking <head> script. The local
+  // alias keeps this file working — in English — if that script is ever missing,
+  // rather than throwing a ReferenceError out of every render.
+  var _t = (window && window._t) || function (s) { return s; };
 
   // ---------------------------------------------------------------- helpers
 
@@ -138,10 +142,10 @@
     note.appendChild(el('p', null, serverMessage));
     var p = el('p', 'muted');
     p.appendChild(document.createTextNode('PDF support is optional on purpose — hiccup ships ' +
-      'with zero runtime dependencies. Either run '));
+      _t('with zero runtime dependencies. Either run ')));
     p.appendChild(el('code', 'mono', 'npm install pdf-parse'));
     p.appendChild(document.createTextNode(' in the hiccup folder and restart it, or save the ' +
-      'guide as .txt, .md or .html and upload that instead.'));
+      _t('guide as .txt, .md or .html and upload that instead.')));
     note.appendChild(p);
   }
 
@@ -167,7 +171,7 @@
       renderDocs();
     } catch (e) {
       state.docs = [];
-      renderDocs('Could not load your guides. Is hiccup still running?');
+      renderDocs(_t('Could not load your guides. Is hiccup still running?'));
     }
   }
 
@@ -183,7 +187,7 @@
   }
 
   async function uploadFile(file) {
-    setMsg('Indexing ' + file.name + ' …');
+    setMsg(_t('Indexing ') + file.name + ' …');
     var res = null, payload = null;
     try {
       var buf = await file.arrayBuffer();
@@ -202,18 +206,18 @@
       if (res.status === 401) { location.href = '/'; return; }
       try { payload = await res.json(); } catch (e) { payload = null; }
     } catch (e) {
-      setMsg('Upload of ' + file.name + ' failed: ' +
-        (e && e.message ? e.message : 'network error'), true);
+      setMsg(_t('Upload of ') + file.name + _t(' failed: ') +
+        (e && e.message ? e.message : _t('network error')), true);
       return;
     }
 
-    var msg = payload ? (payload.error || payload.userMessage || null) : null;
+    var msg = payload ? (_t(payload.error || payload.userMessage || '') || null) : null;
     if (!res.ok) {
       if (isPdfDepMessage(msg)) {
         showNote(msg);
-        setMsg(file.name + ' was not indexed — see the note below.', true);
+        setMsg(file.name + _t(' was not indexed — see the note below.'), true);
       } else {
-        setMsg(msg || ('Upload of ' + file.name + ' failed (' + res.status + ').'), true);
+        setMsg(msg || (_t('Upload of ') + file.name + _t(' failed (') + res.status + ').'), true);
       }
       return;
     }
@@ -221,30 +225,30 @@
     hideNote();
     var doc = payload && payload.doc ? payload.doc : payload;
     var chunks = doc && typeof doc.chunks === 'number' ? doc.chunks : null;
-    setMsg('Indexed ' + ((doc && (doc.title || doc.filename)) || file.name) +
-      (chunks != null ? ' — ' + chunks + ' chunk' + (chunks === 1 ? '' : 's') : '') + '.');
+    setMsg(_t('Indexed ') + ((doc && (doc.title || doc.filename)) || file.name) +
+      (chunks != null ? ' — ' + chunks + _t(' chunk') + (chunks === 1 ? '' : 's') : '') + '.');
   }
 
   async function deleteDoc(doc) {
     var name = doc.title || doc.filename || doc.id;
-    if (!confirm('Remove "' + name + '" from the knowledge base?\n' +
-      'Config advice will stop citing it.')) return;
+    if (!confirm(_t('Remove "') + name + _t('" from the knowledge base?\n') +
+      _t('Config advice will stop citing it.'))) return;
     try {
       var r = await fetch('/api/kb/docs/' + encodeURIComponent(doc.id), { method: 'DELETE' });
       if (r.status === 401) { location.href = '/'; return; }
       if (!r.ok) {
         var j = null;
         try { j = await r.json(); } catch (e2) { /* non-json */ }
-        setMsg((j && (j.error || j.userMessage)) ||
-          ('Could not delete "' + name + '" (' + r.status + ').'), true);
+        setMsg(_t((j && (j.error || j.userMessage)) || '') ||
+          (_t('Could not delete "') + name + '" (' + r.status + ').'), true);
         await loadDocs();
         return;
       }
     } catch (e) {
-      setMsg('Could not delete "' + name + '" — the server did not answer.', true);
+      setMsg(_t('Could not delete "') + name + _t('" — the server did not answer.'), true);
       return;
     }
-    setMsg('Removed ' + name + '.');
+    setMsg(_t('Removed ') + name + '.');
     // Hits from the deleted doc are stale — drop them.
     var kept = [];
     for (var i = 0; i < state.hits.length; i++) {
@@ -266,7 +270,7 @@
     }
     $('kb-doc-count').textContent = state.docs.length
       ? (state.docs.length + ' doc' + (state.docs.length === 1 ? '' : 's') +
-         ' · ' + totalChunks + ' chunks')
+         ' · ' + totalChunks + _t(' chunks'))
       : '';
 
     if (errorText) {
@@ -277,11 +281,11 @@
     }
     if (!state.docs.length) {
       var empty = el('div', 'card kb-empty');
-      empty.appendChild(el('p', null, 'No guides yet.'));
+      empty.appendChild(el('p', null, _t('No guides yet.')));
       empty.appendChild(el('p', 'muted',
-        'Add the SBC administration guide, a release note, or your own runbook. hiccup ' +
-        'chunks it, indexes the words (no embeddings — the GPU stays free for RFPlex), and ' +
-        'quotes the relevant passage next to any config suggestion.'));
+        _t('Add the SBC administration guide, a release note, or your own runbook. hiccup ') +
+        _t('chunks it, indexes the words (no embeddings — the GPU stays free for RFPlex), and ') +
+        _t('quotes the relevant passage next to any config suggestion.')));
       host.appendChild(empty);
       return;
     }
@@ -289,7 +293,7 @@
     var table = el('table', 'kb-table');
     var thead = el('thead');
     var hrow = el('tr');
-    ['Title', 'Vendor / product', 'Chunks', 'Size', 'Added', ''].forEach(function (h) {
+    ['Title', _t('Vendor / product'), _t('Chunks'), _t('Size'), _t('Added'), ''].forEach(function (h) {
       hrow.appendChild(el('th', null, h));
     });
     thead.appendChild(hrow);
@@ -318,9 +322,9 @@
 
         var tdDel = el('td');
         if (isStr(doc.id)) {
-          var del = el('button', 'btn kb-del', 'Delete');
+          var del = el('button', 'btn kb-del', _t('Delete'));
           del.type = 'button';
-          del.title = 'remove this guide from the knowledge base';
+          del.title = _t('remove this guide from the knowledge base');
           del.addEventListener('click', function () { deleteDoc(doc); });
           tdDel.appendChild(del);
         }
@@ -361,14 +365,14 @@
       state.hits = [];
       state.terms = [];
       renderHits();
-      setCount('Type a few words from the guide — hiccup scores passages by keyword, ' +
-        'so nouns beat sentences.');
+      setCount(_t('Type a few words from the guide — hiccup scores passages by keyword, ') +
+        _t('so nouns beat sentences.'));
       return;
     }
     if (state.searching) return;
     state.searching = true;
     $('kb-search-btn').disabled = true;
-    setCount('Searching…');
+    setCount(_t('Searching…'));
 
     var res = null, payload = null;
     try {
@@ -382,18 +386,18 @@
     } catch (e) {
       state.searching = false;
       $('kb-search-btn').disabled = false;
-      setCount('Search failed — could not reach the server.', true);
+      setCount(_t('Search failed — could not reach the server.'), true);
       return;
     }
     state.searching = false;
     $('kb-search-btn').disabled = false;
 
     if (!res.ok) {
-      var msg = payload ? (payload.error || payload.userMessage) : null;
+      var msg = payload ? _t(payload.error || payload.userMessage || '') : null;
       if (isPdfDepMessage(msg)) showNote(msg);
       state.hits = [];
       renderHits();
-      setCount(msg || ('Search failed (' + res.status + ').'), true);
+      setCount(msg || (_t('Search failed (') + res.status + ').'), true);
       return;
     }
 
@@ -404,8 +408,8 @@
     state.terms = queryTerms(q);
     renderHits();
     setCount(state.hits.length
-      ? (state.hits.length + ' passage' + (state.hits.length === 1 ? '' : 's') +
-         ' matched “' + q + '”')
+      ? (state.hits.length + _t(' passage') + (state.hits.length === 1 ? '' : 's') +
+         _t(' matched “') + q + '”')
       : '');
   }
 
@@ -415,10 +419,10 @@
     if (!state.hits.length) {
       if (state.query) {
         var none = el('div', 'card kb-empty');
-        none.appendChild(el('p', null, 'Nothing in your guides matched “' + state.query + '”.'));
+        none.appendChild(el('p', null, _t('Nothing in your guides matched “') + state.query + '”.'));
         none.appendChild(el('p', 'muted', state.docs.length
-          ? 'Try the vendor’s own wording — parameter names beat descriptions.'
-          : 'There are no guides uploaded yet, so there is nothing to search.'));
+          ? _t('Try the vendor’s own wording — parameter names beat descriptions.')
+          : _t('There are no guides uploaded yet, so there is nothing to search.')));
         host.appendChild(none);
       }
       return;
@@ -437,8 +441,8 @@
       head.appendChild(el('span', 'chip', 'page ' + hit.page));
     }
     if (typeof hit.score === 'number' && isFinite(hit.score)) {
-      var s = el('span', 'chip mono', 'score ' + hit.score.toFixed(2));
-      s.title = 'BM25-ish keyword score — higher is a closer keyword match, not a ranking of truth';
+      var s = el('span', 'chip mono', _t('score ') + hit.score.toFixed(2));
+      s.title = _t('BM25-ish keyword score — higher is a closer keyword match, not a ranking of truth');
       head.appendChild(s);
     }
     card.appendChild(head);
@@ -450,7 +454,7 @@
       highlightInto(body, excerptFor(hit.text, state.terms, 700), state.terms);
       card.appendChild(body);
     } else {
-      card.appendChild(el('p', 'muted', 'This passage came back without text.'));
+      card.appendChild(el('p', 'muted', _t('This passage came back without text.')));
     }
 
     return card;

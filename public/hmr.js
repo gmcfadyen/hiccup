@@ -13,6 +13,10 @@
  */
 (function () {
   'use strict';
+  // public/i18n.js publishes window._t from a blocking <head> script. The local
+  // alias keeps this file working — in English — if that script is ever missing,
+  // rather than throwing a ReferenceError out of every render.
+  var _t = (window && window._t) || function (s) { return s; };
 
   // ---------------------------------------------------------------- helpers
 
@@ -77,25 +81,25 @@
     if (k) {
       for (var i = 0; i < VENDORS.length; i++) if (VENDORS[i].key === k) return VENDORS[i].label;
     }
-    return isStr(raw) ? raw : 'unknown vendor';
+    return isStr(raw) ? raw : _t('unknown vendor');
   }
 
   var VERDICTS = {
     'observed-as-configured': {
-      label: 'observed as configured', cls: 'chip verdict-observed',
-      note: 'the capture shows this manipulation actually happening'
+      label: _t('observed as configured'), cls: 'chip verdict-observed',
+      note: _t('the capture shows this manipulation actually happening')
     },
     'configured-not-observed': {
-      label: 'configured, not observed', cls: 'chip sev-warn',
-      note: 'the rule is configured but the capture never shows it fire'
+      label: _t('configured, not observed'), cls: 'chip sev-warn',
+      note: _t('the rule is configured but the capture never shows it fire')
     },
     'observed-not-configured': {
-      label: 'observed, not configured', cls: 'chip sev-notice',
-      note: 'the capture shows a manipulation that no rule in this config accounts for'
+      label: _t('observed, not configured'), cls: 'chip sev-notice',
+      note: _t('the capture shows a manipulation that no rule in this config accounts for')
     }
   };
 
-  var DRAFT_WARNING = 'reviewable draft — never apply unverified';
+  var DRAFT_WARNING = _t('reviewable draft — never apply unverified');
 
   // ------------------------------------------------------------------ state
 
@@ -149,10 +153,10 @@
       try {
         var text = await readAsText(f);
         $('hmr-text').value = text;
-        setStatus('Loaded ' + f.name + ' (' + text.length + ' chars). Press “Analyse config”.');
+        setStatus(_t('Loaded ') + f.name + ' (' + text.length + _t(' chars). Press “Analyse config”.'));
         analyse();
       } catch (e) {
-        setStatus('Could not read that file as text.', true);
+        setStatus(_t('Could not read that file as text.'), true);
       }
     });
 
@@ -181,7 +185,7 @@
     try {
       var r = await fetch('/api/captures');
       if (r.status === 401) { location.href = '/'; return; }
-      if (!r.ok) throw new Error('captures ' + r.status);
+      if (!r.ok) throw new Error(_t('captures ') + r.status);
       var list = await r.json();
       state.captures = Array.isArray(list) ? list : [];
     } catch (e) {
@@ -194,7 +198,7 @@
     var sel = $('hmr-capture');
     clear(sel);
     var none = el('option', null,
-      state.captures.length ? '— config only (no capture) —' : '— no captures uploaded yet —');
+      state.captures.length ? _t('— config only (no capture) —') : _t('— no captures uploaded yet —'));
     none.value = '';
     sel.appendChild(none);
     for (var i = 0; i < state.captures.length; i++) {
@@ -219,7 +223,7 @@
   function setBusy(on) {
     state.busy = !!on;
     $('hmr-analyze').disabled = !!on;
-    $('hmr-analyze').textContent = on ? 'Analysing…' : 'Analyse config';
+    $('hmr-analyze').textContent = on ? _t('Analysing…') : _t('Analyse config');
   }
 
   function resetAll() {
@@ -238,17 +242,17 @@
     if (state.busy) return;
     var text = $('hmr-text').value || '';
     if (!text.trim()) {
-      setStatus('Paste a config, or choose a config file, first.', true);
+      setStatus(_t('Paste a config, or choose a config file, first.'), true);
       return;
     }
     if (text.length > 900000) {
-      setStatus('That config is too big for the 1 MB request limit — trim it to the ' +
-        'sip-manipulation / MessageManipulations section.', true);
+      setStatus(_t('That config is too big for the 1 MB request limit — trim it to the ') +
+        _t('sip-manipulation / MessageManipulations section.'), true);
       return;
     }
 
     setBusy(true);
-    setStatus('Reading the config…');
+    setStatus(_t('Reading the config…'));
     var body = { text: text };
     if (state.captureId) body.captureId = state.captureId;
 
@@ -263,7 +267,7 @@
       try { payload = await res.json(); } catch (e) { payload = null; }
     } catch (e) {
       setBusy(false);
-      setStatus('Could not reach the server. Is hiccup still running?', true);
+      setStatus(_t('Could not reach the server. Is hiccup still running?'), true);
       return;
     }
     setBusy(false);
@@ -274,14 +278,14 @@
       state.matchesByRule = {};
       state.orphanMatches = [];
       render();
-      var err = (payload && (payload.error || payload.userMessage)) ||
-        ('Analysis failed (' + res.status + ').');
+      var err = _t((payload && (payload.error || payload.userMessage)) || '') ||
+        (_t('Analysis failed (') + res.status + ').');
       // A 404 while a capture is selected means that capture is gone (deleted in
       // another tab). Drop the selection so the next Analyse is not a dead end.
       if (res.status === 404 && state.captureId) {
         state.captureId = '';
         await loadCaptures();
-        setStatus(err + ' — the capture picker has been reset; press “Analyse config” again.', true);
+        setStatus(err + _t(' — the capture picker has been reset; press “Analyse config” again.'), true);
         return;
       }
       setStatus(err, true);
@@ -292,9 +296,9 @@
     render();
     var n = state.entries.length;
     setStatus(n
-      ? ('Read ' + n + ' rule' + (n === 1 ? '' : 's') + '.' +
-         (state.captureId ? ' Checked against the selected capture.' : ''))
-      : 'No header-manipulation rules found in that text.');
+      ? (_t('Read ') + n + _t(' rule') + (n === 1 ? '' : 's') + '.' +
+         (state.captureId ? _t(' Checked against the selected capture.') : ''))
+      : _t('No header-manipulation rules found in that text.'));
   }
 
   // ---------------------------------------------------- response normalising
@@ -415,24 +419,24 @@
     var conf = pct(state.result.confidence);
     if (conf != null) {
       var bar = el('span', 'hmr-conf-bar');
-      bar.title = 'vendor detection confidence ' + conf + '%';
+      bar.title = _t('vendor detection confidence ') + conf + '%';
       var fill = el('span', 'hmr-conf-fill');
       fill.style.width = conf + '%';
       bar.appendChild(fill);
       host.appendChild(bar);
-      host.appendChild(el('span', 'chip', conf + '% confidence'));
+      host.appendChild(el('span', 'chip', conf + _t('% confidence')));
     }
     if (!vendorKey(state.result.vendor)) {
-      host.appendChild(el('span', 'chip sev-warn', 'vendor not recognised'));
+      host.appendChild(el('span', 'chip sev-warn', _t('vendor not recognised')));
     }
-    host.appendChild(el('span', 'chip', state.entries.length + ' rule' +
+    host.appendChild(el('span', 'chip', state.entries.length + _t(' rule') +
       (state.entries.length === 1 ? '' : 's')));
     if (state.captureId) {
       var cap = null;
       for (var i = 0; i < state.captures.length; i++) {
         if (state.captures[i] && state.captures[i].id === state.captureId) cap = state.captures[i];
       }
-      host.appendChild(el('span', 'chip', 'checked against ' +
+      host.appendChild(el('span', 'chip', _t('checked against ') +
         ((cap && cap.filename) || state.captureId)));
     }
   }
@@ -455,20 +459,20 @@
     if (!state.result) {
       var intro = el('div', 'card hmr-empty');
       intro.appendChild(el('p', null,
-        'Nothing analysed yet. Paste an Oracle/Acme sip-manipulation block, an AudioCodes ' +
-        'MessageManipulations table, or Ribbon SMM rule text above.'));
+        _t('Nothing analysed yet. Paste an Oracle/Acme sip-manipulation block, an AudioCodes ') +
+        _t('MessageManipulations table, or Ribbon SMM rule text above.')));
       intro.appendChild(el('p', 'muted',
-        'Pick a capture as well and hiccup will tell you which of these rules the trace ' +
-        'actually shows firing.'));
+        _t('Pick a capture as well and hiccup will tell you which of these rules the trace ') +
+        _t('actually shows firing.')));
       host.appendChild(intro);
       return;
     }
     if (!state.entries.length) {
       var empty = el('div', 'card hmr-empty');
-      empty.appendChild(el('p', null, 'No header-manipulation rules were recognised in that text.'));
+      empty.appendChild(el('p', null, _t('No header-manipulation rules were recognised in that text.')));
       empty.appendChild(el('p', 'muted',
-        'hiccup reads Oracle/Acme sip-manipulation blocks, AudioCodes .ini ' +
-        'MessageManipulations rows and Ribbon SMM rules. Other config sections are ignored.'));
+        _t('hiccup reads Oracle/Acme sip-manipulation blocks, AudioCodes .ini ') +
+        _t('MessageManipulations rows and Ribbon SMM rules. Other config sections are ignored.')));
       host.appendChild(empty);
       return;
     }
@@ -484,7 +488,7 @@
 
     // ---- head
     var head = el('div', 'hmr-rule-head');
-    head.appendChild(el('span', 'hmr-rule-name', rule.name || rule.id || ('rule ' + (index + 1))));
+    head.appendChild(el('span', 'hmr-rule-name', rule.name || rule.id || (_t('rule ') + (index + 1))));
     if (isStr(rule.id)) head.appendChild(el('span', 'chip mono', rule.id));
     if (isStr(rule.vendor)) head.appendChild(el('span', 'chip', vendorLabel(rule.vendor)));
     card.appendChild(head);
@@ -493,15 +497,15 @@
     var meta = el('div', 'hmr-meta');
     if (isStr(rule.operation)) meta.appendChild(el('span', 'chip', rule.operation));
     var scope = rule.scope && typeof rule.scope === 'object' ? rule.scope : {};
-    if (isStr(scope.direction)) meta.appendChild(el('span', 'chip', 'direction ' + scope.direction));
+    if (isStr(scope.direction)) meta.appendChild(el('span', 'chip', _t('direction ') + scope.direction));
     if (isStr(scope.msgType)) meta.appendChild(el('span', 'chip', scope.msgType));
     if (Array.isArray(scope.methods) && scope.methods.length) {
       meta.appendChild(el('span', 'chip mono', scope.methods.join(', ')));
     }
     var tgt = targetText(rule.target);
-    if (tgt) meta.appendChild(el('span', 'chip mono', 'target ' + tgt));
+    if (tgt) meta.appendChild(el('span', 'chip mono', _t('target ') + tgt));
     if (rule.value && typeof rule.value === 'object' && isStr(rule.value.text)) {
-      meta.appendChild(el('span', 'chip mono', 'value ' + trunc(rule.value.text, 60)));
+      meta.appendChild(el('span', 'chip mono', _t('value ') + trunc(rule.value.text, 60)));
     }
     var bindings = Array.isArray(rule.bindings) ? rule.bindings : [];
     for (var b = 0; b < bindings.length; b++) {
@@ -514,10 +518,10 @@
 
     // ---- intent (the headline)
     var intentSec = el('div', 'hmr-section');
-    intentSec.appendChild(el('div', 'hmr-section-title', 'What it does'));
+    intentSec.appendChild(el('div', 'hmr-section-title', _t('What it does')));
     var intent = entry.explanation && isStr(entry.explanation.intent)
       ? entry.explanation.intent
-      : 'hiccup could not put this rule into plain English.';
+      : _t('hiccup could not put this rule into plain English.');
     intentSec.appendChild(el('p', 'hmr-intent', intent));
     card.appendChild(intentSec);
 
@@ -525,7 +529,7 @@
     var conds = Array.isArray(rule.conditions) ? rule.conditions : [];
     if (conds.length) {
       var cSec = el('div', 'hmr-section');
-      cSec.appendChild(el('div', 'hmr-section-title', 'Conditions'));
+      cSec.appendChild(el('div', 'hmr-section-title', _t('Conditions')));
       var cl = el('ul', 'hmr-improve');
       for (var c = 0; c < conds.length; c++) {
         var cd = conds[c];
@@ -534,7 +538,7 @@
         if (isStr(cd.element)) parts.push(cd.element);
         if (isStr(cd.comparison)) parts.push(cd.comparison);
         if (cd.value != null && String(cd.value) !== '') parts.push(String(cd.value));
-        cl.appendChild(el('li', 'mono', parts.join(' ') || '(empty condition)'));
+        cl.appendChild(el('li', 'mono', parts.join(' ') || _t('(empty condition)')));
       }
       if (cl.firstChild) { cSec.appendChild(cl); card.appendChild(cSec); }
     }
@@ -543,7 +547,7 @@
     if (isStr(rule.raw)) {
       var rawSec = el('div', 'hmr-section');
       var det = el('details', 'hmr-details');
-      det.appendChild(el('summary', null, 'Config as written'));
+      det.appendChild(el('summary', null, _t('Config as written')));
       det.appendChild(el('pre', 'mono hmr-snippet', rule.raw));
       rawSec.appendChild(det);
       card.appendChild(rawSec);
@@ -581,7 +585,7 @@
 
   function correctnessSection(explanation) {
     var sec = el('div', 'hmr-section');
-    sec.appendChild(el('div', 'hmr-section-title', 'Correctness'));
+    sec.appendChild(el('div', 'hmr-section-title', _t('Correctness')));
 
     var corr = explanation && typeof explanation.correctness === 'object' && explanation.correctness
       ? explanation.correctness
@@ -589,14 +593,14 @@
     var issues = corr && Array.isArray(corr.issues) ? corr.issues.filter(Boolean) : [];
 
     if (!corr) {
-      sec.appendChild(el('p', 'muted', 'No correctness check available for this rule.'));
+      sec.appendChild(el('p', 'muted', _t('No correctness check available for this rule.')));
       return sec;
     }
     if (!issues.length) {
       var ok = el('p', 'hmr-ok', (corr.ok === false ? '' : '✓ ') +
         (corr.ok === false
-          ? 'hiccup flagged this rule but reported no detail.'
-          : 'No problems found — the rule looks internally consistent.'));
+          ? _t('hiccup flagged this rule but reported no detail.')
+          : _t('No problems found — the rule looks internally consistent.')));
       if (corr.ok === false) ok.className = 'sev-warn';
       sec.appendChild(ok);
       return sec;
@@ -655,7 +659,7 @@
       ? explanation.improvements.filter(Boolean) : [];
     if (!imps.length) return null;
     var sec = el('div', 'hmr-section');
-    sec.appendChild(el('div', 'hmr-section-title', 'Suggested improvements'));
+    sec.appendChild(el('div', 'hmr-section-title', _t('Suggested improvements')));
     var ul = el('ul', 'hmr-improve');
     for (var i = 0; i < imps.length; i++) {
       var it = imps[i];
@@ -676,7 +680,7 @@
 
   function translateSection(entry) {
     var sec = el('div', 'hmr-section');
-    sec.appendChild(el('div', 'hmr-section-title', 'Translate to'));
+    sec.appendChild(el('div', 'hmr-section-title', _t('Translate to')));
 
     var rendered = entry.rendered || {};
     var chosen = state.translateTo[entry.key];
@@ -695,10 +699,10 @@
 
     var row = el('div', 'hmr-translate-row');
     var sel = el('select', 'input');
-    sel.setAttribute('aria-label', 'render this rule for another vendor');
+    sel.setAttribute('aria-label', _t('render this rule for another vendor'));
     for (var v = 0; v < VENDORS.length; v++) {
       var have = rendered[VENDORS[v].key] || rendered.__any;
-      var o = el('option', null, VENDORS[v].label + (have ? '' : ' (no draft)'));
+      var o = el('option', null, VENDORS[v].label + (have ? '' : _t(' (no draft)')));
       o.value = VENDORS[v].key;
       sel.appendChild(o);
     }
@@ -717,27 +721,27 @@
       var text = rendered[key] || rendered.__any || null;
       if (!text) {
         body.appendChild(el('p', 'muted',
-          'hiccup has no ' + vendorLabel(key) + ' rendering for this rule. Concepts that do ' +
-          'not map across vendors are left out rather than guessed at.'));
+          _t('hiccup has no ') + vendorLabel(key) + _t(' rendering for this rule. Concepts that do ') +
+          _t('not map across vendors are left out rather than guessed at.')));
         return;
       }
       // Same shape as the Advice fix cards in app.html: pre + floating copy button.
       var wrap = el('div', 'config-wrap');
       wrap.appendChild(el('pre', 'mono fix-config hmr-draft', text));
-      var copy = el('button', 'copy-btn', 'Copy');
+      var copy = el('button', 'copy-btn', _t('Copy'));
       copy.type = 'button';
-      copy.title = 'copy this draft to the clipboard';
+      copy.title = _t('copy this draft to the clipboard');
       var note = el('span', 'hmr-copy-note');
       copy.addEventListener('click', function () {
         copyText(text).then(function () {
-          copy.textContent = 'Copied';
+          copy.textContent = _t('Copied');
           copy.classList.add('is-copied');
           setTimeout(function () {
-            copy.textContent = 'Copy';
+            copy.textContent = _t('Copy');
             copy.classList.remove('is-copied');
           }, 1600);
         }, function () {
-          note.textContent = 'Copy blocked by the browser — select the text instead.';
+          note.textContent = _t('Copy blocked by the browser — select the text instead.');
           setTimeout(function () { note.textContent = ''; }, 4000);
         });
       });
@@ -760,10 +764,10 @@
     var list = rid && state.matchesByRule[rid] ? state.matchesByRule[rid] : [];
 
     var sec = el('div', 'hmr-section');
-    sec.appendChild(el('div', 'hmr-section-title', 'Against the capture'));
+    sec.appendChild(el('div', 'hmr-section-title', _t('Against the capture')));
     if (!list.length) {
-      sec.appendChild(el('p', 'muted', 'hiccup could not tie this rule to anything in the ' +
-        'selected capture — it may simply never have been exercised.'));
+      sec.appendChild(el('p', 'muted', _t('hiccup could not tie this rule to anything in the ') +
+        _t('selected capture — it may simply never have been exercised.')));
       return sec;
     }
     for (var i = 0; i < list.length; i++) sec.appendChild(matchRow(list[i]));
@@ -786,7 +790,7 @@
       var ids = el('div', 'hmr-match-line hmr-ids');
       for (var t = 0; t < tags.length; t++) ids.appendChild(el('span', 'chip mono', tags[t]));
       if (callIds.length) {
-        ids.appendChild(el('span', 'mono', 'calls: ' + callIds.join(', ')));
+        ids.appendChild(el('span', 'mono', _t('calls: ') + callIds.join(', ')));
       }
       row.appendChild(ids);
     }
@@ -799,10 +803,10 @@
     if (!state.captureId || !state.orphanMatches.length) return;
 
     var card = el('section', 'card hmr-rule-card');
-    card.appendChild(el('div', 'hmr-rule-name', 'Seen in the capture, not in this config'));
+    card.appendChild(el('div', 'hmr-rule-name', _t('Seen in the capture, not in this config')));
     card.appendChild(el('p', 'muted',
-      'These manipulations show up in the trace but no rule above accounts for them — ' +
-      'another manipulation set, a different binding, or a rule hiccup could not parse.'));
+      _t('These manipulations show up in the trace but no rule above accounts for them — ') +
+      _t('another manipulation set, a different binding, or a rule hiccup could not parse.')));
     for (var i = 0; i < state.orphanMatches.length; i++) {
       card.appendChild(matchRow(state.orphanMatches[i]));
     }

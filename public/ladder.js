@@ -22,6 +22,10 @@
  */
 (function () {
   'use strict';
+  // public/i18n.js publishes window._t from a blocking <head> script. The local
+  // alias keeps this file working — in English — if that script is ever missing,
+  // rather than throwing a ReferenceError out of every render.
+  var _t = (window && window._t) || function (s) { return s; };
 
   var SVGNS = 'http://www.w3.org/2000/svg';
 
@@ -212,7 +216,7 @@
     if (!m) return '?';
     if (m.protocol === 'h323' || m.q931Type) {
       var h = str(m.q931Type || 'H.323');
-      if (m.causeCode != null) h += ' (cause ' + m.causeCode + (m.causeText ? ' ' + m.causeText : '') + ')';
+      if (m.causeCode != null) h += _t(' (cause ') + m.causeCode + (m.causeText ? ' ' + m.causeText : '') + ')';
       return h;
     }
     if (m.isRequest) {
@@ -243,7 +247,7 @@
     if (loss != null) extra.push(loss.toFixed(2) + '% loss');
     var jit = num(s.meanJitterMs);
     if (jit != null) extra.push(jit.toFixed(1) + 'ms jitter');
-    if (s.oneWay) extra.push('one-way');
+    if (s.oneWay) extra.push(_t('one-way'));
     return extra.length ? d + ' · ' + extra.join(' · ') : d;
   }
 
@@ -568,7 +572,7 @@
       'data-zoom': zoom,
       'font-family': 'ui-monospace, Consolas, monospace',
       role: 'img',
-      'aria-label': 'ladder diagram, ' + rows.length + ' rows'
+      'aria-label': _t('ladder diagram, ') + rows.length + _t(' rows')
     });
 
     // Opaque background so an exported SVG is readable outside the app.
@@ -594,7 +598,7 @@
             n++; names.push(ok);
           }
         }
-        label = 'others (' + n + ')';
+        label = _t('others (') + n + ')';
         full = names.join(', ');
       }
       var ht = svgText(hx, 16, truncate(label, 21), 'lad-host', 'middle');
@@ -611,7 +615,7 @@
     }
 
     if (!rows.length) {
-      var empty = svgText(PADL + 4, TOP + 18, 'Nothing to draw for this selection.', 'lad-empty');
+      var empty = svgText(PADL + 4, TOP + 18, _t('Nothing to draw for this selection.'), 'lad-empty');
       empty.setAttribute('fill', C.muted);
       empty.setAttribute('font-size', '12');
       svg.appendChild(empty);
@@ -724,7 +728,7 @@
         g.appendChild(bt);
         addTitle(g, (row.collapse && row.collapse.label)
           ? row.collapse.label
-          : (badgeStr + ' retransmissions'));
+          : (badgeStr + _t(' retransmissions')));
         badgeX += bw + 6;
       }
 
@@ -735,7 +739,7 @@
           fill: row.sev === 'crit' ? C.crit : C.warn
         });
         g.appendChild(dot);
-        var tip = row.adviceTitle || row.findingTitle || (row.sev + ' finding on this message');
+        var tip = row.adviceTitle || row.findingTitle || (row.sev + _t(' finding on this message'));
         addTitle(dot, tip);
         if (!g.querySelector('title')) addTitle(g, tip);
       }

@@ -2835,6 +2835,7 @@ server.listen(PORT, HOST, () => {
   }
   startFeedbackDigestTimer();
   startRetentionTimer();
+  startI18nRefreshTimer();
 });
 
 /**
@@ -2911,6 +2912,49 @@ function startFeedbackDigestTimer() {
   if (typeof timer.unref === 'function') timer.unref();   // never hold shutdown open
   tick();
   console.log('hiccup: feedback digest armed — Mondays 09:00 local, to ' + to);
+}
+
+/**
+ * Nightly UI-translation refresh (midnight local).
+ *
+ * Re-scans public/*.html, public/*.js and this file for English UI strings and
+ * records the ones whose hash has no entry in locales/fr|es|de.json into
+ * `<dataDir>/i18n-missing.json`. It RECORDS rather than machine-translates:
+ * generated text written into the repo unattended is text nobody reviewed, and
+ * an untranslated string already renders as correct English, which is a much
+ * better failure than a confident mistranslation. See lib/i18n.js.
+ *
+ * Polled every 15 minutes against lib/i18n.js's refreshDue() — the same shape as
+ * startFeedbackDigestTimer() above, and for the same reason: a setInterval(24h)
+ * on a box that reboots for Windows updates drifts by the boot time every
+ * restart and skips the day entirely if the reboot straddles midnight. "Today's
+ * refresh has not run yet" can do neither.
+ *
+ * Writes only inside DATA_DIR. Regenerating locales/ and public/i18n/ is a
+ * deploy step (`npm run i18n`), never something the live service does to its own
+ * source tree.
+ */
+function startI18nRefreshTimer() {
+  let i18n;
+  try { i18n = require('./lib/i18n'); } catch {
+    console.log('hiccup: i18n refresh disabled (lib/i18n.js is not deployed)');
+    return;
+  }
+  const tick = () => {
+    try {
+      const out = i18n.refreshIfDue(DATA_DIR);
+      if (!out.ran) return;
+      for (const line of out.lines) console.log('hiccup: i18n ' + line);
+    } catch (e) {
+      // A broken catalogue must never take the server down with it: the UI
+      // falls back to English on its own and the report is not load-bearing.
+      console.error('hiccup: i18n refresh failed: ' + ((e && e.message) || e));
+    }
+  };
+  const timer = setInterval(tick, 15 * 60 * 1000);
+  if (typeof timer.unref === 'function') timer.unref();
+  tick();
+  console.log('hiccup: i18n refresh armed — midnight local, report in ' + i18n.reportFile(DATA_DIR));
 }
 
 let shuttingDown = false;

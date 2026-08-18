@@ -3,9 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>hiccup — team</title>
+<title data-i18n>hiccup — team</title>
 <meta name="robots" content="noindex">
 <script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<!-- Language, resolved before any markup is parsed — same FOUC-safe shape as the
+     theme line above, and for a stronger reason: _t() and its catalogue must both
+     exist before app.js's first render. document.write gives a blocking load with
+     no fetch race and no build step. -->
+<script>(function(){try{var L=localStorage.getItem('hiccup-lang');if(!/^(en|fr|es|de)$/.test(L||''))L=String(navigator.language||'en').slice(0,2).toLowerCase();if(!/^(en|fr|es|de)$/.test(L))L='en';document.documentElement.lang=L;if(L!=='en')document.write('<script src="/i18n/'+L+'.js"><\/script>');}catch(e){}})();</script>
+<script src="/i18n.js"></script>
 <link rel="icon" href="/brand/favicon.ico" sizes="32x32">
 <link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
@@ -107,26 +113,27 @@
 
 <header class="topbar">
   <a class="logo" href="/app" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
-  <nav class="topnav" aria-label="tools">
-    <a class="topnav-link" href="/app">workbench</a>
+  <nav data-i18n-attrs="aria-label" class="topnav" aria-label="tools">
+    <a data-i18n class="topnav-link" href="/app">workbench</a>
     <a class="topnav-link" href="/hmr">HMR</a>
-    <a class="topnav-link" href="/kb">guides</a>
-    <a class="topnav-link is-current" href="/team" aria-current="page">team</a>
-    <a class="topnav-link" href="/settings">settings</a>
+    <a data-i18n class="topnav-link" href="/kb">guides</a>
+    <a data-i18n class="topnav-link is-current" href="/team" aria-current="page">team</a>
+    <a data-i18n class="topnav-link" href="/settings">settings</a>
   </nav>
   <span class="topbar-spacer"></span>
-  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
-  <button id="feedback-open" class="btn" type="button" title="Send feedback about hiccup">feedback</button>
+  <span data-lang-switcher></span>
+  <button data-i18n-attrs="aria-label" class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <button data-i18n data-i18n-attrs="title" id="feedback-open" class="btn" type="button" title="Send feedback about hiccup">feedback</button>
   <a class="coffee-link" href="https://buymeacoffee.com/mcfadyen" target="_blank" rel="noopener">☕ Buy Me a Coffee</a>
   <span id="user-name" class="user-name mono"></span>
-  <button id="logout-btn" class="btn" type="button">Sign out</button>
+  <button data-i18n id="logout-btn" class="btn" type="button">Sign out</button>
 </header>
 
 <main class="page">
 
   <div class="page-head">
-    <h1>Team</h1>
-    <p class="page-lede">
+    <h1 data-i18n>Team</h1>
+    <p data-i18n class="page-lede">
       A team shares every capture and guide with all of its members equally — there is
       no per-project permission to configure. Invite a colleague and you will both see
       the same library.
@@ -134,27 +141,27 @@
   </div>
 
   <section id="team-loading" class="card team-card">
-    <p class="muted">Loading your team…</p>
+    <p data-i18n class="muted">Loading your team…</p>
   </section>
 
   <section id="team-error" class="card team-card" hidden>
     <p id="team-error-text" class="sev-crit" role="alert"></p>
-    <button id="team-retry" class="btn" type="button">Try again</button>
+    <button data-i18n id="team-retry" class="btn" type="button">Try again</button>
   </section>
 
   <!-- "no team yet" state -->
   <section id="team-create" class="card team-card" hidden>
-    <h2>Create your team</h2>
-    <p class="muted">
+    <h2 data-i18n>Create your team</h2>
+    <p data-i18n class="muted">
       Create a team and every capture and guide already in your library becomes shared
       with whoever you invite — nothing to migrate, nothing to configure per file.
     </p>
     <form id="team-create-form" novalidate>
-      <label for="team-name-input">Team name</label>
-      <input id="team-name-input" class="input" type="text" autocomplete="off"
+      <label data-i18n for="team-name-input">Team name</label>
+      <input data-i18n-attrs="placeholder" id="team-name-input" class="input" type="text" autocomplete="off"
         placeholder="e.g. Acme NetOps" maxlength="80" required>
       <p id="team-create-error" class="form-error" role="alert"></p>
-      <button class="btn btn-primary" type="submit" id="team-create-btn">Create team</button>
+      <button data-i18n class="btn btn-primary" type="submit" id="team-create-btn">Create team</button>
     </form>
   </section>
 
@@ -164,23 +171,23 @@
     <section id="team-summary" class="card team-card"></section>
 
     <section id="team-invite-card" class="card team-card" hidden>
-      <h2>Invite a colleague</h2>
-      <p class="muted">hiccup does not send email — you copy the link and share it yourself.</p>
+      <h2 data-i18n>Invite a colleague</h2>
+      <p data-i18n class="muted">hiccup does not send email — you copy the link and share it yourself.</p>
       <form id="team-invite-form" novalidate>
-        <label for="team-invite-email">Email</label>
-        <input id="team-invite-email" class="input" type="email" autocomplete="off"
+        <label data-i18n for="team-invite-email">Email</label>
+        <input data-i18n-attrs="placeholder" id="team-invite-email" class="input" type="email" autocomplete="off"
           placeholder="colleague@example.com" required>
         <p id="team-invite-error" class="form-error" role="alert"></p>
-        <button class="btn btn-primary" type="submit" id="team-invite-btn">Create invite link</button>
+        <button data-i18n class="btn btn-primary" type="submit" id="team-invite-btn">Create invite link</button>
       </form>
 
       <div id="team-invite-result" class="team-invite-result" hidden>
-        <label for="team-invite-url">Invite link for <span id="team-invite-result-email" class="mono"></span></label>
+        <label data-i18n for="team-invite-url">Invite link for <span id="team-invite-result-email" class="mono"></span></label>
         <div class="team-invite-copy-row">
           <input id="team-invite-url" class="input mono" type="text" readonly>
-          <button id="team-invite-copy" class="btn" type="button">Copy</button>
+          <button data-i18n id="team-invite-copy" class="btn" type="button">Copy</button>
         </div>
-        <p class="team-invite-note">No email is sent — copy this link and send it to your colleague yourself.</p>
+        <p data-i18n class="team-invite-note">No email is sent — copy this link and send it to your colleague yourself.</p>
         <p id="team-invite-copy-msg" class="team-copy-msg" role="status" aria-live="polite"></p>
       </div>
 
@@ -188,15 +195,15 @@
     </section>
 
     <section class="card team-card">
-      <h2>Members</h2>
+      <h2 data-i18n>Members</h2>
       <div id="team-members" class="team-table-wrap"></div>
       <p id="team-members-msg" class="team-members-msg" role="status" aria-live="polite"></p>
     </section>
 
   </div>
 
-  <aside class="promo-card" aria-label="also from the same workshop">
-    <p><span class="promo-kicker">also from the same workshop</span>
+  <aside data-i18n-attrs="aria-label" class="promo-card" aria-label="also from the same workshop">
+    <p data-i18n><span data-i18n class="promo-kicker">also from the same workshop</span>
       <a href="https://rfplex.ai/?utm_source=hiccup&amp;utm_medium=app&amp;utm_campaign=crosslink"
         target="_blank" rel="noopener"><strong>RFPlex.ai</strong></a>
       — AI that answers RFPs, RFIs and DDQs from your own document library.

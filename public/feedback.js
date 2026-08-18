@@ -15,13 +15,17 @@
  */
 (function () {
   'use strict';
+  // public/i18n.js publishes window._t from a blocking <head> script. The local
+  // alias keeps this file working — in English — if that script is ever missing,
+  // rather than throwing a ReferenceError out of every render.
+  var _t = (window && window._t) || function (s) { return s; };
 
   var KINDS = [
-    { key: 'bug', label: 'Something is broken' },
-    { key: 'confusing', label: 'Something is confusing' },
-    { key: 'idea', label: 'I have an idea' },
-    { key: 'praise', label: 'Something works well' },
-    { key: 'other', label: 'Other' }
+    { key: 'bug', label: _t('Something is broken') },
+    { key: 'confusing', label: _t('Something is confusing') },
+    { key: 'idea', label: _t('I have an idea') },
+    { key: 'praise', label: _t('Something works well') },
+    { key: 'other', label: _t('Other') }
   ];
 
   var appVersion = '';
@@ -84,7 +88,7 @@
     panel.setAttribute('aria-labelledby', 'feedback-title');
 
     var head = el('div', 'feedback-head');
-    var h2 = el('h2', null, 'Send feedback');
+    var h2 = el('h2', null, _t('Send feedback'));
     h2.id = 'feedback-title';
     head.appendChild(h2);
     var closeBtn = el('button', 'btn icon-btn', '×');
@@ -97,7 +101,7 @@
     var form = el('form', 'feedback-form');
     form.id = 'feedback-form';
 
-    var kindLabel = el('label', 'feedback-label', 'What kind of feedback?');
+    var kindLabel = el('label', 'feedback-label', _t('What kind of feedback?'));
     kindLabel.setAttribute('for', 'feedback-kind');
     form.appendChild(kindLabel);
     var kind = el('select', 'input');
@@ -109,7 +113,7 @@
     }
     form.appendChild(kind);
 
-    var cLabel = el('label', 'feedback-label', 'Your comment');
+    var cLabel = el('label', 'feedback-label', _t('Your comment'));
     cLabel.setAttribute('for', 'feedback-comment');
     form.appendChild(cLabel);
     var comment = el('textarea', 'input feedback-comment');
@@ -117,15 +121,15 @@
     comment.rows = 5;
     comment.maxLength = 4000;
     comment.required = true;
-    comment.placeholder = 'What happened, or what would you like to see?';
+    comment.placeholder = _t('What happened, or what would you like to see?');
     form.appendChild(comment);
 
-    var rLabel = el('label', 'feedback-label', 'Rate this page (optional)');
+    var rLabel = el('label', 'feedback-label', _t('Rate this page (optional)'));
     rLabel.setAttribute('for', 'feedback-rating');
     form.appendChild(rLabel);
     var rating = el('select', 'input');
     rating.id = 'feedback-rating';
-    var none = el('option', null, 'no rating');
+    var none = el('option', null, _t('no rating'));
     none.value = '';
     rating.appendChild(none);
     for (var r = 1; r <= 5; r++) {
@@ -145,14 +149,14 @@
     inc.checked = true;
     incLabel.appendChild(inc);
     incLabel.appendChild(el('span', null,
-      ' Include what I was looking at (helps a lot with reproducing bugs)'));
+      _t(' Include what I was looking at (helps a lot with reproducing bugs)')));
     ctxWrap.appendChild(incLabel);
 
     var toggle = el('button', 'feedback-context-toggle');
     toggle.type = 'button';
     toggle.id = 'feedback-context-toggle';
     toggle.setAttribute('aria-expanded', 'false');
-    toggle.textContent = 'show exactly what will be sent';
+    toggle.textContent = _t('show exactly what will be sent');
     ctxWrap.appendChild(toggle);
 
     var pre = el('pre', 'feedback-context-pre mono');
@@ -161,8 +165,8 @@
     ctxWrap.appendChild(pre);
 
     ctxWrap.appendChild(el('p', 'feedback-note',
-      'Never included: your capture file, message contents, phone numbers, ' +
-      'IP addresses, the capture filename, or anything typed in the search box.'));
+      _t('Never included: your capture file, message contents, phone numbers, ') +
+      _t('IP addresses, the capture filename, or anything typed in the search box.')));
 
     form.appendChild(ctxWrap);
 
@@ -173,11 +177,11 @@
     form.appendChild(msg);
 
     var foot = el('div', 'feedback-foot');
-    var cancel = el('button', 'btn', 'Cancel');
+    var cancel = el('button', 'btn', _t('Cancel'));
     cancel.type = 'button';
     cancel.id = 'feedback-cancel';
     foot.appendChild(cancel);
-    var submit = el('button', 'btn btn-primary', 'Send feedback');
+    var submit = el('button', 'btn btn-primary', _t('Send feedback'));
     submit.type = 'submit';
     submit.id = 'feedback-submit';
     foot.appendChild(submit);
@@ -239,13 +243,13 @@
     ev.preventDefault();
     var comment = els.comment.value.trim();
     if (!comment) {
-      els.msg.textContent = 'Please write a comment first.';
+      els.msg.textContent = _t('Please write a comment first.');
       els.msg.className = 'feedback-msg is-err';
       els.comment.focus();
       return;
     }
     els.submit.disabled = true;
-    els.msg.textContent = 'Sending…';
+    els.msg.textContent = _t('Sending…');
     els.msg.className = 'feedback-msg';
 
     var payload = {
@@ -264,16 +268,16 @@
       var data = {};
       try { data = await r.json(); } catch (e) { /* non-JSON body */ }
       if (r.ok) {
-        els.msg.textContent = 'Thank you — that has been sent.';
+        els.msg.textContent = _t('Thank you — that has been sent.');
         els.msg.className = 'feedback-msg is-ok';
         els.comment.value = '';
         setTimeout(close, 1200);
         return;
       }
-      els.msg.textContent = (data && data.error) || ('Could not send (' + r.status + ')');
+      els.msg.textContent = _t((data && data.error) || '') || (_t('Could not send (') + r.status + ')');
       els.msg.className = 'feedback-msg is-err';
     } catch (e) {
-      els.msg.textContent = 'Could not reach the server.';
+      els.msg.textContent = _t('Could not reach the server.');
       els.msg.className = 'feedback-msg is-err';
     }
     els.submit.disabled = false;
@@ -287,7 +291,7 @@
     var b = el('button', 'btn feedback-launcher', 'feedback');
     b.type = 'button';
     b.id = 'feedback-open';
-    b.title = 'Send feedback about hiccup';
+    b.title = _t('Send feedback about hiccup');
     document.body.appendChild(b);
     return b;
   }
@@ -304,7 +308,7 @@
       var showing = !els.pre.hidden;
       els.pre.hidden = showing;
       els.toggle.setAttribute('aria-expanded', showing ? 'false' : 'true');
-      els.toggle.textContent = showing ? 'show exactly what will be sent' : 'hide';
+      els.toggle.textContent = showing ? _t('show exactly what will be sent') : 'hide';
     });
     els.include.addEventListener('change', function () {
       els.pre.style.opacity = els.include.checked ? '' : '0.45';

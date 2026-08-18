@@ -3,9 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>hiccup — header manipulation</title>
+<title data-i18n>hiccup — header manipulation</title>
 <meta name="robots" content="noindex">
 <script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<!-- Language, resolved before any markup is parsed — same FOUC-safe shape as the
+     theme line above, and for a stronger reason: _t() and its catalogue must both
+     exist before app.js's first render. document.write gives a blocking load with
+     no fetch race and no build step. -->
+<script>(function(){try{var L=localStorage.getItem('hiccup-lang');if(!/^(en|fr|es|de)$/.test(L||''))L=String(navigator.language||'en').slice(0,2).toLowerCase();if(!/^(en|fr|es|de)$/.test(L))L='en';document.documentElement.lang=L;if(L!=='en')document.write('<script src="/i18n/'+L+'.js"><\/script>');}catch(e){}})();</script>
+<script src="/i18n.js"></script>
 <link rel="icon" href="/brand/favicon.ico" sizes="32x32">
 <link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
@@ -161,26 +167,27 @@
 
 <header class="topbar">
   <a class="logo" href="/app" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
-  <nav class="topnav" aria-label="tools">
-    <a class="topnav-link" href="/app">workbench</a>
+  <nav data-i18n-attrs="aria-label" class="topnav" aria-label="tools">
+    <a data-i18n class="topnav-link" href="/app">workbench</a>
     <a class="topnav-link is-current" href="/hmr" aria-current="page">HMR</a>
-    <a class="topnav-link" href="/kb">guides</a>
-    <a class="topnav-link" href="/team">team</a>
-    <a class="topnav-link" href="/settings">settings</a>
+    <a data-i18n class="topnav-link" href="/kb">guides</a>
+    <a data-i18n class="topnav-link" href="/team">team</a>
+    <a data-i18n class="topnav-link" href="/settings">settings</a>
   </nav>
   <span class="topbar-spacer"></span>
-  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
-  <button id="feedback-open" class="btn" type="button" title="Send feedback about hiccup">feedback</button>
+  <span data-lang-switcher></span>
+  <button data-i18n-attrs="aria-label" class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <button data-i18n data-i18n-attrs="title" id="feedback-open" class="btn" type="button" title="Send feedback about hiccup">feedback</button>
   <a class="coffee-link" href="https://buymeacoffee.com/mcfadyen" target="_blank" rel="noopener">☕ Buy Me a Coffee</a>
   <span id="user-name" class="user-name mono"></span>
-  <button id="logout-btn" class="btn" type="button">Sign out</button>
+  <button data-i18n id="logout-btn" class="btn" type="button">Sign out</button>
 </header>
 
 <main class="page">
 
   <div class="page-head">
-    <h1>Header manipulation rules</h1>
-    <p class="page-lede">
+    <h1 data-i18n>Header manipulation rules</h1>
+    <p data-i18n class="page-lede">
       Paste an SBC config (or pick a file) and hiccup reads the header-manipulation rules
       back to you in plain English, checks them for the usual mistakes, and can re-render
       any rule for another vendor. Drafts are for review — hiccup never applies config.
@@ -188,23 +195,23 @@
   </div>
 
   <section class="card hmr-input-card">
-    <label for="hmr-text">SBC config — Oracle/Acme <span class="mono">sip-manipulation</span>,
+    <label data-i18n for="hmr-text">SBC config — Oracle/Acme <span class="mono">sip-manipulation</span>,
       AudioCodes <span class="mono">.ini</span> MessageManipulations, or Ribbon SMM rules</label>
     <textarea id="hmr-text" class="input mono hmr-text" spellcheck="false"
       placeholder="sip-manipulation&#10;    name                  fix-from&#10;    header-rule&#10;        name              From&#10;        header-name       From&#10;        action            manipulate&#10;        …"></textarea>
 
     <div class="hmr-row">
-      <button id="hmr-analyze" class="btn btn-primary hmr-big" type="button">Analyse config</button>
-      <button id="hmr-browse" class="btn" type="button">Choose config file…</button>
+      <button data-i18n id="hmr-analyze" class="btn btn-primary hmr-big" type="button">Analyse config</button>
+      <button data-i18n id="hmr-browse" class="btn" type="button">Choose config file…</button>
       <input id="hmr-file" type="file"
         accept=".cfg,.ini,.txt,.conf,.cli,.log,.smm,.xml,text/plain" hidden>
       <span id="hmr-file-name" class="hmr-file-name"></span>
       <span class="topbar-spacer"></span>
       <label class="hmr-field" for="hmr-capture">
-        <span>Check against a capture</span>
+        <span data-i18n>Check against a capture</span>
         <select id="hmr-capture" class="input"></select>
       </label>
-      <button id="hmr-clear" class="btn" type="button">Clear</button>
+      <button data-i18n id="hmr-clear" class="btn" type="button">Clear</button>
     </div>
 
     <p id="hmr-status" class="hmr-status" role="status" aria-live="polite"></p>
@@ -215,8 +222,8 @@
   <section id="hmr-rules"></section>
   <section id="hmr-orphans"></section>
 
-  <aside class="promo-card" aria-label="also from the same workshop">
-    <p><span class="promo-kicker">also from the same workshop</span>
+  <aside data-i18n-attrs="aria-label" class="promo-card" aria-label="also from the same workshop">
+    <p data-i18n><span data-i18n class="promo-kicker">also from the same workshop</span>
       <a href="https://rfplex.ai/?utm_source=hiccup&amp;utm_medium=app&amp;utm_campaign=crosslink"
         target="_blank" rel="noopener"><strong>RFPlex.ai</strong></a>
       — AI that answers RFPs, RFIs and DDQs from your own document library.

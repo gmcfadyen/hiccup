@@ -3,9 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>hiccup — feedback</title>
+<title data-i18n>hiccup — feedback</title>
 <meta name="robots" content="noindex">
 <script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<!-- Language, resolved before any markup is parsed — same FOUC-safe shape as the
+     theme line above, and for a stronger reason: _t() and its catalogue must both
+     exist before app.js's first render. document.write gives a blocking load with
+     no fetch race and no build step. -->
+<script>(function(){try{var L=localStorage.getItem('hiccup-lang');if(!/^(en|fr|es|de)$/.test(L||''))L=String(navigator.language||'en').slice(0,2).toLowerCase();if(!/^(en|fr|es|de)$/.test(L))L='en';document.documentElement.lang=L;if(L!=='en')document.write('<script src="/i18n/'+L+'.js"><\/script>');}catch(e){}})();</script>
+<script src="/i18n.js"></script>
 <link rel="icon" href="/brand/favicon.ico" sizes="32x32">
 <link rel="stylesheet" href="/hiccup.css">
 <link rel="stylesheet" href="/app.css">
@@ -34,29 +40,30 @@
 
 <header class="topbar">
   <a class="logo" href="/app" aria-label="hiccup">hic<span class="logo-bump">c</span>up</a>
-  <nav class="topnav" aria-label="tools">
-    <a class="topnav-link" href="/app">workbench</a>
+  <nav data-i18n-attrs="aria-label" class="topnav" aria-label="tools">
+    <a data-i18n class="topnav-link" href="/app">workbench</a>
     <a class="topnav-link" href="/hmr">HMR</a>
-    <a class="topnav-link" href="/kb">guides</a>
-    <a class="topnav-link" href="/team">team</a>
+    <a data-i18n class="topnav-link" href="/kb">guides</a>
+    <a data-i18n class="topnav-link" href="/team">team</a>
   </nav>
   <span class="topbar-spacer"></span>
-  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <span data-lang-switcher></span>
+  <button data-i18n-attrs="aria-label" class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
 </header>
 
 <main class="fb-admin">
   <div class="fb-admin-head">
     <div>
-      <h1>Feedback</h1>
-      <p class="muted" id="fb-summary">loading…</p>
+      <h1 data-i18n>Feedback</h1>
+      <p data-i18n class="muted" id="fb-summary">loading…</p>
     </div>
   </div>
 
   <div class="fb-toolbar">
-    <label><input type="checkbox" id="fb-unread-only"> unread only</label>
+    <label data-i18n><input type="checkbox" id="fb-unread-only"> unread only</label>
     <span class="topbar-spacer"></span>
-    <button class="btn" id="fb-digest-dry" type="button">preview digest</button>
-    <button class="btn" id="fb-digest-send" type="button">send digest now</button>
+    <button data-i18n class="btn" id="fb-digest-dry" type="button">preview digest</button>
+    <button data-i18n class="btn" id="fb-digest-send" type="button">send digest now</button>
   </div>
 
   <p id="fb-msg" class="feedback-msg" role="status" aria-live="polite"></p>

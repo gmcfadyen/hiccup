@@ -10,6 +10,10 @@
  * three-state model (system / explicit light / explicit dark).
  */
 (function () {
+  // public/i18n.js publishes window._t from a blocking <head> script. The local
+  // alias keeps this file working — in English — if that script is ever missing,
+  // rather than throwing a ReferenceError out of every render.
+  var _t = (window && window._t) || function (s) { return s; };
   var STORAGE_KEY = 'hiccup-theme';
   var root = document.documentElement;
 
@@ -44,8 +48,8 @@
     var btns = document.querySelectorAll('[data-theme-toggle]');
     for (var i = 0; i < btns.length; i++) {
       var b = btns[i];
-      b.setAttribute('aria-label', isLight ? 'Switch to dark theme' : 'Switch to light theme');
-      b.setAttribute('title', isLight ? 'Switch to dark theme' : 'Switch to light theme');
+      b.setAttribute('aria-label', isLight ? _t('Switch to dark theme') : _t('Switch to light theme'));
+      b.setAttribute('title', isLight ? _t('Switch to dark theme') : _t('Switch to light theme'));
       b.textContent = isLight ? '☾' : '☀'; // crescent moon / sun -- shows what you'd switch TO
     }
   }

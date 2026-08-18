@@ -22,6 +22,10 @@
  */
 (function () {
   'use strict';
+  // public/i18n.js publishes window._t from a blocking <head> script. The local
+  // alias keeps this file working — in English — if that script is ever missing,
+  // rather than throwing a ReferenceError out of every render.
+  var _t = (window && window._t) || function (s) { return s; };
 
   // ---------------------------------------------------------------- helpers
 
@@ -38,8 +42,10 @@
 
   function isStr(v) { return typeof v === 'string' && v.length > 0; }
 
+  // Server errors are English sentences with no code field; the catalogue is keyed
+  // on the source text, so _t() localises them without touching server.js.
   function errMsg(payload, fallback) {
-    return (payload && (payload.error || payload.userMessage)) || fallback;
+    return _t((payload && (payload.error || payload.userMessage)) || '') || fallback;
   }
 
   // ------------------------------------------------------------------ state
@@ -63,7 +69,7 @@
     $('accept-invalid').hidden = mode !== 'invalid';
     $('accept-error').hidden = mode !== 'error';
     $('accept-ready').hidden = mode !== 'ready';
-    if (mode === 'error') $('accept-error-text').textContent = message || 'Something went wrong.';
+    if (mode === 'error') $('accept-error-text').textContent = message || _t('Something went wrong.');
   }
 
   function setFormError(msg) { $('accept-form-error').textContent = msg || ''; }
@@ -90,17 +96,17 @@
     try {
       res = await fetch('/api/team/invite-info/' + encodeURIComponent(state.token));
     } catch (e) {
-      setTopState('error', 'Could not reach the server. Check your connection and reload this page.');
+      setTopState('error', _t('Could not reach the server. Check your connection and reload this page.'));
       return;
     }
     if (res.status === 404) { setTopState('invalid'); return; }
     try { payload = await res.json(); } catch (e) { payload = null; }
     if (!res.ok) {
-      setTopState('error', errMsg(payload, 'Could not load this invite (status ' + res.status + ').'));
+      setTopState('error', errMsg(payload, _t('Could not load this invite (status ') + res.status + ').'));
       return;
     }
     if (!payload || !isStr(payload.email) || !isStr(payload.teamName)) {
-      setTopState('error', 'hiccup received an unexpected response for this invite.');
+      setTopState('error', _t('hiccup received an unexpected response for this invite.'));
       return;
     }
     state.info = payload;
@@ -120,13 +126,13 @@
   // ----------------------------------------------------------------- render
 
   function renderReady() {
-    var teamName = state.info.teamName || 'this team';
+    var teamName = state.info.teamName || _t('this team');
     var email = state.info.email || '';
 
     var introHost = $('accept-intro');
     clear(introHost);
     introHost.appendChild(el('p', 'accept-intro-text',
-      'You have been invited to join ' + teamName + ' as ' + email + '.'));
+      _t('You have been invited to join ') + teamName + _t(' as ') + email + '.'));
 
     var formHost = $('accept-form-host');
     clear(formHost);
@@ -139,13 +145,13 @@
 
   /** Branch (a): already signed in as the invited email — no fields needed. */
   function renderSilentBranch(host, teamName) {
-    host.appendChild(el('p', 'muted', 'You are already signed in with the invited address.'));
+    host.appendChild(el('p', 'muted', _t('You are already signed in with the invited address.')));
 
     var wrap = el('div', 'accept-actions');
-    var btn = el('button', 'btn btn-primary', 'Join ' + teamName);
+    var btn = el('button', 'btn btn-primary', _t('Join ') + teamName);
     btn.type = 'button';
     btn.addEventListener('click', function () {
-      submitAccept({ token: state.token }, btn, 'Join ' + teamName);
+      submitAccept({ token: state.token }, btn, _t('Join ') + teamName);
     });
     wrap.appendChild(btn);
     host.appendChild(wrap);
@@ -162,10 +168,10 @@
   function renderPasswordBranch(host, teamName, email) {
     if (!state.info.hasPassword) {
       host.appendChild(el('p', 'muted',
-        email + ' signs in with Google. Sign in with that Google account first, then reopen ' +
-        'this invite link to join automatically.'));
+        email + _t(' signs in with Google. Sign in with that Google account first, then reopen ') +
+        _t('this invite link to join automatically.')));
       var wrap = el('div', 'accept-actions');
-      var a = el('a', 'btn', 'Go to sign in');
+      var a = el('a', 'btn', _t('Go to sign in'));
       a.href = '/';
       wrap.appendChild(a);
       host.appendChild(wrap);
@@ -173,12 +179,12 @@
     }
 
     host.appendChild(el('p', 'muted',
-      email + ' already has a hiccup account. Enter its password to join ' + teamName + '.'));
+      email + _t(' already has a hiccup account. Enter its password to join ') + teamName + '.'));
 
     var form = document.createElement('form');
     form.setAttribute('novalidate', '');
 
-    var label = el('label', null, 'Password');
+    var label = el('label', null, _t('Password'));
     label.setAttribute('for', 'accept-password');
     form.appendChild(label);
 
@@ -187,11 +193,11 @@
     pw.id = 'accept-password';
     pw.name = 'password';
     pw.autocomplete = 'current-password';
-    pw.placeholder = 'your password';
+    pw.placeholder = _t('your password');
     form.appendChild(pw);
 
     var actions = el('div', 'accept-actions');
-    var btn = el('button', 'btn btn-primary', 'Join ' + teamName);
+    var btn = el('button', 'btn btn-primary', _t('Join ') + teamName);
     btn.type = 'submit';
     actions.appendChild(btn);
     form.appendChild(actions);
@@ -199,8 +205,8 @@
     form.addEventListener('submit', function (ev) {
       ev.preventDefault();
       var password = pw.value;
-      if (!password) { setFormError('Enter your password.'); return; }
-      submitAccept({ token: state.token, password: password }, btn, 'Join ' + teamName);
+      if (!password) { setFormError(_t('Enter your password.')); return; }
+      submitAccept({ token: state.token, password: password }, btn, _t('Join ') + teamName);
     });
 
     host.appendChild(form);
@@ -208,12 +214,12 @@
 
   /** Branch (c): brand-new email — create the account and join in one step. */
   function renderCreateBranch(host, teamName, email) {
-    host.appendChild(el('p', 'muted', 'Create your hiccup account to join ' + teamName + '.'));
+    host.appendChild(el('p', 'muted', _t('Create your hiccup account to join ') + teamName + '.'));
 
     var form = document.createElement('form');
     form.setAttribute('novalidate', '');
 
-    var nameLabel = el('label', null, 'Your name');
+    var nameLabel = el('label', null, _t('Your name'));
     nameLabel.setAttribute('for', 'accept-name');
     form.appendChild(nameLabel);
     var nameInput = el('input', 'input');
@@ -221,10 +227,10 @@
     nameInput.id = 'accept-name';
     nameInput.name = 'name';
     nameInput.autocomplete = 'name';
-    nameInput.placeholder = 'Jane Doe';
+    nameInput.placeholder = _t('Jane Doe');
     form.appendChild(nameInput);
 
-    var pwLabel = el('label', null, 'Password');
+    var pwLabel = el('label', null, _t('Password'));
     pwLabel.setAttribute('for', 'accept-new-password');
     form.appendChild(pwLabel);
     var pw = el('input', 'input');
@@ -232,12 +238,12 @@
     pw.id = 'accept-new-password';
     pw.name = 'password';
     pw.autocomplete = 'new-password';
-    pw.placeholder = 'at least 8 characters';
+    pw.placeholder = _t('at least 8 characters');
     pw.minLength = 8;
     form.appendChild(pw);
 
     var actions = el('div', 'accept-actions');
-    var btn = el('button', 'btn btn-primary', 'Create account & join');
+    var btn = el('button', 'btn btn-primary', _t('Create account & join'));
     btn.type = 'submit';
     actions.appendChild(btn);
     form.appendChild(actions);
@@ -246,9 +252,9 @@
       ev.preventDefault();
       var name = (nameInput.value || '').trim();
       var password = pw.value;
-      if (!name) { setFormError('Enter your name.'); return; }
-      if (password.length < 8) { setFormError('Password must be at least 8 characters.'); return; }
-      submitAccept({ token: state.token, password: password, name: name }, btn, 'Create account & join');
+      if (!name) { setFormError(_t('Enter your name.')); return; }
+      if (password.length < 8) { setFormError(_t('Password must be at least 8 characters.')); return; }
+      submitAccept({ token: state.token, password: password, name: name }, btn, _t('Create account & join'));
     });
 
     host.appendChild(form);
@@ -260,7 +266,7 @@
    */
   async function submitAccept(body, btn, origLabel) {
     setFormError('');
-    if (btn) { btn.disabled = true; btn.textContent = 'Joining…'; }
+    if (btn) { btn.disabled = true; btn.textContent = _t('Joining…'); }
 
     var res = null, payload = null;
     try {
@@ -271,12 +277,12 @@
       });
       try { payload = await res.json(); } catch (e) { payload = null; }
     } catch (e) {
-      setFormError('Could not reach the server. Check your connection and try again.');
+      setFormError(_t('Could not reach the server. Check your connection and try again.'));
       if (btn) { btn.disabled = false; btn.textContent = origLabel; }
       return;
     }
     if (!res.ok) {
-      setFormError(errMsg(payload, 'Could not join (status ' + res.status + ').'));
+      setFormError(errMsg(payload, _t('Could not join (status ') + res.status + ').'));
       if (btn) { btn.disabled = false; btn.textContent = origLabel; }
       return;
     }

@@ -3,10 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>hiccup — see where the call went wrong</title>
+<title data-i18n>hiccup — see where the call went wrong</title>
 <meta name="description" content="hiccup — a self-hosted SIP / H.323 trace analyser. two-leg SBC diffs, retransmission classification, SIP↔H.323 correlation.">
 <link rel="canonical" href="https://hiccup.monster/">
 <script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<!-- Language, resolved before any markup is parsed — same FOUC-safe shape as the
+     theme line above, and for a stronger reason: _t() and its catalogue must both
+     exist before app.js's first render. document.write gives a blocking load with
+     no fetch race and no build step. -->
+<script>(function(){try{var L=localStorage.getItem('hiccup-lang');if(!/^(en|fr|es|de)$/.test(L||''))L=String(navigator.language||'en').slice(0,2).toLowerCase();if(!/^(en|fr|es|de)$/.test(L))L='en';document.documentElement.lang=L;if(L!=='en')document.write('<script src="/i18n/'+L+'.js"><\/script>');}catch(e){}})();</script>
+<script src="/i18n.js"></script>
 <link rel="icon" href="/brand/favicon.ico" sizes="32x32">
 <link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
@@ -229,11 +235,21 @@
     padding: 0;
     font-size: 15px;
   }
+
+  /* The landing page has no topbar, so the language chooser rides beside the
+     corner theme toggle rather than inside a header. */
+  .corner-lang {
+    position: fixed;
+    top: 16px;
+    right: 58px;
+    z-index: 10;
+  }
 </style>
 </head>
 <body>
 
-<button class="btn corner-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+<span data-lang-switcher class="corner-lang"></span>
+<button data-i18n-attrs="aria-label" class="btn corner-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
 
 <header class="hero container">
   <div class="hero-lockup">
@@ -243,31 +259,31 @@
   <!-- the page's only h1. The wordmark above it is CSS artwork with an
        aria-label, which a crawler cannot read as a heading — before this the
        landing page had no h1 at all and its headings started at h2. -->
-  <h1 class="tagline">see where the call went wrong</h1>
-  <p class="mascot-line">a big friendly monster lives at hiccup.monster — its whole job is fixing yours.</p>
-  <p class="sub">a self-hosted SIP / H.323 trace analyser for the SBC-curious.
+  <h1 data-i18n class="tagline">see where the call went wrong</h1>
+  <p data-i18n class="mascot-line">a big friendly monster lives at hiccup.monster — its whole job is fixing yours.</p>
+  <p data-i18n class="sub">a self-hosted SIP / H.323 trace analyser for the SBC-curious.
   upload a pcap or paste an SBC log — get the ladder, the deltas, and a diagnosis
   instead of two 200-line INVITEs to eyeball.</p>
 </header>
 
 <main class="container">
 
-  <section class="features" aria-label="features">
+  <section data-i18n-attrs="aria-label" class="features" aria-label="features">
     <div class="card feature">
-      <h3>two-leg diff + delta view</h3>
-      <p>pairs ingress and egress legs across the B2BUA and emits a structured
+      <h3 data-i18n>two-leg diff + delta view</h3>
+      <p data-i18n>pairs ingress and egress legs across the B2BUA and emits a structured
       delta: headers added or stripped, codec lists narrowed, DTMF payload-type
       mismatches, 100rel asymmetry, session-timer conflicts, topology leaks.</p>
     </div>
     <div class="card feature">
-      <h3>retransmission classifier</h3>
-      <p>seven INVITEs collapse into one readable row — then get classified:
+      <h3 data-i18n>retransmission classifier</h3>
+      <p data-i18n>seven INVITEs collapse into one readable row — then get classified:
       never arrived, slow far end, UDP fragmentation, ACK not landing, or a
       box-wide storm that was never about your call in the first place.</p>
     </div>
     <div class="card feature">
-      <h3>SIP↔H.323 correlation</h3>
-      <p>decodes Q.931/H.225 alongside SIP and stitches IWF calls into a single
+      <h3 data-i18n>SIP↔H.323 correlation</h3>
+      <p data-i18n>decodes Q.931/H.225 alongside SIP and stitches IWF calls into a single
       flow with a confidence score — and an honest AMBIGUOUS state instead of a
       silent wrong guess.</p>
     </div>
@@ -276,76 +292,76 @@
   <section class="card auth-card" id="auth-card">
     <div id="auth-body">
       <div class="auth-head">
-        <h2>get started</h2>
-        <span class="chip">free while in beta</span>
+        <h2 data-i18n>get started</h2>
+        <span data-i18n class="chip">free while in beta</span>
       </div>
 
       <div class="auth-grid">
         <form id="signup-form" novalidate>
-          <h3>create an account</h3>
-          <label for="su-email">email</label>
-          <input class="input" id="su-email" name="email" type="email"
+          <h3 data-i18n>create an account</h3>
+          <label data-i18n for="su-email">email</label>
+          <input data-i18n-attrs="placeholder" class="input" id="su-email" name="email" type="email"
                  autocomplete="email" placeholder="you@example.com" required>
-          <label for="su-password">password</label>
-          <input class="input" id="su-password" name="password" type="password"
+          <label data-i18n for="su-password">password</label>
+          <input data-i18n-attrs="placeholder" class="input" id="su-password" name="password" type="password"
                  autocomplete="new-password" placeholder="at least 8 characters"
                  minlength="8" required>
           <p class="form-error" id="signup-error" role="alert"></p>
-          <button class="btn btn-primary" type="submit" id="signup-btn">sign up</button>
+          <button data-i18n class="btn btn-primary" type="submit" id="signup-btn">sign up</button>
         </form>
 
         <form id="login-form" novalidate>
-          <h3>sign in</h3>
-          <label for="li-email">email</label>
-          <input class="input" id="li-email" name="email" type="email"
+          <h3 data-i18n>sign in</h3>
+          <label data-i18n for="li-email">email</label>
+          <input data-i18n-attrs="placeholder" class="input" id="li-email" name="email" type="email"
                  autocomplete="email" placeholder="you@example.com" required>
-          <label for="li-password">password</label>
-          <input class="input" id="li-password" name="password" type="password"
+          <label data-i18n for="li-password">password</label>
+          <input data-i18n-attrs="placeholder" class="input" id="li-password" name="password" type="password"
                  autocomplete="current-password" placeholder="your password" required>
           <p class="form-error" id="login-error" role="alert"></p>
-          <button class="btn btn-primary" type="submit" id="login-btn">sign in</button>
+          <button data-i18n class="btn btn-primary" type="submit" id="login-btn">sign in</button>
         </form>
       </div>
 
       <div id="google-wrap" hidden>
-        <div class="or-divider"><span>or</span></div>
+        <div class="or-divider"><span data-i18n>or</span></div>
         <div id="google-btn"></div>
         <p class="form-error" id="google-error" role="alert"></p>
       </div>
     </div>
 
     <div id="open-app" hidden>
-      <p>you're already signed in.</p>
-      <a class="btn btn-primary" href="/app">Open app</a>
+      <p data-i18n>you're already signed in.</p>
+      <a data-i18n class="btn btn-primary" href="/app">Open app</a>
     </div>
   </section>
 
-  <section class="ref-teaser" aria-label="SIP failure reference">
-    <h2>SIP failure reference</h2>
-    <p>no account needed — short pages on the failures that send people looking for a
+  <section data-i18n-attrs="aria-label" class="ref-teaser" aria-label="SIP failure reference">
+    <h2 data-i18n>SIP failure reference</h2>
+    <p data-i18n>no account needed — short pages on the failures that send people looking for a
     trace in the first place. what the thing you are staring at means, and what to check.</p>
     <ul>
       <li><a href="/sip/488-not-acceptable-here">488 Not Acceptable Here</a>
-        <span>— codec, payload-type or SRTP mismatch in the SDP</span></li>
+        <span data-i18n>— codec, payload-type or SRTP mismatch in the SDP</span></li>
       <li><a href="/sip/408-request-timeout">408 Request Timeout</a>
-        <span>— Timer B expired at 32 seconds and nothing ever came back</span></li>
+        <span data-i18n>— Timer B expired at 32 seconds and nothing ever came back</span></li>
       <li><a href="/sip/486-busy-here">486 Busy Here</a>
-        <span>— a busy phone, admission control, or Q.850 cause 17 from the PSTN</span></li>
-      <li><a href="/sip/one-way-audio">one-way audio</a>
-        <span>— the signalling worked and the RTP went somewhere else</span></li>
-      <li><a href="/sip/retransmissions">retransmissions and storms</a>
-        <span>— reading the ladder, and why 200 OK retransmits matter most</span></li>
+        <span data-i18n>— a busy phone, admission control, or Q.850 cause 17 from the PSTN</span></li>
+      <li><a data-i18n href="/sip/one-way-audio">one-way audio</a>
+        <span data-i18n>— the signalling worked and the RTP went somewhere else</span></li>
+      <li><a data-i18n href="/sip/retransmissions">retransmissions and storms</a>
+        <span data-i18n>— reading the ladder, and why 200 OK retransmits matter most</span></li>
     </ul>
-    <p><a href="/sip">all reference pages →</a></p>
+    <p><a data-i18n href="/sip">all reference pages →</a></p>
   </section>
 
 </main>
 
 <footer class="site-footer">
   <p><a href="https://buymeacoffee.com/mcfadyen" target="_blank" rel="noopener">☕ Buy Me a Coffee</a></p>
-  <p class="muted">self-hosted · your traces never leave this box</p>
-  <aside class="promo-card promo-footer" aria-label="also from the same workshop">
-    <p><span class="promo-kicker">also from the same workshop</span>
+  <p data-i18n class="muted">self-hosted · your traces never leave this box</p>
+  <aside data-i18n-attrs="aria-label" class="promo-card promo-footer" aria-label="also from the same workshop">
+    <p data-i18n><span data-i18n class="promo-kicker">also from the same workshop</span>
       <a href="https://rfplex.ai/?utm_source=hiccup&amp;utm_medium=app&amp;utm_campaign=crosslink"
          target="_blank" rel="noopener"><strong>RFPlex.ai</strong></a>
       — AI that answers RFPs, RFIs and DDQs from your own document library.

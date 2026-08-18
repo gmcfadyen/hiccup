@@ -7,7 +7,9 @@
     "start": "node server.js",
     "fixtures": "node test/make-fixtures.js",
     "selftest": "node test/selftest.js",
-    "selftest:adversarial": "node test/adversarial.js"
+    "selftest:adversarial": "node test/adversarial.js",
+    "i18n": "node bin/i18n-extract.js && node bin/i18n-build.js",
+    "i18n:report": "node bin/i18n-report.js --force"
   },
   "keywords": [
     "sip",

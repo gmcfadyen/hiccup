@@ -25,6 +25,10 @@
  */
 (function () {
   'use strict';
+  // public/i18n.js publishes window._t from a blocking <head> script. The local
+  // alias keeps this file working — in English — if that script is ever missing,
+  // rather than throwing a ReferenceError out of every render.
+  var _t = (window && window._t) || function (s) { return s; };
 
   var RFPLEX_URL = 'https://rfplex.ai/?utm_source=hiccup&utm_medium=app&utm_campaign=crosslink';
 
@@ -33,9 +37,9 @@
   // Wave 4: three tabs. Advice left the info pane for the drawer (#chat-advice)
   // so there is exactly one advice surface, not two that can drift apart.
   var INFO_TABS = [
-    { key: 'contents', label: 'Contents', panel: 'info-contents' },
-    { key: 'packet', label: 'Packet Info', panel: 'info-packet' },
-    { key: 'media', label: 'Media', panel: 'info-media' }
+    { key: 'contents', label: _t('Contents'), panel: 'info-contents' },
+    { key: 'packet', label: _t('Packet Info'), panel: 'info-packet' },
+    { key: 'media', label: _t('Media'), panel: 'info-media' }
   ];
 
   var SEARCH_FIELDS = {
@@ -158,7 +162,7 @@
     var original = btn ? btn.textContent : null;
     function done(ok) {
       if (!btn) return;
-      btn.textContent = ok ? 'copied ✓' : 'copy failed';
+      btn.textContent = ok ? _t('copied ✓') : _t('copy failed');
       setTimeout(function () { btn.textContent = original; }, 1600);
     }
     function legacy() {
@@ -190,7 +194,7 @@
    */
   function appendHighlighted(parent, text, terms) {
     var s = str(text);
-    if (s.length > 400000) s = s.slice(0, 400000) + '\n… (truncated for display)';
+    if (s.length > 400000) s = s.slice(0, 400000) + _t('\n… (truncated for display)');
     var list = [];
     for (var i = 0; i < arr(terms).length; i++) {
       var t = str(terms[i]).toLowerCase();
@@ -363,7 +367,7 @@
   async function pollStatus() {
     try {
       var r = await fetch('/api/status');
-      if (!r.ok) throw new Error('status ' + r.status);
+      if (!r.ok) throw new Error(_t('status ') + r.status);
       var j = await r.json();
       state.llm = j.llm || null;
     } catch (e) {
@@ -380,12 +384,12 @@
     if (llm && llm.available) {
       chip.textContent = 'LLM: ' + (llm.model || '?');
       chip.title = llm.source === 'rfplex'
-        ? 'model chosen by RFPlex — hiccup shares the GPU with RFPlex'
-        : 'local model available (source: ' + (llm.source || '?') + ')';
+        ? _t('model chosen by RFPlex — hiccup shares the GPU with RFPlex')
+        : _t('local model available (source: ') + (llm.source || '?') + ')';
       chip.classList.remove('llm-off');
     } else {
-      chip.textContent = 'LLM offline';
-      chip.title = 'local model unavailable — every analysis feature still works';
+      chip.textContent = _t('LLM offline');
+      chip.title = _t('local model unavailable — every analysis feature still works');
       chip.classList.add('llm-off');
     }
   }
@@ -491,7 +495,7 @@
   function fillRfplexPromo() {
     var box = $('rfplex-promo');
     if (!box || box.firstChild) return;   // the shell may already have built it
-    box.appendChild(el('p', 'promo-kicker', 'Also from the same workshop:'));
+    box.appendChild(el('p', 'promo-kicker', _t('Also from the same workshop:')));
     var line = el('p', 'promo-body');
     var a = el('a', 'promo-link', 'RFPlex.ai');
     a.href = RFPLEX_URL;
@@ -499,8 +503,8 @@
     a.rel = 'noopener';
     line.appendChild(a);
     line.appendChild(document.createTextNode(
-      ' — AI that answers RFPs, RFIs and DDQs from your own document library. ' +
-      'Self-hosted, EU-sovereign, free during beta.'));
+      _t(' — AI that answers RFPs, RFIs and DDQs from your own document library. ') +
+      _t('Self-hosted, EU-sovereign, free during beta.')));
     box.appendChild(line);
   }
 
@@ -533,7 +537,7 @@
         : (state.projectFilter ? encodeURIComponent(state.projectFilter) : '');
       if (q) url += '?project=' + q;
       var r = await fetch(url);
-      if (!r.ok) throw new Error('captures ' + r.status);
+      if (!r.ok) throw new Error(_t('captures ') + r.status);
       var j = await r.json();
       state.captures = arr(j);
     } catch (e) {
@@ -558,7 +562,7 @@
 
   async function uploadFile(file) {
     if (!file) return;
-    setUploadMsg('Analysing ' + file.name + ' …');
+    setUploadMsg(_t('Analysing ') + file.name + ' …');
     // Wave 5B: skeletons for THIS upload only, raised with the busy text and
     // dropped in the finally below — which is what guarantees a 422/413/network
     // failure falls back to the normal empty state instead of hanging on a
@@ -586,7 +590,7 @@
       var j = null;
       try { j = await r.json(); } catch (e) { /* non-json */ }
       if (!r.ok) {
-        setUploadMsg((j && j.error) || ('Upload failed (' + r.status + ')'), true);
+        setUploadMsg(_t((j && j.error) || '') || (_t('Upload failed (') + r.status + ')'), true);
         return;
       }
       setUploadMsg('');
@@ -596,7 +600,7 @@
       // flashing the previous capture, or an empty pane, in between.
       if (j && j.id) await openCapture(j.id);
     } catch (e) {
-      setUploadMsg('Upload failed: ' + (e && e.message ? e.message : 'network error'), true);
+      setUploadMsg(_t('Upload failed: ') + (e && e.message ? e.message : _t('network error')), true);
     } finally {
       endUploadSkeletons();
     }
@@ -604,12 +608,12 @@
 
   async function deleteCapture(cap) {
     if (!cap) return;
-    if (!confirm('Delete "' + cap.filename + '"? This removes the capture and its analysis.')) return;
+    if (!confirm(_t('Delete "') + cap.filename + _t('"? This removes the capture and its analysis.'))) return;
     try {
       var r = await fetch('/api/captures/' + encodeURIComponent(cap.id), { method: 'DELETE' });
-      if (!r.ok) throw new Error('delete ' + r.status);
+      if (!r.ok) throw new Error(_t('delete ') + r.status);
     } catch (e) {
-      alert('Delete failed.');
+      alert(_t('Delete failed.'));
       return;
     }
     if (state.captureId === cap.id) {
@@ -628,23 +632,23 @@
     clear(list);
     if (!state.captures.length) {
       if (state.projectFilter) {
-        emptyNote(list, 'No captures match this filter.',
-          'Choose a different project, or clear the filter to see everything.');
+        emptyNote(list, _t('No captures match this filter.'),
+          _t('Choose a different project, or clear the filter to see everything.'));
       } else {
-        emptyNote(list, 'No captures yet.',
-          'Upload a pcap, pcapng, or an SBC log / SIP text export to get started.');
+        emptyNote(list, _t('No captures yet.'),
+          _t('Upload a pcap, pcapng, or an SBC log / SIP text export to get started.'));
       }
       return;
     }
     for (var i = 0; i < state.captures.length; i++) {
       (function (cap) {
-        var row = el('div', 'capture-row' + (cap.id === state.captureId ? ' active' : ''));
+        var row = el('div', 'capture-row' + (cap.id === state.captureId ? _t(' active') : ''));
         var top = el('div', 'cap-top');
         top.appendChild(el('span', 'cap-name', cap.filename));
         // .icon-btn: WCAG 2.2 SC 2.5.8 hit area for a glyph-only control
         var del = el('button', 'cap-del icon-btn', '×');
         del.type = 'button';
-        del.title = 'delete capture';
+        del.title = _t('delete capture');
         del.addEventListener('click', function (ev) { ev.stopPropagation(); deleteCapture(cap); });
         top.appendChild(del);
         row.appendChild(top);
@@ -655,7 +659,7 @@
         var stats = cap.stats || {};
         row.appendChild(el('div', 'cap-stats mono',
           (stats.sipMessages || 0) + ' SIP · ' + (stats.h323Messages || 0) + ' H.323 · ' +
-          (stats.calls || 0) + ' calls'));
+          (stats.calls || 0) + _t(' calls')));
 
         var fc = cap.findingCounts || {};
         var chips = el('div', 'cap-chips');
@@ -685,7 +689,7 @@
     try {
       var r = await fetch('/api/projects');
       if (r.status === 401) { location.href = '/'; return; }
-      if (!r.ok) throw new Error('projects ' + r.status);
+      if (!r.ok) throw new Error(_t('projects ') + r.status);
       var j = await r.json();
       state.projects = arr(j);
     } catch (e) {
@@ -726,10 +730,10 @@
     var sel = $('project-filter');
     if (!sel) return;
     clear(sel);
-    var all = el('option', null, 'All captures');
+    var all = el('option', null, _t('All captures'));
     all.value = '';
     sel.appendChild(all);
-    var unfiled = el('option', null, 'Unfiled');
+    var unfiled = el('option', null, _t('Unfiled'));
     unfiled.value = 'unfiled';
     sel.appendChild(unfiled);
     for (var i = 0; i < state.projects.length; i++) {
@@ -746,7 +750,7 @@
     var sel = $('upload-project');
     if (!sel) return;
     clear(sel);
-    var unfiled = el('option', null, 'Unfiled');
+    var unfiled = el('option', null, _t('Unfiled'));
     unfiled.value = '';
     sel.appendChild(unfiled);
     for (var i = 0; i < state.projects.length; i++) {
@@ -789,7 +793,7 @@
     if (!host) return;
     clear(host);
     if (!state.projects.length) {
-      emptyNote(host, 'No projects yet.', 'Create one below to start filing captures.');
+      emptyNote(host, _t('No projects yet.'), _t('Create one below to start filing captures.'));
       return;
     }
     for (var i = 0; i < state.projects.length; i++) {
@@ -804,12 +808,12 @@
     var head = el('div', 'pm-row-head');
     head.appendChild(el('span', 'pm-row-name', p.name || p.id));
     var count = (typeof p.captureCount === 'number' && isFinite(p.captureCount)) ? p.captureCount : 0;
-    head.appendChild(el('span', 'chip pm-row-count', count + (count === 1 ? ' capture' : ' captures')));
+    head.appendChild(el('span', 'chip pm-row-count', count + (count === 1 ? _t(' capture') : _t(' captures'))));
     row.appendChild(head);
     if (isStr(p.description)) row.appendChild(el('div', 'pm-row-desc', p.description));
 
     var actions = el('div', 'pm-row-actions');
-    var rename = el('button', 'btn', 'Rename');
+    var rename = el('button', 'btn', _t('Rename'));
     rename.type = 'button';
     rename.addEventListener('click', function () {
       state.projectEditingId = p.id;
@@ -817,7 +821,7 @@
     });
     actions.appendChild(rename);
 
-    var del = el('button', 'btn', 'Delete');
+    var del = el('button', 'btn', _t('Delete'));
     del.type = 'button';
     del.addEventListener('click', function () { deleteProject(p, del); });
     actions.appendChild(del);
@@ -833,27 +837,27 @@
     nameInput.type = 'text';
     nameInput.maxLength = 80;
     nameInput.value = p.name || '';
-    nameInput.setAttribute('aria-label', 'project name');
+    nameInput.setAttribute('aria-label', _t('project name'));
     wrap.appendChild(nameInput);
 
     var descInput = el('input', 'input');
     descInput.type = 'text';
-    descInput.placeholder = 'Description (optional)';
+    descInput.placeholder = _t('Description (optional)');
     descInput.value = p.description || '';
-    descInput.setAttribute('aria-label', 'project description');
+    descInput.setAttribute('aria-label', _t('project description'));
     wrap.appendChild(descInput);
 
     var actions = el('div', 'pm-edit-actions');
-    var save = el('button', 'btn btn-primary', 'Save');
+    var save = el('button', 'btn btn-primary', _t('Save'));
     save.type = 'button';
     save.addEventListener('click', function () {
       var name = (nameInput.value || '').trim();
-      if (!name) { setProjectManageMsg('Enter a project name.', true); return; }
+      if (!name) { setProjectManageMsg(_t('Enter a project name.'), true); return; }
       renameProject(p, name, (descInput.value || '').trim(), save);
     });
     actions.appendChild(save);
 
-    var cancel = el('button', 'btn', 'Cancel');
+    var cancel = el('button', 'btn', _t('Cancel'));
     cancel.type = 'button';
     cancel.addEventListener('click', function () {
       state.projectEditingId = null;
@@ -870,13 +874,13 @@
     var nameInput = $('project-create-name');
     var descInput = $('project-create-desc');
     var name = ((nameInput && nameInput.value) || '').trim();
-    if (!name) { setProjectManageMsg('Enter a project name.', true); return; }
+    if (!name) { setProjectManageMsg(_t('Enter a project name.'), true); return; }
 
     var form = $('project-create-form');
     var btn = form ? form.querySelector('button[type="submit"]') : null;
 
     state.projectBusy = true;
-    if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
+    if (btn) { btn.disabled = true; btn.textContent = _t('Creating…'); }
     setProjectManageMsg('');
     var res = null, payload = null;
     try {
@@ -889,20 +893,20 @@
       try { payload = await res.json(); } catch (e) { payload = null; }
     } catch (e) {
       state.projectBusy = false;
-      if (btn) { btn.disabled = false; btn.textContent = 'Create project'; }
-      setProjectManageMsg('Could not reach the server.', true);
+      if (btn) { btn.disabled = false; btn.textContent = _t('Create project'); }
+      setProjectManageMsg(_t('Could not reach the server.'), true);
       return;
     }
     state.projectBusy = false;
-    if (btn) { btn.disabled = false; btn.textContent = 'Create project'; }
+    if (btn) { btn.disabled = false; btn.textContent = _t('Create project'); }
     if (!res.ok) {
-      setProjectManageMsg((payload && (payload.error || payload.userMessage)) ||
-        ('Could not create the project (status ' + res.status + ').'), true);
+      setProjectManageMsg(_t((payload && (payload.error || payload.userMessage)) || '') ||
+        (_t('Could not create the project (status ') + res.status + ').'), true);
       return;
     }
     if (nameInput) nameInput.value = '';
     if (descInput) descInput.value = '';
-    setProjectManageMsg('Created ' + name + '.');
+    setProjectManageMsg(_t('Created ') + name + '.');
     await loadProjects();
     await loadCaptures();
   }
@@ -910,7 +914,7 @@
   async function renameProject(p, name, description, btn) {
     if (state.projectBusy) return;
     state.projectBusy = true;
-    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    if (btn) { btn.disabled = true; btn.textContent = _t('Saving…'); }
     setProjectManageMsg('');
     var res = null, payload = null;
     try {
@@ -923,30 +927,30 @@
       try { payload = await res.json(); } catch (e) { payload = null; }
     } catch (e) {
       state.projectBusy = false;
-      if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
-      setProjectManageMsg('Could not reach the server.', true);
+      if (btn) { btn.disabled = false; btn.textContent = _t('Save'); }
+      setProjectManageMsg(_t('Could not reach the server.'), true);
       return;
     }
     state.projectBusy = false;
     if (!res.ok) {
-      if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
-      setProjectManageMsg((payload && (payload.error || payload.userMessage)) ||
-        ('Could not rename the project (status ' + res.status + ').'), true);
+      if (btn) { btn.disabled = false; btn.textContent = _t('Save'); }
+      setProjectManageMsg(_t((payload && (payload.error || payload.userMessage)) || '') ||
+        (_t('Could not rename the project (status ') + res.status + ').'), true);
       return;
     }
     state.projectEditingId = null;
-    setProjectManageMsg('Saved.');
+    setProjectManageMsg(_t('Saved.'));
     await loadProjects();
     await loadCaptures();
   }
 
   async function deleteProject(p, btn) {
     if (state.projectBusy) return;
-    if (!confirm('Delete project "' + (p.name || p.id) + '"? Its captures will become ' +
-      'Unfiled, not deleted.')) return;
+    if (!confirm(_t('Delete project "') + (p.name || p.id) + _t('"? Its captures will become ') +
+      _t('Unfiled, not deleted.'))) return;
 
     state.projectBusy = true;
-    if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
+    if (btn) { btn.disabled = true; btn.textContent = _t('Deleting…'); }
     setProjectManageMsg('');
     var res = null, payload = null;
     try {
@@ -955,15 +959,15 @@
       try { payload = await res.json(); } catch (e) { payload = null; }
     } catch (e) {
       state.projectBusy = false;
-      if (btn) { btn.disabled = false; btn.textContent = 'Delete'; }
-      setProjectManageMsg('Could not reach the server.', true);
+      if (btn) { btn.disabled = false; btn.textContent = _t('Delete'); }
+      setProjectManageMsg(_t('Could not reach the server.'), true);
       return;
     }
     state.projectBusy = false;
     if (!res.ok) {
-      if (btn) { btn.disabled = false; btn.textContent = 'Delete'; }
-      setProjectManageMsg((payload && (payload.error || payload.userMessage)) ||
-        ('Could not delete the project (status ' + res.status + ').'), true);
+      if (btn) { btn.disabled = false; btn.textContent = _t('Delete'); }
+      setProjectManageMsg(_t((payload && (payload.error || payload.userMessage)) || '') ||
+        (_t('Could not delete the project (status ') + res.status + ').'), true);
       return;
     }
     if (state.uploadProjectId === p.id) {
@@ -971,7 +975,7 @@
       try { sessionStorage.removeItem(UPLOAD_PROJECT_KEY); } catch (e) { /* ignore */ }
     }
     if (state.projectFilter === p.id) state.projectFilter = '';
-    setProjectManageMsg('Deleted ' + (p.name || p.id) + '.');
+    setProjectManageMsg(_t('Deleted ') + (p.name || p.id) + '.');
     await loadProjects();
     await loadCaptures();
   }
@@ -998,14 +1002,14 @@
     // Wave 5B: a fresh upload already has its ladder skeleton in this host —
     // don't downgrade it to a plain note halfway through that flow. The other
     // caller (a sidebar capture switch) is unaffected and keeps the note.
-    if (host && !uploadPending()) { clear(host); emptyNote(host, 'Loading analysis…'); }
+    if (host && !uploadPending()) { clear(host); emptyNote(host, _t('Loading analysis…')); }
     try {
       var r = await fetch('/api/captures/' + encodeURIComponent(id) + '/analysis');
-      if (!r.ok) throw new Error('analysis ' + r.status);
+      if (!r.ok) throw new Error(_t('analysis ') + r.status);
       state.analysis = await r.json();
     } catch (e) {
       state.analysis = null;
-      if (host) { clear(host); emptyNote(host, 'Could not load the analysis for this capture.'); }
+      if (host) { clear(host); emptyNote(host, _t('Could not load the analysis for this capture.')); }
       return;
     }
     state.captureId = id;
@@ -1530,7 +1534,7 @@
   function stateDot(st) {
     var dot = el('span', 'state-dot state-' + (st || 'unknown'));
     dot.setAttribute('data-state', str(st || 'unknown'));
-    dot.title = 'state: ' + (st || 'unknown');
+    dot.title = _t('state: ') + (st || 'unknown');
     dot.setAttribute('aria-hidden', 'true');
     return dot;
   }
@@ -1580,7 +1584,7 @@
     if (opts.sub) row.appendChild(el('span', 'tree-sub mono', opts.sub));
     if (opts.retrans) {
       var badge = el('span', 'tree-badge is-retrans', '\u00d7' + opts.retrans);
-      badge.title = opts.retrans + ' retransmissions here';
+      badge.title = opts.retrans + _t(' retransmissions here');
       row.appendChild(badge);
     }
     if (opts.badge) row.appendChild(el('span', 'tree-badge', opts.badge));
@@ -1643,8 +1647,8 @@
     host.setAttribute('role', 'tree');
 
     if (!state.analysis) {
-      emptyNote(host, 'No capture selected.',
-        'Calls, their legs and each transaction appear here. Selecting a node scopes the ladder, the message list and the info pane.');
+      emptyNote(host, _t('No capture selected.'),
+        _t('Calls, their legs and each transaction appear here. Selecting a node scopes the ladder, the message list and the info pane.'));
       return;
     }
 
@@ -1656,13 +1660,13 @@
     var root = treeNode({
       nodeKey: 'root',
       kindClass: 'is-root',
-      label: 'whole capture',
+      label: _t('whole capture'),
       sub: ' ' + (stats.sipMessages || 0) + ' SIP \u00b7 ' + (stats.h323Messages || 0) + ' H.323 \u00b7 ' +
-        calls.length + ' calls',
+        calls.length + _t(' calls'),
       hasChildren: true,
       open: treeKeyExpanded('root', true),
       selected: isSelectedNode(rootSel),
-      title: 'select the whole capture',
+      title: _t('select the whole capture'),
       onSelect: function () { selectScope(rootSel); }
     });
     host.appendChild(root.node);
@@ -1691,11 +1695,11 @@
       var other = treeNode({
         nodeKey: 'other',
         kindClass: 'is-other',
-        label: 'other legs',
+        label: _t('other legs'),
         badge: String(orphans.length),
         hasChildren: true,
         open: otherOpen,
-        title: 'legs outside any correlated call \u2014 REGISTER, OPTIONS, SUBSCRIBE, strays'
+        title: _t('legs outside any correlated call \u2014 REGISTER, OPTIONS, SUBSCRIBE, strays')
       });
       root.children.appendChild(other.node);
       if (other.children) {
@@ -1704,8 +1708,8 @@
     }
 
     if (!calls.length && !orphans.length) {
-      emptyNote(root.children, 'No legs in this capture.',
-        'The ladder still shows every message hiccup could parse.');
+      emptyNote(root.children, _t('No legs in this capture.'),
+        _t('The ladder still shows every message hiccup could parse.'));
     }
   }
 
@@ -1721,11 +1725,11 @@
 
     var chip = null;
     if (call.state === 'ambiguous') {
-      chip = el('span', 'chip sev-warn ambiguous-chip', 'AMBIGUOUS');
-      chip.title = 'hiccup will not guess between competing pairings';
+      chip = el('span', 'chip sev-warn ambiguous-chip', _t('AMBIGUOUS'));
+      chip.title = _t('hiccup will not guess between competing pairings');
     } else if (call.type !== 'single') {
       chip = el('span', 'tree-badge', Math.round((call.confidence || 0) * 100) + '%');
-      chip.title = 'pairing confidence';
+      chip.title = _t('pairing confidence');
     }
 
     var built = treeNode({
@@ -1740,8 +1744,8 @@
       edge: worstSeverityForCall(call.id),
       selected: isSelectedNode(sel),
       chip: chip,
-      title: 'call ' + call.id + ' \u2014 ' + str(call.state) +
-        (call.type !== 'single' ? ', confidence ' + Math.round((call.confidence || 0) * 100) + '%' : ''),
+      title: _t('call ') + call.id + ' \u2014 ' + str(call.state) +
+        (call.type !== 'single' ? _t(', confidence ') + Math.round((call.confidence || 0) * 100) + '%' : ''),
       onSelect: function () { selectScope(sel); }
     });
     parent.appendChild(built.node);
@@ -1836,12 +1840,12 @@
       var t = out[k];
       t.label = str(t.method || '?');
       if (t.worstStatus != null) t.label += ' \u2192 ' + t.worstStatus + (t.reason ? ' ' + t.reason : '');
-      t.sub = ' ' + t.count + ' msg' + (t.count === 1 ? '' : 's');
+      t.sub = ' ' + t.count + _t(' msg') + (t.count === 1 ? '' : 's');
       if (t.worstStatus != null && t.worstStatus >= 400) t.state = 'failed';
       else if (t.worstStatus != null && t.worstStatus >= 200 && t.worstStatus < 300) t.state = 'answered';
       else t.state = 'in-progress';
-      t.title = 'transaction ' + t.key + ' \u2014 ' + t.count + ' message(s)' +
-        (t.retrans ? ', ' + t.retrans + ' retransmission(s)' : '');
+      t.title = _t('transaction ') + t.key + ' \u2014 ' + t.count + _t(' message(s)') +
+        (t.retrans ? ', ' + t.retrans + _t(' retransmission(s)') : '');
     }
     return out;
   }
@@ -1889,8 +1893,8 @@
       btns[i].classList.toggle('is-active', on);
       btns[i].setAttribute('aria-pressed', on ? 'true' : 'false');
       btns[i].title = on
-        ? ('sorted by ' + key + ', ' + (state.selSort.asc ? 'ascending' : 'descending') + ' — click to reverse')
-        : ('sort by ' + key);
+        ? (_t('sorted by ') + key + ', ' + (state.selSort.asc ? 'ascending' : 'descending') + _t(' — click to reverse'))
+        : (_t('sort by ') + key);
     }
   }
 
@@ -1953,17 +1957,17 @@
     clear(target.node);
 
     if (!state.analysis) {
-      emptyNote(target.node, 'No capture open.',
-        'Every message of the selected session lands here, numbered, with the delta from the previous row.');
+      emptyNote(target.node, _t('No capture open.'),
+        _t('Every message of the selected session lands here, numbered, with the delta from the previous row.'));
       return;
     }
 
     var rows = sortedRows();
     if (!rows.length) {
-      emptyNote(target.node, 'Nothing in this selection.',
+      emptyNote(target.node, _t('Nothing in this selection.'),
         state.lampFilter
-          ? 'The active lamp filter may be hiding everything — click the lamp again to clear it.'
-          : 'Pick a call, leg or transaction in the tree above.');
+          ? _t('The active lamp filter may be hiding everything — click the lamp again to clear it.')
+          : _t('Pick a call, leg or transaction in the tree above.'));
       return;
     }
 
@@ -1973,7 +1977,7 @@
       for (var i = 0; i < rows.length; i++) target.node.appendChild(selectionRow(rows[i]));
       if (state.truncatedRows) {
         emptyNote(target.node, state.truncatedRows +
-          ' further rows not shown — narrow the selection in the tree.');
+          _t(' further rows not shown — narrow the selection in the tree.'));
       }
     }
   }
@@ -2029,7 +2033,7 @@
             th.appendChild(el('span', 'sort-arrow', state.selSort.asc ? ' \u25b2' : ' \u25bc'));
           }
           th.setAttribute('tabindex', '0');
-          th.title = 'sort by ' + col.label;
+          th.title = _t('sort by ') + col.label;
           var doSort = function () {
             if (state.selSort.key === col.key) state.selSort.asc = !state.selSort.asc;
             else state.selSort = { key: col.key, asc: true };
@@ -2068,7 +2072,7 @@
         td.appendChild(text);
         if (row.retransCount > 1) {
           var rb = el('span', 'tree-badge is-retrans', '\u00d7' + row.retransCount);
-          rb.title = (row.collapse && row.collapse.label) || (row.retransCount + ' retransmissions');
+          rb.title = (row.collapse && row.collapse.label) || (row.retransCount + _t(' retransmissions'));
           td.appendChild(rb);
         }
         tr.appendChild(td);
@@ -2088,7 +2092,7 @@
       var ftd = el('td');
       ftd.colSpan = 3;
       ftd.appendChild(el('span', 'pane-empty',
-        state.truncatedRows + ' further rows not shown — narrow the selection in the tree.'));
+        state.truncatedRows + _t(' further rows not shown — narrow the selection in the tree.')));
       ftr.appendChild(ftd);
       tf.appendChild(ftr);
       table.appendChild(tf);
@@ -2156,7 +2160,7 @@
 
     var ad = adviceForRow(row);
     var title = row.adviceTitle || row.findingTitle ||
-      (row.sev === 'crit' ? 'Critical condition on this message' : 'Warning on this message');
+      (row.sev === 'crit' ? _t('Critical condition on this message') : _t('Warning on this message'));
     // whatsWrong is the advisor's plain-English "here is the actual problem"
     // paragraph — exactly what this card is for. Absent when the flag came
     // from a bare Finding with no Advice attached; the title still stands alone.
@@ -2171,7 +2175,7 @@
     card.appendChild(head);
 
     if (body) card.appendChild(el('p', 'hovercard-body', body));
-    if (ad) card.appendChild(el('p', 'hovercard-foot', 'Full advice, fixes and RFC citations are in the ask hiccup panel.'));
+    if (ad) card.appendChild(el('p', 'hovercard-foot', _t('Full advice, fixes and RFC citations are in the ask hiccup panel.')));
 
     card.hidden = false;
     positionSevHovercard(card, anchorEl);
@@ -2234,8 +2238,8 @@
     // (Wave 4) — it is always on, handled silently by the row builder.
     var zo = el('button', 'btn lad-btn', '−');
     zo.type = 'button';
-    zo.title = 'zoom out';
-    zo.setAttribute('aria-label', 'zoom out');
+    zo.title = _t('zoom out');
+    zo.setAttribute('aria-label', _t('zoom out'));
     zo.addEventListener('click', function () { toolbarAction('zoom-out'); });
     bar.appendChild(zo);
 
@@ -2245,20 +2249,20 @@
 
     var zi = el('button', 'btn lad-btn', '+');
     zi.type = 'button';
-    zi.title = 'zoom in';
-    zi.setAttribute('aria-label', 'zoom in');
+    zi.title = _t('zoom in');
+    zi.setAttribute('aria-label', _t('zoom in'));
     zi.addEventListener('click', function () { toolbarAction('zoom-in'); });
     bar.appendChild(zi);
 
     var zr = el('button', 'btn lad-btn', 'reset');
     zr.type = 'button';
-    zr.title = 'reset zoom';
+    zr.title = _t('reset zoom');
     zr.addEventListener('click', function () { toolbarAction('zoom-reset'); });
     bar.appendChild(zr);
 
-    var ex = el('button', 'btn lad-btn', 'export SVG');
+    var ex = el('button', 'btn lad-btn', _t('export SVG'));
     ex.type = 'button';
-    ex.title = 'download this ladder as an SVG file';
+    ex.title = _t('download this ladder as an SVG file');
     ex.addEventListener('click', function () { toolbarAction('export'); });
     bar.appendChild(ex);
 
@@ -2324,24 +2328,24 @@
     var row = selectedRow();
     if (row && row.kind === 'msg') {
       var m = row.obj || {};
-      openChatPrefilled('Explain this ' + (m.protocol === 'h323' ? 'H.323' : 'SIP') +
-        ' message: what is it doing in this call, and is anything wrong with it?',
+      openChatPrefilled(_t('Explain this ') + (m.protocol === 'h323' ? 'H.323' : 'SIP') +
+        _t(' message: what is it doing in this call, and is anything wrong with it?'),
         { type: 'message', id: row.id });
       return;
     }
     if (row) {
-      openChatPrefilled('Explain this ' + row.kind + ' observation: "' + row.desc + '".', chatScope());
+      openChatPrefilled(_t('Explain this ') + row.kind + _t(' observation: "') + row.desc + '".', chatScope());
       return;
     }
     var sel = state.sel;
     if (sel.type === 'call' && sel.callId) {
-      openChatPrefilled('Walk me through call ' + sel.callId +
-        ': what happened, and is anything wrong with it?', { type: 'call', id: sel.callId });
+      openChatPrefilled(_t('Walk me through call ') + sel.callId +
+        _t(': what happened, and is anything wrong with it?'), { type: 'call', id: sel.callId });
     } else if (sel.legId) {
-      openChatPrefilled('Walk me through leg ' + sel.legId + ': what happened on it?',
+      openChatPrefilled(_t('Walk me through leg ') + sel.legId + _t(': what happened on it?'),
         { type: 'leg', id: sel.legId });
     } else {
-      openChatPrefilled('Summarise this capture: what is it, and what is wrong with it?',
+      openChatPrefilled(_t('Summarise this capture: what is it, and what is wrong with it?'),
         { type: 'capture', id: state.captureId });
     }
   }
@@ -2354,7 +2358,7 @@
     var rc = $('lad-rowcount');
     if (rc) {
       rc.textContent = state.rows.length
-        ? (state.rows.length + ' rows' + (state.truncatedRows ? ' (+' + state.truncatedRows + ' hidden)' : ''))
+        ? (state.rows.length + _t(' rows') + (state.truncatedRows ? ' (+' + state.truncatedRows + _t(' hidden)') : ''))
         : '';
     }
     // Shell-supplied controls: reflect state on anything carrying data-action.
@@ -2393,10 +2397,10 @@
     if (host) {
       clear(host);
       if (!state.analysis) {
-        emptyNote(host, 'see where the call went wrong',
-          'Select a capture on the left, or drop a pcap / SBC log to analyse it.');
+        emptyNote(host, _t('see where the call went wrong'),
+          _t('Select a capture on the left, or drop a pcap / SBC log to analyse it.'));
       } else if (!L || typeof L.render !== 'function') {
-        emptyNote(host, 'Ladder renderer unavailable.');
+        emptyNote(host, _t('Ladder renderer unavailable.'));
       } else {
         var svg = L.render({
           rows: state.rows,
@@ -2500,8 +2504,8 @@
     });
     if (!inds.length) {
       host.appendChild(el('span', 'lamps-empty', state.analysis
-        ? 'no protocol features detected in this capture'
-        : 'indicators light up once a capture is analysed \u2014 one lamp per protocol feature hiccup found.'));
+        ? _t('no protocol features detected in this capture')
+        : _t('indicators light up once a capture is analysed \u2014 one lamp per protocol feature hiccup found.')));
       return;
     }
     for (var i = 0; i < inds.length; i++) {
@@ -2551,18 +2555,18 @@
     if (!chip) return;
     var sc = state.analysis && state.analysis.scenario;
     if (!sc || !sc.primary) {
-      chip.textContent = 'scenario: \u2014';
+      chip.textContent = _t('scenario: \u2014');
       chip.title = state.analysis
-        ? 'hiccup could not classify this capture'
-        : 'no capture open';
+        ? _t('hiccup could not classify this capture')
+        : _t('no capture open');
       chip.hidden = true;
       return;
     }
     chip.hidden = false;
     var pct = Math.round((nnum(sc.confidence) || 0) * 100);
-    chip.textContent = 'scenario: ' + str(sc.primary) + ' \u00b7 ' + pct + '%';
-    chip.title = (str(sc.detail || '') || ('scenario: ' + sc.primary)) +
-      '  \u2014  click for the full capture-wide read-out in the advice drawer';
+    chip.textContent = _t('scenario: ') + str(sc.primary) + ' \u00b7 ' + pct + '%';
+    chip.title = (str(sc.detail || '') || (_t('scenario: ') + sc.primary)) +
+      _t('  \u2014  click for the full capture-wide read-out in the advice drawer');
   }
 
   // ----------------------------------------------------------- #info-pane
@@ -2653,23 +2657,23 @@
     var head = el('div', 'info-head');
     if (row) {
       head.appendChild(el('strong', null,
-        str(row.kind === 'msg' ? 'message ' : (row.kind === 'media' ? 'stream ' : 'aux ')) + row.rowId));
+        str(row.kind === 'msg' ? _t('message ') : (row.kind === 'media' ? _t('stream ') : _t('aux '))) + row.rowId));
       head.appendChild(el('span', 'mono muted', ' ' + fmtClock(row.ts) + ' \u00b7 ' + pathOf(row)));
-      var explain = el('button', 'explain-btn', 'explain in chat');
+      var explain = el('button', 'explain-btn', _t('explain in chat'));
       explain.type = 'button';
       explain.addEventListener('click', function () {
         var q, scope;
         if (row.kind === 'msg') {
           var m = row.obj || {};
-          q = 'Explain this ' + (m.protocol === 'h323' ? 'H.323' : 'SIP') +
-            ' message: what is it doing in this call, and is anything wrong with it?';
+          q = _t('Explain this ') + (m.protocol === 'h323' ? 'H.323' : 'SIP') +
+            _t(' message: what is it doing in this call, and is anything wrong with it?');
           scope = { type: 'message', id: row.id };
         } else if (row.kind === 'media') {
-          q = 'Explain this media stream (' + row.desc + '). Is the loss/jitter a problem, and what would cause it?';
+          q = _t('Explain this media stream (') + row.desc + _t('). Is the loss/jitter a problem, and what would cause it?');
           scope = chatScope();
         } else {
-          q = 'Explain this ' + str((row.obj && row.obj.protocol) || 'auxiliary') +
-            ' observation: "' + str(row.obj && row.obj.summary) + '". What does it mean for the call?';
+          q = _t('Explain this ') + str((row.obj && row.obj.protocol) || 'auxiliary') +
+            _t(' observation: "') + str(row.obj && row.obj.summary) + _t('". What does it mean for the call?');
           scope = chatScope();
         }
         openChatPrefilled(q, scope);
@@ -2684,10 +2688,10 @@
     if (!panel) return;
     clear(panel);
     var row = selectedRow();
-    if (!state.analysis) { emptyNote(panel, 'No capture open.'); return; }
+    if (!state.analysis) { emptyNote(panel, _t('No capture open.')); return; }
     if (!row) {
-      emptyNote(panel, 'Nothing selected.',
-        'Pick a message in the ladder or the selection list to read its full text here — redacted, monospaced, with search terms highlighted.');
+      emptyNote(panel, _t('Nothing selected.'),
+        _t('Pick a message in the ladder or the selection list to read its full text here — redacted, monospaced, with search terms highlighted.'));
       return;
     }
     infoHeader(panel, row);
@@ -2695,18 +2699,18 @@
     if (row.kind === 'msg') {
       var m = row.obj || {};
       panel.appendChild(el('h4', 'ptree-title',
-        m.protocol === 'h323' ? 'raw (hex \u2014 Q.931 / H.225)' : 'raw (redacted)'));
+        m.protocol === 'h323' ? _t('raw (hex \u2014 Q.931 / H.225)') : _t('raw (redacted)')));
       var pre = el('pre', 'mono info-raw');
       appendHighlighted(pre, m.raw, state.searchTerms);
       panel.appendChild(pre);
       panel.appendChild(el('p', 'pane-empty',
-        'Digest credentials are redacted server-side before the analysis is stored.'));
+        _t('Digest credentials are redacted server-side before the analysis is stored.')));
       return;
     }
 
     if (row.kind === 'media') {
       var st = row.obj || {};
-      var g = ptreeGroup(ptree(panel), 'media stream');
+      var g = ptreeGroup(ptree(panel), _t('media stream'));
       kv(g, 'kind', st.kind);
       kv(g, 'path', pathOf(st));
       kv(g, 'ssrc', st.ssrc);
@@ -2716,13 +2720,13 @@
       kv(g, 'duration', st.durationSec == null ? null : st.durationSec + ' s');
       if (st.kind === 'srtp') {
         panel.appendChild(el('p', 'pane-empty',
-          'SRTP: the payload is encrypted. hiccup reports header-derived statistics only and never attempts decryption.'));
+          _t('SRTP: the payload is encrypted. hiccup reports header-derived statistics only and never attempts decryption.')));
       }
       return;
     }
 
     var x = row.obj || {};
-    panel.appendChild(el('h4', 'ptree-title', str(x.protocol || 'aux').toUpperCase() + ' observation'));
+    panel.appendChild(el('h4', 'ptree-title', str(x.protocol || 'aux').toUpperCase() + _t(' observation')));
     var sum = el('p', 'mono info-aux-summary');
     appendHighlighted(sum, x.summary, state.searchTerms);
     panel.appendChild(sum);
@@ -2731,7 +2735,7 @@
       appendHighlighted(praw, x.raw, state.searchTerms);
       panel.appendChild(praw);
     } else {
-      panel.appendChild(el('p', 'pane-empty', 'No raw bytes retained for this observation.'));
+      panel.appendChild(el('p', 'pane-empty', _t('No raw bytes retained for this observation.')));
     }
   }
 
@@ -2780,12 +2784,12 @@
     if (depth > 6) {
       var flat = el('span', 'ptree-val mono');
       try { flat.textContent = JSON.stringify(value).slice(0, 400); }
-      catch (e) { flat.textContent = '(unserializable)'; }
+      catch (e) { flat.textContent = _t('(unserializable)'); }
       container.appendChild(flat);
       return;
     }
     if (Array.isArray(value)) {
-      if (!value.length) { container.appendChild(el('span', 'ptree-val muted', '(empty)')); return; }
+      if (!value.length) { container.appendChild(el('span', 'ptree-val muted', _t('(empty)'))); return; }
       var list = el('div', 'tree-children');
       for (var i = 0; i < value.length; i++) {
         var item = el('div', 'ptree-row');
@@ -2798,7 +2802,7 @@
     }
     var keys = [];
     try { keys = Object.keys(value); } catch (e) { keys = []; }
-    if (!keys.length) { container.appendChild(el('span', 'ptree-val muted', '(empty)')); return; }
+    if (!keys.length) { container.appendChild(el('span', 'ptree-val muted', _t('(empty)'))); return; }
     var box = el('div', 'tree-children');
     for (var k = 0; k < keys.length; k++) {
       if (keys[k] === 'raw' && typeof value[keys[k]] === 'string' && value[keys[k]].length > 600) continue;
@@ -2821,17 +2825,17 @@
     if (!panel) return;
     clear(panel);
     var row = selectedRow();
-    if (!state.analysis) { emptyNote(panel, 'No capture open.'); return; }
+    if (!state.analysis) { emptyNote(panel, _t('No capture open.')); return; }
     if (!row) {
-      emptyNote(panel, 'Nothing selected.',
-        'The parsed view: SIP headers and SDP, ISUP parameters for SIP-I bodies, Q.931 information elements for H.323 — field by field.');
+      emptyNote(panel, _t('Nothing selected.'),
+        _t('The parsed view: SIP headers and SDP, ISUP parameters for SIP-I bodies, Q.931 information elements for H.323 — field by field.'));
       return;
     }
     infoHeader(panel, row);
     var tree = ptree(panel);
 
     if (row.kind !== 'msg') {
-      var dg = ptreeGroup(tree, str(row.kind === 'media' ? 'stream' : (row.obj && row.obj.protocol) || 'aux') + ' detail');
+      var dg = ptreeGroup(tree, str(row.kind === 'media' ? 'stream' : (row.obj && row.obj.protocol) || 'aux') + _t(' detail'));
       valueTree(dg, (row.obj && row.obj.detail) || row.obj, 0);
       return;
     }
@@ -2840,26 +2844,26 @@
 
     if (m.protocol === 'h323' || m.q931Type) {
       var hg = ptreeGroup(tree, 'Q.931 / H.225');
-      kv(hg, 'message type', m.q931Type);
+      kv(hg, _t('message type'), m.q931Type);
       kv(hg, 'summary', m.summary);
       kv(hg, 'time', fmtClock(m.ts));
       kv(hg, 'path', pathOf(m) + ' (' + str(m.transport) + ')');
       kv(hg, 'size', m.size == null ? null : m.size + ' B');
 
-      var ig = ptreeGroup(tree, 'information elements');
-      kv(ig, 'call reference', m.callRef == null ? null : m.callRef + ' (flag ' + (m.callRefFlag ? 1 : 0) + ')');
+      var ig = ptreeGroup(tree, _t('information elements'));
+      kv(ig, _t('call reference'), m.callRef == null ? null : m.callRef + _t(' (flag ') + (m.callRefFlag ? 1 : 0) + ')');
       kv(ig, 'Calling Party Number (0x6C)', m.calling);
       kv(ig, 'Called Party Number (0x70)', m.called);
       if (m.causeCode != null) {
         kv(ig, 'Cause (0x08)', m.causeCode + (m.causeText ? ' \u2014 ' + m.causeText : ''), true);
       }
       kv(ig, 'User-User (0x7E) callIdentifier', m.guid);
-      kv(ig, 'fastStart', m.hasFastStart ? 'present (heuristic)' : 'not seen');
+      kv(ig, 'fastStart', m.hasFastStart ? _t('present (heuristic)') : _t('not seen'));
       if (!ig.querySelector || !ig.querySelector('.ptree-row')) {
-        ig.appendChild(el('p', 'pane-empty', 'No decodable IEs in this message.'));
+        ig.appendChild(el('p', 'pane-empty', _t('No decodable IEs in this message.')));
       }
       if (Array.isArray(m.ies) && m.ies.length) {
-        valueTree(ptreeGroup(tree, 'additional IEs'), m.ies, 0);
+        valueTree(ptreeGroup(tree, _t('additional IEs')), m.ies, 0);
       }
       return;
     }
@@ -2877,18 +2881,18 @@
     if (m.cseq) kv(g, 'CSeq', str(m.cseq.num) + ' ' + str(m.cseq.method));
     kv(g, 'branch', m.branch);
     kv(g, 'Contact', m.contact);
-    kv(g, 'body type', m.bodyType);
+    kv(g, _t('body type'), m.bodyType);
     kv(g, 'size', m.size == null ? null : m.size + ' B');
-    if (m.retransOf) kv(g, 'retransmission of', m.retransOf, true);
+    if (m.retransOf) kv(g, _t('retransmission of'), m.retransOf, true);
     var legId = state.msgToLeg[m.id];
     if (legId) {
-      kv(g, 'leg', legId + (state.legToCall[legId] ? ' (call ' + state.legToCall[legId] + ')' : ''));
+      kv(g, 'leg', legId + (state.legToCall[legId] ? _t(' (call ') + state.legToCall[legId] + ')' : ''));
     }
 
     var headers = arr(m.headers);
     var hg2 = ptreeGroup(tree, 'headers');
     if (!headers.length) {
-      hg2.appendChild(el('p', 'pane-empty', 'No headers parsed.'));
+      hg2.appendChild(el('p', 'pane-empty', _t('No headers parsed.')));
     } else {
       for (var i = 0; i < headers.length; i++) {
         if (!headers[i]) continue;
@@ -2899,20 +2903,20 @@
     if (m.sdp) {
       var sg = ptreeGroup(tree, 'SDP');
       if (m.sdp.origin) {
-        kv(sg, 'o= origin', str(m.sdp.origin.user) + ' ' + str(m.sdp.origin.sessId) + ' ' +
+        kv(sg, _t('o= origin'), str(m.sdp.origin.user) + ' ' + str(m.sdp.origin.sessId) + ' ' +
           str(m.sdp.origin.sessVersion) + ' IN ' + str(m.sdp.origin.addr));
       }
-      kv(sg, 'c= connection', m.sdp.connection);
+      kv(sg, _t('c= connection'), m.sdp.connection);
       var sattrs = arr(m.sdp.sessionAttrs);
-      if (sattrs.length) kv(sg, 'session a=', sattrs.join('  \u00b7  '));
+      if (sattrs.length) kv(sg, _t('session a='), sattrs.join('  \u00b7  '));
 
       var mblocks = arr(m.sdp.media);
       if (!mblocks.length) {
-        sg.appendChild(el('p', 'pane-empty', 'No m= blocks.'));
+        sg.appendChild(el('p', 'pane-empty', _t('No m= blocks.')));
       } else {
         for (var b = 0; b < mblocks.length; b++) {
           var mb = mblocks[b] || {};
-          var mg = ptreeGroup(tree, 'm=' + str(mb.type || '?') + ' block');
+          var mg = ptreeGroup(tree, 'm=' + str(mb.type || '?') + _t(' block'));
           kv(mg, 'm=', str(mb.type) + ' ' + str(mb.port) + ' ' + str(mb.proto));
           var pls = arr(mb.payloads).map(function (pl) {
             if (!pl) return '';
@@ -2930,28 +2934,28 @@
 
     if (m.isup) {
       var ig2 = ptreeGroup(tree, 'ISUP (SIP-I)');
-      kv(ig2, 'message type', m.isup.messageType);
-      kv(ig2, 'called party', m.isup.calledParty);
-      kv(ig2, 'calling party', m.isup.callingParty);
+      kv(ig2, _t('message type'), m.isup.messageType);
+      kv(ig2, _t('called party'), m.isup.calledParty);
+      kv(ig2, _t('calling party'), m.isup.callingParty);
       if (m.isup.causeCode != null) {
         kv(ig2, 'cause', m.isup.causeCode + (m.isup.causeText ? ' \u2014 ' + m.isup.causeText : ''), true);
       }
-      kv(ig2, 'nature of connection', m.isup.natureOfConnection);
+      kv(ig2, _t('nature of connection'), m.isup.natureOfConnection);
       var params = arr(m.isup.params);
       if (params.length) {
-        var pg = ptreeGroup(tree, 'ISUP parameters');
+        var pg = ptreeGroup(tree, _t('ISUP parameters'));
         for (var pi = 0; pi < params.length; pi++) {
           if (params[pi]) kv(pg, str(params[pi].name), params[pi].value);
         }
       } else {
-        ig2.appendChild(el('p', 'pane-empty', 'No ISUP parameters decoded.'));
+        ig2.appendChild(el('p', 'pane-empty', _t('No ISUP parameters decoded.')));
       }
     }
 
     if (Array.isArray(m.bodyParts) && m.bodyParts.length) {
       for (var bp = 0; bp < m.bodyParts.length; bp++) {
         var part = m.bodyParts[bp] || {};
-        var bg = ptreeGroup(tree, 'body part \u2014 ' + str(part.contentType || '?') +
+        var bg = ptreeGroup(tree, _t('body part \u2014 ') + str(part.contentType || '?') +
           (part.disposition ? ' (' + part.disposition + ')' : ''));
         var ppre = el('pre', 'mono info-raw');
         appendHighlighted(ppre, part.body, state.searchTerms);
@@ -2961,14 +2965,14 @@
 
     var col = state.collapseByMsg[m.id];
     if (col) {
-      var cg = ptreeGroup(tree, 'retransmission collapse');
+      var cg = ptreeGroup(tree, _t('retransmission collapse'));
       kv(cg, 'label', col.label, true);
       kv(cg, 'count', col.count);
       kv(cg, 'outcome', col.outcome);
       if (col.classification) {
         kv(cg, 'classification', str(col.classification.code) +
           ' (' + Math.round((col.classification.confidence || 0) * 100) + '%)');
-        kv(cg, 'likely cause', col.classification.cause);
+        kv(cg, _t('likely cause'), col.classification.cause);
         kv(cg, 'evidence', col.classification.detail);
       }
     }
@@ -3009,7 +3013,7 @@
       pts.sort(function (a, b2) { return (a.ts || 0) - (b2.ts || 0); });
       if (pts.length > 1) {
         series = pts.map(function (pt) { return pt.v; });
-        label = 'RTCP fraction-lost over time (%)';
+        label = _t('RTCP fraction-lost over time (%)');
       }
     }
     if (!series.length) {
@@ -3027,15 +3031,15 @@
           vals[idx] += nnum(gaps[gi].ms) || 0;
         }
         series = vals;
-        label = 'silence / black-hole gap milliseconds over the stream';
+        label = _t('silence / black-hole gap milliseconds over the stream');
         isLoss = false;
       }
     }
 
     var title = document.createElementNS(SVGNS, 'title');
     if (!series.length) {
-      title.textContent = 'no loss series available' +
-        (nnum(stream && stream.lossPct) != null ? ' (overall ' + stream.lossPct + '% lost)' : '');
+      title.textContent = _t('no loss series available') +
+        (nnum(stream && stream.lossPct) != null ? _t(' (overall ') + stream.lossPct + _t('% lost)') : '');
       svg.appendChild(title);
       var axis = document.createElementNS(SVGNS, 'line');
       axis.setAttribute('x1', 1); axis.setAttribute('y1', H - 1.5);
@@ -3072,16 +3076,16 @@
     var panel = $('info-media');
     if (!panel) return;
     clear(panel);
-    if (!state.analysis) { emptyNote(panel, 'No capture open.'); return; }
+    if (!state.analysis) { emptyNote(panel, _t('No capture open.')); return; }
 
     var streams = mediaStreams().filter(matchesScopeAssoc);
     var reports = rtcpReports().filter(matchesScopeAssoc);
 
     if (!streams.length && !reports.length) {
-      emptyNote(panel, 'No media in this selection.',
+      emptyNote(panel, _t('No media in this selection.'),
         mediaStreams().length
-          ? 'This selection has no RTP/RTCP associated with it — widen it to the whole capture in the tree.'
-          : 'This capture has no RTP/RTCP: signalling only, or an analysis produced before the media module existed.');
+          ? _t('This selection has no RTP/RTCP associated with it — widen it to the whole capture in the tree.')
+          : _t('This capture has no RTP/RTCP: signalling only, or an analysis produced before the media module existed.'));
       return;
     }
 
@@ -3091,11 +3095,11 @@
       var table = el('table', 'table-dense media-table');
       var thead = el('thead');
       var hr = el('tr');
-      var cols = ['stream', 'kind', 'path', 'ssrc', 'codec', 'pkts', 'loss %', 'jitter ms mean/max', 'MOS', 'loss over time'];
+      var cols = ['stream', 'kind', 'path', 'ssrc', 'codec', 'pkts', _t('loss %'), _t('jitter ms mean/max'), 'MOS', _t('loss over time')];
       for (var c = 0; c < cols.length; c++) {
         var th = el('th', /pkts|loss %|jitter|MOS/.test(cols[c]) ? 'num' : null, cols[c]);
         if (cols[c] === 'MOS') {
-          th.title = 'ESTIMATE only — ITU-T G.107 simplified E-model from packet loss and jitter, not a listening test';
+          th.title = _t('ESTIMATE only — ITU-T G.107 simplified E-model from packet loss and jitter, not a listening test');
         }
         hr.appendChild(th);
       }
@@ -3110,7 +3114,7 @@
           var tr = el('tr', 'media-row' + tint);
           tr.appendChild(el('td', 'mono', str(st.id)));
           var kindTd = el('td', 'mono', str(st.kind));
-          if (st.kind === 'srtp') kindTd.title = 'encrypted — statistics from headers only, no decryption attempted';
+          if (st.kind === 'srtp') kindTd.title = _t('encrypted — statistics from headers only, no decryption attempted');
           tr.appendChild(kindTd);
           tr.appendChild(el('td', 'mono', pathOf(st)));
           tr.appendChild(el('td', 'mono', st.ssrc == null ? '\u2014' : String(st.ssrc)));
@@ -3127,8 +3131,8 @@
           var mosTd = el('td', 'num');
           var mos = el('span', 'mos' + (nnum(st.mos) != null && st.mos < 3.6 ? ' sev-warn' : ''), fmtNum(st.mos, 1));
           mosTd.appendChild(mos);
-          var est = el('span', 'badge-estimate', 'est.');
-          est.title = 'estimate' + (st.mosMethod ? ' \u2014 method: ' + st.mosMethod : '');
+          var est = el('span', 'badge-estimate', _t('est.'));
+          est.title = 'estimate' + (st.mosMethod ? _t(' \u2014 method: ') + st.mosMethod : '');
           mosTd.appendChild(est);
           tr.appendChild(mosTd);
 
@@ -3137,12 +3141,12 @@
           tr.appendChild(sparkTd);
 
           var flags = [];
-          if (st.oneWay) flags.push('one-way — no reverse stream seen for a paired leg');
-          if (nnum(st.maxGapMs) != null && st.maxGapMs > 0) flags.push('max gap ' + st.maxGapMs + 'ms');
-          if (nnum(st.outOfOrder) ) flags.push(st.outOfOrder + ' out of order');
-          if (st.ssrcChanges) flags.push(st.ssrcChanges + ' SSRC change(s)');
-          if (st.markerResets) flags.push(st.markerResets + ' marker reset(s)');
-          if (arr(st.dtmfEvents).length) flags.push(arr(st.dtmfEvents).length + ' RFC 4733 DTMF event(s)');
+          if (st.oneWay) flags.push(_t('one-way — no reverse stream seen for a paired leg'));
+          if (nnum(st.maxGapMs) != null && st.maxGapMs > 0) flags.push(_t('max gap ') + st.maxGapMs + 'ms');
+          if (nnum(st.outOfOrder) ) flags.push(st.outOfOrder + _t(' out of order'));
+          if (st.ssrcChanges) flags.push(st.ssrcChanges + _t(' SSRC change(s)'));
+          if (st.markerResets) flags.push(st.markerResets + _t(' marker reset(s)'));
+          if (arr(st.dtmfEvents).length) flags.push(arr(st.dtmfEvents).length + _t(' RFC 4733 DTMF event(s)'));
           if (flags.length) tr.title = flags.join('  \u00b7  ');
           tbody.appendChild(tr);
         })(streams[i]);
@@ -3151,8 +3155,8 @@
       scroll.appendChild(table);
       panel.appendChild(scroll);
       panel.appendChild(el('p', 'spark-caption',
-        'MOS is an ESTIMATE derived from loss and jitter (ITU-T G.107 simplified) — not a listening test. ' +
-        'The sparkline is RTCP fraction-lost where available, otherwise silence gaps.'));
+        _t('MOS is an ESTIMATE derived from loss and jitter (ITU-T G.107 simplified) — not a listening test. ') +
+        _t('The sparkline is RTCP fraction-lost where available, otherwise silence gaps.')));
     }
 
     if (reports.length) {
@@ -3161,7 +3165,7 @@
       var rtable = el('table', 'table-dense rtcp-table');
       var rhead = el('thead');
       var rhr = el('tr');
-      var rcols = ['time', 'path', 'type', 'ssrc', 'cname', 'fraction lost %', 'cumulative lost', 'jitter', 'RTT ms'];
+      var rcols = ['time', 'path', 'type', 'ssrc', 'cname', _t('fraction lost %'), _t('cumulative lost'), 'jitter', 'RTT ms'];
       for (var rc = 0; rc < rcols.length; rc++) {
         rhr.appendChild(el('th', /lost|jitter|RTT/.test(rcols[rc]) ? 'num' : null, rcols[rc]));
       }
@@ -3250,7 +3254,7 @@
     if (!panel) return;
     clear(panel);
     setAdviceCount(null);
-    if (!state.analysis) { emptyNote(panel, 'No capture open.'); return; }
+    if (!state.analysis) { emptyNote(panel, _t('No capture open.')); return; }
 
     // Scenario block — the "what am I even looking at" header.
     var sc = state.analysis.scenario;
@@ -3259,7 +3263,7 @@
       var stop = el('div', 'advice-title');
       stop.appendChild(el('span', 'chip', str(sc.primary)));
       stop.appendChild(el('span', 'mono muted',
-        ' confidence ' + Math.round((nnum(sc.confidence) || 0) * 100) + '%'));
+        _t(' confidence ') + Math.round((nnum(sc.confidence) || 0) * 100) + '%'));
       scard.appendChild(stop);
       if (sc.detail) scard.appendChild(el('p', 'advice-block', str(sc.detail)));
       var sigs = objs(sc.signals);
@@ -3277,7 +3281,7 @@
       }
       var alts = objs(sc.alternatives);
       if (alts.length) {
-        scard.appendChild(el('p', 'pane-empty', 'alternatives: ' + alts.map(function (a) {
+        scard.appendChild(el('p', 'pane-empty', _t('alternatives: ') + alts.map(function (a) {
           return str(a.primary) + ' ' + Math.round((a.confidence || 0) * 100) + '%';
         }).join('  \u00b7  ')));
       }
@@ -3301,11 +3305,11 @@
     }
     var uncovered = findings.filter(function (f) { return !f || !f.id || !covered[f.id]; });
     if (uncovered.length) {
-      section(panel, advice.length ? 'Other findings' : 'Findings');
+      section(panel, advice.length ? _t('Other findings') : _t('Findings'));
       if (!advice.length) {
         panel.appendChild(el('p', 'pane-empty',
-          'This analysis has no advisory objects — findings are shown raw. ' +
-          'Re-upload the capture once the advisor module is live to get cited fixes.'));
+          _t('This analysis has no advisory objects — findings are shown raw. ') +
+          _t('Re-upload the capture once the advisor module is live to get cited fixes.')));
       }
       for (var u = 0; u < uncovered.length; u++) panel.appendChild(findingCard(uncovered[u]));
     }
@@ -3319,14 +3323,14 @@
       return legIds.indexOf(c && c.legId) !== -1;
     });
     if (cols.length) {
-      section(panel, 'Retransmissions');
+      section(panel, _t('Retransmissions'));
       for (var c2 = 0; c2 < cols.length; c2++) panel.appendChild(collapseCard(cols[c2]));
     }
 
     var storms = (state.analysis.retrans && state.analysis.retrans.aggregate &&
       arr(state.analysis.retrans.aggregate.stormWindows)) || [];
     if (storms.length && state.sel.type === 'capture') {
-      section(panel, 'Box-wide storms');
+      section(panel, _t('Box-wide storms'));
       for (var s3 = 0; s3 < storms.length; s3++) {
         var w = storms[s3] || {};
         var stormCard = el('div', 'advice-card sev-crit');
@@ -3334,19 +3338,19 @@
         stormTop.appendChild(sevChip('crit'));
         stormTop.appendChild(el('span', 'chip', str(w.verdict || 'box-wide')));
         stormTop.appendChild(el('span', 'advice-title-text',
-          str(w.legsAffected) + ' legs retransmitting together'));
+          str(w.legsAffected) + _t(' legs retransmitting together')));
         stormCard.appendChild(stormTop);
         stormCard.appendChild(el('p', 'advice-block',
-          str(w.retransCount) + ' retransmissions between ' + fmtClock(w.startTs) + ' and ' +
-          fmtClock(w.endTs) + '. This is the box melting, not one broken call — look at licence ' +
-          'exhaustion, CPU, or an unreachable session agent before you look at the call.'));
+          str(w.retransCount) + _t(' retransmissions between ') + fmtClock(w.startTs) + _t(' and ') +
+          fmtClock(w.endTs) + _t('. This is the box melting, not one broken call — look at licence ') +
+          _t('exhaustion, CPU, or an unreachable session agent before you look at the call.')));
         panel.appendChild(stormCard);
       }
     }
 
     if (!panel.firstChild) {
-      emptyNote(panel, 'Nothing to advise on for this selection.',
-        'hiccup found no warn/crit conditions here. Widen the selection to the whole capture in the tree.');
+      emptyNote(panel, _t('Nothing to advise on for this selection.'),
+        _t('hiccup found no warn/crit conditions here. Widen the selection to the whole capture in the tree.'));
     }
   }
 
@@ -3362,8 +3366,8 @@
     if (n == null) { chip.textContent = ''; chip.title = ''; return; }
     chip.textContent = n ? String(n) : 'none';
     chip.title = n === 1
-      ? '1 advisory card for the current selection'
-      : n + ' advisory cards for the current selection';
+      ? _t('1 advisory card for the current selection')
+      : n + _t(' advisory cards for the current selection');
   }
 
   /** Reveal the drawer's advice section and put focus on it. */
@@ -3378,7 +3382,7 @@
   }
 
   function explainButton(question, scope, label) {
-    var b = el('button', 'explain-btn', label || 'explain in chat');
+    var b = el('button', 'explain-btn', label || _t('explain in chat'));
     b.type = 'button';
     b.addEventListener('click', function (ev) {
       ev.stopPropagation();
@@ -3390,16 +3394,16 @@
   function adviceCard(a) {
     if (!a) {
       var stub = el('div', 'advice-card');
-      stub.appendChild(el('p', 'pane-empty', '(empty advice)'));
+      stub.appendChild(el('p', 'pane-empty', _t('(empty advice)')));
       return stub;
     }
     var card = el('div', 'advice-card sev-' + str(a.severity || 'info'));
     var top = el('div', 'advice-title');
     top.appendChild(sevChip(a.severity));
-    top.appendChild(el('span', 'advice-title-text', str(a.title || '(untitled advice)')));
+    top.appendChild(el('span', 'advice-title-text', str(a.title || _t('(untitled advice)'))));
     top.appendChild(explainButton(
-      'Explain this advice in your own words: "' + str(a.title) + '". ' +
-      'Use only the supplied Advice object and its citations — do not invent RFC section numbers.',
+      _t('Explain this advice in your own words: "') + str(a.title) + '". ' +
+      _t('Use only the supplied Advice object and its citations — do not invent RFC section numbers.'),
       firstScopeForAdvice(a)));
     card.appendChild(top);
 
@@ -3412,9 +3416,9 @@
       wrap.appendChild(span);
       card.appendChild(wrap);
     }
-    block('what is wrong', a.whatsWrong, 'is-whats-wrong');
-    block('why it matters', a.whyItMatters, 'is-why');
-    block('mechanism', a.mechanism, 'is-mechanism');
+    block(_t('what is wrong'), a.whatsWrong, 'is-whats-wrong');
+    block(_t('why it matters'), a.whyItMatters, 'is-why');
+    block(_t('mechanism'), a.mechanism, 'is-mechanism');
 
     var fixes = objs(a.fixes);
     for (var i = 0; i < fixes.length; i++) card.appendChild(fixCard(fixes[i]));
@@ -3432,7 +3436,7 @@
           link.href = href;
           link.target = '_blank';
           link.rel = 'noopener';
-          link.title = 'opens in a new tab';
+          link.title = _t('opens in a new tab');
           li.appendChild(link);
         } else {
           li.appendChild(el('span', 'citation-link is-unlinked', label));
@@ -3462,19 +3466,19 @@
       }
       card.appendChild(kul);
       card.appendChild(el('p', 'pane-empty',
-        'Guide excerpts ground a reviewable draft — they are not a verified change.'));
+        _t('Guide excerpts ground a reviewable draft — they are not a verified change.')));
     }
     return card;
   }
 
   function fixCard(fix) {
     var box = el('div', 'fix-card');
-    if (!fix) { box.appendChild(el('p', 'pane-empty', '(empty fix)')); return box; }
+    if (!fix) { box.appendChild(el('p', 'pane-empty', _t('(empty fix)'))); return box; }
     var head = el('div', 'fix-head');
     head.appendChild(el('span', 'chip fix-target', str(fix.target || 'generic')));
     if (fix.confidence) {
       var conf = el('span', 'chip fix-conf', str(fix.confidence));
-      conf.title = 'how likely this fix is to be the right one here';
+      conf.title = _t('how likely this fix is to be the right one here');
       head.appendChild(conf);
     }
     head.appendChild(el('span', 'fix-summary', str(fix.summary || '')));
@@ -3493,14 +3497,14 @@
       wrap.appendChild(pre);
       var copy = el('button', 'copy-btn', 'copy');
       copy.type = 'button';
-      copy.title = 'copy this draft to the clipboard — review before applying';
+      copy.title = _t('copy this draft to the clipboard — review before applying');
       copy.addEventListener('click', function (ev) {
         ev.stopPropagation();
         copyText(str(fix.config), copy);
       });
       wrap.appendChild(copy);
       box.appendChild(wrap);
-      box.appendChild(el('p', 'pane-empty', 'Draft only — review before applying to a live box.'));
+      box.appendChild(el('p', 'pane-empty', _t('Draft only — review before applying to a live box.')));
     }
     if (fix.caution) box.appendChild(el('p', 'fix-caution', str(fix.caution)));
     return box;
@@ -3520,13 +3524,13 @@
 
   function findingCard(f) {
     var card = el('div', 'advice-card finding-card sev-' + str(f && f.severity || 'info'));
-    if (!f) { card.appendChild(el('p', 'pane-empty', '(empty finding)')); return card; }
+    if (!f) { card.appendChild(el('p', 'pane-empty', _t('(empty finding)'))); return card; }
     var top = el('div', 'advice-title');
     top.appendChild(sevChip(f.severity));
     top.appendChild(el('span', 'chip mono', str(f.category || '?')));
-    top.appendChild(el('span', 'advice-title-text', str(f.title || '(untitled)')));
+    top.appendChild(el('span', 'advice-title-text', str(f.title || _t('(untitled)'))));
     top.appendChild(explainButton(
-      'Explain this finding: "' + str(f.title) + '". What causes it and what should I check?',
+      _t('Explain this finding: "') + str(f.title) + _t('". What causes it and what should I check?'),
       f.id ? { type: 'finding', id: f.id } : chatScope()));
     card.appendChild(top);
     if (f.detail) {
@@ -3535,13 +3539,13 @@
       card.appendChild(p2);
     }
     var refs = [];
-    if (arr(f.callIds).length) refs.push('calls: ' + arr(f.callIds).join(', '));
-    if (arr(f.legIds).length) refs.push('legs: ' + arr(f.legIds).join(', '));
-    if (arr(f.msgIds).length) refs.push('msgs: ' + arr(f.msgIds).join(', '));
+    if (arr(f.callIds).length) refs.push(_t('calls: ') + arr(f.callIds).join(', '));
+    if (arr(f.legIds).length) refs.push(_t('legs: ') + arr(f.legIds).join(', '));
+    if (arr(f.msgIds).length) refs.push(_t('msgs: ') + arr(f.msgIds).join(', '));
     if (refs.length) {
       var jump = el('button', 'explain-btn', refs.join('  \u00b7  '));
       jump.type = 'button';
-      jump.title = 'jump to the first referenced object';
+      jump.title = _t('jump to the first referenced object');
       jump.addEventListener('click', function (ev) { ev.stopPropagation(); jumpToFinding(f); });
       card.appendChild(jump);
     }
@@ -3550,7 +3554,7 @@
 
   function collapseCard(col) {
     var card = el('div', 'advice-card retrans-card sev-warn');
-    if (!col) { card.appendChild(el('p', 'pane-empty', '(empty collapse)')); return card; }
+    if (!col) { card.appendChild(el('p', 'pane-empty', _t('(empty collapse)'))); return card; }
     var cls = col.classification || {};
     var top = el('div', 'advice-title');
     top.appendChild(el('span', 'chip mono code-chip code-' + str(cls.code || 'unknown'),
@@ -3561,13 +3565,13 @@
       top.appendChild(el('span', 'chip mono', Math.round((cls.confidence || 0) * 100) + '%'));
     }
     top.appendChild(explainButton(
-      'Explain this retransmission pattern: "' + str(col.label) + '" classified as ' +
-      str(cls.code) + '. What would cause it and how do I confirm it?',
+      _t('Explain this retransmission pattern: "') + str(col.label) + _t('" classified as ') +
+      str(cls.code) + _t('. What would cause it and how do I confirm it?'),
       col.legId ? { type: 'leg', id: col.legId } : chatScope()));
     card.appendChild(top);
     if (cls.cause) {
       var cp = el('p', 'advice-block');
-      cp.appendChild(el('span', 'advice-label', 'likely cause'));
+      cp.appendChild(el('span', 'advice-label', _t('likely cause')));
       cp.appendChild(document.createTextNode(str(cls.cause)));
       card.appendChild(cp);
     }
@@ -3579,10 +3583,10 @@
     }
     card.appendChild(el('p', 'pane-empty',
       str(col.legId || '') + '  \u00b7  ' + fmtClock(col.firstTs) + ' \u2192 ' + fmtClock(col.lastTs) +
-      '  \u00b7  outcome ' + str(col.outcome || '?')));
+      _t('  \u00b7  outcome ') + str(col.outcome || '?')));
     var first = arr(col.msgIds)[0];
     if (first) {
-      var show = el('button', 'explain-btn', 'show in ladder');
+      var show = el('button', 'explain-btn', _t('show in ladder'));
       show.type = 'button';
       show.addEventListener('click', function (ev) {
         ev.stopPropagation();
@@ -3628,18 +3632,18 @@
         if (ev.key === 'Enter') { ev.preventDefault(); state.searchQuery = input.value || ''; runSearch(); }
       });
       input.setAttribute('placeholder',
-        'search raw, headers, numbers…  or call: leg: callid: from: to: method: status: ip: port: codec: proto: sev: has:');
+        _t('search raw, headers, numbers…  or call: leg: callid: from: to: method: status: ip: port: codec: proto: sev: has:'));
       input.setAttribute('title',
-        'Substring search over raw messages, headers, URIs, Call-IDs, tags, branches, SDP, ' +
-        'H.323 numbers, aux summaries, findings and advice.\n' +
-        'Digits are matched phone-normalized: 654321 finds +33987654321.\n' +
-        'Filters: call: leg: callid: from: to: method: status: ip: port: codec: ' +
+        _t('Substring search over raw messages, headers, URIs, Call-IDs, tags, branches, SDP, ') +
+        _t('H.323 numbers, aux summaries, findings and advice.\n') +
+        _t('Digits are matched phone-normalized: 654321 finds +33987654321.\n') +
+        _t('Filters: call: leg: callid: from: to: method: status: ip: port: codec: ') +
         'proto:(sip|h323|rtp|dns|diameter|stun) sev:(crit|warn|notice|info) ' +
         'has:(t38|ims|sipi|srtp|dtmf|retrans|advice)');
     }
     if (clearBtn) {
       clearBtn.addEventListener('click', function (ev) { ev.preventDefault(); clearSearch(); });
-      clearBtn.title = 'clear the search';
+      clearBtn.title = _t('clear the search');
     }
   }
 
@@ -3690,7 +3694,7 @@
         pushField(fields, 'called', m.called);
         if (m.causeCode != null) pushField(fields, 'cause', m.causeCode + ' ' + str(m.causeText));
         pushField(fields, 'guid', m.guid);
-        pushField(fields, 'raw (hex)', m.raw);
+        pushField(fields, _t('raw (hex)'), m.raw);
         digits.push(digitsOf(m.calling), digitsOf(m.called));
       } else {
         pushField(fields, 'line', m.isRequest
@@ -3749,7 +3753,7 @@
         var bps = arr(m.bodyParts);
         for (var bp = 0; bp < bps.length; bp++) {
           if (!bps[bp]) continue;
-          pushField(fields, 'body ' + str(bps[bp].contentType), bps[bp].body);
+          pushField(fields, _t('body ') + str(bps[bp].contentType), bps[bp].body);
           if (/isup/i.test(str(bps[bp].contentType))) tags.sipi = true;
         }
         pushField(fields, 'raw', m.raw);
@@ -3873,7 +3877,7 @@
       var fixes = arr(ad.fixes);
       for (j = 0; j < fixes.length; j++) {
         if (!fixes[j]) continue;
-        pushField(af, 'fix ' + str(fixes[j].target), str(fixes[j].summary) + ' ' +
+        pushField(af, _t('fix ') + str(fixes[j].target), str(fixes[j].summary) + ' ' +
           arr(fixes[j].steps).join(' ') + ' ' + str(fixes[j].config));
       }
       var cites = arr(ad.citations);
@@ -4008,7 +4012,7 @@
           if (!found && digitTerms[t] && item.digits && item.digits.indexOf(digitTerms[t]) !== -1) {
             found = true;
             if (!hitField) {
-              hitField = 'number (digit-normalized)';
+              hitField = _t('number (digit-normalized)');
               hitText = item.digits;
               hitTerm = digitTerms[t];
             }
@@ -4052,7 +4056,7 @@
     var node = $('search-count');
     if (!node) return;
     if (!state.searchActive) {
-      node.textContent = 'no search';
+      node.textContent = _t('no search');
       node.title = '';
       node.classList.remove('is-hits');
       return;
@@ -4065,17 +4069,17 @@
     }
     var sessCount = Object.keys(sessions).length;
     if (!n) {
-      node.textContent = 'no matches';
-      node.title = 'nothing in this capture matched the query';
+      node.textContent = _t('no matches');
+      node.title = _t('nothing in this capture matched the query');
       node.classList.remove('is-hits');
       return;
     }
     node.classList.add('is-hits');
-    node.textContent = (state.searchTruncated ? SEARCH_CAP + '+' : String(n)) + ' hits · ' +
-      sessCount + ' session' + (sessCount === 1 ? '' : 's');
+    node.textContent = (state.searchTruncated ? SEARCH_CAP + '+' : String(n)) + _t(' hits · ') +
+      sessCount + _t(' session') + (sessCount === 1 ? '' : 's');
     node.title = state.searchTruncated
-      ? 'capped at ' + SEARCH_CAP + ' hits — narrow the query with a field filter such as call: or method:'
-      : n + ' hits across ' + sessCount + ' session(s)';
+      ? _t('capped at ') + SEARCH_CAP + _t(' hits — narrow the query with a field filter such as call: or method:')
+      : n + _t(' hits across ') + sessCount + _t(' session(s)');
   }
 
   /**
@@ -4088,18 +4092,18 @@
     clear(host);
 
     var head = el('div', 'tree-row search-results-head');
-    head.appendChild(el('span', 'tree-label', 'search results'));
+    head.appendChild(el('span', 'tree-label', _t('search results')));
     var back = el('button', 'tree-toggle search-clear-inline icon-btn', '\u00d7');
     back.type = 'button';
-    back.title = 'clear the search and go back to the session tree';
-    back.setAttribute('aria-label', 'clear search');
+    back.title = _t('clear the search and go back to the session tree');
+    back.setAttribute('aria-label', _t('clear search'));
     back.addEventListener('click', function (ev) { ev.stopPropagation(); clearSearch(); });
     head.appendChild(back);
     host.appendChild(head);
 
     if (!state.searchHits.length) {
-      emptyNote(host, 'No matches.',
-        'Try a shorter substring, a phone-number fragment (digits are matched ignoring + - ( ) spaces), or a filter like method:INVITE or has:retrans.');
+      emptyNote(host, _t('No matches.'),
+        _t('Try a shorter substring, a phone-number fragment (digits are matched ignoring + - ( ) spaces), or a filter like method:INVITE or has:retrans.'));
       return;
     }
 
@@ -4118,7 +4122,7 @@
         var node = treeNode({
           nodeKey: 'hits:' + key,
           kindClass: 'is-call',
-          label: call ? (call.id + ' \u00b7 ' + callProtocolLabel(call)) : 'not tied to a call',
+          label: call ? (call.id + ' \u00b7 ' + callProtocolLabel(call)) : _t('not tied to a call'),
           sub: call ? (' ' + str(ingress.from || '?') + ' \u2192 ' + str(ingress.to || '?')) : null,
           state: call ? ingress.state : undefined,
           badge: groups[key].length + ' hit' + (groups[key].length === 1 ? '' : 's'),
@@ -4126,7 +4130,7 @@
           hasChildren: true,
           open: true,
           selected: !!(call && isSelectedNode({ type: 'call', callId: call.id })),
-          title: call ? ('select call ' + call.id) : 'matches with no call association',
+          title: call ? (_t('select call ') + call.id) : _t('matches with no call association'),
           onSelect: call ? function () { selectScopeFromSearch({ type: 'call', callId: call.id }, null); } : null
         });
         host.appendChild(node.node);
@@ -4159,8 +4163,8 @@
     }
 
     if (state.searchTruncated) {
-      emptyNote(host, 'More matches exist — capped at ' + SEARCH_CAP + '.',
-        'Narrow the query with a filter (call:, method:, has:…).');
+      emptyNote(host, _t('More matches exist — capped at ') + SEARCH_CAP + '.',
+        _t('Narrow the query with a filter (call:, method:, has:…).'));
     }
   }
 
@@ -4269,7 +4273,7 @@
 
   function scopeLabel() {
     var s = chatScope();
-    if (!s || s.type === 'capture' || !s.id) return 'whole capture';
+    if (!s || s.type === 'capture' || !s.id) return _t('whole capture');
     var extra = '';
     if (state.sel.type === 'transaction' && state.sel.txKey) extra = ' · ' + state.sel.txKey;
     return s.type + ' ' + s.id + extra;
@@ -4280,14 +4284,14 @@
     var available = !!(llm && llm.available);
 
     var modelChip = $('chat-model');
-    if (modelChip) modelChip.textContent = available ? str(llm.model) : 'offline';
+    if (modelChip) modelChip.textContent = available ? str(llm.model) : _t('offline');
 
     var hint = $('chat-hint');
     if (hint) {
       if (available && llm.source === 'rfplex') {
         hint.hidden = false;
         hint.textContent = str(llm.model || 'model') +
-          ' — shares its brain with RFPlex — answers may queue behind RFPlex work';
+          _t(' — shares its brain with RFPlex — answers may queue behind RFPlex work');
       } else {
         hint.hidden = true;
         hint.textContent = '';
@@ -4297,13 +4301,13 @@
     var scopeBox = $('chat-scope');
     if (scopeBox) {
       clear(scopeBox);
-      scopeBox.appendChild(el('span', 'muted', 'scope: '));
+      scopeBox.appendChild(el('span', 'muted', _t('scope: ')));
       scopeBox.appendChild(el('span', 'chip mono', scopeLabel()));
       var cur = chatScope();
       if (cur && cur.type !== 'capture') {
-        var reset = el('button', 'btn scope-reset', '\u00d7 whole capture');
+        var reset = el('button', 'btn scope-reset', _t('\u00d7 whole capture'));
         reset.type = 'button';
-        reset.title = 'reset the scope to the whole capture';
+        reset.title = _t('reset the scope to the whole capture');
         reset.addEventListener('click', function () {
           state.sel = { type: 'capture', callId: null, legId: null, txKey: null };
           state.selectedRowId = null;
@@ -4317,12 +4321,12 @@
     if (box) {
       clear(box);
       if (!state.captureId) {
-        emptyNote(box, 'Open a capture first — hiccup answers about what it can see.');
+        emptyNote(box, _t('Open a capture first — hiccup answers about what it can see.'));
       } else {
         var hist = chatHistory();
         if (!hist.length && !state.chatBusy) {
-          emptyNote(box, 'Ask about this capture or about SIP/H.323 in general.',
-            'Try: "why is this call ambiguous?" \u00b7 "what does Session-Expires do?" \u00b7 "what stripped the PAI header?"');
+          emptyNote(box, _t('Ask about this capture or about SIP/H.323 in general.'),
+            _t('Try: "why is this call ambiguous?" \u00b7 "what does Session-Expires do?" \u00b7 "what stripped the PAI header?"'));
         }
         for (var i = 0; i < hist.length; i++) {
           var bubble = el('div', 'chat-bubble ' + (hist[i].role === 'user' ? 'from-user' : 'from-bot'));
@@ -4413,16 +4417,16 @@
       var j = null;
       try { j = await r.json(); } catch (e) { /* non-json */ }
       if (r.status === 503) {
-        state.chatError = (j && j.error) || 'local model unavailable right now';
+        state.chatError = _t((j && j.error) || '') || _t('local model unavailable right now');
         if (j && j.llm) { state.llm = j.llm; renderLlmChip(); }
       } else if (!r.ok) {
-        state.chatError = (j && j.error) || ('chat failed (' + r.status + ')');
+        state.chatError = _t((j && j.error) || '') || (_t('chat failed (') + r.status + ')');
       } else {
         hist.push({ role: 'assistant', content: str(j && j.reply), model: j && j.model });
         saveChat(hist);
       }
     } catch (e) {
-      state.chatError = 'chat failed: ' + (e && e.message ? e.message : 'network error');
+      state.chatError = _t('chat failed: ') + (e && e.message ? e.message : _t('network error'));
     }
     state.chatBusy = false;
     renderChat();
@@ -4847,43 +4851,43 @@
     }
     function clickId(id) { var n = $(id); if (n) n.click(); }
 
-    add('go', 'Go to the workbench', '/app', function () { location.href = '/app'; });
-    add('go', 'Go to the HMR translator', '/hmr', function () { location.href = '/hmr'; });
-    add('go', 'Go to the guides', '/kb', function () { location.href = '/kb'; });
-    add('go', 'Go to the team page', '/team', function () { location.href = '/team'; });
+    add('go', _t('Go to the workbench'), '/app', function () { location.href = '/app'; });
+    add('go', _t('Go to the HMR translator'), '/hmr', function () { location.href = '/hmr'; });
+    add('go', _t('Go to the guides'), '/kb', function () { location.href = '/kb'; });
+    add('go', _t('Go to the team page'), '/team', function () { location.href = '/team'; });
 
-    add('view', 'Toggle light / dark theme', '', togglePageTheme);
-    add('chat', state.chatOpen ? 'Close the ask-hiccup drawer' : 'Open the ask-hiccup drawer',
+    add('view', _t('Toggle light / dark theme'), '', togglePageTheme);
+    add('chat', state.chatOpen ? _t('Close the ask-hiccup drawer') : _t('Open the ask-hiccup drawer'),
       '', function () { toggleChat(!state.chatOpen); });
-    add('view', state.projectManageOpen ? 'Close the manage-projects panel' : 'Manage projects',
+    add('view', state.projectManageOpen ? _t('Close the manage-projects panel') : _t('Manage projects'),
       '', function () { toggleProjectManage(!state.projectManageOpen); });
-    add('go', 'Upload a capture', '', function () { clickId('browse-btn'); });
+    add('go', _t('Upload a capture'), '', function () { clickId('browse-btn'); });
 
-    add('find', 'Search the trace', '/', function () {
+    add('find', _t('Search the trace'), '/', function () {
       var si = $('search-input');
       if (!si) return;
       focusQuietly(si);
       si.select();
     });
-    if (state.searchActive) add('find', 'Clear the search', 'esc', function () { clearSearch(); });
+    if (state.searchActive) add('find', _t('Clear the search'), 'esc', function () { clearSearch(); });
 
     if (state.analysis) {
       for (var i = 0; i < INFO_TABS.length; i++) {
         (function (spec) {
-          add('view', 'Show ' + spec.label, '', function () {
+          add('view', _t('Show ') + spec.label, '', function () {
             state.infoTab = spec.key;
             renderInfo();
             focusQuietly($(spec.panel));   // land on what you just asked to see
           });
         })(INFO_TABS[i]);
       }
-      add('view', 'Expand all sessions', '', function () { setAllTreeExpanded(true); });
-      add('view', 'Collapse all sessions', '', function () { setAllTreeExpanded(false); });
-      add('view', 'Export the ladder as SVG', '', function () { toolbarAction('export'); });
+      add('view', _t('Expand all sessions'), '', function () { setAllTreeExpanded(true); });
+      add('view', _t('Collapse all sessions'), '', function () { setAllTreeExpanded(false); });
+      add('view', _t('Export the ladder as SVG'), '', function () { toolbarAction('export'); });
     }
 
-    add('help', 'Keyboard shortcuts', '?', function () { openShortcutsHelp(); });
-    add('acct', 'Sign out', '', function () { clickId('logout-btn'); });
+    add('help', _t('Keyboard shortcuts'), '?', function () { openShortcutsHelp(); });
+    add('acct', _t('Sign out'), '', function () { clickId('logout-btn'); });
     return out;
   }
 

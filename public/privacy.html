@@ -7,6 +7,12 @@
 <meta name="description" content="How hiccup handles personal data: what is stored, why, for how long, and how to get it out or have it erased.">
 <link rel="canonical" href="https://hiccup.monster/privacy">
 <script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<!-- Language, resolved before any markup is parsed — same FOUC-safe shape as the
+     theme line above, and for a stronger reason: _t() and its catalogue must both
+     exist before app.js's first render. document.write gives a blocking load with
+     no fetch race and no build step. -->
+<script>(function(){try{var L=localStorage.getItem('hiccup-lang');if(!/^(en|fr|es|de)$/.test(L||''))L=String(navigator.language||'en').slice(0,2).toLowerCase();if(!/^(en|fr|es|de)$/.test(L))L='en';document.documentElement.lang=L;if(L!=='en')document.write('<script src="/i18n/'+L+'.js"><\/script>');}catch(e){}})();</script>
+<script src="/i18n.js"></script>
 <link rel="icon" href="/brand/favicon.ico" sizes="32x32">
 <link rel="stylesheet" href="/hiccup.css">
 <link rel="stylesheet" href="/sip.css">
@@ -24,10 +30,20 @@
 <header class="topbar">
   <a class="logo" href="/" aria-label="hiccup"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
   <span class="topbar-spacer"></span>
-  <a class="topnav-link" href="/sip">SIP reference</a>
-  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a data-i18n class="topnav-link" href="/sip">SIP reference</a>
+  <span data-lang-switcher></span>
+  <button data-i18n-attrs="aria-label" class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
 </header>
 
+<!--
+  The chrome above carries data-i18n; the notice below deliberately does NOT.
+
+  This is a privacy notice: a statement of legal fact about a named data
+  controller, with GDPR bases and rights in it, already flagged as not
+  lawyer-reviewed. A translation of it would be a second, differently-worded
+  legal claim with no reviewer — exactly the failure mode docs/i18n-plan.md §6.8
+  reserves for LICENSE and NOTICE. English stays authoritative here.
+-->
 <main class="doc">
   <p class="doc-kicker">Privacy</p>
   <h1>How hiccup handles your data</h1>
@@ -170,7 +186,7 @@
     hiccup is free while in beta and the service may change or end.
   </p>
 
-  <p class="doc-foot"><a href="/">← back to hiccup</a></p>
+  <p class="doc-foot"><a data-i18n href="/">← back to hiccup</a></p>
 </main>
 
 <script src="/theme.js"></script>

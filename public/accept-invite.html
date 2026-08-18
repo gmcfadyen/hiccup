@@ -3,12 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>hiccup — join a team</title>
+<title data-i18n>hiccup — join a team</title>
 <!-- public in the sense that no session is needed, but every visit is a
      single-use token in the query string: nothing here is worth indexing, and
      an indexed invite URL would be an indexed credential. -->
 <meta name="robots" content="noindex">
 <script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<!-- Language, resolved before any markup is parsed — same FOUC-safe shape as the
+     theme line above, and for a stronger reason: _t() and its catalogue must both
+     exist before app.js's first render. document.write gives a blocking load with
+     no fetch race and no build step. -->
+<script>(function(){try{var L=localStorage.getItem('hiccup-lang');if(!/^(en|fr|es|de)$/.test(L||''))L=String(navigator.language||'en').slice(0,2).toLowerCase();if(!/^(en|fr|es|de)$/.test(L))L='en';document.documentElement.lang=L;if(L!=='en')document.write('<script src="/i18n/'+L+'.js"><\/script>');}catch(e){}})();</script>
+<script src="/i18n.js"></script>
 <link rel="icon" href="/brand/favicon.ico" sizes="32x32">
 <link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
@@ -57,22 +63,22 @@
   </div>
 
   <section id="accept-loading" class="card accept-card">
-    <p class="muted">Loading your invite…</p>
+    <p data-i18n class="muted">Loading your invite…</p>
   </section>
 
   <section id="accept-invalid" class="card accept-card" hidden>
-    <p>This invite is invalid or has expired.</p>
-    <p class="muted">Ask your teammate to send you a new invite link.</p>
-    <a class="btn" href="/">Go to hiccup</a>
+    <p data-i18n>This invite is invalid or has expired.</p>
+    <p data-i18n class="muted">Ask your teammate to send you a new invite link.</p>
+    <a data-i18n class="btn" href="/">Go to hiccup</a>
   </section>
 
   <section id="accept-error" class="card accept-card" hidden>
     <p id="accept-error-text" role="alert"></p>
-    <button id="accept-retry" class="btn" type="button">Try again</button>
+    <button data-i18n id="accept-retry" class="btn" type="button">Try again</button>
   </section>
 
   <section id="accept-ready" class="card accept-card" hidden>
-    <h1>Join a team</h1>
+    <h1 data-i18n>Join a team</h1>
     <div id="accept-intro"></div>
     <div id="accept-form-host" class="accept-form-host"></div>
     <p id="accept-form-error" class="form-error" role="alert"></p>

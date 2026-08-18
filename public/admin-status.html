@@ -3,9 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>hiccup — status</title>
+<title data-i18n>hiccup — status</title>
 <meta name="robots" content="noindex">
 <script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<!-- Language, resolved before any markup is parsed — same FOUC-safe shape as the
+     theme line above, and for a stronger reason: _t() and its catalogue must both
+     exist before app.js's first render. document.write gives a blocking load with
+     no fetch race and no build step. -->
+<script>(function(){try{var L=localStorage.getItem('hiccup-lang');if(!/^(en|fr|es|de)$/.test(L||''))L=String(navigator.language||'en').slice(0,2).toLowerCase();if(!/^(en|fr|es|de)$/.test(L))L='en';document.documentElement.lang=L;if(L!=='en')document.write('<script src="/i18n/'+L+'.js"><\/script>');}catch(e){}})();</script>
+<script src="/i18n.js"></script>
 <link rel="icon" href="/brand/favicon.ico" sizes="32x32">
 <link rel="stylesheet" href="/hiccup.css">
 <link rel="stylesheet" href="/app.css">
@@ -52,25 +58,26 @@
 
 <header class="topbar">
   <a class="logo" href="/app" aria-label="hiccup">hic<span class="logo-bump">c</span>up</a>
-  <nav class="topnav" aria-label="tools">
-    <a class="topnav-link" href="/app">workbench</a>
+  <nav data-i18n-attrs="aria-label" class="topnav" aria-label="tools">
+    <a data-i18n class="topnav-link" href="/app">workbench</a>
     <a class="topnav-link" href="/hmr">HMR</a>
-    <a class="topnav-link" href="/kb">guides</a>
-    <a class="topnav-link" href="/team">team</a>
-    <a class="topnav-link is-current" href="/admin/status" aria-current="page">status</a>
-    <a class="topnav-link" href="/admin/feedback">feedback</a>
+    <a data-i18n class="topnav-link" href="/kb">guides</a>
+    <a data-i18n class="topnav-link" href="/team">team</a>
+    <a data-i18n class="topnav-link is-current" href="/admin/status" aria-current="page">status</a>
+    <a data-i18n class="topnav-link" href="/admin/feedback">feedback</a>
   </nav>
   <span class="topbar-spacer"></span>
-  <button class="btn" id="st-restart" type="button" title="Restart the hiccup service so it picks up new code">restart server</button>
-  <button class="btn" id="st-refresh" type="button">refresh</button>
-  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <button data-i18n data-i18n-attrs="title" class="btn" id="st-restart" type="button" title="Restart the hiccup service so it picks up new code">restart server</button>
+  <button data-i18n class="btn" id="st-refresh" type="button">refresh</button>
+  <span data-lang-switcher></span>
+  <button data-i18n-attrs="aria-label" class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
 </header>
 
 <main class="fb-admin">
   <div class="fb-admin-head">
     <div>
-      <h1>Status</h1>
-      <p class="muted" id="st-summary">loading…</p>
+      <h1 data-i18n>Status</h1>
+      <p data-i18n class="muted" id="st-summary">loading…</p>
     </div>
   </div>
   <p id="st-msg" class="feedback-msg" role="status" aria-live="polite"></p>
@@ -201,9 +208,7 @@
   // so it confirms first and then polls until the new process answers —
   // otherwise the page just sits on a dead socket looking broken.
   $('st-restart').addEventListener('click', async function () {
-    if (!confirm('Restart the hiccup service now?
-
-In-flight requests are dropped and the app is unreachable for a few seconds.')) return;
+    if (!confirm(_t('Restart the hiccup service now?\n\nIn-flight requests are dropped and the app is unreachable for a few seconds.'))) return;
     $('st-restart').disabled = true;
     say('asking the server to restart…');
     try {

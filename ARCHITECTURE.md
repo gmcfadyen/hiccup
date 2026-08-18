@@ -1805,3 +1805,106 @@ linking `app.css`, because these pages are the one part of hiccup served to
 people who have not signed in and ~60KB of workbench grid, ladder and chat-drawer
 rules would be entirely unused. That duplication is the known cost: if the shared
 topbar ever moves, it moves in two files.
+
+---
+
+# Wave 8 — Multilingual UI chrome (en / fr / es / de)
+
+Translates the ~745 strings of UI chrome — buttons, labels, nav, empty states,
+server error sentences — into French, Spanish and German. It deliberately does
+**not** translate the ~180,000 characters of domain prose in `lib/advisor.js`,
+`lib/detect.js`, `lib/hmr.js` and `lib/isup.js`: that text is hand-authored
+diagnostic instruction executed against production SBCs, `advisor.js`'s own
+header guarantees every word of it is deterministic and never machine-produced,
+and a dropped negation there turns a caution into an instruction. It stays
+English on purpose, in every language. `public/privacy.html`'s notice is
+excluded for the same reason at a smaller scale — a mistranslated legal
+document is its own liability — and says so inline. Full inventory and
+reasoning: `docs/i18n-plan.md`.
+
+## Catalogue: keyed by the English source text, not a hand-written name
+
+`locales/en.json` is the generated inventory — `hash -> {text, cat, where}` —
+rebuilt by scanning every `public/*.html`, `public/*.js` and `server.js`'s
+`error:` sentences. `locales/{fr,es,de}.json` are hand-maintained, keyed by
+the **English text itself** (`"hiccup — join a team": "hiccup — rejoindre..."`)
+because these are the only files a human edits, and a wall of hex is
+unreviewable. `bin/i18n-build.js` applies the hash when it generates the
+browser catalogues (`public/i18n/<lang>.js`, `window.HICCUP_I18N`), so the
+safety property holds at every layer: **edit the English anywhere, and the key
+it hashes to changes with it.** A stale translation cannot silently keep
+showing under new English — the lookup just misses, and `_t()`'s fallback is
+the argument you gave it, so the UI shows the new English instead. Rendering
+blank is structurally impossible, not merely unlikely.
+
+`public/i18n.js` is `require()`d by both the browser and `lib/i18n.js` /
+`bin/i18n-*.js`, so there is exactly one hash implementation (FNV-1a, split
+into two 32-bit halves for JS's 53-bit integer ceiling) and one whitespace-
+normalisation rule. Two copies could drift by one rule and silently turn every
+lookup into a fallback-to-English — which looks like "translation stopped
+working" and nothing would report it. sha1 was the original plan
+(`docs/i18n-plan.md` §2.1); it was dropped because the browser has no
+*synchronous* sha1 (`crypto.subtle` is async and secure-context only) and
+`_t()` must be synchronous. This is an addressing function, not a security
+primitive, and `bin/i18n-extract.js` hard-fails on any collision across the
+whole catalogue.
+
+## Load order and the `_t()` fallback contract
+
+Every page resolves the language in a tiny blocking `<script>` in `<head>`,
+`document.write`-ing `/i18n/<lang>.js` before `/i18n.js` itself loads —
+same FOUC-safe shape as `theme.js`'s inline picker, and for a stronger reason:
+`_t()` and its catalogue must both exist before `app.js`'s first render, and
+an async fetch would race it. `_t(en)` takes the English text as its own
+argument and returns it unchanged on any miss, so a missing translation is
+never a blank string or a thrown error — it is the current, correct English.
+A one-shot `[data-i18n]` / `[data-i18n-attrs]` DOM pass runs on
+`DOMContentLoaded`; `data-i18n` carries no key, the element's own English text
+**is** the key, so a miss leaves the markup exactly as authored.
+
+Inline `<script>` blocks in HTML files are outside this pipeline —
+`scanHtml()` deliberately does not descend into `<script>`/`<style>` bodies —
+so `admin-status.html` and `admin-feedback.html`'s dynamically-rendered field
+labels stay English-only. Acceptable here: both pages are gated to
+`config.adminEmails`, i.e. seen by nobody but the site operator.
+
+Server error sentences reach the client with no `code` field
+(`{error: '<English sentence>'}`), so rather than refactor every route to add
+one, `scanServerErrors()` extracts every string literal that follows
+`error:` in `server.js` and the client runs whatever sentence it receives
+through `_t()`. Source-text keying makes this work with zero server changes.
+
+## The nightly job records; it does not translate
+
+`refreshIfDue()` (polled every 15 minutes, restart-safe on a day-stamp exactly
+like `lib/feedback.js`'s digest and `lib/retention.js`'s sweep) re-scans the
+tree and writes newly-missing strings to `data/i18n-missing.json`. It does
+**not** call an LLM to fill them in. Translating unattended would mean
+generated text landing in the repo with nobody reading it — the same argument
+that keeps `advisor.js` out of scope applies in miniature to the chrome: a
+wrong button label is cheap, a wrong confirmation dialog is not. Until a
+string is translated by hand (`locales/<lang>.json`, then `npm run i18n`) the
+UI shows English, which is correct and obvious rather than confidently wrong.
+This is a deliberate narrower reading of "translate everything overnight" than
+the original ask; revisit if hiccup ever gets more than one maintainer to
+clear the backlog.
+
+## Two bugs this wave's own live verification caught
+
+Neither was a translation-content problem — both were found by actually
+loading pages in the browser rather than trusting the diff:
+
+- `public/admin-status.html`'s restart confirmation had a **literal newline
+  inside a single-quoted JS string** (`confirm('...now?\n\nIn-flight...')`
+  written with a real line break instead of `\n`). That is a hard syntax
+  error, so the page's *entire* inline `<script>` failed to parse — not a
+  cosmetic issue, the whole status page and restart button were dead. Predates
+  this wave; unrelated to translation; only surfaced because the page was
+  actually clicked through.
+- `lib/hmr-generate.js`'s `findMethods()` matched `\bINVITE\b` but not the
+  natural plural "outbound INVITEs" — engineers write it that way far more
+  often than the bare method name. Fixed with a trailing `S?` (uppercase,
+  since the input is upper-cased before matching — the obvious `s?` fix is
+  silently wrong and was caught by re-running the new selftest rather than
+  trusting the first patch). Covered by `test/selftest.js`'s `hmr-generate:`
+  block, added alongside the fix since none existed.

@@ -3,9 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>hiccup — settings</title>
+<title data-i18n>hiccup — settings</title>
 <meta name="robots" content="noindex">
 <script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<!-- Language, resolved before any markup is parsed — same FOUC-safe shape as the
+     theme line above, and for a stronger reason: _t() and its catalogue must both
+     exist before app.js's first render. document.write gives a blocking load with
+     no fetch race and no build step. -->
+<script>(function(){try{var L=localStorage.getItem('hiccup-lang');if(!/^(en|fr|es|de)$/.test(L||''))L=String(navigator.language||'en').slice(0,2).toLowerCase();if(!/^(en|fr|es|de)$/.test(L))L='en';document.documentElement.lang=L;if(L!=='en')document.write('<script src="/i18n/'+L+'.js"><\/script>');}catch(e){}})();</script>
+<script src="/i18n.js"></script>
 <link rel="icon" href="/brand/favicon.ico" sizes="32x32">
 <link rel="stylesheet" href="/hiccup.css">
 <link rel="stylesheet" href="/app.css">
@@ -57,94 +63,95 @@
 
 <header class="topbar">
   <a class="logo" href="/app" aria-label="hiccup">hic<span class="logo-bump">c</span>up</a>
-  <nav class="topnav" aria-label="tools">
-    <a class="topnav-link" href="/app">workbench</a>
+  <nav data-i18n-attrs="aria-label" class="topnav" aria-label="tools">
+    <a data-i18n class="topnav-link" href="/app">workbench</a>
     <a class="topnav-link" href="/hmr">HMR</a>
-    <a class="topnav-link" href="/kb">guides</a>
-    <a class="topnav-link" href="/team">team</a>
-    <a class="topnav-link is-current" href="/settings" aria-current="page">settings</a>
+    <a data-i18n class="topnav-link" href="/kb">guides</a>
+    <a data-i18n class="topnav-link" href="/team">team</a>
+    <a data-i18n class="topnav-link is-current" href="/settings" aria-current="page">settings</a>
   </nav>
   <span class="topbar-spacer"></span>
-  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <span data-lang-switcher></span>
+  <button data-i18n-attrs="aria-label" class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
 </header>
 
 <main class="set-page">
-  <h1>Settings</h1>
-  <p class="set-lede" id="set-who">loading…</p>
+  <h1 data-i18n>Settings</h1>
+  <p data-i18n class="set-lede" id="set-who">loading…</p>
   <p id="set-msg" class="feedback-msg" role="status" aria-live="polite"></p>
 
   <section class="card set-card">
-    <h2>Privacy of your captures</h2>
-    <p class="set-lede">Traces routinely contain phone numbers. These control what
+    <h2 data-i18n>Privacy of your captures</h2>
+    <p data-i18n class="set-lede">Traces routinely contain phone numbers. These control what
       hiccup keeps in the analysis it builds from them.</p>
 
     <div class="set-row">
       <div class="set-row-text">
-        <div class="set-row-title">Mask phone numbers in new uploads</div>
-        <div class="set-row-help">Shows numbers as <span class="mono">+3361…00</span> in the
+        <div data-i18n class="set-row-title">Mask phone numbers in new uploads</div>
+        <div data-i18n class="set-row-help">Shows numbers as <span class="mono">+3361…00</span> in the
           analysis — still enough to follow a call across legs, without keeping the
           full number. Your uploaded file is never altered, only what hiccup derives
           from it.</div>
       </div>
       <div class="set-row-action">
         <select id="set-mask" class="input">
-          <option value="">use the server default</option>
-          <option value="1">always mask</option>
-          <option value="0">never mask</option>
+          <option data-i18n value="">use the server default</option>
+          <option data-i18n value="1">always mask</option>
+          <option data-i18n value="0">never mask</option>
         </select>
       </div>
     </div>
 
     <div class="set-row">
       <div class="set-row-text">
-        <div class="set-row-title">How long captures are kept</div>
-        <div class="set-row-help" id="set-retention">checking…</div>
+        <div data-i18n class="set-row-title">How long captures are kept</div>
+        <div data-i18n class="set-row-help" id="set-retention">checking…</div>
       </div>
     </div>
 
     <div class="set-row">
       <div class="set-row-text">
-        <div class="set-row-title">Who else can see your captures</div>
-        <div class="set-row-help" id="set-sharing">checking…</div>
+        <div data-i18n class="set-row-title">Who else can see your captures</div>
+        <div data-i18n class="set-row-help" id="set-sharing">checking…</div>
       </div>
     </div>
   </section>
 
   <section class="card set-card">
-    <h2>Your data</h2>
-    <p class="set-lede">Everything hiccup holds about this account.</p>
+    <h2 data-i18n>Your data</h2>
+    <p data-i18n class="set-lede">Everything hiccup holds about this account.</p>
 
     <div class="set-row">
       <div class="set-row-text">
-        <div class="set-row-title">Download a copy</div>
-        <div class="set-row-help">One JSON file: your account record, capture list,
+        <div data-i18n class="set-row-title">Download a copy</div>
+        <div data-i18n class="set-row-help">One JSON file: your account record, capture list,
           projects, team, library documents and any feedback you have sent. Capture
           file contents are not included — download those individually from the
           workbench.</div>
       </div>
       <div class="set-row-action">
-        <a class="btn" id="set-export" href="/api/me/export">Download</a>
+        <a data-i18n class="btn" id="set-export" href="/api/me/export">Download</a>
       </div>
     </div>
   </section>
 
   <section class="card set-card set-danger">
-    <h2>Delete this account</h2>
-    <p class="set-lede">Irreversible. There is no undo and no backup to restore from.</p>
+    <h2 data-i18n>Delete this account</h2>
+    <p data-i18n class="set-lede">Irreversible. There is no undo and no backup to restore from.</p>
     <div class="set-row">
       <div class="set-row-text">
-        <div class="set-row-title">What this removes</div>
-        <div class="set-row-help" id="set-delete-scope">checking…</div>
+        <div data-i18n class="set-row-title">What this removes</div>
+        <div data-i18n class="set-row-help" id="set-delete-scope">checking…</div>
       </div>
       <div class="set-row-action">
-        <button class="btn btn-danger" id="set-delete-start" type="button">Delete account</button>
+        <button data-i18n class="btn btn-danger" id="set-delete-start" type="button">Delete account</button>
       </div>
     </div>
     <div class="set-confirm" id="set-delete-confirm" hidden>
-      <label for="set-delete-word" class="set-fact">Type <b>DELETE</b> to confirm:</label>
+      <label data-i18n for="set-delete-word" class="set-fact">Type <b>DELETE</b> to confirm:</label>
       <input class="input mono" id="set-delete-word" type="text" autocomplete="off" placeholder="DELETE">
-      <button class="btn btn-danger" id="set-delete-go" type="button" disabled>Delete permanently</button>
-      <button class="btn" id="set-delete-cancel" type="button">Cancel</button>
+      <button data-i18n class="btn btn-danger" id="set-delete-go" type="button" disabled>Delete permanently</button>
+      <button data-i18n class="btn" id="set-delete-cancel" type="button">Cancel</button>
     </div>
   </section>
 </main>
