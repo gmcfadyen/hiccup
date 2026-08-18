@@ -478,7 +478,7 @@ function servePublicFile(res, name) {
       res.end('hiccup: public/' + name + ' is not deployed yet');
       return;
     }
-    res.writeHead(200, { 'Content-Type': STATIC_TYPES['.html'] });
+    res.writeHead(200, { 'Content-Type': STATIC_TYPES['.html'], 'Cache-Control': 'no-cache' });
     res.end(data);
   });
 }
@@ -499,7 +499,7 @@ function servePublicPage(res, name) {
       });
       return;
     }
-    res.writeHead(200, { 'Content-Type': STATIC_TYPES['.html'] });
+    res.writeHead(200, { 'Content-Type': STATIC_TYPES['.html'], 'Cache-Control': 'no-cache' });
     res.end(data);
   });
 }
@@ -526,7 +526,13 @@ function serveStatic(res, urlPath) {
   const file = path.join(PUBLIC_DIR, normalized);
   fs.readFile(file, (err, data) => {
     if (err) return notFoundText(res);
-    res.writeHead(200, { 'Content-Type': STATIC_TYPES[ext] });
+    // no-cache (not no-store): the browser may still keep a copy, but must
+    // revalidate with the server before using it. hiccup's HTML/JS/CSS have
+    // no content-hashed filenames, so without this a browser's heuristic
+    // caching can silently serve a pre-deploy version of the app for hours
+    // after a real update -- exactly the "the UI looks wrong/stale" bug
+    // class this exists to prevent.
+    res.writeHead(200, { 'Content-Type': STATIC_TYPES[ext], 'Cache-Control': 'no-cache' });
     res.end(data);
   });
 }

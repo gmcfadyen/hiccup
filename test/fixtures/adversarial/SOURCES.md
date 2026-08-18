@@ -51,20 +51,17 @@ for either case) looks like a gap against that same doc's "skip with a warning
 string" promise for `raw-sip` mode specifically. Not fixed here; flagged as a
 follow-up rather than folded into this fixture-adding pass.
 
-## real-*.pcap / real-*.pcapng
+## real-*.pcap / real-*.pcapng — removed 2026-08-18
 
-Downloaded from `goffinet/sip_captures`, a small public GitHub repo of sample
-SIP captures for learning/testing: https://github.com/goffinet/sip_captures
-
-| File here | Upstream filename | What it actually shows (verified by parsing it through `lib/pcap.js`, not just going by the filename) |
-|---|---|---|
-| `real-sip-488-codec-negotiation-fail.pcapng` | `sip-488-Not-Acceptable-Here-codec-null.pcapng` | An INVITE answered `488 Not Acceptable Here` — a codec/SDP offer-answer failure. |
-| `real-sip-register-wrong-password.pcapng` | `sip-register-wrong_password-401-403-401-403.pcapng` | REGISTER auth-failure loop: `401 Unauthorized` → retry → `403 Forbidden`, repeating. |
-| `real-sip-register-wrong-user.pcapng` | `sip-register-wrong_user-401-403-404.pcapng` | REGISTER against an unknown user: `401` → `403` → `404`. |
-| `real-sip-routing-error.pcapng` | `sip-routing-error-wireshark.pcapng` | Capture the uploader themselves labeled a SIP routing error (2 calls, 58 SIP messages). |
-| `real-forensic-challenge-4.pcap` | `Forensic_challenge_4.pcap` | 3534 packets, some snaplen-truncated (declared length > captured length — real, not synthetic). Confirmed by inspection: `User-Agent: UNfriendly-scanner - for demo purposes` — this is [SIPVicious](https://github.com/EnableSecurity/sipvicious) (`svmap`/`svwar`), a well-known open-source SIP scanner — sending OPTIONS pings and REGISTER probes against an `Asterisk PBX 1.6.0.10-FONCORE-r40` at `172.25.105.40`, interleaved with a real X-Lite softphone registering normally. Real scanning/enumeration traffic against a real PBX, not a clean happy-path call. |
-
-`node test/adversarial.js` ingests all five without a crash or a single
-warning misfire — the truncated frames in the forensic-challenge capture
-produce exactly the graceful "declared vs captured" warnings
-`ARCHITECTURE.md` describes for that case, and nothing else.
+Five real captures (two REGISTER auth-failure loops, a codec-negotiation
+failure, a routing error, and a SIPVicious scan against a live Asterisk PBX)
+were briefly present here, downloaded from `goffinet/sip_captures`, a public
+GitHub repo of sample SIP captures. Content review found nothing sensitive
+(lab/test extensions, private IP ranges, standard software fingerprints —
+no real personal data), but the source repo has **no LICENSE file**, so
+redistribution rights were never established. Removed rather than kept on
+an unclear license, since hiccup itself is a published, source-available
+project. If equivalent coverage is wanted later, the better path is
+synthetic fixtures built with `make-fixtures.js`'s own toolkit (a codec
+478/488 rejection, an auth-retry loop, a SIPVicious-shaped scan pattern, a
+routing error) — same diagnostic value, no provenance question.

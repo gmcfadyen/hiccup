@@ -1398,3 +1398,40 @@ token, and nothing else in the app (loading states, focus rings, generic
 accents) borrows red or amber in a way that could read as an error/warning
 when it isn't one. Fix anything found; note anything ambiguous rather than
 guessing.
+
+---
+
+## Known gap — `lib/textlog.js` raw-sip/acme-log parsing (found, not yet fixed)
+
+Found 2026-08-18 running RFC 4475 ("SIP Torture Test Messages") content
+through the parser as a robustness check. The specific fixture file used to
+find these is no longer in the repo (see git history / conversation record
+around this date for provenance — it was removed over an unrelated licensing
+concern for other files in the same batch, and separately went missing by a
+mechanism that wasn't determined), but the underlying bugs are real,
+independently reproducible, and still present as of this writing:
+
+1. **Method tokens containing `%`** (RFC 3261's `token` grammar explicitly
+   allows it — RFC 4475's `esc02` message uses `RE%47IST%45R`) don't match
+   `REQ_LINE` in `textlog.js` (~line 36; the method class is `[A-Z0-9_-]`,
+   no `%`) → the message is silently invisible, not even counted as a
+   candidate, no warning pushed.
+2. **Non-`SIP/2.0` version strings** (`SIP/7.0`, RFC 4475's `badvers`) and
+   **status codes outside 3 digits** (a 10-digit code, RFC 4475's `bigcode`)
+   both fail `REQ_LINE`/`STATUS_LINE`'s hardcoded `SIP/2.0` / `\d{3}`
+   (~lines 36-37) → same silent invisibility, no warning.
+3. **Unbounded `Content-Length` body consumption**: a `Content-Length` value
+   far larger than the actual body (RFC 4475's `clerr`, `Content-Length: 9999`
+   against a ~150-byte real body) makes `consumeMessage`'s body-reading loop
+   (~lines 132-143) consume every remaining line in the file as "body" —
+   the loop has no bound besides running out of input — silently swallowing
+   every subsequent message in the file with no warning pushed on that path.
+
+None of this violates the "never throw on malformed input" contract (nothing
+crashes), but the *silent* part is a real gap against this document's own
+"skip with a warning string" promise for `raw-sip`/text-log parsing
+specifically. Worth a dedicated fix pass: (1) widen the method-token class to
+match RFC 3261's actual `token` grammar, (2) relax the version/status-line
+match to warn-and-skip rather than silently ignore on a near-miss, (3) bound
+the body-consumption loop by remaining-file-length and warn when
+`Content-Length` doesn't fit what's left.
