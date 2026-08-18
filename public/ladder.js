@@ -108,9 +108,9 @@
   // the warn washes — a selected row is not a warning.
   var FALLBACK = {
     bg: '#0e1116', text: '#dce3ea', muted: '#8b949e', border: '#2f3947',
-    accent: '#f5a623', notice: '#58a6ff', crit: '#f2545b', warn: '#f5a623',
+    accent: '#ffc857', notice: '#58a6ff', crit: '#f2545b', warn: '#f5a623',
     ok: '#3fb950', redirect: '#a371f7', h323: '#d2a8ff', media: '#39c5cf',
-    selFill: 'rgba(245,166,35,0.16)', selStroke: 'rgba(245,166,35,0.45)',
+    selFill: 'rgba(255,200,87,0.16)', selStroke: 'rgba(255,200,87,0.45)',
     matchFill: 'rgba(88,166,255,0.13)'
   };
 
