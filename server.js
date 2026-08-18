@@ -1427,6 +1427,139 @@ function handleAdminStatus(req, res, user) {
   sendJson(res, 200, out);
 }
 
+/**
+ * POST /api/admin/server/control {action:'status'|'restart'}
+ *
+ * Exists because every deploy on this box otherwise needs an elevated
+ * `Restart-Service hiccup`, and a non-elevated one fails SILENTLY — which
+ * repeatedly looked like "the feature is broken" when the code was fine and
+ * the process was simply old. Ported from RFPlex's proven equivalent.
+ *
+ * The mechanism is NSSM's, not ours: the service is installed with
+ * `AppExit Default Restart` and `AppRestartDelay 2000`, so exiting cleanly IS
+ * the restart — NSSM relaunches the process on the new code ~2s later. We
+ * therefore never spawn anything; we answer the request, then exit.
+ *
+ * There is deliberately no 'stop': under AppExit=Restart a stop is
+ * indistinguishable from a restart from in here, and pretending otherwise
+ * would be a button that lies. A real stop needs `nssm stop hiccup` as
+ * administrator, and the status action says so.
+ */
+async function handleServerControl(req, res, user) {
+  let body;
+  try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
+
+  // Defence in depth. The session cookie is already SameSite=Lax, which stops
+  // a cross-site POST carrying it, but this endpoint ends the process — worth
+  // a second, independent check that costs nothing.
+  const origin = String(req.headers.origin || '');
+  if (origin) {
+    let ok = false;
+    try {
+      const h = new URL(origin).host;
+      ok = h === String(req.headers.host || '') ||
+           h === String(config.baseUrl || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    } catch { ok = false; }
+    if (!ok) {
+      sendJson(res, 403, { error: 'cross-origin request refused' });
+      return;
+    }
+  }
+
+  const action = String((body && body.action) || '').trim();
+  if (action !== 'status' && action !== 'restart') {
+    sendJson(res, 400, { error: "action must be 'status' or 'restart'" });
+    return;
+  }
+
+  const svc = await nssmServiceState();
+  const svcState = svc.state;
+  // Supervised AND it is us — see nssmServiceState().
+  const underNssm = svc.state === 'Running' && svc.isMine;
+
+  if (action === 'status') {
+    sendJson(res, 200, {
+      svcState,
+      underNssm,
+      pid: process.pid,
+      version: VERSION,
+      uptimeSeconds: Math.round(process.uptime()),
+      canSelfRestart: underNssm,
+      note: underNssm
+        ? 'Managed by the hiccup service (AppExit=Restart): exiting relaunches on the new code.'
+        : 'This process is not the one the hiccup service supervises (service state: ' + svcState +
+          ') — a self-restart would exit into nothing, so it is refused.',
+    });
+    return;
+  }
+
+  // --- restart ---
+  if (!underNssm) {
+    // Exiting here would just kill a dev/manual process with nothing to bring
+    // it back. Refuse loudly rather than take the app down.
+    sendJson(res, 409, {
+      error: 'Not supervised by the hiccup service (state: ' + svcState + ') — refusing to exit, ' +
+        'because nothing would restart this process. Restart it however you started it.',
+    });
+    return;
+  }
+
+  console.log('hiccup: restart requested via /api/admin/server/control by ' + (user && user.email));
+  sendJson(res, 200, {
+    ok: true,
+    via: 'nssm',
+    msg: 'Restarting — the hiccup service relaunches on the new code in about 3 seconds.',
+  });
+  // Let the response flush before the socket dies under us. shutdown() closes
+  // the listener and force-exits after 3s if a socket lingers.
+  setTimeout(() => shutdown('admin restart'), 400);
+}
+
+/**
+ * Is THIS process the one the 'hiccup' Windows service is supervising?
+ *
+ * Presence of a running service by that name is NOT enough, and getting this
+ * wrong is dangerous in a specific way: a manually-started dev instance would
+ * see the real service running, believe itself supervised, exit on restart —
+ * and nothing would bring it back, because NSSM is supervising a different
+ * process entirely.
+ *
+ * So compare identity, not existence. NSSM spawns the app as its direct child,
+ * so the service's ProcessId (nssm.exe) is our parent when we are the one it
+ * launched.
+ *
+ * Never throws, never hangs the request (4s cap), and every failure path
+ * resolves to NOT-supervised — the safe answer, because it refuses the restart
+ * rather than exiting on a guess.
+ *
+ * @returns {Promise<{state:string, isMine:boolean}>}
+ */
+function nssmServiceState() {
+  if (process.platform !== 'win32') return Promise.resolve({ state: 'NotWindows', isMine: false });
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (v) => { if (!done) { done = true; resolve(v); } };
+    try {
+      const { spawn } = require('child_process');
+      const p = spawn('powershell.exe',
+        ['-NoProfile', '-NonInteractive', '-Command',
+          "try { $s = Get-CimInstance Win32_Service -Filter \"Name='hiccup'\" -ErrorAction Stop; " +
+          "'{0}|{1}' -f $s.State, $s.ProcessId } catch { 'NotFound|0' }"],
+        { windowsHide: true });
+      let out = '';
+      p.stdout.on('data', (d) => { out += d.toString(); });
+      p.on('close', () => {
+        const parts = out.trim().split('|');
+        const state = parts[0] || 'Unknown';
+        const svcPid = Number(parts[1] || 0);
+        finish({ state, isMine: svcPid > 0 && svcPid === process.ppid });
+      });
+      p.on('error', () => finish({ state: 'Unknown', isMine: false }));
+      setTimeout(() => { try { p.kill(); } catch { /* already gone */ } finish({ state: 'Unknown', isMine: false }); }, 4000);
+    } catch { finish({ state: 'Unknown', isMine: false }); }
+  });
+}
+
 /** GET /api/admin/feedback */
 function handleFeedbackList(req, res) {
   const fb = requireFeedback(res);
@@ -2549,6 +2682,12 @@ async function handle(req, res) {
     if (!user) { req.resume(); return; }
     req.resume();
     return handleAdminStatus(req, res, user);
+  }
+
+  if (pathname === '/api/admin/server/control' && method === 'POST') {
+    const user = requireSiteAdmin(req, res);
+    if (!user) { req.resume(); return; }
+    return handleServerControl(req, res, user);
   }
 
   if (pathname === '/api/admin/feedback' && method === 'GET') {

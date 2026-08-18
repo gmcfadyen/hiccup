@@ -61,6 +61,7 @@
     <a class="topnav-link" href="/admin/feedback">feedback</a>
   </nav>
   <span class="topbar-spacer"></span>
+  <button class="btn" id="st-restart" type="button" title="Restart the hiccup service so it picks up new code">restart server</button>
   <button class="btn" id="st-refresh" type="button">refresh</button>
   <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
 </header>
@@ -196,6 +197,54 @@
     }
   }
 
+  // Restart is destructive-ish and easy to hit by accident next to refresh,
+  // so it confirms first and then polls until the new process answers —
+  // otherwise the page just sits on a dead socket looking broken.
+  $('st-restart').addEventListener('click', async function () {
+    if (!confirm('Restart the hiccup service now?
+
+In-flight requests are dropped and the app is unreachable for a few seconds.')) return;
+    $('st-restart').disabled = true;
+    say('asking the server to restart…');
+    try {
+      var r = await fetch('/api/admin/server/control', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'restart' })
+      });
+      var d = await r.json();
+      if (!r.ok) {
+        say(d.error || ('restart refused (' + r.status + ')'), true);
+        $('st-restart').disabled = false;
+        return;
+      }
+      say(d.msg || "restarting…");
+      waitForServer(0);
+    } catch (e) {
+      say('could not reach the server', true);
+      $('st-restart').disabled = false;
+    }
+  });
+
+  /** Poll /api/status until the relaunched process answers, then reload. */
+  function waitForServer(attempt) {
+    if (attempt > 30) {
+      say('the server has not come back after ~30s — check the service', true);
+      $('st-restart').disabled = false;
+      return;
+    }
+    setTimeout(function () {
+      fetch('/api/status', { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (s) {
+          // A LOW uptime is the proof it actually restarted; the old process
+          // answering on its way out would report a high one.
+          if (s && typeof s.uptime === "number" && s.uptime < 60) { location.reload(); return; }
+          waitForServer(attempt + 1);
+        })
+        .catch(function () { waitForServer(attempt + 1); });
+    }, 1000);
+  }
   $('st-refresh').addEventListener('click', load);
   load();
 })();
