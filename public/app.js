@@ -308,6 +308,14 @@
     // the tree is the default before anything has been selected this session.
     keyList: 'tree',
 
+    // Wave 5B: how many FRESH uploads are still resolving. Only uploadFile()
+    // ever touches it — deliberately NOT a shared "app busy" flag, so an LLM
+    // chat turn (state.chatBusy), a project write (state.projectBusy) or a
+    // sidebar capture switch can never paint an upload skeleton. It is a
+    // counter, not a boolean, because a second drop can land while the first
+    // batch is still going.
+    uploadsInFlight: 0,
+
     ladderSvg: null,
     ladderRowEls: {},
     selRowEls: {},
@@ -551,6 +559,11 @@
   async function uploadFile(file) {
     if (!file) return;
     setUploadMsg('Analysing ' + file.name + ' …');
+    // Wave 5B: skeletons for THIS upload only, raised with the busy text and
+    // dropped in the finally below — which is what guarantees a 422/413/network
+    // failure falls back to the normal empty state instead of hanging on a
+    // placeholder. Nothing else in the app can raise them.
+    beginUploadSkeletons();
     try {
       var buf = await file.arrayBuffer();
       var headers = { 'X-Filename': file.name };
@@ -570,9 +583,14 @@
       }
       setUploadMsg('');
       await loadCaptures();
-      if (j && j.id) openCapture(j.id);
+      // Awaited (it used to be fire-and-forget) so the skeletons hand straight
+      // over to the rendered capture rather than being torn down first and
+      // flashing the previous capture, or an empty pane, in between.
+      if (j && j.id) await openCapture(j.id);
     } catch (e) {
       setUploadMsg('Upload failed: ' + (e && e.message ? e.message : 'network error'), true);
+    } finally {
+      endUploadSkeletons();
     }
   }
 
@@ -969,7 +987,10 @@
 
   async function openCapture(id) {
     var host = $('ladder-svg-host');
-    if (host) { clear(host); emptyNote(host, 'Loading analysis…'); }
+    // Wave 5B: a fresh upload already has its ladder skeleton in this host —
+    // don't downgrade it to a plain note halfway through that flow. The other
+    // caller (a sidebar capture switch) is unaffected and keeps the note.
+    if (host && !uploadPending()) { clear(host); emptyNote(host, 'Loading analysis…'); }
     try {
       var r = await fetch('/api/captures/' + encodeURIComponent(id) + '/analysis');
       if (!r.ok) throw new Error('analysis ' + r.status);
@@ -1291,6 +1312,172 @@
   function renderDrawer() {
     renderDrawerAdvice();
     renderChat();
+  }
+
+  // ------------------------------------------- Wave 5B: upload skeletons ---
+
+  /*
+   * Shape-matched placeholders for the gap between a fresh upload starting and
+   * its capture being on screen. Three panes get one (#filter-tree,
+   * #ladder-svg-host, #selection-list); #upload-msg keeps its own status text
+   * unchanged — these are additive to it, not a replacement.
+   *
+   * Scope is deliberately narrow. beginUploadSkeletons() has exactly one
+   * caller, uploadFile(), so switching between already-loaded captures in the
+   * sidebar stays instant (openCapture keeps its plain "Loading analysis…"
+   * note) and nothing else in the app can trigger a skeleton.
+   *
+   * The ladder placeholder is its own simple DOM, NOT a mode of ladder.js — it
+   * is drawn before Ladder.render() is ever called for the incoming capture.
+   */
+
+  var SKEL_HOST_IDS = ['filter-tree', 'ladder-svg-host', 'selection-list'];
+
+  /** One placeholder bar. `w` is any CSS width, `cls` an extra shape class. */
+  function skelBar(cls, w) {
+    var b = el('span', 'skel-bar' + (cls ? ' ' + cls : ''));
+    if (w) b.style.width = w;
+    return b;
+  }
+
+  /** Skeleton root. Decorative — #upload-msg carries the real status text. */
+  function skelRoot(tag, cls) {
+    var root = el(tag, 'skel ' + cls);
+    root.setAttribute('data-skeleton', '1');
+    root.setAttribute('aria-hidden', 'true');
+    return root;
+  }
+
+  /** #filter-tree: an indented label bar + a shorter sub-label bar, x4. */
+  function skeletonTree(host) {
+    // indent px / label width / sub width — a root, two calls and a leg, so
+    // the block reads as a tree rather than a stack of identical bars.
+    var shape = [[0, '58%', '38%'], [12, '72%', '46%'], [12, '63%', '41%'], [26, '51%', '32%']];
+    var root = skelRoot('div', 'skel-tree');
+    for (var i = 0; i < shape.length; i++) {
+      var row = el('div', 'skel-row skel-tree-row');
+      row.style.marginLeft = shape[i][0] + 'px';
+      row.appendChild(skelBar('skel-tree-label', shape[i][1]));
+      row.appendChild(skelBar('skel-tree-sub', shape[i][2]));
+      root.appendChild(row);
+    }
+    host.appendChild(root);
+  }
+
+  /**
+   * #ladder-svg-host: the host-column header band (46px — ladder.js TOP) over
+   * faint row bars on the real 26px pitch (ladder.js ROWH), alternating sides
+   * so it echoes request/response arrows without claiming to show real data.
+   */
+  function skeletonLadder(host) {
+    var root = skelRoot('div', 'skel-ladder');
+
+    var head = el('div', 'skel-lad-head');
+    var cols = ['76px', '92px', '68px'];
+    for (var c = 0; c < cols.length; c++) head.appendChild(skelBar('skel-lad-col', cols[c]));
+    root.appendChild(head);
+
+    var body = el('div', 'skel-lad-rows');
+    var widths = ['62%', '47%', '71%', '39%', '58%', '34%'];
+    for (var i = 0; i < widths.length; i++) {
+      var row = el('div', 'skel-row skel-lad-row' + (i % 2 ? ' is-rtl' : ''));
+      row.appendChild(skelBar('skel-lad-line', widths[i]));
+      body.appendChild(row);
+    }
+    root.appendChild(body);
+
+    host.appendChild(root);
+  }
+
+  /**
+   * #selection-list: the numbered-table shape — a number-width bar, a longer
+   * description bar, a short delta bar. Handles both host shapes app.js
+   * already supports (see selectionHost).
+   */
+  function skeletonSelection(target) {
+    var widths = ['78%', '63%', '87%', '54%'];
+    var i;
+
+    if (target.isTable) {
+      var tb = skelRoot('tbody', 'skel-sel');
+      for (i = 0; i < widths.length; i++) {
+        var tr = el('tr', 'skel-row skel-sel-row');
+        var c1 = el('td'); c1.appendChild(skelBar('skel-sel-n')); tr.appendChild(c1);
+        var c2 = el('td'); c2.appendChild(skelBar('skel-sel-desc', widths[i])); tr.appendChild(c2);
+        var c3 = el('td'); c3.appendChild(skelBar('skel-sel-delta')); tr.appendChild(c3);
+        tb.appendChild(tr);
+      }
+      target.node.appendChild(tb);
+      return;
+    }
+
+    var root = skelRoot('div', 'skel-sel');
+    for (i = 0; i < widths.length; i++) {
+      var row = el('div', 'skel-row skel-sel-row');
+      row.appendChild(skelBar('skel-sel-n'));
+      row.appendChild(skelBar('skel-sel-desc', widths[i]));
+      row.appendChild(skelBar('skel-sel-delta'));
+      root.appendChild(row);
+    }
+    target.node.appendChild(root);
+  }
+
+  /** True while at least one fresh upload is still resolving. */
+  function uploadPending() { return state.uploadsInFlight > 0; }
+
+  /** Paint all three skeletons (once, however many uploads are queued). */
+  function beginUploadSkeletons() {
+    state.uploadsInFlight++;
+    if (state.uploadsInFlight > 1) return;
+
+    var tree = $('filter-tree');
+    if (tree) { clear(tree); skeletonTree(tree); tree.setAttribute('aria-busy', 'true'); }
+
+    var lad = $('ladder-svg-host');
+    if (lad) { clear(lad); skeletonLadder(lad); lad.setAttribute('aria-busy', 'true'); }
+
+    // #time-gutter is the ladder's other half — renderLadder() always draws the
+    // two together. Left alone it would sit there showing the PREVIOUS
+    // capture's real timestamps next to a placeholder ladder, which is exactly
+    // the "claiming to show real data" the placeholder exists to avoid. Blank
+    // it for the duration; every path that restores the ladder restores it too,
+    // because renderLadder() owns both.
+    var gut = $('time-gutter');
+    if (gut) clear(gut);
+
+    var sel = selectionHost();
+    if (sel) { clear(sel.node); skeletonSelection(sel); sel.node.setAttribute('aria-busy', 'true'); }
+  }
+
+  /**
+   * Runs on EVERY exit path of uploadFile — success, HTTP error, network
+   * throw — so a 422 can never leave a skeleton stuck on screen.
+   *
+   * Per-host, not all-or-nothing: the success path already replaced all three
+   * via openCapture -> renderAll, and a failed analysis GET leaves its own
+   * error note in the ladder host. Only a host still holding a [data-skeleton]
+   * gets re-rendered, which for a failed upload is the normal empty state (or
+   * the previously open capture, untouched in state).
+   */
+  function endUploadSkeletons() {
+    state.uploadsInFlight = Math.max(0, state.uploadsInFlight - 1);
+    if (state.uploadsInFlight > 0) return;
+
+    for (var i = 0; i < SKEL_HOST_IDS.length; i++) {
+      var h = $(SKEL_HOST_IDS[i]);
+      if (h) h.removeAttribute('aria-busy');
+    }
+
+    var tree = $('filter-tree');
+    if (tree && tree.querySelector('[data-skeleton]')) {
+      if (state.searchActive) renderSearchResults(); else renderFilterTree();
+    }
+
+    var sel = selectionHost();
+    if (sel && sel.node.querySelector('[data-skeleton]')) renderSelectionList();
+
+    var lad = $('ladder-svg-host');
+    if (lad && lad.querySelector('[data-skeleton]')) renderLadder();
   }
 
   // ---------------------------------------------------------- #filter-tree

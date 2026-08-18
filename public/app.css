@@ -1640,12 +1640,106 @@ pre.fix-config {
 
 @keyframes hiccup-spin { to { transform: rotate(360deg); } }
 
+/* ---- Wave-5B: skeleton placeholders for a fresh upload ---- */
+
+/*
+ * app.js paints these into #filter-tree, #ladder-svg-host and #selection-list
+ * for the life of one fresh upload (see beginUploadSkeletons), so the three
+ * panes hold the SHAPE of what is coming instead of the previous capture's
+ * content or a bare empty note. #upload-msg keeps its own status line — these
+ * are additive to it.
+ *
+ * Neutral by design: --panel2 on --border, the same pair the other busy states
+ * above already use. Nothing here is accent-tinted — a loading state is a wait
+ * affordance, and --accent / --tint-select are now reserved for interactive
+ * highlights, which a placeholder is not.
+ */
+.skel { padding: 6px 8px 10px; }
+
+.skel-bar {
+  display: block;
+  height: 9px;
+  border-radius: 4px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  animation: hiccup-skel-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes hiccup-skel-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.42; }
+}
+
+/* A per-row stagger, so a pane reads as filling in rather than blinking as one
+   block. Pure CSS — app.js sets no inline delay. */
+.skel-row:nth-child(2) .skel-bar { animation-delay: 0.10s; }
+.skel-row:nth-child(3) .skel-bar { animation-delay: 0.20s; }
+.skel-row:nth-child(4) .skel-bar { animation-delay: 0.30s; }
+.skel-row:nth-child(5) .skel-bar { animation-delay: 0.40s; }
+.skel-row:nth-child(6) .skel-bar { animation-delay: 0.50s; }
+
+/* #filter-tree — a .tree-row label with its .tree-sub beneath, indented by
+   depth (app.js sets margin-left per row). */
+.skel-tree-row { padding: 4px 2px; }
+.skel-tree-sub { height: 7px; margin-top: 5px; }
+
+/* #ladder-svg-host — the host-column header band (46px, ladder.js TOP) over
+   row bars on the real 26px pitch (ladder.js ROWH, same as .tg-row), sides
+   alternating so it echoes arrows. Faint on purpose: --border-faint. */
+.skel-ladder { padding: 0; }
+
+.skel-lad-head {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  height: 46px;
+  padding: 0 18px;
+  background: var(--panel2);
+  border-bottom: 1px solid var(--border);
+}
+
+.skel-lad-head .skel-bar { flex: none; height: 11px; }
+
+.skel-lad-rows { padding: 4px 18px 0; }
+
+.skel-lad-row {
+  display: flex;
+  align-items: center;
+  height: 26px;
+}
+
+.skel-lad-line { height: 6px; border-color: var(--border-faint); }
+.skel-lad-row.is-rtl .skel-lad-line { margin-left: auto; }
+
+/* #selection-list — the numbered-table grid, columns identical to .sel-head /
+   .sel-row so nothing shifts sideways when the real rows land. */
+.skel-sel-row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 66px;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.skel-sel-row .skel-bar { height: 8px; }
+.skel-sel-n { width: 20px; margin-left: auto; }
+.skel-sel-delta { width: 32px; margin-left: auto; }
+
+/* shape (b): #selection-list as a <table.table-dense> (see app.js's
+   selectionHost) — the cells lay it out, so the grid above must not apply. */
+tr.skel-sel-row { display: table-row; }
+tr.skel-sel-row > td { padding: 5px 8px; }
+
 @media (prefers-reduced-motion: reduce) {
   .spinner { animation-duration: 2.4s; }
   * { transition-duration: 0.01ms !important; }
   /* Wave-5A: the dialogs appear, they don't slide (the * rule above only
      covers transitions, and this is a keyframe animation). */
   .overlay-panel { animation: none; }
+  /* Wave-5B: the skeletons still appear — they just stop pulsing. A static,
+     slightly-dimmed bar keeps the "content is coming" shape with no motion. */
+  .skel-bar { animation: none; opacity: 0.6; }
 }
 
 /* ============================================================ chat drawer = */

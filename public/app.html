@@ -69,6 +69,13 @@
   #chat-drawer and #project-manage-panel are otherwise unchanged; both gain
   role/aria-modal dynamically from app.js while their focus trap is active.
 
+  Wave-5B (ARCHITECTURE.md §"Wave 5 — B. Skeleton loading states"): no new ids.
+  For the life of one FRESH upload, app.js replaces the contents of #filter-tree,
+  #ladder-svg-host and #selection-list with decorative .skel placeholders
+  (aria-hidden, data-skeleton, the host gets aria-busy) and restores real content
+  on every exit path. #upload-msg's status line is unchanged and still the only
+  announced status. Switching between already-loaded captures never does this.
+
   Placeholder copy lives INSIDE each container so a renderer that clears the node
   removes it for free.
 -->
