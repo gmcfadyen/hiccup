@@ -1292,3 +1292,109 @@ malformed id (`../../etc`, wrong length, non-hex) without ever reaching
 requires only `./store`. Neither requires the other. `server.js` requires
 both with the same graceful-optional-require pattern already used for
 `lib/hmr.js`/`lib/kb.js`.
+
+---
+
+# Wave 4 — Advice into the persistent drawer, guided flow, colour discipline
+
+User feedback after using the Workbench: the Advice tab is the single most
+valuable thing in the app and was buried as one of four tabs in a
+bottom-right pane; the "retrans ×N" toggle button in the ladder toolbar reads
+as confusing chrome (retransmissions are handled silently now — DESIGN_1
+core feature 3 plus the earlier "deal with them silently" pass — a manual
+expand/collapse toggle exposes an implementation detail nobody asked to see
+raw); and the overall flow should read as four plain steps: **upload → see
+the calls/sessions → search or select one → see the advice, with errors
+highlighted.** This wave supersedes the relevant parts of Wave 2's §UI
+(quoted below) rather than editing that section in place, so the history
+stays legible.
+
+## Advice moves into the "ask hiccup" drawer, open by default
+
+**Supersedes**: the `*Advice*` bullet under Wave 2's `#info-pane` description,
+the `#info-tabs` bullet including `Advice` in its tab list, and
+`#scenario-chip`'s "click -> info-pane Advice tab" behaviour.
+
+- `#chat-drawer` is **open by default** on load (not `hidden`), and stays
+  open across capture/call/message selection — it is no longer an
+  optional overlay the user has to remember to summon. Closing it is still
+  possible (keep `#chat-close`) for anyone who wants the extra ladder width;
+  the *default* state on a fresh page load is open.
+- The drawer's own header stays `#chat-model` / `#chat-close` as built. Below
+  the header, the drawer now has an **Advice section first**, populated
+  automatically with the Advice cards for whatever is currently in scope
+  (capture-level when nothing is selected, call-scoped once a call is
+  picked, message/finding-scoped when those are picked) — this is the exact
+  content and card structure Wave 2 specified for `#info-advice`
+  (`whatsWrong`/`whyItMatters`/`mechanism`, fix cards per vendor with
+  copyable drafts, citation links, KB citations), just relocated. It updates
+  reactively on every scope change, the same way the chat history already
+  does (`state.chatOpen`-gated re-render; since the drawer is now always
+  open this simply means it re-renders every time, not conditionally).
+  Below the Advice section, the existing chat conversation UI
+  (`#chat-scope` `#chat-hint` `#chat-messages` `#chat-error` `#chat-offline`
+  `#chat-form`) continues to work exactly as built — "put the advice here to
+  start with" means Advice is the first thing you see in the drawer, not
+  that it replaces the ability to ask a follow-up question.
+- `#info-pane`'s tab list drops to **three tabs**: Contents, Packet Info,
+  Media. `#info-advice` and `#info-tab-advice` are removed from the DOM —
+  Advice has exactly one home now (the drawer), not two competing
+  surfaces that could drift out of sync.
+- `#scenario-chip` now opens/focuses the drawer's Advice section (scoped to
+  the capture as a whole) instead of switching an info-pane tab that no
+  longer exists.
+- `--chat-w` (currently 400px) may need widening — advice fix-cards with
+  config drafts want more room than a chat bubble column. Judgement call for
+  whoever implements; keep it a comfortable reading width, not full-viewport.
+
+## Retransmission toggle button removed
+
+**Supersedes**: `#ladder-toolbar (collapse toggle, zoom, export)` in Wave
+2's frozen id block.
+
+Remove the `<button data-action="ladder-collapse-retrans">retrans ×N</button>`
+control from `#ladder-toolbar` entirely. Retransmissions are always
+collapsed now — no user-facing toggle. Ladder rendering keeps
+`collapsed: true` as a fixed constant, not a piece of UI state; simplify any
+now-dead `aria-pressed`/toggle-state handling in `app.js`/`ladder.js` that
+existed only to drive this button. Zoom and export controls in the toolbar
+are unaffected.
+
+## Guided flow: verify, don't rebuild
+
+The four-step flow the user described (upload → calls → search/select →
+advice+highlighting) is *mostly already the existing architecture* — this is
+a verification and reinforcement pass, not a new information architecture:
+
+1. **Upload** — the sidebar dropzone, unchanged.
+2. **See calls/sessions** — `#filter-pane`'s call tree, already the default
+   first thing populated after analysis. No change needed to the pane
+   itself; confirm it's genuinely what a user's eye lands on once a capture
+   finishes analysing (it already occupies the largest top-left area).
+3. **Search or select** — `#searchbar` is already prominent and always
+   visible; selecting a call in `#filter-pane` already scopes the ladder,
+   selection pane and (now) the drawer's Advice section. Confirm this
+   reactive chain still fires correctly for every selection path (tree
+   click, search-result click, lamp click) now that the drawer is always
+   open rather than conditionally rendered.
+4. **Advice + highlighted errors** — solved by the drawer change above, plus
+   the existing ladder error-highlighting (`has-warn`/`has-crit`, thicker
+   stroke + severity dot, per Wave 2). Verify this path end-to-end: select a
+   call with a warn/crit finding -> the ladder visibly flags the offending
+   row -> the drawer's Advice section shows the card explaining it, with no
+   extra click anywhere in that chain.
+
+Do not tear down or restructure the five-pane grid beyond what the above
+requires (the drawer's default-open state, and info-pane losing one tab).
+
+## Colour discipline: warn = orange/amber, crit = red, never conflated
+
+The base tokens are already correct (`--warn: #f5a623` amber, `--crit:
+#f2545b` red, both light+dark) — this is a **usage audit**, not a retheme.
+Check every place severity drives a colour (ladder row/sevdot, lamps, chips,
+advice card accents, findings list, the retrans/storm strip, scenario chip)
+and confirm: warn is always the amber/orange token, crit is always the red
+token, and nothing else in the app (loading states, focus rings, generic
+accents) borrows red or amber in a way that could read as an error/warning
+when it isn't one. Fix anything found; note anything ambiguous rather than
+guessing.
