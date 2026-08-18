@@ -874,6 +874,57 @@ function handleAdvice(req, res, user, captureId) {
 const HMR_VENDORS = ['oracle-acme', 'audiocodes', 'ribbon'];
 
 /**
+ * POST /api/hmr/generate {description, name?, vendors?} — plain English -> a
+ * draft HMR rule, per lib/hmr-generate.js.
+ *
+ * Deliberately thin: this route does no interpretation of its own. Every
+ * decision about what the description means lives in hmr-generate.js, which
+ * is unit-tested on its own; this handler's only job is body parsing and
+ * shaping the response the same way handleHmrAnalyze() does, so the client
+ * does not need two different result shapes for a parsed rule and a
+ * generated one.
+ */
+async function handleHmrGenerate(req, res) {
+  let body;
+  try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
+
+  const gen = optionalModule('./lib/hmr-generate');
+  if (!gen || typeof gen.generateRule !== 'function') {
+    sendJson(res, 501, { error: 'the rule generator is not deployed on this server yet' });
+    return;
+  }
+
+  const description = typeof body.description === 'string' ? body.description : '';
+  if (!description.trim()) {
+    sendJson(res, 400, { error: 'description (what the rule should do, in English) is required' });
+    return;
+  }
+
+  let vendors;
+  if (Array.isArray(body.vendors) && body.vendors.length) {
+    vendors = body.vendors.filter((v) => HMR_VENDORS.indexOf(v) !== -1);
+    if (!vendors.length) {
+      sendJson(res, 400, { error: 'vendors must be a subset of ' + HMR_VENDORS.join(', ') });
+      return;
+    }
+  }
+
+  const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim().slice(0, 60) : undefined;
+
+  let result;
+  try {
+    result = gen.generateRule(description, { name, vendors });
+  } catch (e) {
+    // generateRule() is written to never throw — this is a last-resort net,
+    // not an expected path, and it must not 500 on a user's typed sentence.
+    sendJson(res, 422, { error: 'could not process that description' });
+    return;
+  }
+
+  sendJson(res, 200, result);
+}
+
+/**
  * POST /api/hmr/analyze {text, captureId?} — parse an SBC config excerpt into
  * the HMR IR, attach explainRule output and all three vendor renderings per
  * rule, and (when captureId is given) match the rules against that capture's
@@ -2645,6 +2696,12 @@ async function handle(req, res) {
     const user = requireAuth(req, res);
     if (!user) { req.resume(); return; }
     return handleHmrAnalyze(req, res, user);
+  }
+
+  if (pathname === '/api/hmr/generate' && method === 'POST') {
+    const user = requireAuth(req, res);
+    if (!user) { req.resume(); return; }
+    return handleHmrGenerate(req, res);
   }
 
   // --- kb: the user's config-guide library (Wave 2) ---
