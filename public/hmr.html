@@ -161,6 +161,14 @@
 
   .hmr-empty { color: var(--muted); }
   .promo-card { margin-top: 28px; }
+
+  .hmr-flow-title { font-size: 15px; font-weight: 700; margin: 26px 0 2px; }
+  .hmr-flow-title:first-of-type { margin-top: 0; }
+  textarea.hmr-gen-text { min-height: 52px; font-size: 14px; resize: vertical; }
+  .hmr-assumptions { margin: 0 0 14px; padding-left: 18px; font-size: 13px; color: var(--muted); }
+  .hmr-questions { list-style: none; margin: 0; padding: 0; }
+  .hmr-questions li { padding: 6px 0; border-top: 1px solid var(--border, #232b36); }
+  .hmr-questions li:first-child { border-top: 0; }
 </style>
 </head>
 <body>
@@ -188,12 +196,31 @@
   <div class="page-head">
     <h1 data-i18n>Header manipulation rules</h1>
     <p data-i18n class="page-lede">
-      Paste an SBC config (or pick a file) and hiccup reads the header-manipulation rules
-      back to you in plain English, checks them for the usual mistakes, and can re-render
-      any rule for another vendor. Drafts are for review — hiccup never applies config.
+      Describe a rule in plain English and hiccup drafts it, or paste an existing SBC config
+      and hiccup reads the header-manipulation rules back to you, checks them for the usual
+      mistakes, and can re-render any rule for another vendor. Drafts are for review — hiccup
+      never applies config.
     </p>
   </div>
 
+  <h2 data-i18n class="hmr-flow-title">Generate a rule from a description</h2>
+  <section class="card hmr-input-card">
+    <label data-i18n for="hmr-gen-text">Describe the rule you want, in plain English</label>
+    <textarea id="hmr-gen-text" class="input mono hmr-gen-text" rows="2" spellcheck="false"
+      data-i18n-attrs="placeholder"
+      placeholder="e.g. strip the P-Asserted-Identity header on outbound INVITEs"></textarea>
+
+    <div class="hmr-row">
+      <button data-i18n id="hmr-gen-go" class="btn btn-primary hmr-big" type="button">Generate rule</button>
+      <button data-i18n id="hmr-gen-clear" class="btn" type="button">Clear</button>
+    </div>
+
+    <p id="hmr-gen-status" class="hmr-status" role="status" aria-live="polite"></p>
+  </section>
+
+  <section id="hmr-gen-result"></section>
+
+  <h2 data-i18n class="hmr-flow-title">Or paste an existing config</h2>
   <section class="card hmr-input-card">
     <label data-i18n for="hmr-text">SBC config — Oracle/Acme <span class="mono">sip-manipulation</span>,
       AudioCodes <span class="mono">.ini</span> MessageManipulations, or Ribbon SMM rules</label>

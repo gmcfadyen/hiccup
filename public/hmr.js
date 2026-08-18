@@ -81,6 +81,10 @@
     if (k) {
       for (var i = 0; i < VENDORS.length; i++) if (VENDORS[i].key === k) return VENDORS[i].label;
     }
+    // lib/hmr-generate.js stamps freshly-generated rules 'generic' (not yet
+    // rendered for any one vendor) — that is not a real product, so it gets
+    // its own label rather than being shown as if it were one.
+    if (raw === 'generic') return _t('not vendor-specific');
     return isStr(raw) ? raw : _t('unknown vendor');
   }
 
@@ -112,7 +116,8 @@
     matchesByRule: {},  // ruleId -> [match]
     orphanMatches: [],
     translateTo: {},    // ruleId -> vendor key currently shown
-    busy: false
+    busy: false,
+    genBusy: false
   };
 
   // ------------------------------------------------------------------- boot
@@ -144,6 +149,13 @@
     $('hmr-analyze').addEventListener('click', function () { analyse(); });
     $('hmr-browse').addEventListener('click', function () { $('hmr-file').click(); });
     $('hmr-clear').addEventListener('click', function () { resetAll(); });
+
+    $('hmr-gen-go').addEventListener('click', function () { runGenerate(); });
+    $('hmr-gen-clear').addEventListener('click', function () {
+      $('hmr-gen-text').value = '';
+      setGenStatus('');
+      clear($('hmr-gen-result'));
+    });
 
     $('hmr-file').addEventListener('change', async function () {
       var f = $('hmr-file').files && $('hmr-file').files[0];
@@ -299,6 +311,135 @@
       ? (_t('Read ') + n + _t(' rule') + (n === 1 ? '' : 's') + '.' +
          (state.captureId ? _t(' Checked against the selected capture.') : ''))
       : _t('No header-manipulation rules found in that text.'));
+  }
+
+  // ------------------------------------------------------------- generate
+
+  function setGenStatus(text, isError) {
+    var s = $('hmr-gen-status');
+    s.textContent = text || '';
+    s.classList.toggle('err', !!isError);
+  }
+
+  function setGenBusy(on) {
+    state.genBusy = !!on;
+    $('hmr-gen-go').disabled = !!on;
+    $('hmr-gen-go').textContent = on ? _t('Generating…') : _t('Generate rule');
+  }
+
+  async function runGenerate() {
+    if (state.genBusy) return;
+    var text = $('hmr-gen-text').value || '';
+    if (!text.trim()) {
+      setGenStatus(_t('Describe what the rule should do first.'), true);
+      return;
+    }
+
+    setGenBusy(true);
+    setGenStatus(_t('Thinking…'));
+
+    var res = null, payload = null;
+    try {
+      res = await fetch('/api/hmr/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: text })
+      });
+      if (res.status === 401) { location.href = '/'; return; }
+      try { payload = await res.json(); } catch (e) { payload = null; }
+    } catch (e) {
+      setGenBusy(false);
+      setGenStatus(_t('Could not reach the server. Is hiccup still running?'), true);
+      return;
+    }
+    setGenBusy(false);
+
+    if (!res.ok) {
+      clear($('hmr-gen-result'));
+      var err = _t((payload && (payload.error || payload.userMessage)) || '') ||
+        (_t('Generation failed (') + res.status + ').');
+      setGenStatus(err, true);
+      return;
+    }
+
+    renderGenResult(payload || {});
+    setGenStatus((payload && payload.ok)
+      ? _t('Draft ready — review before use, then attach it to the right interface.')
+      : _t('hiccup could not build a rule from that description — see below.'), !(payload && payload.ok));
+  }
+
+  /**
+   * Render one /api/hmr/generate response. On success this reshapes the
+   * result into the same { rule, explanation, rendered } entry shape
+   * ingest() builds from /api/hmr/analyze, and hands it to the existing
+   * ruleCard() — intent, correctness, translate-to-vendor and the copy
+   * button are all identical UI for a generated rule and an analysed one,
+   * so there is exactly one renderer for both rather than a second copy
+   * that would drift from the first.
+   */
+  function renderGenResult(out) {
+    var host = $('hmr-gen-result');
+    clear(host);
+    if (!out) return;
+
+    if (!out.ok) {
+      var card = el('div', 'card hmr-empty');
+      var qs = Array.isArray(out.questions) ? out.questions.filter(isStr) : [];
+      var warns = Array.isArray(out.warnings) ? out.warnings.filter(isStr) : [];
+      if (qs.length) {
+        card.appendChild(el('div', 'hmr-section-title', _t('hiccup needs to know more')));
+        var ul = el('ul', 'hmr-questions');
+        for (var i = 0; i < qs.length; i++) ul.appendChild(el('li', null, qs[i]));
+        card.appendChild(ul);
+      }
+      for (var w = 0; w < warns.length; w++) card.appendChild(el('p', 'muted', warns[w]));
+      if (!qs.length && !warns.length) {
+        card.appendChild(el('p', null, _t('hiccup could not turn that into a rule.')));
+      }
+      host.appendChild(card);
+      return;
+    }
+
+    var assumptions = Array.isArray(out.assumptions) ? out.assumptions.filter(isStr) : [];
+    if (assumptions.length) {
+      var aHost = el('ul', 'hmr-assumptions');
+      for (var a = 0; a < assumptions.length; a++) aHost.appendChild(el('li', null, assumptions[a]));
+      host.appendChild(aHost);
+    }
+
+    var entry = {
+      rule: out.rule || {},
+      explanation: out.explain || {},
+      rendered: out.drafts || {},
+      key: 'generated'
+    };
+    host.appendChild(ruleCard(entry, 0));
+
+    var warnings = Array.isArray(out.warnings) ? out.warnings.filter(isStr) : [];
+    if (warnings.length) {
+      var wCard = el('div', 'card hmr-empty');
+      for (var w2 = 0; w2 < warnings.length; w2++) wCard.appendChild(el('p', 'muted', warnings[w2]));
+      host.appendChild(wCard);
+    }
+
+    if (out.regex && isStr(out.regex.pattern)) {
+      var rxCard = el('section', 'card hmr-rule-card');
+      rxCard.appendChild(el('div', 'hmr-section-title', _t('Suggested match pattern')));
+      rxCard.appendChild(el('p', 'mono hmr-intent', out.regex.pattern));
+      if (isStr(out.regex.explanation)) rxCard.appendChild(el('p', 'muted', out.regex.explanation));
+      var tested = Array.isArray(out.regex.tested) ? out.regex.tested : [];
+      for (var t = 0; t < tested.length; t++) {
+        var tt = tested[t];
+        if (!tt || !isStr(tt.input)) continue;
+        var row = el('p');
+        row.appendChild(el('span', 'mono', tt.input));
+        row.appendChild(document.createTextNode(' — '));
+        row.appendChild(el('span', tt.matched ? 'hmr-ok' : 'sev-warn',
+          tt.matched ? _t('matches') : _t('does not match')));
+        rxCard.appendChild(row);
+      }
+      host.appendChild(rxCard);
+    }
   }
 
   // ---------------------------------------------------- response normalising

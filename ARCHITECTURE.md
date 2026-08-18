@@ -1817,7 +1817,11 @@ server error sentences — into French, Spanish and German. It deliberately does
 diagnostic instruction executed against production SBCs, `advisor.js`'s own
 header guarantees every word of it is deterministic and never machine-produced,
 and a dropped negation there turns a caution into an instruction. It stays
-English on purpose, in every language. `public/privacy.html`'s notice is
+English on purpose, in every language. `lib/hmr-generate.js` (Wave 9) joins
+this list for the same reason: its questions, warnings, assumptions and
+`explainRule()` intent text are generated instruction about a specific SBC
+change, not UI chrome — only the surrounding buttons and labels on `/hmr` are
+translated, exactly as with an analysed rule's correctness issues today. `public/privacy.html`'s notice is
 excluded for the same reason at a smaller scale — a mistranslated legal
 document is its own liability — and says so inline. Full inventory and
 reasoning: `docs/i18n-plan.md`.
@@ -1908,3 +1912,78 @@ loading pages in the browser rather than trusting the diff:
   silently wrong and was caught by re-running the new selftest rather than
   trusting the first patch). Covered by `test/selftest.js`'s `hmr-generate:`
   block, added alongside the fix since none existed.
+
+---
+
+# Wave 9 — Natural-language → HMR rule generator
+
+`/hmr` gained a second, complementary flow above the existing paste-a-config
+one: describe a rule ("delete the P-Asserted-Identity header on outbound
+INVITEs") and hiccup drafts it, rather than requiring an existing config to
+read from. `POST /api/hmr/generate` is a thin route wrapping
+`lib/hmr-generate.js`'s `generateRule(description, opts)`.
+
+## No guessing — ask, or say what was assumed
+
+`generateRule()` never fabricates a rule from an ambiguous description. A
+fixed `INTENTS` table (delete/replace/add/store — order matters, `replace` is
+tested before `add` because "replace X with Y" contains "with" and would
+otherwise read as an add) requires **both** a recognised action verb and a
+named header before it will build anything; failing either, it returns
+`ok:false` with `questions` naming exactly what is missing rather than a
+confident wrong guess. Direction, message type and conditions are genuinely
+optional — a description that omits them still produces a rule, but every
+default taken is pushed onto `assumptions` for the caller to show, because an
+unbound or over-broad rule is the single most common way a "correct" header
+manipulation change is invisible in a trace.
+
+## Value extraction: `.source` concatenation, not a hand-escaped string
+
+Values ("set to X", "with Y") are read with a shared trailing-clause boundary:
+
+```js
+const BOUNDARY = /(?=\s+\b(?:on|when|if|for|unless|only|where)\b|[,.]|$)/i;
+const m = text.match(new RegExp(/\b(?:with|to)\s+["']?([^"'\n,.]{1,120}?)["']?/.source + BOUNDARY.source, 'i'));
+```
+
+Built from two genuine regex *literals* joined via `.source`, not a hand-typed
+string containing `\b`/`\s`. A string literal processes its own escapes before
+the RegExp constructor ever sees it — `'\b'` becomes an actual backspace byte
+and `'\s'` silently loses the backslash (unrecognised string escape) — so a
+string-built version of this pattern compiles without error and then never
+matches anything. `.source` concatenation is immune because the escapes are
+never re-interpreted; this was a real bug during development, caught by the
+adversarial test case "add a Privacy header set to id on outbound calls",
+which used to capture the value as `"id on outbound calls"` instead of `"id"`.
+
+## Reusing the analyse-flow renderer rather than building a second one
+
+The generator's response — `{rule, explain: {intent, correctness}, drafts:
+{oracle-acme, audiocodes, ribbon, generic}}` — is deliberately the same shape
+`ingest()` builds per-rule from `/api/hmr/analyze`. `public/hmr.js`'s
+`renderGenResult()` reshapes it into one `{rule, explanation, rendered}` entry
+and hands it straight to the existing `ruleCard()`: intent, correctness
+issues with citations, the vendor-translate picker and its copy button are
+therefore pixel- and behaviour-identical for a generated rule and an analysed
+one, and a future change to how a rule card renders (say, a new citation
+style) applies to both without being written twice. `vendorLabel()` gained one
+extra case — `'generic'` (the vendor a freshly generated, not-yet-vendor-
+rendered rule is stamped with) reads as "not vendor-specific" rather than
+being shown as if it were a real product name.
+
+## What stays English — same boundary as Wave 8, applied to a new file
+
+`lib/hmr-generate.js` was added after Wave 8's translation pass and is not in
+`lib/i18n.js`'s scanned file list (`SERVER_FILES`, `public/*.html`,
+`public/*.js`) — its `questions`, `warnings`, `assumptions` and the
+`explainRule()` text they wrap are generated instruction about a specific
+proposed SBC change, the same category as `advisor.js`'s findings, and stay
+English regardless of UI language. Only the surrounding chrome — the
+"Describe the rule you want" label, the Generate/Clear buttons, status line,
+"hiccup needs to know more" heading — went through the translation catalogue
+(18 new strings, `locales/{fr,es,de}.json`). The description label says so
+explicitly ("in plain English") in every language, because the parser only
+recognises English trigger words — a French description would silently fail
+`INTENTS`' matching and surface as "hiccup needs to know more" with no
+indication that the actual problem was the input language, so the UI has to
+set that expectation up front rather than let it surprise someone.

@@ -63,7 +63,7 @@
       "public/admin-feedback.html:43",
       "public/admin-status.html:61",
       "public/app.html:98",
-      "public/hmr.html:170",
+      "public/hmr.html:178",
       "public/kb.html:130",
       "public/settings.html:66"
     ]
@@ -75,7 +75,7 @@
       "public/admin-feedback.html:44",
       "public/admin-status.html:62",
       "public/app.html:99",
-      "public/hmr.html:171",
+      "public/hmr.html:179",
       "public/kb.html:131",
       "public/settings.html:67"
     ]
@@ -87,7 +87,7 @@
       "public/admin-feedback.html:46",
       "public/admin-status.html:64",
       "public/app.html:101",
-      "public/hmr.html:173",
+      "public/hmr.html:181",
       "public/kb.html:133",
       "public/settings.html:69"
     ]
@@ -99,7 +99,7 @@
       "public/admin-feedback.html:47",
       "public/admin-status.html:65",
       "public/app.html:102",
-      "public/hmr.html:174",
+      "public/hmr.html:182",
       "public/kb.html:134",
       "public/settings.html:70"
     ]
@@ -111,7 +111,7 @@
       "public/admin-feedback.html:51",
       "public/admin-status.html:73",
       "public/app.html:114",
-      "public/hmr.html:179",
+      "public/hmr.html:187",
       "public/index.html:252",
       "public/kb.html:139"
     ]
@@ -174,7 +174,7 @@
     "where": [
       "public/admin-status.html:67",
       "public/app.html:115",
-      "public/hmr.html:180",
+      "public/hmr.html:188",
       "public/kb.html:140",
       "public/team.html:126"
     ]
@@ -227,7 +227,7 @@
     "cat": "html",
     "where": [
       "public/app.html:103",
-      "public/hmr.html:175",
+      "public/hmr.html:183",
       "public/kb.html:135",
       "public/settings.html:71",
       "public/team.html:121"
@@ -266,7 +266,7 @@
     "cat": "html",
     "where": [
       "public/app.html:115",
-      "public/hmr.html:180",
+      "public/hmr.html:188",
       "public/kb.html:140",
       "public/team.html:126",
       "public/feedback.js:294"
@@ -277,7 +277,7 @@
     "cat": "html",
     "where": [
       "public/app.html:118",
-      "public/hmr.html:183",
+      "public/hmr.html:191",
       "public/kb.html:143",
       "public/team.html:129",
       "public/app.js:4890"
@@ -291,7 +291,7 @@
       "public/app.html:139",
       "public/app.js:540",
       "public/app.js:811",
-      "public/hmr.js:188"
+      "public/hmr.js:200"
     ]
   },
   "c2b865fd8a313625": {
@@ -429,8 +429,8 @@
     "where": [
       "public/app.html:175",
       "public/app.html:176",
-      "public/hmr.html:225",
-      "public/hmr.html:226",
+      "public/hmr.html:252",
+      "public/hmr.html:253",
       "public/index.html:363",
       "public/index.html:364"
     ]
@@ -440,7 +440,7 @@
     "cat": "html",
     "where": [
       "public/app.html:178",
-      "public/hmr.html:228",
+      "public/hmr.html:255",
       "public/index.html:366",
       "public/kb.html:201",
       "public/team.html:208"
@@ -1019,64 +1019,101 @@
     "text": "Header manipulation rules",
     "cat": "html",
     "where": [
-      "public/hmr.html:189"
+      "public/hmr.html:197"
     ]
   },
-  "4dbd905ca294dc9e": {
-    "text": "Paste an SBC config (or pick a file) and hiccup reads the header-manipulation rules back to you in plain English, checks them for the usual mistakes, and can re-render any rule for another vendor. Drafts are for review — hiccup never applies config.",
-    "cat": "html",
-    "where": [
-      "public/hmr.html:190"
-    ]
-  },
-  "56bde584f2a00456": {
-    "text": "SBC config — Oracle/Acme",
+  "1aac075d80795d6c": {
+    "text": "Describe a rule in plain English and hiccup drafts it, or paste an existing SBC config and hiccup reads the header-manipulation rules back to you, checks them for the usual mistakes, and can re-render any rule for another vendor. Drafts are for review — hiccup never applies config.",
     "cat": "html",
     "where": [
       "public/hmr.html:198"
     ]
   },
-  "d0682a765687a875": {
-    "text": ", AudioCodes",
+  "32bb9435ac92cf86": {
+    "text": "Generate a rule from a description",
     "cat": "html",
     "where": [
-      "public/hmr.html:198"
+      "public/hmr.html:206"
     ]
   },
-  "ac59308083cc0c09": {
-    "text": "MessageManipulations, or Ribbon SMM rules",
+  "cdcc60ab6a867fcd": {
+    "text": "Describe the rule you want, in plain English",
     "cat": "html",
     "where": [
-      "public/hmr.html:199"
+      "public/hmr.html:208"
     ]
   },
-  "02fda68c559e5704": {
-    "text": "Analyse config",
+  "c0ae216edc87e1d9": {
+    "text": "e.g. strip the P-Asserted-Identity header on outbound INVITEs",
     "cat": "html",
     "where": [
-      "public/hmr.html:204",
-      "public/hmr.js:226"
+      "public/hmr.html:209"
     ]
   },
-  "beacedd7e70bf848": {
-    "text": "Choose config file…",
+  "9178bdd03e53dd70": {
+    "text": "Generate rule",
     "cat": "html",
     "where": [
-      "public/hmr.html:205"
-    ]
-  },
-  "5eb9db3357f09035": {
-    "text": "Check against a capture",
-    "cat": "html",
-    "where": [
-      "public/hmr.html:211"
+      "public/hmr.html:214",
+      "public/hmr.js:327"
     ]
   },
   "b4f1dffbb6be6302": {
     "text": "Clear",
     "cat": "html",
     "where": [
-      "public/hmr.html:214"
+      "public/hmr.html:215",
+      "public/hmr.html:241"
+    ]
+  },
+  "be1e3a4fcc2edac3": {
+    "text": "Or paste an existing config",
+    "cat": "html",
+    "where": [
+      "public/hmr.html:223"
+    ]
+  },
+  "56bde584f2a00456": {
+    "text": "SBC config — Oracle/Acme",
+    "cat": "html",
+    "where": [
+      "public/hmr.html:225"
+    ]
+  },
+  "d0682a765687a875": {
+    "text": ", AudioCodes",
+    "cat": "html",
+    "where": [
+      "public/hmr.html:225"
+    ]
+  },
+  "ac59308083cc0c09": {
+    "text": "MessageManipulations, or Ribbon SMM rules",
+    "cat": "html",
+    "where": [
+      "public/hmr.html:226"
+    ]
+  },
+  "02fda68c559e5704": {
+    "text": "Analyse config",
+    "cat": "html",
+    "where": [
+      "public/hmr.html:231",
+      "public/hmr.js:238"
+    ]
+  },
+  "beacedd7e70bf848": {
+    "text": "Choose config file…",
+    "cat": "html",
+    "where": [
+      "public/hmr.html:232"
+    ]
+  },
+  "5eb9db3357f09035": {
+    "text": "Check against a capture",
+    "cat": "html",
+    "where": [
+      "public/hmr.html:238"
     ]
   },
   "c9506b0ffb78f9e7": {
@@ -1738,8 +1775,8 @@
     "cat": "html",
     "where": [
       "public/team.html:188",
-      "public/hmr.js:731",
-      "public/hmr.js:740",
+      "public/hmr.js:872",
+      "public/hmr.js:881",
       "public/team.js:314"
     ]
   },
@@ -3406,7 +3443,7 @@
     "cat": "js",
     "where": [
       "public/app.js:3542",
-      "public/hmr.js:793"
+      "public/hmr.js:934"
     ]
   },
   "66b8b20a53b57522": {
@@ -3978,137 +4015,145 @@
       "public/feedback.js:277"
     ]
   },
+  "8612781ef0a5ae07": {
+    "text": "not vendor-specific",
+    "cat": "js",
+    "where": [
+      "public/hmr.js:87"
+    ]
+  },
   "d27017fa142bba99": {
     "text": "unknown vendor",
     "cat": "js",
     "where": [
-      "public/hmr.js:84"
+      "public/hmr.js:88"
     ]
   },
   "0b9a5e531efec815": {
     "text": "observed as configured",
     "cat": "js",
     "where": [
-      "public/hmr.js:89"
+      "public/hmr.js:93"
     ]
   },
   "d16afcca8ab9477a": {
     "text": "the capture shows this manipulation actually happening",
     "cat": "js",
     "where": [
-      "public/hmr.js:90"
+      "public/hmr.js:94"
     ]
   },
   "309334a8f43e8b06": {
     "text": "configured, not observed",
     "cat": "js",
     "where": [
-      "public/hmr.js:93"
+      "public/hmr.js:97"
     ]
   },
   "f76f3426a01eee53": {
     "text": "the rule is configured but the capture never shows it fire",
     "cat": "js",
     "where": [
-      "public/hmr.js:94"
+      "public/hmr.js:98"
     ]
   },
   "40ff79569023e85e": {
     "text": "observed, not configured",
     "cat": "js",
     "where": [
-      "public/hmr.js:97"
+      "public/hmr.js:101"
     ]
   },
   "aa6b4e78ffe37936": {
     "text": "the capture shows a manipulation that no rule in this config accounts for",
     "cat": "js",
     "where": [
-      "public/hmr.js:98"
+      "public/hmr.js:102"
     ]
   },
   "9247946a88015125": {
     "text": "reviewable draft — never apply unverified",
     "cat": "js",
     "where": [
-      "public/hmr.js:102"
+      "public/hmr.js:106"
     ]
   },
   "9388a164976d0160": {
     "text": "Loaded",
     "cat": "js",
     "where": [
-      "public/hmr.js:156"
+      "public/hmr.js:168"
     ]
   },
   "2561f114bc77c7e0": {
     "text": "chars). Press “Analyse config”.",
     "cat": "js",
     "where": [
-      "public/hmr.js:156"
+      "public/hmr.js:168"
     ]
   },
   "0aecdb8910f64a5f": {
     "text": "Could not read that file as text.",
     "cat": "js",
     "where": [
-      "public/hmr.js:159"
+      "public/hmr.js:171"
     ]
   },
   "c3c6eb9e0deddf31": {
     "text": "— config only (no capture) —",
     "cat": "js",
     "where": [
-      "public/hmr.js:201"
+      "public/hmr.js:213"
     ]
   },
   "657978b5d5d19371": {
     "text": "— no captures uploaded yet —",
     "cat": "js",
     "where": [
-      "public/hmr.js:201"
+      "public/hmr.js:213"
     ]
   },
   "e74afe607b136d2f": {
     "text": "Analysing…",
     "cat": "js",
     "where": [
-      "public/hmr.js:226"
+      "public/hmr.js:238"
     ]
   },
   "df74b6a652ae3c60": {
     "text": "Paste a config, or choose a config file, first.",
     "cat": "js",
     "where": [
-      "public/hmr.js:245"
+      "public/hmr.js:257"
     ]
   },
   "0d3ebf6fed81ee19": {
     "text": "That config is too big for the 1 MB request limit — trim it to the",
     "cat": "js",
     "where": [
-      "public/hmr.js:249"
+      "public/hmr.js:261"
     ]
   },
   "69857168121ed7a0": {
     "text": "sip-manipulation / MessageManipulations section.",
     "cat": "js",
     "where": [
-      "public/hmr.js:250"
+      "public/hmr.js:262"
     ]
   },
   "2c164c6e5f709ade": {
     "text": "Reading the config…",
     "cat": "js",
     "where": [
-      "public/hmr.js:255"
+      "public/hmr.js:267"
     ]
   },
   "33c500f413757d8a": {
     "text": "Could not reach the server. Is hiccup still running?",
     "cat": "js",
     "where": [
-      "public/hmr.js:270",
+      "public/hmr.js:282",
+      "public/hmr.js:352",
       "public/team.js:140"
     ]
   },
@@ -4116,268 +4161,345 @@
     "text": "Analysis failed (",
     "cat": "js",
     "where": [
-      "public/hmr.js:282"
+      "public/hmr.js:294"
     ]
   },
   "e30a24a37eba29f5": {
     "text": "— the capture picker has been reset; press “Analyse config” again.",
     "cat": "js",
     "where": [
-      "public/hmr.js:288"
+      "public/hmr.js:300"
     ]
   },
   "740d542bbe696de5": {
     "text": "Read",
     "cat": "js",
     "where": [
-      "public/hmr.js:299"
+      "public/hmr.js:311"
     ]
   },
   "bfe6be1f6f51fd33": {
     "text": "rule",
     "cat": "js",
     "where": [
-      "public/hmr.js:299",
-      "public/hmr.js:432",
-      "public/hmr.js:491"
+      "public/hmr.js:311",
+      "public/hmr.js:573",
+      "public/hmr.js:632"
     ]
   },
   "7eba1e16735e00ad": {
     "text": "Checked against the selected capture.",
     "cat": "js",
     "where": [
-      "public/hmr.js:300"
+      "public/hmr.js:312"
     ]
   },
   "b837069bcc69baef": {
     "text": "No header-manipulation rules found in that text.",
     "cat": "js",
     "where": [
-      "public/hmr.js:301"
+      "public/hmr.js:313"
+    ]
+  },
+  "923705a1daf9e84b": {
+    "text": "Generating…",
+    "cat": "js",
+    "where": [
+      "public/hmr.js:327"
+    ]
+  },
+  "bcc109d7a3327983": {
+    "text": "Describe what the rule should do first.",
+    "cat": "js",
+    "where": [
+      "public/hmr.js:334"
+    ]
+  },
+  "d04b144396c51aa3": {
+    "text": "Thinking…",
+    "cat": "js",
+    "where": [
+      "public/hmr.js:339"
+    ]
+  },
+  "d88cbdb82da9462c": {
+    "text": "Generation failed (",
+    "cat": "js",
+    "where": [
+      "public/hmr.js:360"
+    ]
+  },
+  "90203e33c2fce277": {
+    "text": "Draft ready — review before use, then attach it to the right interface.",
+    "cat": "js",
+    "where": [
+      "public/hmr.js:367"
+    ]
+  },
+  "ede71db62ba0c04b": {
+    "text": "hiccup could not build a rule from that description — see below.",
+    "cat": "js",
+    "where": [
+      "public/hmr.js:368"
+    ]
+  },
+  "371cb0731453e5d9": {
+    "text": "hiccup needs to know more",
+    "cat": "js",
+    "where": [
+      "public/hmr.js:390"
+    ]
+  },
+  "51e71d2004df2d92": {
+    "text": "hiccup could not turn that into a rule.",
+    "cat": "js",
+    "where": [
+      "public/hmr.js:397"
+    ]
+  },
+  "5c5416cca5a0db07": {
+    "text": "Suggested match pattern",
+    "cat": "js",
+    "where": [
+      "public/hmr.js:427"
+    ]
+  },
+  "d266428256b0620e": {
+    "text": "matches",
+    "cat": "js",
+    "where": [
+      "public/hmr.js:438"
+    ]
+  },
+  "89ba061aba300a44": {
+    "text": "does not match",
+    "cat": "js",
+    "where": [
+      "public/hmr.js:438"
     ]
   },
   "25fa9a297dfcc128": {
     "text": "vendor detection confidence",
     "cat": "js",
     "where": [
-      "public/hmr.js:422"
+      "public/hmr.js:563"
     ]
   },
   "cdf48355afbf19f8": {
     "text": "% confidence",
     "cat": "js",
     "where": [
-      "public/hmr.js:427"
+      "public/hmr.js:568"
     ]
   },
   "56192a02b7a86d85": {
     "text": "vendor not recognised",
     "cat": "js",
     "where": [
-      "public/hmr.js:430"
+      "public/hmr.js:571"
     ]
   },
   "26876f4195e2b845": {
     "text": "checked against",
     "cat": "js",
     "where": [
-      "public/hmr.js:439"
+      "public/hmr.js:580"
     ]
   },
   "a3acceab939260fa": {
     "text": "Nothing analysed yet. Paste an Oracle/Acme sip-manipulation block, an AudioCodes",
     "cat": "js",
     "where": [
-      "public/hmr.js:462"
+      "public/hmr.js:603"
     ]
   },
   "a5c6b548fc4e7014": {
     "text": "MessageManipulations table, or Ribbon SMM rule text above.",
     "cat": "js",
     "where": [
-      "public/hmr.js:463"
+      "public/hmr.js:604"
     ]
   },
   "37020cc226478194": {
     "text": "Pick a capture as well and hiccup will tell you which of these rules the trace",
     "cat": "js",
     "where": [
-      "public/hmr.js:465"
+      "public/hmr.js:606"
     ]
   },
   "ec4a8a89275370ed": {
     "text": "actually shows firing.",
     "cat": "js",
     "where": [
-      "public/hmr.js:466"
+      "public/hmr.js:607"
     ]
   },
   "ee02cea39cc3516f": {
     "text": "No header-manipulation rules were recognised in that text.",
     "cat": "js",
     "where": [
-      "public/hmr.js:472"
+      "public/hmr.js:613"
     ]
   },
   "5457c7a2739006eb": {
     "text": "hiccup reads Oracle/Acme sip-manipulation blocks, AudioCodes .ini",
     "cat": "js",
     "where": [
-      "public/hmr.js:474"
+      "public/hmr.js:615"
     ]
   },
   "086d2ea796fe3066": {
     "text": "MessageManipulations rows and Ribbon SMM rules. Other config sections are ignored.",
     "cat": "js",
     "where": [
-      "public/hmr.js:475"
+      "public/hmr.js:616"
     ]
   },
   "d66e3beb115e11aa": {
     "text": "direction",
     "cat": "js",
     "where": [
-      "public/hmr.js:500"
+      "public/hmr.js:641"
     ]
   },
   "16f3e46051eee3e8": {
     "text": "target",
     "cat": "js",
     "where": [
-      "public/hmr.js:506"
+      "public/hmr.js:647"
     ]
   },
   "7ce4fd9430e80cea": {
     "text": "value",
     "cat": "js",
     "where": [
-      "public/hmr.js:508"
+      "public/hmr.js:649"
     ]
   },
   "1cfeee4ed64f50bd": {
     "text": "What it does",
     "cat": "js",
     "where": [
-      "public/hmr.js:521"
+      "public/hmr.js:662"
     ]
   },
   "675c7fe08d7705ca": {
     "text": "hiccup could not put this rule into plain English.",
     "cat": "js",
     "where": [
-      "public/hmr.js:524"
+      "public/hmr.js:665"
     ]
   },
   "83b64afbf7b2a257": {
     "text": "Conditions",
     "cat": "js",
     "where": [
-      "public/hmr.js:532"
+      "public/hmr.js:673"
     ]
   },
   "05d6adeb8abc62d0": {
     "text": "(empty condition)",
     "cat": "js",
     "where": [
-      "public/hmr.js:541"
+      "public/hmr.js:682"
     ]
   },
   "60649a666d34cc72": {
     "text": "Config as written",
     "cat": "js",
     "where": [
-      "public/hmr.js:550"
+      "public/hmr.js:691"
     ]
   },
   "a6c36ae23d5e7326": {
     "text": "Correctness",
     "cat": "js",
     "where": [
-      "public/hmr.js:588"
+      "public/hmr.js:729"
     ]
   },
   "3444adde5b88b409": {
     "text": "No correctness check available for this rule.",
     "cat": "js",
     "where": [
-      "public/hmr.js:596"
+      "public/hmr.js:737"
     ]
   },
   "c0fd51f45d0964b1": {
     "text": "hiccup flagged this rule but reported no detail.",
     "cat": "js",
     "where": [
-      "public/hmr.js:602"
+      "public/hmr.js:743"
     ]
   },
   "d88edaade8749055": {
     "text": "No problems found — the rule looks internally consistent.",
     "cat": "js",
     "where": [
-      "public/hmr.js:603"
+      "public/hmr.js:744"
     ]
   },
   "c60ee85f019f5951": {
     "text": "Suggested improvements",
     "cat": "js",
     "where": [
-      "public/hmr.js:662"
+      "public/hmr.js:803"
     ]
   },
   "f9e556fba30862ca": {
     "text": "Translate to",
     "cat": "js",
     "where": [
-      "public/hmr.js:683"
+      "public/hmr.js:824"
     ]
   },
   "575d4581be5a220b": {
     "text": "render this rule for another vendor",
     "cat": "js",
     "where": [
-      "public/hmr.js:702"
+      "public/hmr.js:843"
     ]
   },
   "54af0be549330aba": {
     "text": "(no draft)",
     "cat": "js",
     "where": [
-      "public/hmr.js:705"
+      "public/hmr.js:846"
     ]
   },
   "f32bbe506006c7bc": {
     "text": "hiccup has no",
     "cat": "js",
     "where": [
-      "public/hmr.js:724"
+      "public/hmr.js:865"
     ]
   },
   "bf5f0b2cec545717": {
     "text": "rendering for this rule. Concepts that do",
     "cat": "js",
     "where": [
-      "public/hmr.js:724"
+      "public/hmr.js:865"
     ]
   },
   "363f73ffab8defbd": {
     "text": "not map across vendors are left out rather than guessed at.",
     "cat": "js",
     "where": [
-      "public/hmr.js:725"
+      "public/hmr.js:866"
     ]
   },
   "7c4b68227b404f6d": {
     "text": "copy this draft to the clipboard",
     "cat": "js",
     "where": [
-      "public/hmr.js:733"
+      "public/hmr.js:874"
     ]
   },
   "f4de3bfbfaca12e5": {
     "text": "Copied",
     "cat": "js",
     "where": [
-      "public/hmr.js:737",
+      "public/hmr.js:878",
       "public/team.js:310"
     ]
   },
@@ -4385,49 +4507,49 @@
     "text": "Copy blocked by the browser — select the text instead.",
     "cat": "js",
     "where": [
-      "public/hmr.js:744"
+      "public/hmr.js:885"
     ]
   },
   "9b28898a62fab43d": {
     "text": "Against the capture",
     "cat": "js",
     "where": [
-      "public/hmr.js:767"
+      "public/hmr.js:908"
     ]
   },
   "2be488503b72ba48": {
     "text": "hiccup could not tie this rule to anything in the",
     "cat": "js",
     "where": [
-      "public/hmr.js:769"
+      "public/hmr.js:910"
     ]
   },
   "a5c13fdf33bbdb58": {
     "text": "selected capture — it may simply never have been exercised.",
     "cat": "js",
     "where": [
-      "public/hmr.js:770"
+      "public/hmr.js:911"
     ]
   },
   "f18c4d51a092644e": {
     "text": "Seen in the capture, not in this config",
     "cat": "js",
     "where": [
-      "public/hmr.js:806"
+      "public/hmr.js:947"
     ]
   },
   "a6b5d6ce36ff50c5": {
     "text": "These manipulations show up in the trace but no rule above accounts for them —",
     "cat": "js",
     "where": [
-      "public/hmr.js:808"
+      "public/hmr.js:949"
     ]
   },
   "7c84ca2b83ca9f57": {
     "text": "another manipulation set, a different binding, or a rule hiccup could not parse.",
     "cat": "js",
     "where": [
-      "public/hmr.js:809"
+      "public/hmr.js:950"
     ]
   },
   "efcf950b3cc4fc3b": {
