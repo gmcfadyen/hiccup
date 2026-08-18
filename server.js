@@ -1388,6 +1388,69 @@ async function handleMeDelete(req, res, user) {
   });
 }
 
+/**
+ * DELETE /api/me/data {confirm:"ERASE"} — erase this account's captures,
+ * projects and library documents, keeping the account, login and (if on one)
+ * team membership intact.
+ *
+ * The distinct confirm word ("ERASE" here vs. "DELETE" for /api/me) is
+ * deliberate, not decoration: a mistyped confirmation must not silently fall
+ * through into the OTHER irreversible action next to it on the settings page.
+ *
+ * Same shared-library hazard as handleMeDelete, same fix: only erase when
+ * this account's storage is solo (uid === user.id). A team member's captures
+ * live under the TEAM's accountUid, so this is a no-op for them beyond
+ * whatever they hold that is genuinely theirs — nothing, today, since
+ * projects and captures are both stored against the resolved account.
+ */
+async function handleMeDataDelete(req, res, user) {
+  let body;
+  try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
+  if (String(body && body.confirm) !== 'ERASE') {
+    sendJson(res, 400, { error: 'send {"confirm":"ERASE"} to confirm erasing your data' });
+    return;
+  }
+
+  const uid = resolveAccountUid(user.id);
+  const solo = uid === user.id;
+  const removed = { captures: 0, projects: 0, kbDocuments: 0, sharedLibraryKept: !solo };
+
+  if (solo) {
+    try {
+      for (const cap of store.listCaptures(DATA_DIR, uid)) {
+        if (store.deleteCapture(DATA_DIR, uid, cap.id)) removed.captures++;
+      }
+    } catch { /* keep going — a partial erase still beats none */ }
+
+    try {
+      const projects = optionalModule('./lib/projects');
+      if (projects && typeof projects.listProjects === 'function' && typeof projects.deleteProject === 'function') {
+        for (const p of projects.listProjects(uid)) {
+          if (p && projects.deleteProject(uid, p.id)) removed.projects++;
+        }
+      }
+    } catch { /* best effort */ }
+
+    try {
+      const kb = optionalModule('./lib/kb');
+      if (kb && typeof kb.listDocs === 'function' && typeof kb.deleteDoc === 'function') {
+        for (const d of kb.listDocs(uid)) {
+          if (d && kb.deleteDoc(uid, d.id)) removed.kbDocuments++;
+        }
+      }
+    } catch { /* best effort */ }
+  }
+
+  sendJson(res, 200, {
+    ok: true,
+    removed,
+    note: solo
+      ? 'Your captures, projects and library documents have been erased. Your account stays signed in.'
+      : 'Your account is on a shared team library, so there is nothing solely yours to erase here — ' +
+        'leave the team (in Delete account, or from the team page) to stop sharing it.',
+  });
+}
+
 /** Recursive byte total for a directory. Bounded so it cannot walk forever. */
 function dirSize(p, depth) {
   let total = 0;
@@ -2562,6 +2625,12 @@ async function handle(req, res) {
     const user = requireAuth(req, res);
     if (!user) { req.resume(); return; }
     return handleMeDelete(req, res, user);
+  }
+
+  if (pathname === '/api/me/data' && method === 'DELETE') {
+    const user = requireAuth(req, res);
+    if (!user) { req.resume(); return; }
+    return handleMeDataDelete(req, res, user);
   }
 
   // --- team (Wave 3) --- two routes are public (accepting an invite happens

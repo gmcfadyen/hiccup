@@ -48,6 +48,14 @@
   .set-fact b { color: var(--text); font-weight: 600; }
   .set-confirm { margin-top: 10px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .set-confirm .input { max-width: 220px; }
+  /* [hidden] and .set-confirm's own `display: flex` are equal-specificity —
+     the class, being declared later, was winning and defeating `hidden`, so
+     both confirm boxes (erase-data, delete-account) showed on page load
+     instead of only after their "start" button is clicked. */
+  .set-confirm[hidden] { display: none; }
+  .set-section-title { font-size: 15px; font-weight: 700; margin: 26px 0 2px; }
+  .set-section-title:first-of-type { margin-top: 26px; }
+  .set-section-lede { color: var(--muted); font-size: 13.5px; margin: 0; }
 </style>
 </head>
 <!--
@@ -117,14 +125,18 @@
     </div>
   </section>
 
+  <h2 data-i18n class="set-section-title">Your privacy rights</h2>
+  <p data-i18n class="set-section-lede">Export, erase, or delete — everything on this page is
+    something you can do yourself, right now, without asking an administrator.</p>
+
   <section class="card set-card">
-    <h2 data-i18n>Your data</h2>
+    <h2 data-i18n>Download a copy</h2>
     <p data-i18n class="set-lede">Everything hiccup holds about this account.</p>
 
     <div class="set-row">
       <div class="set-row-text">
-        <div data-i18n class="set-row-title">Download a copy</div>
-        <div data-i18n class="set-row-help">One JSON file: your account record, capture list,
+        <div data-i18n class="set-row-title">Export as JSON</div>
+        <div data-i18n class="set-row-help">One file: your account record, capture list,
           projects, team, library documents and any feedback you have sent. Capture
           file contents are not included — download those individually from the
           workbench.</div>
@@ -136,8 +148,30 @@
   </section>
 
   <section class="card set-card set-danger">
+    <h2 data-i18n>Erase your data</h2>
+    <p data-i18n class="set-lede">Removes your captures, projects and library documents.
+      Your account stays open and signed in — this is not the same as deleting your account.</p>
+    <div class="set-row">
+      <div class="set-row-text">
+        <div data-i18n class="set-row-title">What this removes</div>
+        <div data-i18n class="set-row-help" id="set-erase-scope">checking…</div>
+      </div>
+      <div class="set-row-action">
+        <button data-i18n class="btn btn-danger" id="set-erase-start" type="button">Erase my data</button>
+      </div>
+    </div>
+    <div class="set-confirm" id="set-erase-confirm" hidden>
+      <label data-i18n for="set-erase-word" class="set-fact">Type <b>ERASE</b> to confirm:</label>
+      <input class="input mono" id="set-erase-word" type="text" autocomplete="off" placeholder="ERASE">
+      <button data-i18n class="btn btn-danger" id="set-erase-go" type="button" disabled>Erase permanently</button>
+      <button data-i18n class="btn" id="set-erase-cancel" type="button">Cancel</button>
+    </div>
+  </section>
+
+  <section class="card set-card set-danger">
     <h2 data-i18n>Delete this account</h2>
-    <p data-i18n class="set-lede">Irreversible. There is no undo and no backup to restore from.</p>
+    <p data-i18n class="set-lede">Everything above, plus the account itself. Irreversible —
+      there is no undo and no backup to restore from.</p>
     <div class="set-row">
       <div class="set-row-text">
         <div data-i18n class="set-row-title">What this removes</div>
@@ -156,125 +190,7 @@
   </section>
 </main>
 
-<script>
-(function () {
-  'use strict';
-
-  function $(id) { return document.getElementById(id); }
-  function say(text, isErr) {
-    var m = $('set-msg');
-    m.textContent = text || '';
-    m.className = 'feedback-msg' + (isErr ? ' is-err' : (text ? ' is-ok' : ''));
-  }
-
-  // --- number masking preference -------------------------------------------
-  // Stored client-side and sent by app.js as X-Mask-Numbers on upload. Kept
-  // local rather than on the user record deliberately: it needs no new server
-  // state, and an empty value means "no opinion" so the server default still
-  // decides — which is different from explicitly choosing not to mask.
-  var maskSel = $('set-mask');
-  try { maskSel.value = localStorage.getItem('hiccup-mask-numbers') || ''; } catch (e) { /* blocked */ }
-  maskSel.addEventListener('change', function () {
-    try {
-      if (maskSel.value === '') localStorage.removeItem('hiccup-mask-numbers');
-      else localStorage.setItem('hiccup-mask-numbers', maskSel.value);
-      say('Saved. This applies to captures you upload from now on.');
-    } catch (e) {
-      say('Could not save — this browser is blocking local storage.', true);
-    }
-  });
-
-  // --- delete flow ---------------------------------------------------------
-  var word = $('set-delete-word');
-  $('set-delete-start').addEventListener('click', function () {
-    $('set-delete-confirm').hidden = false;
-    word.focus();
-  });
-  $('set-delete-cancel').addEventListener('click', function () {
-    $('set-delete-confirm').hidden = true;
-    word.value = '';
-    $('set-delete-go').disabled = true;
-  });
-  word.addEventListener('input', function () {
-    $('set-delete-go').disabled = word.value !== 'DELETE';
-  });
-  $('set-delete-go').addEventListener('click', async function () {
-    $('set-delete-go').disabled = true;
-    say('Deleting…');
-    try {
-      var r = await fetch('/api/me', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ confirm: 'DELETE' })
-      });
-      var d = {};
-      try { d = await r.json(); } catch (e) { /* non-json */ }
-      if (!r.ok) { say((d && d.error) || 'Could not delete the account.', true); return; }
-      document.body.innerHTML = '<main class="set-page"><h1>Account deleted</h1>' +
-        '<p class="set-lede"></p></main>';
-      document.querySelector('.set-lede').textContent =
-        (d.note || 'Your account has been removed.') +
-        ' Captures removed: ' + ((d.removed && d.removed.captures) || 0) + '.';
-    } catch (e) {
-      say('Could not reach the server.', true);
-      $('set-delete-go').disabled = false;
-    }
-  });
-
-  // --- load account context ------------------------------------------------
-  (async function load() {
-    var me = null;
-    try {
-      var r = await fetch('/api/me');
-      if (r.status === 401) { location = '/'; return; }
-      me = (await r.json()).user;
-    } catch (e) { say('Could not reach the server.', true); return; }
-
-    $('set-who').textContent = 'Signed in as ' + me.email +
-      (me.createdAt ? ' · member since ' + new Date(me.createdAt).toLocaleDateString() : '');
-
-    // Retention + sharing are facts about THIS deployment, so read them from
-    // the server rather than restating a policy this page cannot verify.
-    try {
-      var cr = await fetch('/api/config/public');
-      var cfg = cr.ok ? await cr.json() : {};
-      var days = Number(cfg.captureRetentionDays || 0);
-      $('set-retention').textContent = days > 0
-        ? ('Captures are deleted automatically ' + days + ' days after upload.')
-        : 'Captures are kept until you delete them. No automatic expiry is configured on this server.';
-      var d = cfg.maskNumbersByDefault === false ? 'not masked' : 'masked';
-      maskSel.options[0].textContent = 'use the server default (' + d + ')';
-    } catch (e) {
-      $('set-retention').textContent = 'Could not read the retention policy from the server.';
-    }
-
-    var onTeam = false;
-    try {
-      var tr = await fetch('/api/team');
-      if (tr.ok) {
-        var tv = await tr.json();
-        onTeam = !!(tv && tv.team);
-        $('set-sharing').textContent = onTeam
-          ? ('You are on the team "' + (tv.team.name || 'team') + '". Captures uploaded ' +
-             'by any member are visible to every member — the library is shared, not per-person.')
-          : 'Only you. Your captures are not visible to any other account.';
-      } else {
-        $('set-sharing').textContent = 'Only you.';
-      }
-    } catch (e) { $('set-sharing').textContent = 'Only you.'; }
-
-    // Being explicit here matters: on a team the shared library is NOT yours
-    // to destroy, and someone about to delete their account deserves to know
-    // that before they click, not after.
-    $('set-delete-scope').textContent = onTeam
-      ? 'Your account, your membership of the team, and your personal records. ' +
-        'The team\'s shared capture library stays with the team — deleting your ' +
-        'account does not remove your colleagues\' data.'
-      : 'Your account, every capture you have uploaded, your projects and your ' +
-        'library documents. Feedback you sent is kept but no longer linked to you.';
-  })();
-})();
-</script>
+<script src="/settings.js"></script>
 <script src="/theme.js"></script>
 </body>
 </html>

@@ -65,7 +65,7 @@
       "public/app.html:98",
       "public/hmr.html:178",
       "public/kb.html:130",
-      "public/settings.html:66"
+      "public/settings.html:69"
     ]
   },
   "302be2b037ca1f9e": {
@@ -77,7 +77,7 @@
       "public/app.html:99",
       "public/hmr.html:179",
       "public/kb.html:131",
-      "public/settings.html:67"
+      "public/settings.html:70"
     ]
   },
   "a6edc30d22e57748": {
@@ -89,7 +89,7 @@
       "public/app.html:101",
       "public/hmr.html:181",
       "public/kb.html:133",
-      "public/settings.html:69"
+      "public/settings.html:72"
     ]
   },
   "fa23d9ef19afc32c": {
@@ -101,7 +101,7 @@
       "public/app.html:102",
       "public/hmr.html:182",
       "public/kb.html:134",
-      "public/settings.html:70"
+      "public/settings.html:73"
     ]
   },
   "5928cfb985c5f790": {
@@ -129,7 +129,7 @@
     "where": [
       "public/admin-feedback.html:58",
       "public/admin-status.html:80",
-      "public/settings.html:80"
+      "public/settings.html:83"
     ]
   },
   "e995f1b767c96b70": {
@@ -229,7 +229,7 @@
       "public/app.html:103",
       "public/hmr.html:183",
       "public/kb.html:135",
-      "public/settings.html:71",
+      "public/settings.html:74",
       "public/team.html:121"
     ]
   },
@@ -1485,179 +1485,226 @@
     "text": "Settings",
     "cat": "html",
     "where": [
-      "public/settings.html:79"
+      "public/settings.html:82"
     ]
   },
   "c688123bacd22912": {
     "text": "Privacy of your captures",
     "cat": "html",
     "where": [
-      "public/settings.html:84"
+      "public/settings.html:87"
     ]
   },
   "e7a5a68d766b49e2": {
     "text": "Traces routinely contain phone numbers. These control what hiccup keeps in the analysis it builds from them.",
     "cat": "html",
     "where": [
-      "public/settings.html:85"
+      "public/settings.html:88"
     ]
   },
   "4ac03f56f72b4226": {
     "text": "Mask phone numbers in new uploads",
     "cat": "html",
     "where": [
-      "public/settings.html:90"
+      "public/settings.html:93"
     ]
   },
   "8036e4ca267d7125": {
     "text": "Shows numbers as",
     "cat": "html",
     "where": [
-      "public/settings.html:91"
+      "public/settings.html:94"
     ]
   },
   "e4ee48083f224295": {
     "text": "in the analysis — still enough to follow a call across legs, without keeping the full number. Your uploaded file is never altered, only what hiccup derives from it.",
     "cat": "html",
     "where": [
-      "public/settings.html:91"
+      "public/settings.html:94"
     ]
   },
   "9c59c7bdf8a7fd03": {
     "text": "use the server default",
     "cat": "html",
     "where": [
-      "public/settings.html:98"
+      "public/settings.html:101"
     ]
   },
   "dff35ef6dfc95fdc": {
     "text": "always mask",
     "cat": "html",
     "where": [
-      "public/settings.html:99"
+      "public/settings.html:102"
     ]
   },
   "cb9f394fe954695f": {
     "text": "never mask",
     "cat": "html",
     "where": [
-      "public/settings.html:100"
+      "public/settings.html:103"
     ]
   },
   "4661bbea10e4a7ca": {
     "text": "How long captures are kept",
     "cat": "html",
     "where": [
-      "public/settings.html:107"
+      "public/settings.html:110"
     ]
   },
   "7ba9d783b7673877": {
     "text": "checking…",
     "cat": "html",
     "where": [
-      "public/settings.html:108",
-      "public/settings.html:115",
-      "public/settings.html:144"
+      "public/settings.html:111",
+      "public/settings.html:118",
+      "public/settings.html:152",
+      "public/settings.html:173"
     ]
   },
   "f9ee06b5ff26c62b": {
     "text": "Who else can see your captures",
     "cat": "html",
     "where": [
-      "public/settings.html:114"
+      "public/settings.html:117"
     ]
   },
-  "e93335b0bf0218fe": {
-    "text": "Your data",
+  "60c9cf051f0b9a39": {
+    "text": "Your privacy rights",
     "cat": "html",
     "where": [
-      "public/settings.html:121"
+      "public/settings.html:123"
     ]
   },
-  "1a459bd2e7b53974": {
-    "text": "Everything hiccup holds about this account.",
+  "ad2e6868b10b38aa": {
+    "text": "Export, erase, or delete — everything on this page is something you can do yourself, right now, without asking an administrator.",
     "cat": "html",
     "where": [
-      "public/settings.html:122"
+      "public/settings.html:124"
     ]
   },
   "4f115b48fcd53957": {
     "text": "Download a copy",
     "cat": "html",
     "where": [
-      "public/settings.html:126"
+      "public/settings.html:128"
     ]
   },
-  "3e138830e2c0b175": {
-    "text": "One JSON file: your account record, capture list, projects, team, library documents and any feedback you have sent. Capture file contents are not included — download those individually from the workbench.",
+  "1a459bd2e7b53974": {
+    "text": "Everything hiccup holds about this account.",
     "cat": "html",
     "where": [
-      "public/settings.html:127"
+      "public/settings.html:129"
+    ]
+  },
+  "0886ea2a1f4b50d1": {
+    "text": "Export as JSON",
+    "cat": "html",
+    "where": [
+      "public/settings.html:133"
+    ]
+  },
+  "9b2be74d948736e9": {
+    "text": "One file: your account record, capture list, projects, team, library documents and any feedback you have sent. Capture file contents are not included — download those individually from the workbench.",
+    "cat": "html",
+    "where": [
+      "public/settings.html:134"
     ]
   },
   "d3386a2ef42e80b9": {
     "text": "Download",
     "cat": "html",
     "where": [
-      "public/settings.html:133"
-    ]
-  },
-  "83b1523cb540e0fd": {
-    "text": "Delete this account",
-    "cat": "html",
-    "where": [
-      "public/settings.html:139"
-    ]
-  },
-  "5309f8ed9198353d": {
-    "text": "Irreversible. There is no undo and no backup to restore from.",
-    "cat": "html",
-    "where": [
       "public/settings.html:140"
+    ]
+  },
+  "0d7192fab7c9eb3c": {
+    "text": "Erase your data",
+    "cat": "html",
+    "where": [
+      "public/settings.html:146"
+    ]
+  },
+  "54a72ca1b15ba2e0": {
+    "text": "Removes your captures, projects and library documents. Your account stays open and signed in — this is not the same as deleting your account.",
+    "cat": "html",
+    "where": [
+      "public/settings.html:147"
     ]
   },
   "720689d4346abc1c": {
     "text": "What this removes",
     "cat": "html",
     "where": [
-      "public/settings.html:143"
+      "public/settings.html:151",
+      "public/settings.html:172"
     ]
   },
-  "045c3b86aae073c1": {
-    "text": "Delete account",
+  "691d2c8f160c597f": {
+    "text": "Erase my data",
     "cat": "html",
     "where": [
-      "public/settings.html:147"
+      "public/settings.html:155"
     ]
   },
   "d2223afb7d6b100d": {
     "text": "Type",
     "cat": "html",
     "where": [
-      "public/settings.html:151"
+      "public/settings.html:159",
+      "public/settings.html:180"
     ]
   },
   "cfbd46e8a190134a": {
     "text": "to confirm:",
     "cat": "html",
     "where": [
-      "public/settings.html:151"
+      "public/settings.html:159",
+      "public/settings.html:180"
     ]
   },
-  "f0ef7644098b8a63": {
-    "text": "Delete permanently",
+  "4082bb30552dd590": {
+    "text": "Erase permanently",
     "cat": "html",
     "where": [
-      "public/settings.html:153"
+      "public/settings.html:161"
     ]
   },
   "2ceb11be2290bb1b": {
     "text": "Cancel",
     "cat": "html",
     "where": [
-      "public/settings.html:154",
+      "public/settings.html:162",
+      "public/settings.html:183",
       "public/app.js:860",
       "public/feedback.js:180"
+    ]
+  },
+  "83b1523cb540e0fd": {
+    "text": "Delete this account",
+    "cat": "html",
+    "where": [
+      "public/settings.html:167"
+    ]
+  },
+  "992032218333b658": {
+    "text": "Everything above, plus the account itself. Irreversible — there is no undo and no backup to restore from.",
+    "cat": "html",
+    "where": [
+      "public/settings.html:168"
+    ]
+  },
+  "045c3b86aae073c1": {
+    "text": "Delete account",
+    "cat": "html",
+    "where": [
+      "public/settings.html:176"
+    ]
+  },
+  "f0ef7644098b8a63": {
+    "text": "Delete permanently",
+    "cat": "html",
+    "where": [
+      "public/settings.html:182"
     ]
   },
   "20d2719255c74e18": {
@@ -2239,8 +2286,8 @@
       "public/app.js:931",
       "public/app.js:963",
       "public/feedback.js:280",
-      "public/team.js:179",
-      "public/team.js:254"
+      "public/settings.js:81",
+      "public/settings.js:118"
     ]
   },
   "ab29acd0352515f1": {
@@ -2303,7 +2350,8 @@
     "text": "Deleting…",
     "cat": "js",
     "where": [
-      "public/app.js:953"
+      "public/app.js:953",
+      "public/settings.js:102"
     ]
   },
   "5c586607974a7e9e": {
@@ -4878,6 +4926,197 @@
       "public/ladder.js:742"
     ]
   },
+  "237c37150d35e79f": {
+    "text": "Saved. This applies to captures you upload from now on.",
+    "cat": "js",
+    "where": [
+      "public/settings.js:34"
+    ]
+  },
+  "c6b71cdf9afa2157": {
+    "text": "Could not save — this browser is blocking local storage.",
+    "cat": "js",
+    "where": [
+      "public/settings.js:36"
+    ]
+  },
+  "5095c78d92b1e8be": {
+    "text": "Erasing…",
+    "cat": "js",
+    "where": [
+      "public/settings.js:59"
+    ]
+  },
+  "f7751a7621c3d3d6": {
+    "text": "Could not erase your data.",
+    "cat": "js",
+    "where": [
+      "public/settings.js:69"
+    ]
+  },
+  "2eb93b91c0f63753": {
+    "text": "Removed:",
+    "cat": "js",
+    "where": [
+      "public/settings.js:75"
+    ]
+  },
+  "7026db2657cebb0e": {
+    "text": "captures,",
+    "cat": "js",
+    "where": [
+      "public/settings.js:75"
+    ]
+  },
+  "23eef22b17804a41": {
+    "text": "projects,",
+    "cat": "js",
+    "where": [
+      "public/settings.js:76"
+    ]
+  },
+  "2be80d1e3d930e90": {
+    "text": "library documents.",
+    "cat": "js",
+    "where": [
+      "public/settings.js:76"
+    ]
+  },
+  "fc6a81391af460cc": {
+    "text": "Could not delete the account.",
+    "cat": "js",
+    "where": [
+      "public/settings.js:111"
+    ]
+  },
+  "cea43e3096e74c41": {
+    "text": "Account deleted",
+    "cat": "js",
+    "where": [
+      "public/settings.js:112"
+    ]
+  },
+  "27e3abec4d915354": {
+    "text": "Captures removed:",
+    "cat": "js",
+    "where": [
+      "public/settings.js:116"
+    ]
+  },
+  "b3ed936ae03f9bd9": {
+    "text": "Your account is on a shared team library, so there is nothing solely yours to erase here — leave the team to stop sharing it.",
+    "cat": "js",
+    "where": [
+      "public/settings.js:135"
+    ]
+  },
+  "a79f8b980b0d1781": {
+    "text": "Every capture you have uploaded, your projects and your library documents. Your account, login and team membership are not touched.",
+    "cat": "js",
+    "where": [
+      "public/settings.js:136"
+    ]
+  },
+  "ad794b70a6ef1e89": {
+    "text": "Your account, your membership of the team, and your personal records. The team's shared capture library stays with the team — deleting your account does not remove your colleagues' data.",
+    "cat": "js",
+    "where": [
+      "public/settings.js:142"
+    ]
+  },
+  "66d94ac930dca0bb": {
+    "text": "Your account, every capture you have uploaded, your projects and your library documents. Feedback you sent is kept but no longer linked to you.",
+    "cat": "js",
+    "where": [
+      "public/settings.js:143"
+    ]
+  },
+  "65a90a65766af1bc": {
+    "text": "Signed in as",
+    "cat": "js",
+    "where": [
+      "public/settings.js:154",
+      "public/team.js:213"
+    ]
+  },
+  "01da8beea2de4826": {
+    "text": "· member since",
+    "cat": "js",
+    "where": [
+      "public/settings.js:155"
+    ]
+  },
+  "579453e51f82122c": {
+    "text": "Captures are deleted automatically",
+    "cat": "js",
+    "where": [
+      "public/settings.js:164"
+    ]
+  },
+  "0e002f9f26342f29": {
+    "text": "days after upload.",
+    "cat": "js",
+    "where": [
+      "public/settings.js:164"
+    ]
+  },
+  "3c78ea3079b1393d": {
+    "text": "Captures are kept until you delete them. No automatic expiry is configured on this server.",
+    "cat": "js",
+    "where": [
+      "public/settings.js:165"
+    ]
+  },
+  "675297f717f56d0f": {
+    "text": "not masked",
+    "cat": "js",
+    "where": [
+      "public/settings.js:166"
+    ]
+  },
+  "2d16af20687da5e0": {
+    "text": "masked",
+    "cat": "js",
+    "where": [
+      "public/settings.js:166"
+    ]
+  },
+  "1c3f2c39c2a34fa3": {
+    "text": "use the server default (",
+    "cat": "js",
+    "where": [
+      "public/settings.js:167"
+    ]
+  },
+  "a261537ac64f9fda": {
+    "text": "Could not read the retention policy from the server.",
+    "cat": "js",
+    "where": [
+      "public/settings.js:169"
+    ]
+  },
+  "b115bc06d196ef88": {
+    "text": "You are on the team \"{0}\". Captures uploaded by any member are visible to every member — the library is shared, not per-person.",
+    "cat": "js",
+    "where": [
+      "public/settings.js:179"
+    ]
+  },
+  "12acfea9db2fd4a9": {
+    "text": "Only you. Your captures are not visible to any other account.",
+    "cat": "js",
+    "where": [
+      "public/settings.js:180"
+    ]
+  },
+  "586e08ef2b996e46": {
+    "text": "Only you.",
+    "cat": "js",
+    "where": [
+      "public/settings.js:182",
+      "public/settings.js:184"
+    ]
+  },
   "a2d5a2aea70e11b4": {
     "text": "Enter a name for your team.",
     "cat": "js",
@@ -4911,13 +5150,6 @@
     "cat": "js",
     "where": [
       "public/team.js:207"
-    ]
-  },
-  "65a90a65766af1bc": {
-    "text": "Signed in as",
-    "cat": "js",
-    "where": [
-      "public/team.js:213"
     ]
   },
   "0518900372e0ea0c": {
@@ -5198,9 +5430,9 @@
     "where": [
       "server.js:847",
       "server.js:985",
-      "server.js:2367",
-      "server.js:2662",
-      "server.js:2677"
+      "server.js:2430",
+      "server.js:2731",
+      "server.js:2746"
     ]
   },
   "f79423093897467e": {
@@ -5315,208 +5547,215 @@
       "server.js:1342"
     ]
   },
+  "750fa3e5656e2d66": {
+    "text": "send {\"confirm\":\"ERASE\"} to confirm erasing your data",
+    "cat": "server",
+    "where": [
+      "server.js:1410"
+    ]
+  },
   "b107b578f662fb05": {
     "text": "cross-origin request refused",
     "cat": "server",
     "where": [
-      "server.js:1515"
+      "server.js:1578"
     ]
   },
   "e8d4274657ed2599": {
     "text": "action must be 'status' or 'restart'",
     "cat": "server",
     "where": [
-      "server.js:1522"
+      "server.js:1585"
     ]
   },
   "c9025488a137cf6c": {
     "text": "Not supervised by the hiccup service (state:",
     "cat": "server",
     "where": [
-      "server.js:1552"
+      "server.js:1615"
     ]
   },
   "3fb3204d07f649c4": {
     "text": "no such feedback",
     "cat": "server",
     "where": [
-      "server.js:1635"
+      "server.js:1698"
     ]
   },
   "2668e3335367971b": {
     "text": "no feedback module",
     "cat": "server",
     "where": [
-      "server.js:1658"
+      "server.js:1721"
     ]
   },
   "b5872077e7138177": {
     "text": "no digestRecipient configured",
     "cat": "server",
     "where": [
-      "server.js:1672"
+      "server.js:1735"
     ]
   },
   "3e230b47bf9bb8d3": {
     "text": "no mail module",
     "cat": "server",
     "where": [
-      "server.js:1676"
+      "server.js:1739"
     ]
   },
   "d1638c2147bb7e7d": {
     "text": "this build of lib/kb.js cannot search",
     "cat": "server",
     "where": [
-      "server.js:1703"
+      "server.js:1766"
     ]
   },
   "5337ea8f8150b659": {
     "text": "q (a search query) is required",
     "cat": "server",
     "where": [
-      "server.js:1708"
+      "server.js:1771"
     ]
   },
   "d53aa13ba29ffd09": {
     "text": "the teams module is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:1758",
-      "server.js:1775",
-      "server.js:1787",
-      "server.js:1808",
-      "server.js:1831",
-      "server.js:1881"
+      "server.js:1821",
+      "server.js:1838",
+      "server.js:1850",
+      "server.js:1871",
+      "server.js:1894",
+      "server.js:1944"
     ]
   },
   "b4557baf45c6a947": {
     "text": "this invite link is invalid or has expired",
     "cat": "server",
     "where": [
-      "server.js:1813",
-      "server.js:1841"
+      "server.js:1876",
+      "server.js:1904"
     ]
   },
   "d7bf7c6c99ed4407": {
     "text": "token is required",
     "cat": "server",
     "where": [
-      "server.js:1836"
+      "server.js:1899"
     ]
   },
   "baa0a3344e8c0331": {
     "text": "joined the team, but could not load the account",
     "cat": "server",
     "where": [
-      "server.js:1869"
+      "server.js:1932"
     ]
   },
   "3696efafd4e94786": {
     "text": "role or suspended is required",
     "cat": "server",
     "where": [
-      "server.js:1889"
+      "server.js:1952"
     ]
   },
   "8085f74c9d35d6d7": {
     "text": "Only the team owner can change member roles.",
     "cat": "server",
     "where": [
-      "server.js:1895"
+      "server.js:1958"
     ]
   },
   "0136bec8180be8a5": {
     "text": "Only a team owner or admin can suspend members.",
     "cat": "server",
     "where": [
-      "server.js:1907"
+      "server.js:1970"
     ]
   },
   "00adf0d1bc93484d": {
     "text": "Only a team owner or admin can remove members.",
     "cat": "server",
     "where": [
-      "server.js:1928"
+      "server.js:1991"
     ]
   },
   "408635fc82cc11a8": {
     "text": "Only the team owner can transfer ownership.",
     "cat": "server",
     "where": [
-      "server.js:1950"
+      "server.js:2013"
     ]
   },
   "4bf96ced8828fabd": {
     "text": "the projects module is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:1966",
-      "server.js:1979",
-      "server.js:2002",
-      "server.js:2028"
+      "server.js:2029",
+      "server.js:2042",
+      "server.js:2065",
+      "server.js:2091"
     ]
   },
   "0d9aceb8b8384b7f": {
     "text": "project not found",
     "cat": "server",
     "where": [
-      "server.js:2008",
-      "server.js:2034",
-      "server.js:2039"
+      "server.js:2071",
+      "server.js:2097",
+      "server.js:2102"
     ]
   },
   "8c827ee96db5d1cd": {
     "text": "messages array is required",
     "cat": "server",
     "where": [
-      "server.js:2361"
+      "server.js:2424"
     ]
   },
   "ecfc526de8ae3814": {
     "text": "local model is offline",
     "cat": "server",
     "where": [
-      "server.js:2372"
+      "server.js:2435"
     ]
   },
   "fec5f0616fdf6dd0": {
     "text": "hiccup is busy answering another question — try again in a moment",
     "cat": "server",
     "where": [
-      "server.js:2391"
+      "server.js:2454"
     ]
   },
   "1ab14d1c2578506a": {
     "text": "email and password are required",
     "cat": "server",
     "where": [
-      "server.js:2422",
-      "server.js:2444"
+      "server.js:2485",
+      "server.js:2507"
     ]
   },
   "98c716c4e947ddc8": {
     "text": "wrong email or password",
     "cat": "server",
     "where": [
-      "server.js:2449"
+      "server.js:2512"
     ]
   },
   "f470143a26c5b7c9": {
     "text": "credential is required",
     "cat": "server",
     "where": [
-      "server.js:2460"
+      "server.js:2523"
     ]
   },
   "08565cf8a3e3ee3a": {
     "text": "not found",
     "cat": "server",
     "where": [
-      "server.js:2602",
-      "server.js:2623",
-      "server.js:2683",
-      "server.js:2771"
+      "server.js:2671",
+      "server.js:2692",
+      "server.js:2752",
+      "server.js:2840"
     ]
   }
 }

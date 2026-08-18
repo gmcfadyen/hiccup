@@ -1987,3 +1987,63 @@ recognises English trigger words — a French description would silently fail
 `INTENTS`' matching and surface as "hiccup needs to know more" with no
 indication that the actual problem was the input language, so the UI has to
 set that expectation up front rather than let it surprise someone.
+
+---
+
+# Wave 10 — Erase your data, distinct from deleting your account
+
+`/settings` gains a third GDPR action alongside export and account deletion:
+`DELETE /api/me/data {confirm:"ERASE"}` removes captures, projects and
+library documents while leaving the account, login and (if on one) team
+membership untouched. Until now the only self-serve erasure was full account
+deletion — someone who wanted a clean slate without losing their login had no
+way to get one. Implementation mirrors `handleMeDelete`'s established shape
+exactly: same shared-library hazard (`resolveAccountUid(user.id) ===
+user.id` gates every deletion, so one team member's erase cannot touch the
+team's shared library), same iterate-and-delete-each pattern over
+`store.deleteCapture` / `projects.deleteProject` / `kb.deleteDoc`, same
+"best-effort, keep going on a partial failure" error handling.
+
+The two actions sit right next to each other on the same page, both styled as
+danger cards, so they use **different** confirm words — `ERASE` here,
+`DELETE` for the account — on purpose: a mistyped confirmation must not
+silently fall through into the other irreversible action. Verified end to end
+against a disposable throwaway account (sign up, create a project, erase,
+confirm the project is gone and `GET /api/me` still 200s, delete the test
+account) rather than the real one — this is a real destructive endpoint and
+the dev instance used for this wave's testing shares `data/` with the live
+service.
+
+The rest of `/settings` was reorganised around this: a new "Your privacy
+rights" heading now groups export / erase / delete together, separately from
+the "Privacy of your captures" preferences section above it (masking,
+retention, sharing) — those are ongoing settings, not one-shot rights you
+invoke, so keeping them apart from the actions was the point of "move the
+GDPR stuff into its own subsection."
+
+## Two more bugs this wave's live verification caught
+
+- `public/settings.html`'s entire account-management script had been inline
+  since it was first built, which means it was never covered by
+  `lib/i18n.js`'s `scanHtml()` (deliberately skips `<script>` bodies — see
+  Wave 8) or `scanJs()` (only scans `public/*.js` files). Every status
+  message and account fact on this page — a page every signed-in user visits,
+  not an admin-only one — had been silently English-only since Wave 8 shipped.
+  Extracted to `public/settings.js`, matching every other page's convention,
+  and its ~30 strings translated into fr/es/de. Building the extraction this
+  way surfaced a second, sharper bug: writing `_t('foo ' + 'bar')` across two
+  literals joined by `+` — instead of one literal — means the scanner only
+  ever sees `'foo '` (it requires the literal to sit directly against `_t(`),
+  so the catalogue holds a translation for `'foo'` alone while the runtime
+  call still hashes the full `'foo bar'` string. The lookup can never hit;
+  the string is quietly frozen in English forever, no matter how the
+  catalogue is edited. All six such call sites in the new file were rewritten
+  as single literals.
+- `.set-confirm { display: flex; ... }` and the browser's default `[hidden] {
+  display: none }` are equal specificity, and the page's own rule, being
+  declared later, was winning — so both the erase-data and delete-account
+  "type X to confirm" boxes were showing on page load instead of only after
+  their button is clicked. Predates this wave (the delete-account box had the
+  same bug); only surfaced because the new erase-data box was screenshotted
+  immediately after being added and visibly wasn't hidden. Fixed with one
+  `.set-confirm[hidden] { display: none; }` override.
