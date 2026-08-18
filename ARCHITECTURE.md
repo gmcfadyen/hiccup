@@ -1550,3 +1550,51 @@ the analysis response landing:
 - Clear skeletons and render real content on both success and failure paths
   (a failed/422 upload must not leave skeletons stuck forever — fall back to
   the normal empty state with the error surfaced via `#upload-msg.err`).
+
+## C. Target Size (WCAG 2.2 §2.5.8) + a Focus Not Obscured (§2.4.11) audit
+
+**Target Size — the actual fix, not just a note.** Every icon-only
+interactive control (no visible text label) must have a hit area of at
+least 24×24 CSS px, checked against the WCAG exemptions (inline-in-text,
+an equivalent larger target exists elsewhere, essential-small like a map
+pin, user-agent-controlled) before assuming a given control needs
+enlarging — some may already be exempt or already large enough; audit
+first, don't blanket-resize everything. Known tight candidates from a
+visual review: the theme-toggle button (`[data-theme-toggle]`), the
+drawer's `#chat-close`, `#search-clear`, the ladder toolbar's icon buttons
+(zoom in/out/reset, export, collapse-related controls if any remain), the
+lamp chips in `#lamps` if their padded box comes in under 24px on either
+axis, capture-row delete buttons, and `#project-manage-close`.
+
+Pattern (Cisco/Material/Fluent-style — this is an explicit invitation to
+use colour here, not just invisible padding): give each of these a padded,
+roughly-square hit area (pad up to ~32-36px even where the glyph itself
+stays visually small — the click/tap target is what must hit 24px
+minimum, not the glyph), and make the enlarged area visible on
+hover/focus with a tinted rounded background using `var(--accent-wash)`
+(or `var(--tint-select)` for a slightly stronger version) rather than
+leaving the extra padding invisible — this makes the larger target
+*discoverable*, which matters as much as the numeric minimum. Reuse one
+shared class (e.g. `.icon-btn`) for this treatment rather than
+hand-tuning each control separately, so the pattern is consistent and
+easy to apply to something missed in this pass.
+
+**Focus Not Obscured — audit, then close what's actually open.** Section
+A/B's drawer default-open (desktop) already shifts the main layout via
+`margin-right` rather than floating on top of it, so it should not
+literally cover focusable content on wide viewports — confirm this is
+still true after any Wave-5-A/B layout changes, don't just assume. Beyond
+the drawer specifically: grep app.css for every `position: sticky` and
+`position: fixed` rule (info-pane tab bar, ladder toolbar, table-dense
+sticky headers, the topbar itself) and, for each, verify that
+`:focus-visible` on an element scrolling underneath it either scrolls
+that element far enough into view to clear the sticky/fixed layer, or
+never actually gets covered in the first place given the pane's own
+internal scroll containment. Where you find a genuine case (not a
+hypothetical one — verify by reasoning through the actual DOM/CSS, or by
+booting the server and checking computed positions), fix it with
+`scroll-margin-top`/`scroll-padding-top` on the scroll container sized to
+the sticky element's height, which is the standard, low-risk fix for
+exactly this failure mode. Report what you checked and what (if anything)
+needed fixing — this is meant to be a real audit with a real, possibly
+short, list of findings, not padding out a report with restated theory.
