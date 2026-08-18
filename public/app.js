@@ -303,6 +303,11 @@
     chatBusy: false,
     chatError: null,
 
+    // Wave 5A: which list j/k drives — 'tree' (#filter-tree) or 'selection'
+    // (#selection-list). Set by whichever list last had a selection change;
+    // the tree is the default before anything has been selected this session.
+    keyList: 'tree',
+
     ladderSvg: null,
     ladderRowEls: {},
     selRowEls: {},
@@ -334,7 +339,7 @@
     // §1.4.10 Reflow) -- start closed there, matching app.css's own
     // max-width: 1080px stacking breakpoint. Desktop keeps the Wave-4
     // default-open behaviour unchanged.
-    if (window.matchMedia && window.matchMedia('(max-width: 1080px)').matches) {
+    if (isNarrowLayout()) {
       state.chatOpen = false;
     }
     applyDrawerOpen();   // reflect the default-open drawer without stealing focus
@@ -459,6 +464,7 @@
     setupLadderToolbar();
     setupSelectionSort();
     setupPaneActions();
+    setupKeyboardLayer();   // Wave 5A: the one app-wide keydown listener
 
     // Wave 4: the scenario chip is a capture-level read-out, so it widens the
     // scope back to the whole capture and hands focus to the drawer's advice.
@@ -738,10 +744,17 @@
     state.projectManageOpen = (open === undefined) ? !state.projectManageOpen : !!open;
     var panel = $('project-manage-panel');
     if (panel) panel.hidden = !state.projectManageOpen;
+    // Wave 5A: the panel covers the sidebar (and nearly the whole viewport below
+    // the stacking breakpoint), so while it is open it owns focus — otherwise
+    // Tab walks into the controls it is sitting on top of (WCAG 2.2 §2.4.11).
+    var trap = projectManageTrap();
     if (state.projectManageOpen) {
       state.projectEditingId = null;
       setProjectManageMsg('');
       renderProjectManagePanel();
+      if (trap && !trap.active()) trap.activate({ returnTo: $('project-manage-toggle') });
+    } else if (trap && trap.active()) {
+      trap.release();
     }
   }
 
@@ -1372,6 +1385,7 @@
       txKey: sel.txKey || null
     };
     state.selectedRowId = sel.rowId || null;
+    state.keyList = 'tree';   // Wave 5A: the tree is what just changed selection
     if (!state.searchActive) renderFilterTree();
     renderSelectionDependent();
   }
@@ -1880,6 +1894,7 @@
 
   function selectRow(rowId) {
     state.selectedRowId = rowId || null;
+    state.keyList = 'selection';   // Wave 5A: message rows are the selection list's
     renderSelectionList();
     renderLadder();
     renderInfo();
@@ -3840,6 +3855,7 @@
       txKey: sel.txKey || null
     };
     state.selectedRowId = rowId || null;
+    state.keyList = 'tree';   // Wave 5A: results live in #filter-tree's host
     buildScopedRows();
     renderSelectionList();
     renderLadder();
@@ -3899,12 +3915,27 @@
   }
 
   function toggleChat(open) {
+    var drawer = $('chat-drawer');
+    var cameFromInside = !!(drawer && drawer.contains && drawer.contains(document.activeElement));
     state.chatOpen = !!open;
     applyDrawerOpen();
+    // Wave 5A: below the stacking breakpoint the open drawer covers the panes,
+    // so it becomes a real modal there (focus trap + scrim + Escape). No-op on
+    // a wide viewport, where it only displaces the layout.
+    syncDrawerModality();
     if (state.chatOpen) {
       renderDrawer();
       var input = $('chat-input');
       if (input) input.focus();
+      return;
+    }
+    // Closing while focus was inside (#chat-close, say): hiding the drawer drops
+    // that focus on the floor. Hand it to #chat-toggle instead. Below the
+    // breakpoint the focus trap has already restored it — this is the wide,
+    // non-modal case, and it deliberately does nothing when focus was elsewhere
+    // (a resize must never steal it).
+    if (cameFromInside && (!document.activeElement || document.activeElement === document.body)) {
+      focusQuietly($('chat-toggle'));
     }
   }
 
@@ -4078,6 +4109,706 @@
     }
     state.chatBusy = false;
     renderChat();
+  }
+
+  // ======================================================== Wave 5A ========
+  // Global keyboard layer, focus-trap utility, command palette and the `?`
+  // shortcuts overlay (ARCHITECTURE.md §"Wave 5 — A. Global keyboard layer +
+  // command palette").
+  //
+  // Everything below is additive: the per-element keydown handlers this file
+  // already had (tree rows, selection rows, table headers, #search-input,
+  // #chat-input) are untouched and still authoritative for their own element.
+  // There is exactly ONE document-level keydown listener, installed by
+  // setupKeyboardLayer(), and it runs in the CAPTURE phase on purpose — see
+  // onGlobalKeyDown.
+
+  // ------------------------------------------------------------ focus trap
+
+  var FOCUSABLE_SEL = 'a[href], button:not([disabled]), input:not([disabled]), ' +
+    'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+  /** Active traps, innermost last. Only the top of the stack handles keys. */
+  var trapStack = [];
+
+  function topTrap() { return trapStack.length ? trapStack[trapStack.length - 1] : null; }
+
+  function isRendered(node) {
+    if (!node) return false;
+    if (node.offsetWidth || node.offsetHeight) return true;
+    return !!(node.getClientRects && node.getClientRects().length);
+  }
+
+  /** Tabbable descendants of `container`, in DOM order, visible ones only. */
+  function focusablesIn(container) {
+    var out = [];
+    if (!container || !container.querySelectorAll) return out;
+    var nodes = container.querySelectorAll(FOCUSABLE_SEL);
+    for (var i = 0; i < nodes.length; i++) {
+      if (nodes[i].hasAttribute('hidden')) continue;
+      if (!isRendered(nodes[i])) continue;
+      out.push(nodes[i]);
+    }
+    return out;
+  }
+
+  /**
+   * The one focus trap, shared by every modal surface in the app:
+   *   - #command-palette          (new, Wave 5A)
+   *   - #shortcuts-help           (new, Wave 5A)
+   *   - #project-manage-panel     (existing panel that had no trap)
+   *   - #chat-drawer              (only below the stacking breakpoint, where it
+   *                                covers the panes instead of displacing them)
+   *
+   * Tab/Shift+Tab cycling and Escape are handled centrally in onGlobalKeyDown
+   * against the top of the trap stack, so a trap adds no keydown listener of
+   * its own. A `focusin` guard catches focus arriving from anywhere else
+   * (programmatic focus, a click on something behind the overlay) and pulls it
+   * back in.
+   *
+   * @param {HTMLElement} container the element focus may not leave
+   * @param {{onEscape?:function, onOutsideClick?:function, dialog?:boolean}} opts
+   *   onEscape        — called for Escape (typically closes the surface)
+   *   onOutsideClick  — called on a pointerdown outside; omit for no-op
+   *   dialog          — add role=dialog + aria-modal while active, and remove
+   *                     them on release (for surfaces whose markup is not
+   *                     already a dialog: the drawer and the projects panel)
+   * @returns {{activate:function, release:function, active:function,
+   *            container:HTMLElement}}
+   */
+  function createFocusTrap(container, opts) {
+    var o = opts || {};
+    var trap = {
+      container: container,
+      returnTo: null,
+      isActive: false,
+      hadRole: null,
+      hadModal: null,
+      onDown: null
+    };
+
+    trap.active = function () { return trap.isActive; };
+
+    trap.escape = function () { if (typeof o.onEscape === 'function') o.onEscape(); };
+
+    /** True for the element the surface was opened from — never an outside click. */
+    trap.isTrigger = function (node) {
+      var rt = trap.returnTo;
+      if (!rt || !node) return false;
+      if (rt === document.body || rt === document.documentElement) return false;
+      return rt === node || (rt.contains && rt.contains(node));
+    };
+
+    trap.activate = function (arg) {
+      if (trap.isActive || !container) return;
+      var a = arg || {};
+      trap.returnTo = a.returnTo || document.activeElement || null;
+      trap.isActive = true;
+      trapStack.push(trap);
+
+      if (o.dialog) {
+        trap.hadRole = container.getAttribute('role');
+        trap.hadModal = container.getAttribute('aria-modal');
+        container.setAttribute('role', 'dialog');
+        container.setAttribute('aria-modal', 'true');
+      }
+
+      if (typeof o.onOutsideClick === 'function') {
+        trap.onDown = function (ev) {
+          if (topTrap() !== trap) return;
+          var t = ev.target;
+          if (container.contains && container.contains(t)) return;
+          if (trap.isTrigger(t)) return;   // else the trigger's click re-opens it
+          o.onOutsideClick();
+        };
+        document.addEventListener('pointerdown', trap.onDown, true);
+      }
+
+      var first = a.initialFocus || focusablesIn(container)[0] || container;
+      if (first === container && !container.hasAttribute('tabindex')) {
+        container.setAttribute('tabindex', '-1');
+      }
+      focusQuietly(first);
+    };
+
+    /**
+     * @param {{restoreFocus?:boolean}} [arg] restoreFocus defaults to true; pass
+     *   false when the surface is staying open and merely stopped being modal
+     *   (the drawer when the viewport widens) — moving focus then would be rude.
+     */
+    trap.release = function (arg) {
+      if (!trap.isActive) return;
+      var a = arg || {};
+      trap.isActive = false;
+      for (var i = trapStack.length - 1; i >= 0; i--) {
+        if (trapStack[i] === trap) { trapStack.splice(i, 1); break; }
+      }
+      if (trap.onDown) {
+        document.removeEventListener('pointerdown', trap.onDown, true);
+        trap.onDown = null;
+      }
+      if (o.dialog && container) {
+        if (trap.hadRole == null) container.removeAttribute('role');
+        else container.setAttribute('role', trap.hadRole);
+        if (trap.hadModal == null) container.removeAttribute('aria-modal');
+        else container.setAttribute('aria-modal', trap.hadModal);
+      }
+      var back = trap.returnTo;
+      trap.returnTo = null;
+      if (a.restoreFocus === false) return;
+      if (back && back.focus && document.contains(back) && isRendered(back)) focusQuietly(back);
+    };
+
+    return trap;
+  }
+
+  function focusQuietly(node) {
+    if (!node || !node.focus) return;
+    try { node.focus({ preventScroll: true }); } catch (e) { node.focus(); }
+  }
+
+  /** Tab / Shift+Tab, confined to the top trap's container. */
+  function trapTab(trap, ev) {
+    var items = focusablesIn(trap.container);
+    ev.preventDefault();
+    if (!items.length) { focusQuietly(trap.container); return; }
+    var first = items[0], last = items[items.length - 1];
+    var at = document.activeElement;
+    if (!trap.container.contains || !trap.container.contains(at)) {
+      focusQuietly(ev.shiftKey ? last : first);
+      return;
+    }
+    var i = -1;
+    for (var k = 0; k < items.length; k++) { if (items[k] === at) { i = k; break; } }
+    if (i === -1) { focusQuietly(ev.shiftKey ? last : first); return; }
+    focusQuietly(ev.shiftKey ? (i === 0 ? last : items[i - 1]) : (i === items.length - 1 ? first : items[i + 1]));
+  }
+
+  /** Focus arriving from outside a trapped surface is pulled straight back. */
+  function onGlobalFocusIn(ev) {
+    var trap = topTrap();
+    if (!trap || !trap.container) return;
+    var t = ev.target;
+    if (t === trap.container || (trap.container.contains && trap.container.contains(t))) return;
+    var items = focusablesIn(trap.container);
+    focusQuietly(items[0] || trap.container);
+  }
+
+  // -------------------------------------------------- global keyboard layer
+
+  var NARROW_MQ = '(max-width: 1080px)';
+
+  /** The stacked layout from app.css's max-width:1080px breakpoint. */
+  function isNarrowLayout() {
+    return !!(window.matchMedia && window.matchMedia(NARROW_MQ).matches);
+  }
+
+  var TYPING_TAGS = { INPUT: 1, TEXTAREA: 1, SELECT: 1 };
+
+  /**
+   * THE hard rule of this layer: a single-key binding is a no-op while the user
+   * is typing. Checked first, on the element that actually has focus (and on
+   * the event target, for the shadow/retarget case), so "j" in #search-input
+   * types a j.
+   */
+  function isTypingTarget(node) {
+    if (!node || node.nodeType !== 1) return false;
+    if (node.isContentEditable) return true;
+    return !!TYPING_TAGS[str(node.tagName).toUpperCase()];
+  }
+
+  function setupKeyboardLayer() {
+    // Capture phase: this handler must see Escape BEFORE #search-input's own
+    // keydown handler clears the box, otherwise the "focused with a query"
+    // branch below can never tell a query from an empty field. Every other
+    // binding is unaffected by the phase.
+    document.addEventListener('keydown', onGlobalKeyDown, true);
+    document.addEventListener('focusin', onGlobalFocusIn, true);
+
+    var opener = $('command-palette-open');
+    if (opener) {
+      opener.addEventListener('click', function () {
+        if (isPaletteOpen()) closePalette(); else openPalette();
+      });
+    }
+
+    var helpClose = $('shortcuts-help-close');
+    if (helpClose) helpClose.addEventListener('click', function () { closeShortcutsHelp(); });
+
+    // Crossing the stacking breakpoint changes whether the drawer covers the
+    // panes, so it changes whether the drawer is modal.
+    if (window.matchMedia) {
+      var mq = window.matchMedia(NARROW_MQ);
+      var onChange = function () {
+        if (mq.matches && state.chatOpen) {
+          // Wide → narrow with the drawer open: it would now float over the
+          // stacked panes. Close it, exactly as boot() does on a narrow load —
+          // quieter than yanking focus into it mid-resize.
+          toggleChat(false);
+        } else {
+          syncDrawerModality();
+        }
+      };
+      if (mq.addEventListener) mq.addEventListener('change', onChange);
+      else if (mq.addListener) mq.addListener(onChange);   // older Safari/Firefox
+    }
+  }
+
+  function onGlobalKeyDown(ev) {
+    if (!ev || ev.altKey || ev.isComposing || ev.keyCode === 229) return;
+    var key = ev.key;
+    if (!key) return;
+
+    // --- Ctrl/Cmd+K: the one binding that fires while typing --------------
+    // Peer tools (GitHub, Linear, Slack, VS Code) all open the palette from
+    // inside a field, and that is genuinely useful in a one-line input you can
+    // retype in a second. A <textarea> is different: #chat-input holds a
+    // half-composed question and /hmr's paste box holds a whole config, and
+    // having a dialog steal focus mid-thought there is the surprising case the
+    // spec calls out. So: suppressed for textareas, live everywhere else.
+    if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && (key === 'k' || key === 'K')) {
+      var ae = document.activeElement;
+      if (ae && str(ae.tagName).toUpperCase() === 'TEXTAREA') return;
+      ev.preventDefault();
+      if (isPaletteOpen()) closePalette(); else openPalette();
+      return;
+    }
+
+    // Every other modifier combination belongs to the browser or the OS.
+    if (ev.ctrlKey || ev.metaKey) return;
+
+    // --- a modal surface is up: only Tab and Escape reach it --------------
+    var trap = topTrap();
+    if (trap) {
+      if (key === 'Tab') { trapTab(trap, ev); return; }
+      if (key === 'Escape' || key === 'Esc') { ev.preventDefault(); trap.escape(); return; }
+      return;   // no page-level shortcut fires behind an open dialog
+    }
+
+    // --- Escape: context-sensitive, and allowed from inside a field -------
+    // (the palette/dialog case is the trap branch above — first in priority
+    // because a trap is only ever active while one of them is open)
+    if (key === 'Escape' || key === 'Esc') { handleGlobalEscape(ev); return; }
+
+    // --- HARD RULE: nothing below this line fires while typing ------------
+    if (isTypingTarget(document.activeElement) || isTypingTarget(ev.target)) return;
+
+    if (key === '/') {
+      var si = $('search-input');
+      if (!si) return;
+      ev.preventDefault();       // else the "/" lands in the field we just focused
+      focusQuietly(si);
+      si.select();
+      return;
+    }
+
+    if (key === 'j' || key === 'k' || key === 'J' || key === 'K') {
+      if (moveListSelection((key === 'j' || key === 'J') ? 1 : -1)) ev.preventDefault();
+      return;
+    }
+
+    if (key === '?') { ev.preventDefault(); openShortcutsHelp(); return; }
+  }
+
+  /**
+   * Escape, in the spec's priority order. Anything not ours is left alone so
+   * the browser's own Escape (leaving fullscreen, cancelling an IME, stopping a
+   * load) still works.
+   */
+  function handleGlobalEscape(ev) {
+    var si = $('search-input');
+    if (si && document.activeElement === si && str(si.value).length) {
+      ev.preventDefault();
+      clearSearch();
+      si.blur();
+      return;
+    }
+    if (state.chatOpen && isNarrowLayout()) {
+      // Belt and braces: syncDrawerModality normally has the drawer trapped in
+      // this state, so the trap branch would have caught it first.
+      ev.preventDefault();
+      toggleChat(false);
+      return;
+    }
+  }
+
+  // ------------------------------------------------------------ j/k in lists
+
+  function navRows(which) {
+    var host = which === 'selection' ? $('selection-list') : $('filter-tree');
+    var out = [];
+    if (!host || !host.querySelectorAll) return out;
+    // #filter-tree: treeNode() puts tabindex="0" on every actionable row, and
+    // only on those (the search-results header deliberately has none).
+    // #selection-list: both shapes give real rows a data-row-id.
+    var nodes = host.querySelectorAll(which === 'selection'
+      ? '.sel-row[data-row-id]'
+      : '.tree-row[tabindex]');
+    for (var i = 0; i < nodes.length; i++) out.push(nodes[i]);
+    return out;
+  }
+
+  /** Where j/k is now: keyboard focus wins, else the selected row, else nowhere. */
+  function navIndex(rows) {
+    var at = document.activeElement, i;
+    for (i = 0; i < rows.length; i++) { if (rows[i] === at) return i; }
+    for (i = 0; i < rows.length; i++) {
+      if (rows[i].classList && rows[i].classList.contains('is-selected')) return i;
+    }
+    return -1;
+  }
+
+  /**
+   * Move one row in the list that last had a selection change. Selection itself
+   * goes through the row's own click handler, so j/k can never drift from what
+   * a mouse click does — which also means the list re-renders underneath us and
+   * the row has to be looked up again before it can take focus.
+   * @returns {boolean} whether the key was consumed
+   */
+  function moveListSelection(delta) {
+    var which = state.keyList === 'selection' ? 'selection' : 'tree';
+    var rows = navRows(which);
+    if (!rows.length) {
+      which = which === 'selection' ? 'tree' : 'selection';
+      rows = navRows(which);
+    }
+    if (!rows.length) return false;
+
+    var at = navIndex(rows);
+    var next = at < 0 ? (delta > 0 ? 0 : rows.length - 1) : at + delta;
+    if (next < 0) next = 0;
+    if (next > rows.length - 1) next = rows.length - 1;
+
+    if (next !== at) {
+      rows[next].click();
+      var fresh = navRows(which);
+      if (fresh.length === rows.length && fresh[next]) rows = fresh;
+    }
+    var target = rows[next];
+    if (target) {
+      focusQuietly(target);
+      if (target.scrollIntoView) target.scrollIntoView({ block: 'nearest' });
+    }
+    return true;
+  }
+
+  // -------------------------------------------------------- command palette
+
+  var palette = { trap: null, wired: false, items: [], active: -1 };
+
+  function paletteHost() { return $('command-palette'); }
+  function palettePanel() {
+    var host = paletteHost();
+    return host ? host.querySelector('.overlay-panel') : null;
+  }
+  function isPaletteOpen() {
+    var host = paletteHost();
+    return !!(host && !host.hidden);
+  }
+
+  /** theme.js owns the three-state theme model — never reimplement it here. */
+  function togglePageTheme() {
+    if (window.HiccupTheme && typeof window.HiccupTheme.toggle === 'function') {
+      window.HiccupTheme.toggle();
+      return;
+    }
+    var btn = document.querySelector('[data-theme-toggle]');
+    if (btn) btn.click();
+  }
+
+  /**
+   * Navigation and actions only — capture-content search stays #search-input's
+   * job, deliberately. Rebuilt on every open so labels can reflect state
+   * ("Open"/"Close the drawer") and capture-only actions can be left out
+   * entirely when nothing is loaded.
+   * @returns {Array<{kind:string,label:string,hint:string,run:function}>}
+   */
+  function paletteActions() {
+    var out = [];
+    function add(kind, label, hint, run) {
+      out.push({ kind: kind, label: label, hint: hint || '', run: run });
+    }
+    function clickId(id) { var n = $(id); if (n) n.click(); }
+
+    add('go', 'Go to the workbench', '/app', function () { location.href = '/app'; });
+    add('go', 'Go to the HMR translator', '/hmr', function () { location.href = '/hmr'; });
+    add('go', 'Go to the guides', '/kb', function () { location.href = '/kb'; });
+    add('go', 'Go to the team page', '/team', function () { location.href = '/team'; });
+
+    add('view', 'Toggle light / dark theme', '', togglePageTheme);
+    add('chat', state.chatOpen ? 'Close the ask-hiccup drawer' : 'Open the ask-hiccup drawer',
+      '', function () { toggleChat(!state.chatOpen); });
+    add('view', state.projectManageOpen ? 'Close the manage-projects panel' : 'Manage projects',
+      '', function () { toggleProjectManage(!state.projectManageOpen); });
+    add('go', 'Upload a capture', '', function () { clickId('browse-btn'); });
+
+    add('find', 'Search the trace', '/', function () {
+      var si = $('search-input');
+      if (!si) return;
+      focusQuietly(si);
+      si.select();
+    });
+    if (state.searchActive) add('find', 'Clear the search', 'esc', function () { clearSearch(); });
+
+    if (state.analysis) {
+      for (var i = 0; i < INFO_TABS.length; i++) {
+        (function (spec) {
+          add('view', 'Show ' + spec.label, '', function () {
+            state.infoTab = spec.key;
+            renderInfo();
+            focusQuietly($(spec.panel));   // land on what you just asked to see
+          });
+        })(INFO_TABS[i]);
+      }
+      add('view', 'Expand all sessions', '', function () { setAllTreeExpanded(true); });
+      add('view', 'Collapse all sessions', '', function () { setAllTreeExpanded(false); });
+      add('view', 'Export the ladder as SVG', '', function () { toolbarAction('export'); });
+    }
+
+    add('help', 'Keyboard shortcuts', '?', function () { openShortcutsHelp(); });
+    add('acct', 'Sign out', '', function () { clickId('logout-btn'); });
+    return out;
+  }
+
+  /**
+   * Substring first, subsequence as a fallback — enough for a list this size,
+   * and no scoring library.
+   * @returns {number} higher is better, -1 for no match at all
+   */
+  function fuzzyScore(hay, needle) {
+    if (!needle) return 0;
+    var h = str(hay).toLowerCase(), n = str(needle).toLowerCase();
+    var idx = h.indexOf(n);
+    if (idx === 0) return 1000 - h.length;
+    if (idx > 0) return (/[\s/(-]/.test(h.charAt(idx - 1)) ? 800 : 600) - idx;
+
+    var pos = 0, gaps = 0, start = -1;
+    for (var i = 0; i < n.length; i++) {
+      var c = n.charAt(i);
+      if (c === ' ') continue;                 // spaces just separate fragments
+      var found = h.indexOf(c, pos);
+      if (found === -1) return -1;
+      if (start < 0) start = found;
+      if (i > 0 && found > pos) gaps += found - pos;
+      pos = found + 1;
+    }
+    return 300 - Math.min(gaps, 200) - Math.min(start, 60);
+  }
+
+  function scoreAction(act, q) {
+    var s = fuzzyScore(act.label, q);
+    if (s >= 0) return s;
+    var alt = fuzzyScore(act.kind + ' ' + act.label + ' ' + act.hint, q);
+    return alt < 0 ? -1 : alt - 200;
+  }
+
+  function renderPaletteList(q) {
+    var host = $('command-palette-list');
+    var empty = $('command-palette-empty');
+    if (!host) return;
+    clear(host);
+
+    var all = palette.actions || [];
+    var scored = [];
+    for (var i = 0; i < all.length; i++) {
+      var s = scoreAction(all[i], q);
+      if (s >= 0) scored.push({ act: all[i], score: s, at: i });
+    }
+    scored.sort(function (a, b) { return b.score - a.score || a.at - b.at; });
+
+    palette.items = [];
+    for (var k = 0; k < scored.length; k++) {
+      (function (act, index) {
+        palette.items.push(act);
+        var opt = el('div', 'palette-option');
+        opt.id = 'cmd-opt-' + index;
+        opt.setAttribute('role', 'option');
+        opt.setAttribute('aria-selected', 'false');
+        opt.appendChild(el('span', 'palette-opt-kind', act.kind));
+        opt.appendChild(el('span', 'palette-opt-label', act.label));
+        if (act.hint) opt.appendChild(el('span', 'palette-opt-hint', act.hint));
+        // mousedown would blur the input before the click lands — the input is
+        // where focus has to stay for aria-activedescendant to mean anything.
+        opt.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
+        opt.addEventListener('mouseenter', function () { setPaletteActive(index); });
+        opt.addEventListener('click', function () { runPaletteAction(index); });
+        host.appendChild(opt);
+      })(scored[k].act, k);
+    }
+
+    if (empty) empty.hidden = palette.items.length > 0;
+    setPaletteActive(palette.items.length ? 0 : -1);
+  }
+
+  /** Roving highlight via aria-activedescendant — real focus never moves. */
+  function setPaletteActive(index) {
+    var host = $('command-palette-list');
+    var input = $('command-palette-input');
+    if (!host) return;
+    var opts = host.querySelectorAll('.palette-option');
+    if (!opts.length) {
+      palette.active = -1;
+      if (input) input.removeAttribute('aria-activedescendant');
+      return;
+    }
+    if (index < 0) index = opts.length - 1;
+    if (index > opts.length - 1) index = 0;
+    palette.active = index;
+    for (var i = 0; i < opts.length; i++) {
+      var on = i === index;
+      opts[i].classList.toggle('is-active', on);
+      opts[i].setAttribute('aria-selected', on ? 'true' : 'false');
+      if (on) {
+        if (input) input.setAttribute('aria-activedescendant', opts[i].id);
+        if (opts[i].scrollIntoView) opts[i].scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }
+
+  function runPaletteAction(index) {
+    var act = palette.items[index];
+    if (!act) return;
+    // Close FIRST: closing restores focus to whatever opened the palette, so an
+    // action that focuses something itself (search, an info panel) must run
+    // after that, or the restore would undo it.
+    closePalette();
+    try { act.run(); } catch (e) { /* one bad action must not kill the layer */ }
+  }
+
+  function wirePalette() {
+    if (palette.wired) return;
+    var host = paletteHost();
+    var panel = palettePanel();
+    var input = $('command-palette-input');
+    if (!host || !panel || !input) return;
+
+    palette.trap = createFocusTrap(panel, {
+      onEscape: function () { closePalette(); },
+      onOutsideClick: function () { closePalette(); }
+    });
+
+    input.addEventListener('input', function () { renderPaletteList(input.value || ''); });
+    input.addEventListener('keydown', function (ev) {
+      if (ev.key === 'ArrowDown') { ev.preventDefault(); setPaletteActive(palette.active + 1); }
+      else if (ev.key === 'ArrowUp') { ev.preventDefault(); setPaletteActive(palette.active - 1); }
+      else if (ev.key === 'Home' && palette.items.length) { ev.preventDefault(); setPaletteActive(0); }
+      else if (ev.key === 'End' && palette.items.length) { ev.preventDefault(); setPaletteActive(palette.items.length - 1); }
+      else if (ev.key === 'Enter') { ev.preventDefault(); runPaletteAction(palette.active); }
+      // Escape and Tab are the global layer's, via the focus trap.
+    });
+
+    palette.wired = true;
+  }
+
+  function openPalette() {
+    wirePalette();
+    var host = paletteHost();
+    var input = $('command-palette-input');
+    if (!host || !input || !palette.trap) return;
+    if (isPaletteOpen()) return;
+    palette.actions = paletteActions();
+    host.hidden = false;
+    input.value = '';
+    renderPaletteList('');
+    palette.trap.activate({ initialFocus: input });
+  }
+
+  function closePalette() {
+    var host = paletteHost();
+    if (!host || host.hidden) return;
+    host.hidden = true;
+    palette.items = [];
+    palette.active = -1;
+    if (palette.trap) palette.trap.release();
+  }
+
+  // -------------------------------------------------------- shortcuts help
+
+  var helpTrap = null;
+
+  function shortcutsPanel() {
+    var host = $('shortcuts-help');
+    return host ? host.querySelector('.overlay-panel') : null;
+  }
+
+  function openShortcutsHelp() {
+    var host = $('shortcuts-help');
+    var panel = shortcutsPanel();
+    if (!host || !panel || !host.hidden) return;
+    if (!helpTrap) {
+      helpTrap = createFocusTrap(panel, {
+        onEscape: function () { closeShortcutsHelp(); },
+        onOutsideClick: function () { closeShortcutsHelp(); }
+      });
+    }
+    host.hidden = false;
+    helpTrap.activate({ initialFocus: $('shortcuts-help-close') });
+  }
+
+  function closeShortcutsHelp() {
+    var host = $('shortcuts-help');
+    if (!host || host.hidden) return;
+    host.hidden = true;
+    if (helpTrap) helpTrap.release();
+  }
+
+  // ----------------------------------------- #project-manage-panel + drawer
+
+  var pmTrap = null;
+
+  function projectManageTrap() {
+    if (pmTrap) return pmTrap;
+    var panel = $('project-manage-panel');
+    if (!panel) return null;
+    pmTrap = createFocusTrap(panel, {
+      dialog: true,
+      onEscape: function () { toggleProjectManage(false); },
+      onOutsideClick: function () { toggleProjectManage(false); }
+    });
+    return pmTrap;
+  }
+
+  var drawerTrap = null;
+
+  function chatDrawerTrap() {
+    if (drawerTrap) return drawerTrap;
+    var drawer = $('chat-drawer');
+    if (!drawer) return null;
+    drawerTrap = createFocusTrap(drawer, {
+      dialog: true,
+      onEscape: function () { toggleChat(false); },
+      onOutsideClick: function () { toggleChat(false); }
+    });
+    return drawerTrap;
+  }
+
+  /**
+   * The drawer is modal when — and only when — it is covering something.
+   *
+   * Wide: body.chat-open gives #layout a margin-right, so the drawer takes its
+   * width from the grid and obscures nothing. It stays a plain side panel:
+   * no trap, no role=dialog, Tab flows through it into the page as before.
+   *
+   * Narrow (app.css's max-width:1080px block drops that margin): the fixed
+   * drawer floats over the stacked panes, which is exactly WCAG 2.2 §2.4.11
+   * "focus not obscured". There it becomes a real modal — focus trapped inside,
+   * role=dialog/aria-modal on, #chat-scrim painted behind it by CSS, Escape and
+   * an outside click both closing it and handing focus back to #chat-toggle.
+   */
+  function syncDrawerModality(arg) {
+    var trap = chatDrawerTrap();
+    if (!trap) return;
+    var wantModal = !!state.chatOpen && isNarrowLayout();
+    if (wantModal && !trap.active()) {
+      trap.activate({
+        returnTo: (arg && arg.returnTo) || $('chat-toggle'),
+        initialFocus: $('chat-input')
+      });
+    } else if (!wantModal && trap.active()) {
+      // Still open, just no longer covering anything (the viewport widened):
+      // drop the modality but leave focus where the user put it.
+      trap.release({ restoreFocus: !state.chatOpen });
+    }
   }
 
   // ------------------------------------------------------------------- go

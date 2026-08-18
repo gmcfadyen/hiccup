@@ -40,6 +40,35 @@
   opens it, #project-manage-close/#project-manage-list/#project-create-form
   /#project-create-name/#project-create-desc/#project-manage-msg live inside it).
 
+  Wave-5A additions (ARCHITECTURE.md §"Wave 5 — A. Global keyboard layer +
+  command palette"), all owned by app.js and all safe to remove wholesale:
+    #command-palette      — centred Ctrl/Cmd+K overlay: role=dialog aria-modal,
+                            #command-palette-backdrop (click-outside closes),
+                            #command-palette-input (role=combobox driving the
+                            list via aria-activedescendant),
+                            #command-palette-list (role=listbox, options are
+                            .palette-option[role=option] built by app.js with
+                            ids cmd-opt-N), #command-palette-empty (no matches),
+                            .palette-foot (the key legend).
+                            It is navigation + actions ONLY — capture-content
+                            search stays #search-input's job.
+    #command-palette-open — topbar launcher for the same overlay (.icon-btn, so
+                            it inherits the shared 32px target-size treatment).
+    #shortcuts-help       — the `?` overlay: same dialog/focus-trap pattern,
+                            #shortcuts-help-backdrop + #shortcuts-help-close,
+                            and a static .shortcut-grid of every global binding
+                            (the only place they are documented to a user).
+    #chat-scrim           — modal backdrop shown ONLY when the chat drawer is
+                            open below the 1080px stacking breakpoint, where the
+                            drawer floats over the stacked panes instead of
+                            displacing them (body.chat-open #layout loses its
+                            margin-right there). CSS-gated by that media query;
+                            app.js traps focus inside the drawer in the same
+                            state, so the drawer is genuinely modal when — and
+                            only when — it is covering content.
+  #chat-drawer and #project-manage-panel are otherwise unchanged; both gain
+  role/aria-modal dynamically from app.js while their focus trap is active.
+
   Placeholder copy lives INSIDE each container so a renderer that clears the node
   removes it for free.
 -->
@@ -58,6 +87,11 @@
   <span class="topbar-spacer"></span>
   <span id="llm-chip" class="chip llm-chip" title="local model status">LLM …</span>
   <button id="chat-toggle" class="btn" type="button">ask hiccup</button>
+  <!-- Wave-5A #command-palette-open — the discoverable half of Ctrl/Cmd+K.
+       .icon-btn gives it the shared ≥24px target + hover/focus wash. -->
+  <button id="command-palette-open" class="btn icon-btn" type="button"
+          aria-haspopup="dialog" aria-label="Open the command palette"
+          title="Commands — Ctrl+K (⌘K on a Mac)">⌘</button>
   <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
   <a class="coffee-link" href="https://buymeacoffee.com/mcfadyen" target="_blank" rel="noopener">☕ Buy Me a Coffee</a>
   <span id="user-name" class="user-name mono"></span>
@@ -285,7 +319,12 @@
   conversation follows. #chat-advice-body is cleared and refilled by app.js on
   every scope change; #chat-scope onward is the Wave-1 chat, unchanged.
 -->
-<aside id="chat-drawer" class="chat-drawer">
+<!-- Wave-5A #chat-scrim — inert (display:none) except below the 1080px
+     stacking breakpoint with the drawer open, where the drawer covers the
+     stacked panes and is therefore modal. Click closes. -->
+<div id="chat-scrim" class="chat-scrim" aria-hidden="true"></div>
+
+<aside id="chat-drawer" class="chat-drawer" aria-label="ask hiccup">
   <div class="chat-head">
     <strong>ask hiccup</strong>
     <span id="chat-model" class="chip"></span>
@@ -320,6 +359,75 @@
     <button id="chat-send" class="btn btn-primary" type="submit">Send</button>
   </form>
 </aside>
+
+<!-- ============================ Wave-5A: command palette ================== -->
+<!--
+  CONTRACT #command-palette — its own component: not the chat drawer, not
+  #shortcuts-help, not #project-manage-panel. app.js fills #command-palette-list
+  with .palette-option[role=option] nodes and drives the highlight through the
+  input's aria-activedescendant, so real DOM focus never leaves the input while
+  the arrow keys move through results.
+-->
+<div id="command-palette" class="overlay" hidden>
+  <div id="command-palette-backdrop" class="overlay-backdrop"></div>
+  <div class="overlay-panel palette-panel" role="dialog" aria-modal="true"
+       aria-labelledby="command-palette-title">
+    <h2 id="command-palette-title" class="sr-only">Command palette</h2>
+    <input id="command-palette-input" class="input palette-input" type="text"
+           role="combobox" aria-expanded="true" aria-controls="command-palette-list"
+           aria-autocomplete="list" autocomplete="off" spellcheck="false"
+           placeholder="Type a command — theme, HMR, media, sign out…">
+    <div id="command-palette-list" class="palette-list scroll-area" role="listbox"
+         aria-label="commands"></div>
+    <p id="command-palette-empty" class="pane-empty" hidden>No command matches that.</p>
+    <p class="palette-foot mono" aria-hidden="true">↑ ↓ move · ⏎ run · esc close</p>
+  </div>
+</div>
+
+<!-- ============================ Wave-5A: shortcuts help =================== -->
+<!--
+  CONTRACT #shortcuts-help — the `?` overlay. Same dialog + focus-trap pattern
+  as the palette. The table below is the ONLY user-facing documentation of the
+  global bindings, so it must stay in step with app.js's keyboard layer.
+-->
+<div id="shortcuts-help" class="overlay" hidden>
+  <div id="shortcuts-help-backdrop" class="overlay-backdrop"></div>
+  <div class="overlay-panel shortcuts-panel" role="dialog" aria-modal="true"
+       aria-labelledby="shortcuts-help-title">
+    <div class="shortcuts-head">
+      <h2 id="shortcuts-help-title">Keyboard shortcuts</h2>
+      <button id="shortcuts-help-close" class="btn icon-btn" type="button"
+              aria-label="close">×</button>
+    </div>
+    <dl class="shortcut-grid">
+      <dt><kbd class="mono">Ctrl</kbd> <kbd class="mono">K</kbd></dt>
+      <dd>Open the command palette (<kbd class="mono">⌘</kbd> <kbd class="mono">K</kbd> on a Mac).
+        The one shortcut that still works while you are typing — except in the
+        chat box, where it would interrupt a half-written question.</dd>
+
+      <dt><kbd class="mono">/</kbd></dt>
+      <dd>Focus the trace search.</dd>
+
+      <dt><kbd class="mono">j</kbd> / <kbd class="mono">k</kbd></dt>
+      <dd>Move down / up one row in whichever list you last selected in — the
+        sessions tree or the selection list.</dd>
+
+      <dt><kbd class="mono">?</kbd></dt>
+      <dd>This list.</dd>
+
+      <dt><kbd class="mono">esc</kbd></dt>
+      <dd>Close the palette or this dialog · else clear and leave the search ·
+        else close the chat drawer when it is covering the panes on a narrow
+        screen.</dd>
+
+      <dt><kbd class="mono">tab</kbd></dt>
+      <dd>Inside a dialog, cycles within it. Closing returns you to wherever you
+        were.</dd>
+    </dl>
+    <p class="shortcuts-foot muted">Single-key shortcuts never fire while you are
+      typing in a field — <kbd class="mono">j</kbd> in the search box types a j.</p>
+  </div>
+</div>
 
 <script>
 /*
