@@ -103,10 +103,15 @@
     return s.slice(0, half) + '…' + s.slice(-(max - 1 - half));
   }
 
+  // Last-resort values for a host with no getComputedStyle. selFill/selStroke
+  // are the accent-derived SELECTION washes (--tint-select*), deliberately not
+  // the warn washes — a selected row is not a warning.
   var FALLBACK = {
     bg: '#0e1116', text: '#dce3ea', muted: '#8b949e', border: '#2f3947',
     accent: '#f5a623', notice: '#58a6ff', crit: '#f2545b', warn: '#f5a623',
-    ok: '#3fb950', redirect: '#a371f7', h323: '#d2a8ff', media: '#39c5cf'
+    ok: '#3fb950', redirect: '#a371f7', h323: '#d2a8ff', media: '#39c5cf',
+    selFill: 'rgba(245,166,35,0.16)', selStroke: 'rgba(245,166,35,0.45)',
+    matchFill: 'rgba(88,166,255,0.13)'
   };
 
   /**
@@ -127,7 +132,12 @@
       aux: FALLBACK.muted,
       bg: FALLBACK.bg, text: FALLBACK.text, muted: FALLBACK.muted,
       border: FALLBACK.border, panel2: '#1d242e',
-      warn: FALLBACK.warn, crit: FALLBACK.crit
+      warn: FALLBACK.warn, crit: FALLBACK.crit,
+      // Selection / search backdrops. Accent-derived washes, NOT severity —
+      // resolved here so an exported SVG carries the running theme's colours
+      // instead of a hardcoded dark-theme amber that reads as a warning.
+      selFill: FALLBACK.selFill, selStroke: FALLBACK.selStroke,
+      matchFill: FALLBACK.matchFill
     };
     try {
       var cs = window.getComputedStyle(document.documentElement);
@@ -152,6 +162,9 @@
       out.panel2 = v('--panel2', out.panel2);
       out.warn = v('--warn', out.warn);
       out.crit = v('--crit', out.crit);
+      out.selFill = v('--tint-select', out.selFill);
+      out.selStroke = v('--tint-select-border', out.selStroke);
+      out.matchFill = v('--tint-notice', out.matchFill);
     } catch (e) { /* non-DOM or odd host — fall back */ }
     return out;
   }
@@ -615,13 +628,13 @@
       if (row.rowId === selectedId) {
         g.appendChild(svgEl('rect', {
           x: 2, y: y - ROWH / 2 + 1, width: width - 4, height: ROWH - 2, rx: 4,
-          'class': 'lad-selrect', fill: 'rgba(245,166,35,0.14)',
-          stroke: 'rgba(245,166,35,0.5)', 'stroke-width': 1
+          'class': 'lad-selrect', fill: C.selFill,
+          stroke: C.selStroke, 'stroke-width': 1
         }));
       } else if (matchIds && matchIds[row.rowId]) {
         g.appendChild(svgEl('rect', {
           x: 2, y: y - ROWH / 2 + 1, width: width - 4, height: ROWH - 2, rx: 4,
-          'class': 'lad-matchrect', fill: 'rgba(88,166,255,0.12)'
+          'class': 'lad-matchrect', fill: C.matchFill
         }));
       }
 
@@ -679,6 +692,12 @@
       // as any other secondary label. The full detail is one hover away.
       if (row.retransCount > 1) {
         var badgeStr = '×' + row.retransCount;
+        // Same character-advance heuristic as approxLabelW above, scaled for
+        // this badge's 9.5px font (the label's is 10.5px). Without it the
+        // `badgeX += bw` below reads an undeclared identifier, which in this
+        // strict-mode IIFE throws and takes the whole ladder down for any
+        // capture containing a retransmission burst.
+        var bw = badgeStr.length * 5.6;
         var bt = svgText(badgeX, y - 5, badgeStr, 'lad-badge', 'start');
         bt.setAttribute('fill', C.muted);
         bt.setAttribute('font-size', '9.5');

@@ -38,7 +38,18 @@
 
 body.app {
   --topbar-h: 44px;
-  --chat-w: 400px;
+  /* Wave 4: the drawer leads with the Advice cards, so it has to hold advice
+     prose, fix steps and config drafts — not just a chat bubble column. 460px
+     puts .advice-block at ~64 characters and .fix-steps at ~60 (400px gave ~55
+     and ~50, cramped for text carrying identifiers like
+     SBCRemoteEarlyMediaResponseType), and takes pre.fix-config from 35 to 44
+     monospace columns, which clears the median draft line.
+     Deliberately not wider: measured against the real advisor output the draft
+     lines are bimodal (median 37 chars, p75 66, max 97), so no sane drawer
+     width fits the long half — those keep pre.fix-config's own overflow-x, and
+     the extra pixels would come straight out of the ladder. At 1440px wide
+     this still leaves the ladder ~450px before the user touches a resizer. */
+  --chat-w: 460px;
   height: 100vh;
   min-height: 0;
   overflow: hidden;                 /* no page scroll — panes scroll internally */
@@ -232,9 +243,10 @@ body.chat-open #layout { margin-right: var(--chat-w); }
   background: var(--row-hover);
 }
 
+/* Drag-hover feedback, not a warning — accent wash to match the border. */
 .dropzone.is-over {
   border-color: var(--accent);
-  background: var(--tint-warn);
+  background: var(--tint-select);
 }
 
 .dz-title { margin: 0 0 2px; font-size: 13px; font-weight: 600; }
@@ -567,11 +579,14 @@ mark,
   opacity: 0.65;
 }
 
+/* "on" = the feature is present and healthy. It must not sit on the warn wash
+   — the legend puts this swatch next to the red "issue" lamp. Accent wash,
+   matching its accent ink and its already-accent border. */
 .lamp[data-state="on"],
 .lamp.lamp-on {
   color: var(--accent);
   border-color: var(--tint-select-border);
-  background: var(--tint-warn);
+  background: var(--tint-select);
 }
 
 .lamp[data-state="partial"],
@@ -698,11 +713,12 @@ mark,
 
 .pane-btn:hover { color: var(--text); border-color: var(--btn-hover-border); }
 
+/* A toggle in its "on" position is a selection, not a warning — accent wash. */
 .pane-btn.is-active,
 .pane-btn[aria-pressed="true"] {
   color: var(--accent);
-  border-color: var(--tint-warn-border);
-  background: var(--tint-warn);
+  border-color: var(--tint-select-border);
+  background: var(--tint-select);
 }
 
 .pane-body {
@@ -909,6 +925,9 @@ mark,
 .tg-ts { color: var(--muted); }
 .tg-delta { color: var(--text); }
 .tg-delta.is-slow { color: var(--warn); }
+/* ladder.js emits .is-stalled for >=4s gaps; it had no rule here, so the worse
+   condition rendered plainer than .is-slow. Matches .sel-delta.is-stalled. */
+.tg-delta.is-stalled { color: var(--crit); }
 
 .ladder-host {
   flex: 1 1 auto;
@@ -962,8 +981,11 @@ mark,
 .lad-1xx   .lad-label { fill: var(--notice); }
 .lad-2xx   .lad-line, .lad-2xx   .lad-head { stroke: var(--ok);         fill: var(--ok); }
 .lad-2xx   .lad-label { fill: var(--ok); }
-.lad-3xx   .lad-line, .lad-3xx   .lad-head { stroke: var(--crit);       fill: var(--crit); }
-.lad-3xx   .lad-label { fill: var(--crit); }
+/* 3xx is a redirect, not an error — --redirect per the frozen ladder colour
+   contract (ARCHITECTURE.md §UI: "3xx --redirect"). It read var(--crit) here,
+   which would have painted every redirect in the crit red. */
+.lad-3xx   .lad-line, .lad-3xx   .lad-head { stroke: var(--redirect);   fill: var(--redirect); }
+.lad-3xx   .lad-label { fill: var(--redirect); }
 .lad-redir .lad-line, .lad-redir .lad-head { stroke: var(--redirect);   fill: var(--redirect); }
 .lad-redir .lad-label { fill: var(--redirect); }
 .lad-4xx   .lad-line, .lad-4xx   .lad-head,
@@ -994,7 +1016,10 @@ mark,
 .lad-msg.has-crit .lad-sevdot { fill: var(--crit); }
 .lad-msg.has-crit .lad-label { font-weight: 700; }
 
-.lad-selrect { fill: var(--tint-warn); stroke: var(--tint-warn-border); }
+/* Selection, not severity: --tint-select is the accent-derived wash every
+   other pane already uses for "this row is selected" (.tree-row.is-selected,
+   .sel-row[aria-selected], .tg-row.is-selected). It read --tint-warn. */
+.lad-selrect { fill: var(--tint-select); stroke: var(--tint-select-border); }
 .lad-selected .lad-line { stroke-width: 3; }
 .lad-msg.is-cross .lad-line { stroke-width: 3; }
 
@@ -1643,6 +1668,52 @@ pre.fix-config {
   font-size: 16px;
   line-height: 1.4;
 }
+
+/* ---- Wave 4: the Advice section, first thing in the drawer ---- */
+
+.chat-advice {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.chat-advice:focus { outline: none; }
+.chat-advice:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.chat-advice-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.chat-advice-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+}
+
+/* Deliberately neutral: the count says how many cards are in scope, not how
+   bad they are. Severity lives on the cards' own left accents. */
+.chat-advice-count:empty { display: none; }
+
+.chat-advice-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 10px;
+}
+
+/* The conversation is the drawer's second act now — it takes what it needs up
+   to a share of the height, and Advice keeps the rest. */
+.chat-drawer .chat-messages { flex: 0 1 auto; max-height: 42%; }
 
 .chat-crosslink {
   flex: none;

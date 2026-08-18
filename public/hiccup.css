@@ -136,11 +136,11 @@
 
     --mark-bg: rgba(154, 91, 0, 0.32);
     --row-hover-strong: rgba(27, 31, 36, 0.06);
-    --tint-warn-border: rgba(154, 91, 0, 0.5);
+    --tint-warn-border: rgba(154, 103, 0, 0.5);
     --tint-crit-border: rgba(207, 34, 46, 0.4);
     --tint-crit-gap: rgba(207, 34, 46, 0.35);
-    --lamp-ring-warn: rgba(154, 91, 0, 0.8);
-    --lamp-glow-warn: rgba(154, 91, 0, 0.28);
+    --lamp-ring-warn: rgba(154, 103, 0, 0.8);
+    --lamp-glow-warn: rgba(154, 103, 0, 0.28);
     --lamp-ring-crit: rgba(207, 34, 46, 0.85);
     --lamp-glow-crit: rgba(207, 34, 46, 0.32);
     --border-soft: rgba(208, 215, 222, 0.7);
@@ -195,11 +195,11 @@
 
   --mark-bg: rgba(154, 91, 0, 0.32);
   --row-hover-strong: rgba(27, 31, 36, 0.06);
-  --tint-warn-border: rgba(154, 91, 0, 0.5);
+  --tint-warn-border: rgba(154, 103, 0, 0.5);
   --tint-crit-border: rgba(207, 34, 46, 0.4);
   --tint-crit-gap: rgba(207, 34, 46, 0.35);
-  --lamp-ring-warn: rgba(154, 91, 0, 0.8);
-  --lamp-glow-warn: rgba(154, 91, 0, 0.28);
+  --lamp-ring-warn: rgba(154, 103, 0, 0.8);
+  --lamp-glow-warn: rgba(154, 103, 0, 0.28);
   --lamp-ring-crit: rgba(207, 34, 46, 0.85);
   --lamp-glow-crit: rgba(207, 34, 46, 0.32);
   --border-soft: rgba(208, 215, 222, 0.7);

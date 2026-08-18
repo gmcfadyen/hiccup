@@ -19,12 +19,20 @@
     #filter-pane #filter-tree
     #selection-pane #selection-list
     #ladder-pane #ladder-svg-host #ladder-toolbar #time-pane #time-gutter
-    #info-pane #info-tabs #info-contents #info-packet #info-media #info-advice
+    #info-pane #info-tabs #info-contents #info-packet #info-media
     #lamps #scenario-chip #rfplex-promo
 
   Wave-1 chrome kept verbatim: #llm-chip #chat-toggle #user-name #logout-btn, the
   Buy Me a Coffee link, the sidebar dropzone (#dropzone #browse-btn #file-input
   #upload-msg #capture-list) and the whole chat drawer (#chat-* ids).
+
+  Wave-4 (ARCHITECTURE.md §"Wave 4 — Advice into the persistent drawer"):
+  Advice has exactly ONE home — the drawer. #chat-drawer is open by default (no
+  `hidden`) and leads with #chat-advice (head + #chat-advice-count chip +
+  #chat-advice-body, which app.js fills with the advice cards) above the
+  unchanged conversation UI. #info-advice / #info-tab-advice are gone, so the
+  info pane is three tabs; the ladder's retrans collapse toggle is gone too
+  (retransmissions are always collapsed, no user-facing switch).
 
   Wave-3 additions (ARCHITECTURE.md §"Wave 3 — Teams and Projects"), populated
   by app.js the same way: #project-filter (above #capture-list), #upload-project
@@ -135,9 +143,9 @@
 
   <!-- ============================ lamps strip ============================= -->
   <div id="lamps-row" class="lamps-row">
-    <!-- CONTRACT #scenario-chip — click opens the info pane's Advice tab -->
+    <!-- CONTRACT #scenario-chip — click opens/focuses the drawer's advice section -->
     <button id="scenario-chip" class="chip chip-btn scenario-chip" type="button"
-            aria-label="detected scenario — opens the Advice tab">scenario: —</button>
+            aria-label="detected scenario — opens the advice drawer">scenario: —</button>
 
     <!-- CONTRACT #lamps — one .lamp[data-key][data-state] per Indicator -->
     <div id="lamps" class="lamps scroll-x" role="group" aria-label="protocol indicators">
@@ -178,8 +186,6 @@
     <header id="ladder-toolbar" class="pane-head ladder-toolbar" aria-label="ladder controls">
       <h2 class="pane-title">ladder</h2>
       <span class="pane-tools">
-        <button class="pane-btn" type="button" data-action="ladder-collapse-retrans"
-                aria-pressed="true" title="collapse retransmissions into one row with an ×N badge">retrans ×N</button>
         <span class="pane-tool-group" role="group" aria-label="zoom">
           <button class="pane-btn" type="button" data-action="ladder-zoom-out" aria-label="zoom out" title="zoom out">−</button>
           <button class="pane-btn" type="button" data-action="ladder-zoom-reset" title="reset zoom">100%</button>
@@ -227,7 +233,8 @@
   </section>
 
   <!-- ============================ bottom-right: info pane ================ -->
-  <!-- CONTRACT #info-pane / #info-tabs / #info-contents / #info-packet / #info-media / #info-advice -->
+  <!-- CONTRACT #info-pane / #info-tabs / #info-contents / #info-packet / #info-media
+       (Wave 4: Advice is no longer a tab here — it lives in #chat-advice) -->
   <section id="info-pane" class="pane" aria-label="details for the selection">
     <div id="info-tabs" class="info-tabs" role="tablist" aria-label="detail views">
       <button class="info-tab is-active" type="button" role="tab" id="info-tab-contents"
@@ -236,8 +243,6 @@
               data-panel="info-packet" aria-controls="info-packet" aria-selected="false">Packet Info</button>
       <button class="info-tab" type="button" role="tab" id="info-tab-media"
               data-panel="info-media" aria-controls="info-media" aria-selected="false">Media</button>
-      <button class="info-tab" type="button" role="tab" id="info-tab-advice"
-              data-panel="info-advice" aria-controls="info-advice" aria-selected="false">Advice</button>
       <span class="topbar-spacer"></span>
       <button class="pane-btn" type="button" data-action="explain-selection"
               title="open the chat scoped to the current selection">explain in chat</button>
@@ -262,13 +267,6 @@
         jitter, gaps and an estimated MOS, with a loss-over-time sparkline.</p>
       </div>
 
-      <div id="info-advice" class="info-panel scroll-area" role="tabpanel"
-           aria-labelledby="info-tab-advice" tabindex="0" hidden>
-        <p class="pane-empty">what is wrong, why it matters, the mechanism, then fix
-        cards per vendor with copyable draft config and RFC citations. deterministic —
-        no invented section numbers.</p>
-      </div>
-
     </div>
   </section>
 
@@ -282,13 +280,32 @@
 
 </div>
 
-<aside id="chat-drawer" class="chat-drawer" hidden>
+<!--
+  CONTRACT #chat-drawer — open by default (Wave 4). Advice leads, the
+  conversation follows. #chat-advice-body is cleared and refilled by app.js on
+  every scope change; #chat-scope onward is the Wave-1 chat, unchanged.
+-->
+<aside id="chat-drawer" class="chat-drawer">
   <div class="chat-head">
     <strong>ask hiccup</strong>
     <span id="chat-model" class="chip"></span>
     <span class="topbar-spacer"></span>
     <button id="chat-close" class="btn chat-close" type="button" aria-label="close chat">×</button>
   </div>
+
+  <section id="chat-advice" class="chat-advice" tabindex="-1"
+           aria-label="advice for the current selection">
+    <div class="chat-advice-head">
+      <h2 class="chat-advice-title">advice</h2>
+      <span id="chat-advice-count" class="chip mono chat-advice-count"></span>
+    </div>
+    <div id="chat-advice-body" class="chat-advice-body scroll-area">
+      <p class="pane-empty">what is wrong, why it matters, the mechanism, then fix
+      cards per vendor with copyable draft config and RFC citations. deterministic —
+      no invented section numbers.</p>
+    </div>
+  </section>
+
   <p class="chat-crosslink muted">hiccup and RFPlex.ai share the same local-LLM stack.</p>
   <div id="chat-scope" class="chat-scope"></div>
   <div id="chat-hint" class="chat-hint" hidden></div>
@@ -457,12 +474,8 @@
     })(tabs[k]);
   }
 
-  // Scenario chip opens the Advice tab (contract: click -> info-pane Advice tab).
-  var chip = document.getElementById('scenario-chip');
-  var adviceTab = document.getElementById('info-tab-advice');
-  if (chip && adviceTab) {
-    chip.addEventListener('click', function () { selectTab(adviceTab); });
-  }
+  // Wave 4: #scenario-chip no longer switches an info tab — app.js opens and
+  // focuses the drawer's advice section instead. Nothing to wire here.
 })();
 </script>
 

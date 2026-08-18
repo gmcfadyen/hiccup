@@ -3,7 +3,16 @@
  * The Workbench app shell: boot/auth, capture sidebar + upload, trace-wide
  * search, the five Workbench panes (#searchbar #filter-pane #selection-pane
  * #ladder-pane/#time-pane #info-pane), the indicator lamps, the scenario chip
- * and the "ask hiccup" chat drawer.
+ * and the "ask hiccup" drawer.
+ *
+ * Wave 4 (ARCHITECTURE.md §"Wave 4 — Advice into the persistent drawer"):
+ * #chat-drawer is open by default and leads with the Advice cards
+ * (#chat-advice-body, rendered by renderDrawerAdvice) above the unchanged
+ * conversation UI. Every selection path — tree click, search-result click,
+ * lamp click, ladder/selection row click, finding jump — ends in
+ * renderDrawer(), so advice and the chat scope always match what is selected
+ * with no extra click. The info pane is three tabs (Contents/Packet/Media),
+ * and retransmission collapsing is a fixed constant, not a toggle.
  *
  * DOM id contract (ARCHITECTURE.md §UI — the Workbench layout) is frozen and
  * shared with the UI-shell agent who owns app.html/app.css. This file assumes
@@ -21,11 +30,12 @@
 
   var SEV_ORDER = { crit: 0, warn: 1, notice: 2, info: 3 };
 
+  // Wave 4: three tabs. Advice left the info pane for the drawer (#chat-advice)
+  // so there is exactly one advice surface, not two that can drift apart.
   var INFO_TABS = [
     { key: 'contents', label: 'Contents', panel: 'info-contents' },
     { key: 'packet', label: 'Packet Info', panel: 'info-packet' },
-    { key: 'media', label: 'Media', panel: 'info-media' },
-    { key: 'advice', label: 'Advice', panel: 'info-advice' }
+    { key: 'media', label: 'Media', panel: 'info-media' }
   ];
 
   var SEARCH_FIELDS = {
@@ -273,7 +283,6 @@
 
     treeExpanded: {},
     infoTab: 'contents',
-    collapsed: true,
     zoom: 1,
     selSort: { key: 'n', asc: true },
 
@@ -287,7 +296,10 @@
 
     lampFilter: null,
 
-    chatOpen: false,
+    // Wave 4: the drawer is open on a fresh load. The flag survives because the
+    // #chat-toggle button and body.chat-open still need to know the state — it
+    // no longer gates whether the drawer's contents get rendered.
+    chatOpen: true,
     chatBusy: false,
     chatError: null,
 
@@ -317,6 +329,7 @@
     if (name && state.user) name.textContent = state.user.name || state.user.email || '';
 
     wireStatic();
+    applyDrawerOpen();   // reflect the default-open drawer without stealing focus
     fillRfplexPromo();
     ensureChatRfplexLine();
     pollStatus();
@@ -336,7 +349,7 @@
       state.llm = null;
     }
     renderLlmChip();
-    if (state.chatOpen) renderChat();
+    renderChat();   // model/offline state only — the scope has not moved
   }
 
   function renderLlmChip() {
@@ -439,11 +452,16 @@
     setupSelectionSort();
     setupPaneActions();
 
+    // Wave 4: the scenario chip is a capture-level read-out, so it widens the
+    // scope back to the whole capture and hands focus to the drawer's advice.
     var chip = $('scenario-chip');
     if (chip) {
       chip.addEventListener('click', function () {
-        state.infoTab = 'advice';
-        renderInfo();
+        state.sel = { type: 'capture', callId: null, legId: null, txKey: null };
+        state.selectedRowId = null;
+        state.lampFilter = null;
+        renderAll();
+        focusDrawerAdvice();
       });
     }
   }
@@ -560,7 +578,6 @@
       resetSelection();
       indexAnalysis();
       renderAll();
-      if (state.chatOpen) renderChat();
     }
     await loadCaptures();
   }
@@ -946,7 +963,6 @@
     buildSearchIndex();
     renderSidebar();
     renderAll();
-    if (state.chatOpen) renderChat();
   }
 
   // -------------------------------------------------------- analysis index
@@ -1202,7 +1218,7 @@
         aux: auxes,
         findings: findingsList(),
         advice: adviceList(),
-        collapsed: state.collapsed
+        collapsed: true            // Wave 4: always collapsed, no user-facing toggle
       })
       : { rows: [] };
 
@@ -1232,6 +1248,7 @@
     renderSelectionList();
     renderLadder();
     renderInfo();
+    renderDrawer();
     renderSearchCount();
   }
 
@@ -1241,6 +1258,17 @@
     renderSelectionList();
     renderLadder();
     renderInfo();
+    renderDrawer();
+  }
+
+  /**
+   * The drawer is scope-dependent on both halves now: the advice section
+   * re-renders for the new selection, the conversation re-renders its scope
+   * chip. Every selection path funnels through here (Wave 4 step 3/4).
+   */
+  function renderDrawer() {
+    renderDrawerAdvice();
+    renderChat();
   }
 
   // ---------------------------------------------------------- #filter-tree
@@ -1336,7 +1364,6 @@
     state.selectedRowId = sel.rowId || null;
     if (!state.searchActive) renderFilterTree();
     renderSelectionDependent();
-    if (state.chatOpen) renderChat();
   }
 
   function isSelectedNode(sel) {
@@ -1622,7 +1649,10 @@
     if (row.sev === 'crit') return 'tint-crit';
     if (row.sev === 'warn') return 'tint-warn';
     if (row.colorKey === '4xx' || row.colorKey === '5xx' || row.colorKey === '6xx') return 'tint-crit';
-    if (row.retransCount > 1) return 'tint-warn';
+    // Retransmissions are NOT a warning on their own — the ladder says so
+    // explicitly (ladder.js: "no border, no pill, no warn colour") and Wave 4
+    // doubles down on handling them silently. The row still shows its muted
+    // ×N marker via .sel-row.is-retrans; it just no longer gets an amber wash.
     if (row.kind === 'media' && nnum(row.obj && row.obj.lossPct) != null && row.obj.lossPct >= 5) return 'tint-crit';
     if (row.kind === 'media' && row.obj && row.obj.oneWay) return 'tint-warn';
     return null;
@@ -1843,7 +1873,7 @@
     renderSelectionList();
     renderLadder();
     renderInfo();
-    if (state.chatOpen) renderChat();
+    renderDrawer();
   }
 
   // ------------------------------------------------------------ ladder pane
@@ -1867,13 +1897,8 @@
     state.toolbarOwn = true;
     clear(bar);
 
-    var collapseBtn = el('button', 'btn lad-btn', 'collapse retrans');
-    collapseBtn.type = 'button';
-    collapseBtn.id = 'lad-collapse-btn';
-    collapseBtn.title = 'fold each retransmission burst into one row with an ×N badge';
-    collapseBtn.addEventListener('click', function () { toolbarAction('collapse'); });
-    bar.appendChild(collapseBtn);
-
+    // Zoom + export only. Retransmission collapsing is not a control any more
+    // (Wave 4) — it is always on, handled silently by the row builder.
     var zo = el('button', 'btn lad-btn', '−');
     zo.type = 'button';
     zo.title = 'zoom out';
@@ -1911,18 +1936,12 @@
 
   /**
    * Ladder toolbar actions. Matched by substring so both this file's own control
-   * names and app.html's prefixed ones ('ladder-collapse-retrans',
-   * 'ladder-zoom-in', 'ladder-export', …) resolve to the same behaviour.
+   * names and app.html's prefixed ones ('ladder-zoom-in', 'ladder-export', …)
+   * resolve to the same behaviour. Zoom and export are the whole toolbar now.
    */
   function toolbarAction(action) {
     var a = str(action).toLowerCase();
     if (a.indexOf('export') !== -1) { exportLadderSvg(); return; }
-    if (a.indexOf('collapse') !== -1 || a.indexOf('retrans') !== -1 || a.indexOf('expand') !== -1) {
-      state.collapsed = !state.collapsed;
-      renderSelectionDependent();
-      syncLadderToolbar();
-      return;
-    }
     if (a.indexOf('zoom') !== -1) {
       if (a.indexOf('in') !== -1) state.zoom = Math.min(3, Math.round((state.zoom + 0.15) * 100) / 100);
       else if (a.indexOf('out') !== -1) state.zoom = Math.max(0.4, Math.round((state.zoom - 0.15) * 100) / 100);
@@ -1997,12 +2016,6 @@
   function syncLadderToolbar() {
     var bar = $('ladder-toolbar');
     if (!bar) return;
-    var cb = $('lad-collapse-btn');
-    if (cb) {
-      cb.textContent = state.collapsed ? 'collapse retrans' : 'expand retrans';
-      cb.setAttribute('aria-pressed', state.collapsed ? 'true' : 'false');
-      cb.classList.toggle('is-active', state.collapsed);
-    }
     var zl = $('lad-zoom-label');
     if (zl) zl.textContent = Math.round(state.zoom * 100) + '%';
     var rc = $('lad-rowcount');
@@ -2015,13 +2028,6 @@
     var owned = bar.querySelectorAll('[data-action]');
     for (var i = 0; i < owned.length; i++) {
       var a = str(owned[i].getAttribute('data-action')).toLowerCase();
-      if (a.indexOf('collapse') !== -1 || a.indexOf('retrans') !== -1) {
-        owned[i].setAttribute('aria-pressed', state.collapsed ? 'true' : 'false');
-        owned[i].classList.toggle('is-active', state.collapsed);
-        owned[i].title = state.collapsed
-          ? 'retransmissions are collapsed to one row with an \u00d7N badge — click to expand'
-          : 'retransmissions are expanded — click to collapse them';
-      }
       if (a.indexOf('zoom') !== -1 && a.indexOf('reset') !== -1) {
         owned[i].textContent = Math.round(state.zoom * 100) + '%';
       }
@@ -2074,7 +2080,7 @@
           aux: auxMessages(),
           findings: findingsList(),
           advice: adviceList(),
-          collapsed: state.collapsed,
+          collapsed: true,           // Wave 4: fixed, not UI state
           selectedId: state.selectedRowId,
           matchIds: state.searchMatchIds,
           zoom: state.zoom,
@@ -2192,13 +2198,10 @@
         state.sel = { type: 'capture', callId: null, legId: null, txKey: null };
       }
       state.selectedRowId = mids.length ? mids[0] : null;
-      if (!mids.length && !cids.length) {
-        // Nothing to filter to — still say why, in the info pane.
-        state.infoTab = 'advice';
-      }
+      // When a lamp has no evidence to filter to, the drawer's advice section
+      // still says why — it is always on screen, so there is no tab to switch.
     }
     renderAll();
-    if (state.chatOpen) renderChat();
   }
 
   function renderScenarioChip() {
@@ -2217,7 +2220,7 @@
     var pct = Math.round((nnum(sc.confidence) || 0) * 100);
     chip.textContent = 'scenario: ' + str(sc.primary) + ' \u00b7 ' + pct + '%';
     chip.title = (str(sc.detail || '') || ('scenario: ' + sc.primary)) +
-      '  \u2014  click for the full read-out in the Advice tab';
+      '  \u2014  click for the full capture-wide read-out in the advice drawer';
   }
 
   // ----------------------------------------------------------- #info-pane
@@ -2227,8 +2230,7 @@
     if (s.indexOf('content') !== -1) return 'contents';
     if (s.indexOf('packet') !== -1) return 'packet';
     if (s.indexOf('media') !== -1) return 'media';
-    if (s.indexOf('advice') !== -1) return 'advice';
-    return null;
+    return null;   // 'advice' is deliberately absent — it is not a tab any more
   }
 
   function setupInfoTabs() {
@@ -2302,7 +2304,7 @@
     renderInfoContents();
     renderInfoPacket();
     renderInfoMedia();
-    renderInfoAdvice();
+    // Advice is rendered by renderDrawerAdvice() into #chat-advice-body.
   }
 
   function infoHeader(parent, row) {
@@ -2851,7 +2853,7 @@
     }
   }
 
-  // ----------------------------------------------------------- Advice tab
+  // ------------------------------------------------- Advice (in the drawer)
 
   /** Does this Advice object touch the current scope? */
   function adviceInScope(a) {
@@ -2895,10 +2897,17 @@
     return false;
   }
 
-  function renderInfoAdvice() {
-    var panel = $('info-advice');
+  /**
+   * Wave 4: the Advice cards live in the always-open drawer, above the
+   * conversation. Same cards, same scoping, same severity ordering as the old
+   * #info-advice panel — only the host node moved. Called from renderDrawer()
+   * on every scope change, so it never needs a manual refresh.
+   */
+  function renderDrawerAdvice() {
+    var panel = $('chat-advice-body');
     if (!panel) return;
     clear(panel);
+    setAdviceCount(null);
     if (!state.analysis) { emptyNote(panel, 'No capture open.'); return; }
 
     // Scenario block — the "what am I even looking at" header.
@@ -2959,6 +2968,8 @@
       for (var u = 0; u < uncovered.length; u++) panel.appendChild(findingCard(uncovered[u]));
     }
 
+    setAdviceCount(advice.length + uncovered.length);
+
     // Retransmission classification for this scope.
     var cols = collapsesList().filter(function (c) {
       var legIds = scopeLegIds();
@@ -2994,6 +3005,33 @@
     if (!panel.firstChild) {
       emptyNote(panel, 'Nothing to advise on for this selection.',
         'hiccup found no warn/crit conditions here. Widen the selection to the whole capture in the tree.');
+    }
+  }
+
+  /**
+   * The little count chip on the drawer's advice header. Neutral by design —
+   * it says how many cards are in scope, never what colour the worst one is
+   * (the cards carry their own severity accents).
+   * @param {?number} n card count, or null for "no capture / nothing yet"
+   */
+  function setAdviceCount(n) {
+    var chip = $('chat-advice-count');
+    if (!chip) return;
+    if (n == null) { chip.textContent = ''; chip.title = ''; return; }
+    chip.textContent = n ? String(n) : 'none';
+    chip.title = n === 1
+      ? '1 advisory card for the current selection'
+      : n + ' advisory cards for the current selection';
+  }
+
+  /** Reveal the drawer's advice section and put focus on it. */
+  function focusDrawerAdvice() {
+    if (!state.chatOpen) { state.chatOpen = true; applyDrawerOpen(); renderDrawer(); }
+    var body = $('chat-advice-body');
+    if (body) body.scrollTop = 0;
+    var box = $('chat-advice');
+    if (box && typeof box.focus === 'function') {
+      try { box.focus(); } catch (e) { /* focus is a nicety, never fatal */ }
     }
   }
 
@@ -3230,7 +3268,6 @@
     }
     if (mids.length) state.selectedRowId = mids[0];
     renderAll();
-    if (state.chatOpen) renderChat();
   }
 
   // -------------------------------------------------------------- search
@@ -3797,7 +3834,7 @@
     renderSelectionList();
     renderLadder();
     renderInfo();
-    if (state.chatOpen) renderChat();
+    renderDrawer();
   }
 
   /** Click a result → select that call, highlight the match in ladder + info. */
@@ -3808,9 +3845,11 @@
     else if (hit.legId && state.legById[hit.legId]) {
       sel = { type: 'leg', callId: state.legToCall[hit.legId] || null, legId: hit.legId };
     }
-    if (hit.kind === 'advice' || hit.kind === 'finding') state.infoTab = 'advice';
-    else if (hit.kind === 'media') state.infoTab = 'media';
-    else state.infoTab = 'contents';
+    // Advice/finding hits leave the info tab alone — the drawer's advice
+    // section is where they land, and it re-renders (scrolled to the top) as
+    // part of selectScopeFromSearch's renderDrawer().
+    if (hit.kind === 'media') state.infoTab = 'media';
+    else if (hit.kind !== 'advice' && hit.kind !== 'finding') state.infoTab = 'contents';
     selectScopeFromSearch(sel, hit.rowId || null);
   }
 
@@ -3831,14 +3870,29 @@
     try { sessionStorage.setItem(chatKey(), JSON.stringify(hist)); } catch (e) { /* quota */ }
   }
 
+  /**
+   * Push state.chatOpen into the DOM. Separate from toggleChat() so boot can
+   * reflect the default-open drawer (Wave 4) without stealing focus into the
+   * chat box on page load. body.chat-open is what gives #layout its
+   * margin-right, so the drawer takes width from the grid instead of covering
+   * the info pane.
+   */
+  function applyDrawerOpen() {
+    var drawer = $('chat-drawer');
+    if (drawer) drawer.hidden = !state.chatOpen;
+    if (document.body) document.body.classList.toggle('chat-open', !!state.chatOpen);
+    var toggle = $('chat-toggle');
+    if (toggle) {
+      toggle.classList.toggle('active', !!state.chatOpen);
+      toggle.setAttribute('aria-expanded', state.chatOpen ? 'true' : 'false');
+    }
+  }
+
   function toggleChat(open) {
     state.chatOpen = !!open;
-    var drawer = $('chat-drawer');
-    if (drawer) drawer.hidden = !open;
-    var toggle = $('chat-toggle');
-    if (toggle) toggle.classList.toggle('active', !!open);
-    if (open) {
-      renderChat();
+    applyDrawerOpen();
+    if (state.chatOpen) {
+      renderDrawer();
       var input = $('chat-input');
       if (input) input.focus();
     }
@@ -3895,8 +3949,7 @@
         reset.addEventListener('click', function () {
           state.sel = { type: 'capture', callId: null, legId: null, txKey: null };
           state.selectedRowId = null;
-          renderAll();
-          renderChat();
+          renderAll();   // ends in renderDrawer() — advice widens back out too
         });
         scopeBox.appendChild(reset);
       }
