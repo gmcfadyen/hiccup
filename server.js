@@ -581,6 +581,7 @@ function notFoundText(res) {
  */
 const PUBLIC_PAGES = new Map([
   ['/', 'index.html'],
+  ['/privacy', 'privacy.html'],
   ['/sip', 'sip/index.html'],
   ['/sip/488-not-acceptable-here', 'sip/488-not-acceptable-here.html'],
   ['/sip/408-request-timeout', 'sip/408-request-timeout.html'],

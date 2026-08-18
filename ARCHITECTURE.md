@@ -2084,3 +2084,44 @@ reference in advice cards the way an indexed document's chunks are. That
 would need matching a rule or finding's detected vendor against a link's
 vendor tag and is a meaningfully bigger feature than "let someone save a
 link" — worth doing later, not implied by it.
+
+---
+
+# Wave 12 — `/privacy` was a 404 with no link pointing at it
+
+Found doing an SEO health check, not building a feature: `public/privacy.html`
+has existed since Wave 6/7's GDPR work, but was never added to `PUBLIC_PAGES`
+(§ "The crawlable surface" above), so its clean URL — the one every other
+page uses, and the one `LICENSE`'s "contact licensing@rfplex.ai" text and this
+document both assume works — 404s. It was only ever reachable at the literal
+`/privacy.html`, which nothing links to either. **No page in the app links to
+it at all** — not the footer, not `/settings`' new privacy-rights section,
+nowhere — so before this fix the notice was undiscoverable by URL guessing
+alone, which fails GDPR Art. 12/13's "easily accessible" requirement on its
+own terms regardless of the 404.
+
+Fixed on both ends: `/privacy` added to `PUBLIC_PAGES` (so it 200s, and —
+same mechanism as every other entry — is now in `sitemap.xml` automatically),
+and a real `<a href="/privacy">` added to `index.html`'s footer and to
+`/settings`' "Your privacy rights" section. The page has no `noindex` and was
+left out of `robots.txt`'s disallow list on purpose: unlike `/app`/`/hmr`/
+`/kb`/`/team`/`/settings`, it needs no session, and a privacy notice is more
+GDPR-consistent findable than hidden — its own "draft, pending legal review"
+banner is the appropriate caveat for a search visitor to see, not a reason to
+keep it out of search entirely.
+
+## Two more things found in the same pass, both outside the codebase
+
+Cloudflare/DNS-level, not something a commit here can fix:
+
+- Plain `http://hiccup.monster/` serves the full site over cleartext (a real
+  200, `Server: cloudflare`) instead of redirecting to HTTPS. Cloudflare's
+  "Always Use HTTPS" (SSL/TLS → Edge Certificates) is off for this zone.
+- `https://www.hiccup.monster/` returns a Cloudflare 525 (SSL handshake
+  failed to origin) — the tunnel's public-hostname list has the bare apex
+  domain but not `www`, so Cloudflare has nothing to terminate against for
+  that host.
+
+Neither blocks anything today (nobody currently links to the `www` form or
+plain `http`), but both are the kind of thing worth closing before they are
+found by someone other than a self-audit.

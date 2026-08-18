@@ -431,8 +431,8 @@
       "public/app.html:176",
       "public/hmr.html:252",
       "public/hmr.html:253",
-      "public/index.html:363",
-      "public/index.html:364"
+      "public/index.html:364",
+      "public/index.html:365"
     ]
   },
   "c8444bcade4335ca": {
@@ -441,7 +441,7 @@
     "where": [
       "public/app.html:178",
       "public/hmr.html:255",
-      "public/index.html:366",
+      "public/index.html:367",
       "public/kb.html:238",
       "public/team.html:208"
     ]
@@ -1362,11 +1362,18 @@
       "public/index.html:355"
     ]
   },
+  "c56e382dd98062e7": {
+    "text": "privacy",
+    "cat": "html",
+    "where": [
+      "public/index.html:362"
+    ]
+  },
   "d486e88b5301428b": {
     "text": "self-hosted · your traces never leave this box",
     "cat": "html",
     "where": [
-      "public/index.html:362"
+      "public/index.html:363"
     ]
   },
   "5a29a54158399ac4": {
@@ -1585,8 +1592,8 @@
     "where": [
       "public/settings.html:116",
       "public/settings.html:123",
-      "public/settings.html:157",
-      "public/settings.html:178"
+      "public/settings.html:158",
+      "public/settings.html:179"
     ]
   },
   "f9ee06b5ff26c62b": {
@@ -1610,99 +1617,106 @@
       "public/settings.html:129"
     ]
   },
+  "9b8a8e248af82262": {
+    "text": "Read the privacy notice",
+    "cat": "html",
+    "where": [
+      "public/settings.html:131"
+    ]
+  },
   "4f115b48fcd53957": {
     "text": "Download a copy",
     "cat": "html",
     "where": [
-      "public/settings.html:133"
+      "public/settings.html:134"
     ]
   },
   "1a459bd2e7b53974": {
     "text": "Everything hiccup holds about this account.",
     "cat": "html",
     "where": [
-      "public/settings.html:134"
+      "public/settings.html:135"
     ]
   },
   "0886ea2a1f4b50d1": {
     "text": "Export as JSON",
     "cat": "html",
     "where": [
-      "public/settings.html:138"
+      "public/settings.html:139"
     ]
   },
   "9b2be74d948736e9": {
     "text": "One file: your account record, capture list, projects, team, library documents and any feedback you have sent. Capture file contents are not included — download those individually from the workbench.",
     "cat": "html",
     "where": [
-      "public/settings.html:139"
+      "public/settings.html:140"
     ]
   },
   "d3386a2ef42e80b9": {
     "text": "Download",
     "cat": "html",
     "where": [
-      "public/settings.html:145"
+      "public/settings.html:146"
     ]
   },
   "0d7192fab7c9eb3c": {
     "text": "Erase your data",
     "cat": "html",
     "where": [
-      "public/settings.html:151"
+      "public/settings.html:152"
     ]
   },
   "54a72ca1b15ba2e0": {
     "text": "Removes your captures, projects and library documents. Your account stays open and signed in — this is not the same as deleting your account.",
     "cat": "html",
     "where": [
-      "public/settings.html:152"
+      "public/settings.html:153"
     ]
   },
   "720689d4346abc1c": {
     "text": "What this removes",
     "cat": "html",
     "where": [
-      "public/settings.html:156",
-      "public/settings.html:177"
+      "public/settings.html:157",
+      "public/settings.html:178"
     ]
   },
   "691d2c8f160c597f": {
     "text": "Erase my data",
     "cat": "html",
     "where": [
-      "public/settings.html:160"
+      "public/settings.html:161"
     ]
   },
   "d2223afb7d6b100d": {
     "text": "Type",
     "cat": "html",
     "where": [
-      "public/settings.html:164",
-      "public/settings.html:185"
+      "public/settings.html:165",
+      "public/settings.html:186"
     ]
   },
   "cfbd46e8a190134a": {
     "text": "to confirm:",
     "cat": "html",
     "where": [
-      "public/settings.html:164",
-      "public/settings.html:185"
+      "public/settings.html:165",
+      "public/settings.html:186"
     ]
   },
   "4082bb30552dd590": {
     "text": "Erase permanently",
     "cat": "html",
     "where": [
-      "public/settings.html:166"
+      "public/settings.html:167"
     ]
   },
   "2ceb11be2290bb1b": {
     "text": "Cancel",
     "cat": "html",
     "where": [
-      "public/settings.html:167",
-      "public/settings.html:188",
+      "public/settings.html:168",
+      "public/settings.html:189",
       "public/app.js:860",
       "public/feedback.js:180"
     ]
@@ -1711,28 +1725,28 @@
     "text": "Delete this account",
     "cat": "html",
     "where": [
-      "public/settings.html:172"
+      "public/settings.html:173"
     ]
   },
   "992032218333b658": {
     "text": "Everything above, plus the account itself. Irreversible — there is no undo and no backup to restore from.",
     "cat": "html",
     "where": [
-      "public/settings.html:173"
+      "public/settings.html:174"
     ]
   },
   "045c3b86aae073c1": {
     "text": "Delete account",
     "cat": "html",
     "where": [
-      "public/settings.html:181"
+      "public/settings.html:182"
     ]
   },
   "f0ef7644098b8a63": {
     "text": "Delete permanently",
     "cat": "html",
     "where": [
-      "public/settings.html:187"
+      "public/settings.html:188"
     ]
   },
   "20d2719255c74e18": {
@@ -5469,378 +5483,378 @@
     "text": "analysis engine not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:736"
+      "server.js:737"
     ]
   },
   "6a2b7043de978ef9": {
     "text": "that project was not found",
     "cat": "server",
     "where": [
-      "server.js:750"
+      "server.js:751"
     ]
   },
   "a80b26feac395b9e": {
     "text": "upload exceeds the",
     "cat": "server",
     "where": [
-      "server.js:762"
+      "server.js:763"
     ]
   },
   "54c6c9cc108f2242": {
     "text": "could not read upload",
     "cat": "server",
     "where": [
-      "server.js:764",
-      "server.js:1090"
+      "server.js:765",
+      "server.js:1091"
     ]
   },
   "0801d0a52741c7bf": {
     "text": "empty upload",
     "cat": "server",
     "where": [
-      "server.js:769",
-      "server.js:1095"
+      "server.js:770",
+      "server.js:1096"
     ]
   },
   "01a383ac2116bf20": {
     "text": "capture not found",
     "cat": "server",
     "where": [
-      "server.js:847",
-      "server.js:985",
-      "server.js:2462",
-      "server.js:2763",
-      "server.js:2778"
+      "server.js:848",
+      "server.js:986",
+      "server.js:2463",
+      "server.js:2764",
+      "server.js:2779"
     ]
   },
   "f79423093897467e": {
     "text": "the rule generator is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:893"
+      "server.js:894"
     ]
   },
   "090e1a119d8daa21": {
     "text": "description (what the rule should do, in English) is required",
     "cat": "server",
     "where": [
-      "server.js:899"
+      "server.js:900"
     ]
   },
   "d7b4031340d3e796": {
     "text": "vendors must be a subset of",
     "cat": "server",
     "where": [
-      "server.js:907"
+      "server.js:908"
     ]
   },
   "620fd49ea6d862c9": {
     "text": "could not process that description",
     "cat": "server",
     "where": [
-      "server.js:920"
+      "server.js:921"
     ]
   },
   "e29465da56a30135": {
     "text": "the config-manipulation engine is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:943"
+      "server.js:944"
     ]
   },
   "020034a3e7c22a8c": {
     "text": "text (an SBC config excerpt) is required",
     "cat": "server",
     "where": [
-      "server.js:949"
+      "server.js:950"
     ]
   },
   "546478ca51bb0dbb": {
     "text": "the config-guide library is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:1024"
+      "server.js:1025"
     ]
   },
   "540a07c7e762b016": {
     "text": "this build of lib/kb.js cannot add documents",
     "cat": "server",
     "where": [
-      "server.js:1075"
+      "server.js:1076"
     ]
   },
   "e27a75ef46fcc316": {
     "text": "document exceeds the",
     "cat": "server",
     "where": [
-      "server.js:1087"
+      "server.js:1088"
     ]
   },
   "402ff74fd64be7f1": {
     "text": "this build of lib/kb.js cannot add links",
     "cat": "server",
     "where": [
-      "server.js:1127"
+      "server.js:1128"
     ]
   },
   "2a59e817abd5fd84": {
     "text": "this build of lib/kb.js cannot delete documents",
     "cat": "server",
     "where": [
-      "server.js:1167"
+      "server.js:1168"
     ]
   },
   "f9cb3b7e6e30bdb9": {
     "text": "document not found",
     "cat": "server",
     "where": [
-      "server.js:1178"
+      "server.js:1179"
     ]
   },
   "3f951aec7bc91ff5": {
     "text": "this build has no feedback module",
     "cat": "server",
     "where": [
-      "server.js:1198"
+      "server.js:1199"
     ]
   },
   "c63c0aa33a970b76": {
     "text": "admin only",
     "cat": "server",
     "where": [
-      "server.js:1242"
+      "server.js:1243"
     ]
   },
   "766bccfadc60d6b3": {
     "text": "comment is required",
     "cat": "server",
     "where": [
-      "server.js:1272"
+      "server.js:1273"
     ]
   },
   "f08c15b90c9cd570": {
     "text": "too many submissions — try again later",
     "cat": "server",
     "where": [
-      "server.js:1276"
+      "server.js:1277"
     ]
   },
   "8433e48ee25ebe05": {
     "text": "send {\"confirm\":\"DELETE\"} to confirm this irreversible deletion",
     "cat": "server",
     "where": [
-      "server.js:1374"
+      "server.js:1375"
     ]
   },
   "750fa3e5656e2d66": {
     "text": "send {\"confirm\":\"ERASE\"} to confirm erasing your data",
     "cat": "server",
     "where": [
-      "server.js:1442"
+      "server.js:1443"
     ]
   },
   "b107b578f662fb05": {
     "text": "cross-origin request refused",
     "cat": "server",
     "where": [
-      "server.js:1610"
+      "server.js:1611"
     ]
   },
   "e8d4274657ed2599": {
     "text": "action must be 'status' or 'restart'",
     "cat": "server",
     "where": [
-      "server.js:1617"
+      "server.js:1618"
     ]
   },
   "c9025488a137cf6c": {
     "text": "Not supervised by the hiccup service (state:",
     "cat": "server",
     "where": [
-      "server.js:1647"
+      "server.js:1648"
     ]
   },
   "3fb3204d07f649c4": {
     "text": "no such feedback",
     "cat": "server",
     "where": [
-      "server.js:1730"
+      "server.js:1731"
     ]
   },
   "2668e3335367971b": {
     "text": "no feedback module",
     "cat": "server",
     "where": [
-      "server.js:1753"
+      "server.js:1754"
     ]
   },
   "b5872077e7138177": {
     "text": "no digestRecipient configured",
     "cat": "server",
     "where": [
-      "server.js:1767"
+      "server.js:1768"
     ]
   },
   "3e230b47bf9bb8d3": {
     "text": "no mail module",
     "cat": "server",
     "where": [
-      "server.js:1771"
+      "server.js:1772"
     ]
   },
   "d1638c2147bb7e7d": {
     "text": "this build of lib/kb.js cannot search",
     "cat": "server",
     "where": [
-      "server.js:1798"
+      "server.js:1799"
     ]
   },
   "5337ea8f8150b659": {
     "text": "q (a search query) is required",
     "cat": "server",
     "where": [
-      "server.js:1803"
+      "server.js:1804"
     ]
   },
   "d53aa13ba29ffd09": {
     "text": "the teams module is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:1853",
-      "server.js:1870",
-      "server.js:1882",
-      "server.js:1903",
-      "server.js:1926",
-      "server.js:1976"
+      "server.js:1854",
+      "server.js:1871",
+      "server.js:1883",
+      "server.js:1904",
+      "server.js:1927",
+      "server.js:1977"
     ]
   },
   "b4557baf45c6a947": {
     "text": "this invite link is invalid or has expired",
     "cat": "server",
     "where": [
-      "server.js:1908",
-      "server.js:1936"
+      "server.js:1909",
+      "server.js:1937"
     ]
   },
   "d7bf7c6c99ed4407": {
     "text": "token is required",
     "cat": "server",
     "where": [
-      "server.js:1931"
+      "server.js:1932"
     ]
   },
   "baa0a3344e8c0331": {
     "text": "joined the team, but could not load the account",
     "cat": "server",
     "where": [
-      "server.js:1964"
+      "server.js:1965"
     ]
   },
   "3696efafd4e94786": {
     "text": "role or suspended is required",
     "cat": "server",
     "where": [
-      "server.js:1984"
+      "server.js:1985"
     ]
   },
   "8085f74c9d35d6d7": {
     "text": "Only the team owner can change member roles.",
     "cat": "server",
     "where": [
-      "server.js:1990"
+      "server.js:1991"
     ]
   },
   "0136bec8180be8a5": {
     "text": "Only a team owner or admin can suspend members.",
     "cat": "server",
     "where": [
-      "server.js:2002"
+      "server.js:2003"
     ]
   },
   "00adf0d1bc93484d": {
     "text": "Only a team owner or admin can remove members.",
     "cat": "server",
     "where": [
-      "server.js:2023"
+      "server.js:2024"
     ]
   },
   "408635fc82cc11a8": {
     "text": "Only the team owner can transfer ownership.",
     "cat": "server",
     "where": [
-      "server.js:2045"
+      "server.js:2046"
     ]
   },
   "4bf96ced8828fabd": {
     "text": "the projects module is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:2061",
-      "server.js:2074",
-      "server.js:2097",
-      "server.js:2123"
+      "server.js:2062",
+      "server.js:2075",
+      "server.js:2098",
+      "server.js:2124"
     ]
   },
   "0d9aceb8b8384b7f": {
     "text": "project not found",
     "cat": "server",
     "where": [
-      "server.js:2103",
-      "server.js:2129",
-      "server.js:2134"
+      "server.js:2104",
+      "server.js:2130",
+      "server.js:2135"
     ]
   },
   "8c827ee96db5d1cd": {
     "text": "messages array is required",
     "cat": "server",
     "where": [
-      "server.js:2456"
+      "server.js:2457"
     ]
   },
   "ecfc526de8ae3814": {
     "text": "local model is offline",
     "cat": "server",
     "where": [
-      "server.js:2467"
+      "server.js:2468"
     ]
   },
   "fec5f0616fdf6dd0": {
     "text": "hiccup is busy answering another question — try again in a moment",
     "cat": "server",
     "where": [
-      "server.js:2486"
+      "server.js:2487"
     ]
   },
   "1ab14d1c2578506a": {
     "text": "email and password are required",
     "cat": "server",
     "where": [
-      "server.js:2517",
-      "server.js:2539"
+      "server.js:2518",
+      "server.js:2540"
     ]
   },
   "98c716c4e947ddc8": {
     "text": "wrong email or password",
     "cat": "server",
     "where": [
-      "server.js:2544"
+      "server.js:2545"
     ]
   },
   "f470143a26c5b7c9": {
     "text": "credential is required",
     "cat": "server",
     "where": [
-      "server.js:2555"
+      "server.js:2556"
     ]
   },
   "08565cf8a3e3ee3a": {
     "text": "not found",
     "cat": "server",
     "where": [
-      "server.js:2703",
-      "server.js:2724",
-      "server.js:2784",
-      "server.js:2877"
+      "server.js:2704",
+      "server.js:2725",
+      "server.js:2785",
+      "server.js:2878"
     ]
   }
 }

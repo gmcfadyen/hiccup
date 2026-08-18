@@ -805,5 +805,7 @@
   "Remove the link \"{0}\"?": "Supprimer le lien « {0} » ?",
   "Title": "Titre",
   "link": "lien",
-  "this build of lib/kb.js cannot add links": "cette version de lib/kb.js ne peut pas ajouter de liens"
+  "this build of lib/kb.js cannot add links": "cette version de lib/kb.js ne peut pas ajouter de liens",
+  "privacy": "confidentialité",
+  "Read the privacy notice": "Lire la notice de confidentialité"
 }
