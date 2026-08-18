@@ -329,6 +329,14 @@
     if (name && state.user) name.textContent = state.user.name || state.user.email || '';
 
     wireStatic();
+    // On a narrow viewport the stacked layout has nowhere to put a fixed,
+    // always-open drawer without covering the panes underneath (WCAG 2.2
+    // §1.4.10 Reflow) -- start closed there, matching app.css's own
+    // max-width: 1080px stacking breakpoint. Desktop keeps the Wave-4
+    // default-open behaviour unchanged.
+    if (window.matchMedia && window.matchMedia('(max-width: 1080px)').matches) {
+      state.chatOpen = false;
+    }
     applyDrawerOpen();   // reflect the default-open drawer without stealing focus
     fillRfplexPromo();
     ensureChatRfplexLine();

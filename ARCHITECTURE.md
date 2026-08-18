@@ -1435,3 +1435,118 @@ match RFC 3261's actual `token` grammar, (2) relax the version/status-line
 match to warn-and-skip rather than silently ignore on a near-miss, (3) bound
 the body-consumption loop by remaining-file-length and warn when
 `Content-Length` doesn't fit what's left.
+
+---
+
+# Wave 5 — global keyboard layer, command palette, skeleton loading states
+
+Follow-up from a UI review against current (2023+) industry guidelines. Two
+independent additions, briefed together here since the first two share
+keyboard-handling infrastructure:
+
+## A. Global keyboard layer + command palette
+
+**The gap**: `app.js` has several per-element `keydown` handlers (row
+navigation inside specific lists, table headers, the chat input) but no
+app-wide shortcut layer and no command palette — both close to universal in
+this class of tool by 2024-2026 (GitHub, Linear, VS Code, Raycast, Gmail).
+hiccup already has a rich field-filtered search bar (`#search-input`) for
+*capture content* — the palette below is deliberately for *navigation and
+actions*, not a replacement for that search, to avoid merging two different
+search domains into one component.
+
+**Hard rule, non-negotiable**: every global single-key binding (`/`, `j`,
+`k`, `?`, `Escape`) MUST be suppressed whenever focus is inside an
+`<input>`, `<textarea>`, `[contenteditable]`, or `<select>` — check
+`document.activeElement` (or the event target) at the top of the global
+handler and bail out immediately for those cases, letting the keystroke
+reach the field normally. This is the single most common bug in shortcut
+layers (typing "j" into the search box must type the letter "j", never
+navigate). `Ctrl/Cmd+K` (the palette opener) is the one exception — it
+should fire even from inside most inputs (matching every peer tool's
+convention), EXCEPT while the user is actively composing chat input
+(`#chat-input`) or the HMR paste textarea, where a stray Ctrl/Cmd+K would be
+surprising mid-thought — use judgement, document the choice.
+
+**Global bindings** (all inactive while typing in a field, per the rule
+above, except where noted):
+- `/` — focus `#search-input` (matches GitHub/Gmail convention for a
+  dedicated, unmodified search-focus key).
+- `j` / `k` — move the selection down/up one row in whichever list last had
+  a selection change (the calls tree `#filter-tree` or the numbered
+  `#selection-list`) — track "last active list" as a small piece of state,
+  default to the calls tree when nothing has been selected yet this
+  session.
+- `Escape` — context-sensitive, in this priority order: if the command
+  palette is open, close it; else if `#search-input` is focused with a
+  query, clear and blur it; else if the chat drawer is open AND the
+  viewport is the narrow/stacked layout (drawer isn't the always-open
+  desktop default there), close it; else do nothing (never fight the
+  browser's own Escape behaviour, e.g. exiting fullscreen).
+- `?` (only when not typing in a field) — open a lightweight shortcuts-help
+  overlay listing every binding here. Undiscoverable shortcuts have near-zero
+  value; this is not optional polish, it's the point.
+- `Ctrl/Cmd+K` — open the command palette (below).
+
+**Command palette**: a centred overlay (own component, not reusing the chat
+drawer or any existing modal), opened by `Ctrl/Cmd+K` or a small icon button
+you may add to the topbar, closed by `Escape` or a click outside. Contains a
+single text input (fuzzy-matches against action labels — simple substring +
+subsequence scoring is sufficient, no need for a scoring library) and a
+scrollable result list, arrow-key navigable, `Enter` executes the
+highlighted action, mouse click executes directly. Seed action set (extend
+sensibly if an obvious one is missing, don't feel bound to exactly this
+list): switch to workbench/HMR/guides/team pages, toggle light/dark theme,
+open/close the ask-hiccup drawer, jump to a specific info-pane tab
+(Contents/Packet Info/Media) when a capture is loaded, open the
+manage-projects panel, sign out. Do NOT fold capture-content search into
+this component — that stays `#search-input`'s job.
+
+Accessibility: the palette traps focus while open (Tab cycles within it,
+doesn't leak to the page behind), returns focus to whatever had it before
+opening when closed, uses `role="dialog"` `aria-modal="true"` with a visible
+label, and its own result list uses `aria-activedescendant` or equivalent
+roving-tabindex pattern rather than moving real DOM focus per keystroke.
+The `?` help overlay follows the same dialog/focus-trap pattern.
+
+New ids/classes: your choice, follow the existing kebab-case convention
+(e.g. `#command-palette`, `#shortcuts-help`) — nothing here is a frozen
+contract id since it's new UI, just be internally consistent and put a
+short comment at first use documenting the id like every other pane already
+does in `app.html`'s CONTRACT comment block (append to it, don't remove
+anything from it).
+
+## B. Skeleton loading states during upload + analysis
+
+**The gap**: `#upload-msg` shows a text status line during
+`POST /api/captures`, but the calls tree, ladder and info panes stay in
+their plain empty state (or, for a second upload, their *previous* capture's
+content) until the response lands, then populate all at once. Modern
+pattern (GitHub, Linear, Slack) is a skeleton placeholder shaped like the
+eventual content, replacing spinner-and-wait for anything likely to take
+more than ~300ms — analysis of a large pcap is exactly that case.
+
+Add skeleton placeholder rendering for the period between upload start and
+the analysis response landing:
+- `#filter-tree`: 3-4 pulsing placeholder rows shaped like tree rows (a
+  short indented bar + a shorter sub-label bar), not real content.
+- `#ladder-svg-host`: a placeholder host-column header band + a few faint
+  horizontal row bars, echoing the real ladder's layout without claiming to
+  show real data.
+- `#selection-list`: 3-4 placeholder rows matching the numbered-table shape.
+- Keep `#upload-msg`'s existing busy text — the skeletons are additive, not
+  a replacement for that status line.
+- Skeleton CSS: a subtle shimmer/pulse animation using existing tokens only
+  (`--panel2`/`--border` for the placeholder bars, a soft opacity pulse) —
+  respect `prefers-reduced-motion` exactly like the rest of the app already
+  does (swap the shimmer for a static, slightly-dimmed placeholder when
+  reduced motion is requested; grep app.css for the existing
+  `@media (prefers-reduced-motion: reduce)` block and add to it, don't
+  create a second one).
+- Show skeletons only while `POST /api/captures` for a *fresh* upload is in
+  flight (not while merely switching between already-loaded captures in the
+  sidebar list, which should stay instant) — key it off the upload
+  fetch's own pending state, not a generic "app busy" flag.
+- Clear skeletons and render real content on both success and failure paths
+  (a failed/422 upload must not leave skeletons stuck forever — fall back to
+  the normal empty state with the error surfaced via `#upload-msg.err`).
