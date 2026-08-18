@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIP 488 Not Acceptable Here — causes and what to check — hiccup</title>
+<meta name="description" content="What a SIP 488 Not Acceptable Here really means: codec mismatch, payload-type disagreement, SRTP vs RTP, a rejected T.38 re-INVITE — and the exact things to look for in the trace.">
+<link rel="canonical" href="https://hiccup.monster/sip/488-not-acceptable-here">
+<script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="SIP 488 Not Acceptable Here — causes and what to check">
+<meta property="og:description" content="488 is an SDP verdict. Here is what makes an offer unacceptable, and what to look for in the trace.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/sip/488-not-acceptable-here">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "SIP 488 Not Acceptable Here — causes and what to check",
+  "description": "What a SIP 488 Not Acceptable Here really means, the causes that are common in the field, and what to look for in a packet capture.",
+  "url": "https://hiccup.monster/sip/488-not-acceptable-here",
+  "inLanguage": "en",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "Session Initiation Protocol" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/sip">SIP failure reference</a><span>/</span>488 Not Acceptable Here
+  </nav>
+
+  <article class="ref">
+
+    <h1>SIP 488 Not Acceptable Here</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> 488 is a verdict on the SDP, not on the call.
+      Something in the offer was unusable at that particular endpoint — usually the codec
+      list, the payload-type mapping, or the transport profile. Read the last offer sent
+      <em>before</em> the 488, not the 488 itself.</p>
+    </div>
+
+    <h2>What the response actually means</h2>
+    <p>
+      RFC 3261 defines 488 as "some aspect of the session description or the Request-URI is
+      not acceptable <em>here</em>" — at this resource, right now. The "here" is load-bearing:
+      it is the reason 488 exists separately from 606 Not Acceptable, which is the same
+      rejection made on behalf of the user everywhere rather than at one device.
+    </p>
+    <p>
+      In practice, in ninety-odd percent of traces, 488 means the RFC 3264 offer/answer
+      exchange failed: the answerer could not construct an answer it was prepared to use.
+      Do not confuse it with 415 Unsupported Media Type, which is about the body's
+      content type (the far end could not parse or would not accept
+      <code>application/sdp</code>, or choked on a multipart body), not about its contents.
+    </p>
+
+    <h2>Read the Warning header first</h2>
+    <p>
+      Many implementations attach a <code>Warning</code> header to the 488, and the
+      three-digit warn-code narrows the search enormously:
+    </p>
+    <ul>
+      <li><code>304</code> media type not available — the <code>m=</code> line itself
+      (audio, video, image) was unwanted.</li>
+      <li><code>305</code> incompatible media format — the classic "no codec in common".</li>
+      <li><code>306</code> / <code>307</code> attribute or session description parameter not
+      understood — an <code>a=</code> line the far end rejected rather than ignored.</li>
+      <li><code>300</code> / <code>301</code> / <code>302</code> incompatible network
+      protocol, address format or transport — IPv4 versus IPv6, or RTP/AVP versus
+      RTP/SAVP.</li>
+      <li><code>370</code> insufficient bandwidth — usually a <code>b=</code> line or a
+      policy limit.</li>
+      <li><code>399</code> miscellaneous — the vendor could not be bothered, but the free
+      text after it is often specific and worth reading.</li>
+    </ul>
+
+    <h2>What actually causes it</h2>
+
+    <h3>No codec in common</h3>
+    <p>
+      The default suspicion, and it is right often enough. One side offers G.729 only,
+      the other has PCMA/PCMU only, and there is no transcoding licence in between — or
+      there is a transcoder, but the call is taking a path that bypasses it. The tell is
+      that the two <code>m=audio</code> payload-type lists have an empty intersection once
+      you exclude <code>telephone-event</code> and comfort noise, which are not media in
+      their own right and cannot carry the call on their own.
+    </p>
+
+    <h3>The codec matches but the payload type does not</h3>
+    <p>
+      Dynamic payload types (96–127) are chosen per direction, and strictly speaking each
+      side may number them as it likes. Plenty of equipment is not that liberal. The usual
+      casualty is RFC 4733 <code>telephone-event</code> at PT 101 on one leg and 96 on the
+      other, or an <code>a=fmtp:101 0-15</code> against <code>0-16</code>. An SBC that
+      renumbers one leg and forwards the other unchanged produces exactly this.
+    </p>
+
+    <h3>Secure versus clear media</h3>
+    <p>
+      An offer with <code>m=audio ... RTP/SAVP</code> and <code>a=crypto</code> lines
+      arriving at a leg configured for plain <code>RTP/AVP</code> is unanswerable, and vice
+      versa. Even when both sides do SRTP, the SDES crypto suites have to intersect —
+      <code>AES_CM_128_HMAC_SHA1_80</code> against a peer offering only
+      <code>..._32</code> fails the same way. DTLS-SRTP
+      (<code>UDP/TLS/RTP/SAVP</code>) offered to an SDES-only box is a third variant of the
+      same mismatch.
+    </p>
+
+    <h3>A T.38 re-INVITE the carrier will not take</h3>
+    <p>
+      Fax calls answer in G.711, then the terminating gateway detects CNG/CED and sends a
+      re-INVITE switching to <code>m=image ... udptl t38</code>. If the trunk does not
+      support T.38, that re-INVITE comes back 488. This is normal and survivable — the
+      gateway is supposed to fall back to G.711 pass-through — but many do not, and the fax
+      dies while the voice call would have been fine. If your 488 happens two to five
+      seconds after answer on a fax number, this is what you are looking at.
+    </p>
+
+    <h3>An extra media line</h3>
+    <p>
+      Offering video, BFCP or MSRP to a box that handles audio only should produce an answer
+      with that <code>m=</code> line zeroed, not a rejection of the whole session. Not every
+      implementation does the polite thing. The same applies to unexpected
+      <code>a=</code> attributes: ICE, <code>rtcp-mux</code> and bundle attributes are
+      supposed to be ignored when unsupported.
+    </p>
+
+    <h2>What to check in the trace</h2>
+    <ol>
+      <li>Find the last SDP <em>offer</em> before the 488, and confirm which direction it
+      travelled. The 488 answers whoever sent that offer.</li>
+      <li>Diff the two <code>m=</code> lines and their <code>a=rtpmap</code> /
+      <code>a=fmtp</code> sets side by side. Codec names, payload numbers and fmtp
+      parameters — all three.</li>
+      <li>Compare the transport profile token on the <code>m=</code> line, and the presence
+      or absence of <code>a=crypto</code>.</li>
+      <li>Read the <code>Warning</code> header, and any body on the 488: a helpful
+      implementation returns its own capabilities as SDP.</li>
+      <li>Establish whether the SBC generated the 488 itself or relayed it. A 488 that
+      appears on the ingress leg with no matching failure on the egress leg was made
+      locally, which points at your codec policy rather than the carrier's.</li>
+      <li>If it is a re-INVITE, check what changed against the original offer. Very often
+      exactly one thing did, and that thing is the answer.</li>
+    </ol>
+
+    <h2>Two nuances worth knowing</h2>
+    <p>
+      A 488 to a <em>re-INVITE</em> does not end the call. RFC 3261 is explicit that when a
+      re-INVITE fails, the session parameters stay as they were, as if it had never been
+      sent. If the call dropped anyway, something above the transaction layer decided to
+      drop it, and that decision is a separate finding.
+    </p>
+    <p>
+      In a delayed-offer call — an INVITE with no SDP — the offer arrives in the 200 OK and
+      the answer goes in the ACK. There is no response code left to reject with, so the same
+      negotiation failure surfaces as an immediate BYE, often carrying a
+      <code>Reason</code> header, a second or two after answer. If you are hunting a codec
+      problem and cannot find a 488, look for that BYE.
+    </p>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> diffs the two legs of an SBC call automatically and reports
+      codec lists that narrowed, payload types that were renumbered and crypto lines that
+      appeared or vanished — as findings, next to the ladder. Self-hosted, free while in
+      beta.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+    <nav class="ref-more" aria-label="related pages">
+      See also:
+      <ul>
+        <li><a href="/sip/408-request-timeout">408 Request Timeout</a> — when nothing comes back at all.</li>
+        <li><a href="/sip/one-way-audio">One-way audio</a> — when the SDP was accepted and the media still did not flow.</li>
+        <li><a href="/sip">All SIP failure reference pages</a></li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

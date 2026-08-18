@@ -570,6 +570,14 @@
       // Unfiled (the default) omits the header entirely — the capture just
       // gets projectId: null server-side, same as before projects existed.
       if (state.uploadProjectId) headers['X-Project-Id'] = state.uploadProjectId;
+      // Number masking (GDPR). Only sent when the user has actually expressed
+      // a preference on /settings — otherwise the header is omitted entirely
+      // and the server's config default decides, which keeps "no opinion"
+      // distinct from "explicitly wants them unmasked".
+      try {
+        var maskPref = localStorage.getItem('hiccup-mask-numbers');
+        if (maskPref === '1' || maskPref === '0') headers['X-Mask-Numbers'] = maskPref;
+      } catch (e) { /* storage blocked — fall back to the server default */ }
       var r = await fetch('/api/captures', {
         method: 'POST',
         headers: headers,

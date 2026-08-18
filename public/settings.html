@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hiccup — settings</title>
+<meta name="robots" content="noindex">
+<script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/app.css">
+<style>
+  .topbar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 18px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar-spacer { flex: 1 1 auto; }
+  .logo { font-size: 20px; font-weight: 700; color: var(--text); }
+  .logo:hover { text-decoration: none; }
+  .logo-bump { position: relative; top: -3px; display: inline-block; color: var(--accent); }
+
+  .set-page { max-width: 780px; margin: 0 auto; padding: 22px 20px 64px; }
+  .set-card { margin-top: 16px; padding: 16px 18px; }
+  .set-card h2 { font-size: 15px; margin: 0 0 4px; }
+  .set-lede { color: var(--muted); font-size: 13.5px; margin: 0 0 12px; }
+  .set-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 14px; padding: 10px 0; border-top: 1px solid var(--border);
+  }
+  .set-row:first-of-type { border-top: 0; }
+  .set-row-text { min-width: 0; }
+  .set-row-title { font-weight: 600; font-size: 14px; }
+  .set-row-help { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .set-row-action { flex: none; }
+  .set-danger { border-color: var(--crit); }
+  .set-danger h2 { color: var(--crit); }
+  .btn-danger { border-color: var(--crit); color: var(--crit); }
+  .btn-danger:hover { background: var(--crit); color: #fff; }
+  .set-fact { font-size: 13px; color: var(--muted); }
+  .set-fact b { color: var(--text); font-weight: 600; }
+  .set-confirm { margin-top: 10px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .set-confirm .input { max-width: 220px; }
+</style>
+</head>
+<!--
+  hiccup — account settings.
+
+  Exists because the GDPR rights built in the previous wave were API-only:
+  export and erasure are not real rights if the only way to exercise them is
+  curl. Every control here is a thin wrapper over an endpoint that is itself
+  authenticated and authorised server-side; this page is convenience, never
+  the access control.
+-->
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/app" aria-label="hiccup">hic<span class="logo-bump">c</span>up</a>
+  <nav class="topnav" aria-label="tools">
+    <a class="topnav-link" href="/app">workbench</a>
+    <a class="topnav-link" href="/hmr">HMR</a>
+    <a class="topnav-link" href="/kb">guides</a>
+    <a class="topnav-link" href="/team">team</a>
+    <a class="topnav-link is-current" href="/settings" aria-current="page">settings</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+</header>
+
+<main class="set-page">
+  <h1>Settings</h1>
+  <p class="set-lede" id="set-who">loading…</p>
+  <p id="set-msg" class="feedback-msg" role="status" aria-live="polite"></p>
+
+  <section class="card set-card">
+    <h2>Privacy of your captures</h2>
+    <p class="set-lede">Traces routinely contain phone numbers. These control what
+      hiccup keeps in the analysis it builds from them.</p>
+
+    <div class="set-row">
+      <div class="set-row-text">
+        <div class="set-row-title">Mask phone numbers in new uploads</div>
+        <div class="set-row-help">Shows numbers as <span class="mono">+3361…00</span> in the
+          analysis — still enough to follow a call across legs, without keeping the
+          full number. Your uploaded file is never altered, only what hiccup derives
+          from it.</div>
+      </div>
+      <div class="set-row-action">
+        <select id="set-mask" class="input">
+          <option value="">use the server default</option>
+          <option value="1">always mask</option>
+          <option value="0">never mask</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="set-row">
+      <div class="set-row-text">
+        <div class="set-row-title">How long captures are kept</div>
+        <div class="set-row-help" id="set-retention">checking…</div>
+      </div>
+    </div>
+
+    <div class="set-row">
+      <div class="set-row-text">
+        <div class="set-row-title">Who else can see your captures</div>
+        <div class="set-row-help" id="set-sharing">checking…</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card set-card">
+    <h2>Your data</h2>
+    <p class="set-lede">Everything hiccup holds about this account.</p>
+
+    <div class="set-row">
+      <div class="set-row-text">
+        <div class="set-row-title">Download a copy</div>
+        <div class="set-row-help">One JSON file: your account record, capture list,
+          projects, team, library documents and any feedback you have sent. Capture
+          file contents are not included — download those individually from the
+          workbench.</div>
+      </div>
+      <div class="set-row-action">
+        <a class="btn" id="set-export" href="/api/me/export">Download</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="card set-card set-danger">
+    <h2>Delete this account</h2>
+    <p class="set-lede">Irreversible. There is no undo and no backup to restore from.</p>
+    <div class="set-row">
+      <div class="set-row-text">
+        <div class="set-row-title">What this removes</div>
+        <div class="set-row-help" id="set-delete-scope">checking…</div>
+      </div>
+      <div class="set-row-action">
+        <button class="btn btn-danger" id="set-delete-start" type="button">Delete account</button>
+      </div>
+    </div>
+    <div class="set-confirm" id="set-delete-confirm" hidden>
+      <label for="set-delete-word" class="set-fact">Type <b>DELETE</b> to confirm:</label>
+      <input class="input mono" id="set-delete-word" type="text" autocomplete="off" placeholder="DELETE">
+      <button class="btn btn-danger" id="set-delete-go" type="button" disabled>Delete permanently</button>
+      <button class="btn" id="set-delete-cancel" type="button">Cancel</button>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function say(text, isErr) {
+    var m = $('set-msg');
+    m.textContent = text || '';
+    m.className = 'feedback-msg' + (isErr ? ' is-err' : (text ? ' is-ok' : ''));
+  }
+
+  // --- number masking preference -------------------------------------------
+  // Stored client-side and sent by app.js as X-Mask-Numbers on upload. Kept
+  // local rather than on the user record deliberately: it needs no new server
+  // state, and an empty value means "no opinion" so the server default still
+  // decides — which is different from explicitly choosing not to mask.
+  var maskSel = $('set-mask');
+  try { maskSel.value = localStorage.getItem('hiccup-mask-numbers') || ''; } catch (e) { /* blocked */ }
+  maskSel.addEventListener('change', function () {
+    try {
+      if (maskSel.value === '') localStorage.removeItem('hiccup-mask-numbers');
+      else localStorage.setItem('hiccup-mask-numbers', maskSel.value);
+      say('Saved. This applies to captures you upload from now on.');
+    } catch (e) {
+      say('Could not save — this browser is blocking local storage.', true);
+    }
+  });
+
+  // --- delete flow ---------------------------------------------------------
+  var word = $('set-delete-word');
+  $('set-delete-start').addEventListener('click', function () {
+    $('set-delete-confirm').hidden = false;
+    word.focus();
+  });
+  $('set-delete-cancel').addEventListener('click', function () {
+    $('set-delete-confirm').hidden = true;
+    word.value = '';
+    $('set-delete-go').disabled = true;
+  });
+  word.addEventListener('input', function () {
+    $('set-delete-go').disabled = word.value !== 'DELETE';
+  });
+  $('set-delete-go').addEventListener('click', async function () {
+    $('set-delete-go').disabled = true;
+    say('Deleting…');
+    try {
+      var r = await fetch('/api/me', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: 'DELETE' })
+      });
+      var d = {};
+      try { d = await r.json(); } catch (e) { /* non-json */ }
+      if (!r.ok) { say((d && d.error) || 'Could not delete the account.', true); return; }
+      document.body.innerHTML = '<main class="set-page"><h1>Account deleted</h1>' +
+        '<p class="set-lede"></p></main>';
+      document.querySelector('.set-lede').textContent =
+        (d.note || 'Your account has been removed.') +
+        ' Captures removed: ' + ((d.removed && d.removed.captures) || 0) + '.';
+    } catch (e) {
+      say('Could not reach the server.', true);
+      $('set-delete-go').disabled = false;
+    }
+  });
+
+  // --- load account context ------------------------------------------------
+  (async function load() {
+    var me = null;
+    try {
+      var r = await fetch('/api/me');
+      if (r.status === 401) { location = '/'; return; }
+      me = (await r.json()).user;
+    } catch (e) { say('Could not reach the server.', true); return; }
+
+    $('set-who').textContent = 'Signed in as ' + me.email +
+      (me.createdAt ? ' · member since ' + new Date(me.createdAt).toLocaleDateString() : '');
+
+    // Retention + sharing are facts about THIS deployment, so read them from
+    // the server rather than restating a policy this page cannot verify.
+    try {
+      var cr = await fetch('/api/config/public');
+      var cfg = cr.ok ? await cr.json() : {};
+      var days = Number(cfg.captureRetentionDays || 0);
+      $('set-retention').textContent = days > 0
+        ? ('Captures are deleted automatically ' + days + ' days after upload.')
+        : 'Captures are kept until you delete them. No automatic expiry is configured on this server.';
+      var d = cfg.maskNumbersByDefault === false ? 'not masked' : 'masked';
+      maskSel.options[0].textContent = 'use the server default (' + d + ')';
+    } catch (e) {
+      $('set-retention').textContent = 'Could not read the retention policy from the server.';
+    }
+
+    var onTeam = false;
+    try {
+      var tr = await fetch('/api/team');
+      if (tr.ok) {
+        var tv = await tr.json();
+        onTeam = !!(tv && tv.team);
+        $('set-sharing').textContent = onTeam
+          ? ('You are on the team "' + (tv.team.name || 'team') + '". Captures uploaded ' +
+             'by any member are visible to every member — the library is shared, not per-person.')
+          : 'Only you. Your captures are not visible to any other account.';
+      } else {
+        $('set-sharing').textContent = 'Only you.';
+      }
+    } catch (e) { $('set-sharing').textContent = 'Only you.'; }
+
+    // Being explicit here matters: on a team the shared library is NOT yours
+    // to destroy, and someone about to delete their account deserves to know
+    // that before they click, not after.
+    $('set-delete-scope').textContent = onTeam
+      ? 'Your account, your membership of the team, and your personal records. ' +
+        'The team\'s shared capture library stays with the team — deleting your ' +
+        'account does not remove your colleagues\' data.'
+      : 'Your account, every capture you have uploaded, your projects and your ' +
+        'library documents. Feedback you sent is kept but no longer linked to you.';
+  })();
+})();
+</script>
+<script src="/theme.js"></script>
+</body>
+</html>

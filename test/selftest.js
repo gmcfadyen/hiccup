@@ -1186,6 +1186,73 @@ async function main() {
     eq(m.isConfigured(dir), false, 'partial config treated as configured');
   });
 
+  // ------------------------------------------------------- retention sweep
+  // An irreversible bulk delete on a timer. The tests that matter are the ones
+  // proving it does NOT delete: disabled, dry-run, boundary, and undated.
+
+  await t('retention: 0/negative/non-numeric all disable the sweep entirely', () => {
+    const r = require(path.join(ROOT, 'lib', 'retention.js'));
+    for (const v of [0, -5, 'soon', null, undefined, NaN]) {
+      eq(r.sweep(TMP_DATA, v).enabled, false, 'days=' + JSON.stringify(v));
+    }
+    eq(r.sweepIfDue(TMP_DATA, 0).skipped, 'disabled', 'sweepIfDue at 0');
+  });
+
+  await t('retention: deletes only what is past the limit, keeps the rest', () => {
+    const r = require(path.join(ROOT, 'lib', 'retention.js'));
+    const st = require(path.join(ROOT, 'lib', 'store.js'));
+    const dir = path.join(TMP_DATA, 'ret-' + Date.now());
+    const DAY = 86400000;
+    const mk = (uid, id, ageDays, undated) => {
+      const d = st.captureDir(dir, uid, id);
+      fs.mkdirSync(d, { recursive: true });
+      const meta = { id, filename: id + '.pcap' };
+      if (!undated) meta.uploadedAt = new Date(Date.now() - ageDays * DAY).toISOString();
+      st.saveJson(path.join(d, 'meta.json'), meta);
+      fs.writeFileSync(path.join(d, 'original.bin'), 'x');
+    };
+    mk('user_a', 'recent', 1);
+    mk('user_a', 'ancient', 40);
+    mk('user_a', 'boundary', 30);
+    mk('user_a', 'undated', 99, true);
+    // A team's shared library lives under the TEAM's accountUid, which is not
+    // a user id — the sweep must find it by walking the filesystem, not users.
+    mk('team_b', 'teamold', 60);
+
+    const dry = r.sweep(dir, 30, { dry: true });
+    eq(dry.removed, 2, 'dry run count');
+    ok(fs.existsSync(st.captureDir(dir, 'user_a', 'ancient')), 'dry run actually deleted something');
+
+    const out = r.sweep(dir, 30);
+    eq(out.removed, 2, 'removed count');
+    eq(out.accounts, 2, 'walked both accounts (incl. the team library)');
+    ok(!fs.existsSync(st.captureDir(dir, 'user_a', 'ancient')), 'over-limit capture survived');
+    ok(!fs.existsSync(st.captureDir(dir, 'team_b', 'teamold')), 'over-limit team capture survived');
+    ok(fs.existsSync(st.captureDir(dir, 'user_a', 'recent')), 'recent capture was deleted');
+    // "Keep for 30 days" must not delete on day 30 — see the whole-day note in
+    // retention.js. This errs toward keeping, which is the safe side.
+    ok(fs.existsSync(st.captureDir(dir, 'user_a', 'boundary')), 'boundary capture deleted on day 30');
+    // Deleting something whose age cannot be established is worse than keeping it.
+    ok(fs.existsSync(st.captureDir(dir, 'user_a', 'undated')), 'undated capture deleted on a guess');
+    eq(out.skippedUndated, 1, 'undated not reported as skipped');
+  });
+
+  await t('retention: scheduling is restart-safe (once a day, no skipped day)', () => {
+    const r = require(path.join(ROOT, 'lib', 'retention.js'));
+    const dir = path.join(TMP_DATA, 'retsched-' + Date.now());
+    fs.mkdirSync(dir, { recursive: true });
+    eq(r.sweepDue(dir), true, 'due before the first run');
+    r.sweepIfDue(dir, 30);
+    eq(r.sweepDue(dir), false, 'still due right after a run');
+    eq(r.sweepIfDue(dir, 30).skipped, 'already swept today', 'ran twice in one day');
+    eq(r.sweepIfDue(dir, 30, { force: true }).enabled, true, 'force did not override');
+    // A dry run must not consume the day, or the real sweep never happens.
+    const d2 = path.join(TMP_DATA, 'retdry-' + Date.now());
+    fs.mkdirSync(d2, { recursive: true });
+    r.sweepIfDue(d2, 30, { dry: true });
+    eq(r.sweepDue(d2), true, 'dry run stamped the day');
+  });
+
   console.log('NOTE (wave3): HTTP-route-level behavior — a malformed X-Project-Id header or ?project=' +
     ' filter degrading to a clean 4xx, and a suspended member\'s existing session 401ing on the next ' +
     'request — is NOT exercised by this file. server.js has no module.exports and calls server.listen() ' +

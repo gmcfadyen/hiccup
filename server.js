@@ -1,6 +1,7 @@
 // server.js — hiccup HTTP server: routes, auth glue, capture upload/analysis,
-// chat proxy, advice/HMR/KB routes, static files. Plain node http, zero runtime
-// dependencies (pdf-parse is an optionalDependency used only inside lib/kb.js).
+// chat proxy, advice/HMR/KB routes, static files, robots/sitemap. Plain node
+// http, zero runtime dependencies (pdf-parse is an optionalDependency used only
+// inside lib/kb.js).
 // Contract: ARCHITECTURE.md §HTTP API + §Wave 2 §New routes. Windows-safe paths.
 'use strict';
 
@@ -560,6 +561,137 @@ function serveStatic(res, urlPath) {
 function notFoundText(res) {
   res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
   res.end('not found');
+}
+
+// ---------------------------------------------------------------------------
+// The crawlable surface
+// ---------------------------------------------------------------------------
+
+/**
+ * Clean URL -> file under public/, for every page a signed-out visitor can
+ * usefully read. This is the whole of hiccup that belongs in a search index:
+ * the workbench, HMR, the config guides and /team all need a session, and a
+ * crawler that reaches them gets a login redirect and an empty shell.
+ *
+ * It is one table rather than another chain of ifs because /sitemap.xml is
+ * generated from the same entries — a page added here becomes routable AND
+ * crawlable in a single edit, so the router and the sitemap cannot drift apart.
+ * A Map rather than an object literal, so that a request for /__proto__ or
+ * /constructor resolves to nothing at all.
+ */
+const PUBLIC_PAGES = new Map([
+  ['/', 'index.html'],
+  ['/sip', 'sip/index.html'],
+  ['/sip/488-not-acceptable-here', 'sip/488-not-acceptable-here.html'],
+  ['/sip/408-request-timeout', 'sip/408-request-timeout.html'],
+  ['/sip/486-busy-here', 'sip/486-busy-here.html'],
+  ['/sip/one-way-audio', 'sip/one-way-audio.html'],
+  ['/sip/retransmissions', 'sip/retransmissions.html'],
+]);
+
+/**
+ * The absolute origin to put in crawler-facing documents.
+ *
+ * config.baseUrl already knows hiccup's public name — it is what team invite
+ * links are built from (lib/teams.js) — so reuse it rather than reading the
+ * request's Host header, which is client-controlled and would let a visitor
+ * dictate the hostnames in our own sitemap.
+ * @returns {string} origin with no trailing slash
+ */
+function publicOrigin() {
+  const configured = String(config.baseUrl || '').trim().replace(/\/+$/, '');
+  return configured || 'http://' + HOST + ':' + PORT;
+}
+
+/**
+ * Escape text for XML character data. Only needed because publicOrigin() comes
+ * out of an operator-edited config.json and is not guaranteed to be clean.
+ * @param {string} s
+ * @returns {string}
+ */
+function xmlEscape(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/**
+ * GET /robots.txt — the crawl policy.
+ *
+ * Note what this is not: every path below is already behind requireAuth, and
+ * robots.txt is advisory in any case. It exists to keep auth-walled URLs out of
+ * search results — where they are noise for the searcher and a dead end for the
+ * crawler — not to protect them.
+ * @param {http.ServerResponse} res
+ */
+function handleRobots(res) {
+  const body = [
+    '# hiccup — the analyser needs a session. Only the landing page and the',
+    '# /sip reference are worth crawling.',
+    'User-agent: *',
+    'Disallow: /api/',
+    'Disallow: /admin/',
+    'Disallow: /app',
+    'Disallow: /hmr',
+    'Disallow: /kb',
+    'Disallow: /team',
+    'Disallow: /settings',
+    // A single-use token in the query string. Nothing to index, and an indexed
+    // invite URL would be an indexed credential.
+    'Disallow: /accept-invite',
+    // Last, and deliberately so: a bare "Allow: /" placed above the Disallow
+    // lines would undo every one of them on a first-match-wins crawler.
+    'Allow: /',
+    '',
+    'Sitemap: ' + publicOrigin() + '/sitemap.xml',
+    '',
+  ].join('\n');
+  res.writeHead(200, {
+    'Content-Type': 'text/plain; charset=utf-8',
+    'Cache-Control': 'no-cache',
+  });
+  res.end(body);
+}
+
+/**
+ * GET /sitemap.xml — PUBLIC_PAGES rendered as a urlset.
+ *
+ * lastmod comes from each file's mtime rather than a literal date, because a
+ * literal starts lying the day after it is typed and nothing in a deploy would
+ * ever remind anyone to update it. Deploys here are file copies, so the mtime is
+ * the one timestamp that cannot disagree with what is actually being served. A
+ * page whose file is missing is dropped rather than advertised as a 404.
+ *
+ * The stat calls are synchronous: there are seven of them, on a route a crawler
+ * visits about once a day, and the async plumbing would cost more to read than
+ * it could ever save.
+ * @param {http.ServerResponse} res
+ */
+function handleSitemap(res) {
+  const origin = publicOrigin();
+  const entries = [];
+  for (const [urlPath, file] of PUBLIC_PAGES) {
+    let stat;
+    try {
+      stat = fs.statSync(path.join(PUBLIC_DIR, file));
+    } catch {
+      continue;
+    }
+    entries.push('  <url>\n' +
+      '    <loc>' + xmlEscape(origin + urlPath) + '</loc>\n' +
+      '    <lastmod>' + stat.mtime.toISOString().slice(0, 10) + '</lastmod>\n' +
+      '  </url>');
+  }
+  const body = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+    entries.join('\n') + '\n' +
+    '</urlset>\n';
+  res.writeHead(200, {
+    'Content-Type': 'application/xml; charset=utf-8',
+    'Cache-Control': 'no-cache',
+  });
+  res.end(body);
 }
 
 // ---------------------------------------------------------------------------
@@ -2212,6 +2344,11 @@ async function handle(req, res) {
       appName: 'hiccup',
       googleClientId: config.googleClientId || null,
       freeBeta: true,
+      // Facts about THIS deployment that /settings states to the user. Public
+      // because they describe how the box treats data, which is precisely what
+      // someone deciding whether to upload a trace needs to know up front.
+      captureRetentionDays: Number(config.captureRetentionDays) || 0,
+      maskNumbersByDefault: config.maskNumbersByDefault !== false,
     });
     return;
   }
@@ -2441,7 +2578,12 @@ async function handle(req, res) {
 
   // --- pages + static ---
   if (method === 'GET' || method === 'HEAD') {
-    if (pathname === '/') return servePublicFile(res, 'index.html');
+    if (pathname === '/robots.txt') return handleRobots(res);
+    if (pathname === '/sitemap.xml') return handleSitemap(res);
+    // The landing page and the /sip reference: one table, shared with the
+    // sitemap (see PUBLIC_PAGES).
+    const publicPage = PUBLIC_PAGES.get(pathname);
+    if (publicPage) return servePublicFile(res, publicPage);
     if (pathname === '/app') return servePublicFile(res, 'app.html');
     if (pathname === '/hmr') return servePublicPage(res, 'hmr.html');
     if (pathname === '/kb') return servePublicPage(res, 'kb.html');
@@ -2450,6 +2592,7 @@ async function handle(req, res) {
     // The page itself is served to anyone signed in; every /api/admin/* call it
     // makes is separately gated, so an ordinary user just gets an empty shell
     // and 403s rather than a leak.
+    if (pathname === '/settings') return servePublicPage(res, 'settings.html');
     if (pathname === '/admin/feedback') return servePublicPage(res, 'admin-feedback.html');
     if (pathname === '/admin/status') return servePublicPage(res, 'admin-status.html');
     return serveStatic(res, pathname);
@@ -2495,7 +2638,48 @@ server.listen(PORT, HOST, () => {
     console.log('hiccup: NOTE — running without the analysis engine; uploads return 501');
   }
   startFeedbackDigestTimer();
+  startRetentionTimer();
 });
+
+/**
+ * GDPR Art. 5(1)(e): delete captures past config.captureRetentionDays.
+ *
+ * Polled hourly rather than daily for the same reason the digest is polled:
+ * the schedule decision lives in lib/retention.js as "has today's sweep run
+ * yet?", so a restart at any hour still gets exactly one sweep that day.
+ * Disabled (0) is the default and is announced at boot — an unenforced
+ * retention policy should be visible in the log, not silent.
+ */
+function startRetentionTimer() {
+  const days = Number(config.captureRetentionDays) || 0;
+  if (days <= 0) {
+    console.log('hiccup: capture retention disabled (captureRetentionDays: 0) — captures are kept until deleted');
+    return;
+  }
+  let retention;
+  try { retention = require('./lib/retention'); } catch {
+    console.error('hiccup: captureRetentionDays is set but lib/retention.js is missing — nothing will be deleted');
+    return;
+  }
+  const tick = () => {
+    try {
+      const out = retention.sweepIfDue(DATA_DIR, days);
+      if (out && out.removed) {
+        console.log('hiccup: retention sweep removed ' + out.removed + ' capture(s) older than ' + days + ' days');
+      }
+      if (out && out.skippedUndated) {
+        console.log('hiccup: retention sweep skipped ' + out.skippedUndated +
+          ' capture(s) with no readable upload date (kept, not guessed at)');
+      }
+    } catch (e) {
+      console.error('hiccup: retention sweep failed: ' + ((e && e.message) || e));
+    }
+  };
+  const timer = setInterval(tick, 3600 * 1000);
+  if (typeof timer.unref === 'function') timer.unref();
+  tick();
+  console.log('hiccup: capture retention armed — deleting captures older than ' + days + ' days');
+}
 
 /**
  * Wave 6: weekly feedback digest.

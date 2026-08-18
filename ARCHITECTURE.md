@@ -1732,3 +1732,76 @@ page-level fields — the same allow-list, fewer populated keys.
 
 The widget owns `#feedback-open` (topbar button), `#feedback-modal`,
 `#feedback-form`, `#feedback-context-toggle` and `#feedback-context-pre`.
+
+---
+
+# Wave 7 — The crawlable surface
+
+The analyser is behind a session, so before this wave the landing page was the
+entire indexable site: one hero, one auth card, nothing for a search engine to
+rank and nothing for an engineer to land on. Wave 7 adds a small public
+reference section and the crawler plumbing around it.
+
+## New routes
+
+```
+GET /robots.txt                 -> text/plain   crawl policy (no auth)
+GET /sitemap.xml                -> application/xml   urlset built from PUBLIC_PAGES
+GET /sip                        -> public/sip/index.html               (hub)
+GET /sip/488-not-acceptable-here
+GET /sip/408-request-timeout
+GET /sip/486-busy-here
+GET /sip/one-way-audio
+GET /sip/retransmissions        -> public/sip/*.html
+```
+
+## `PUBLIC_PAGES` — one table, two consumers
+
+`server.js` holds a `Map` of clean URL → file under `public/`, and both the
+router and `/sitemap.xml` read it. Adding a reference page is therefore a single
+edit: it cannot become routable-but-uncrawlable, or listed-but-404. It is a Map
+rather than an object literal so `/__proto__` resolves to nothing.
+
+`lastmod` comes from each file's `mtime`, never a literal date — a literal would
+start lying the day after it was typed and no deploy step would ever catch it.
+A page whose file is missing is dropped from the sitemap rather than advertised
+as a 404, matching how the optional-module requires degrade elsewhere.
+
+The origin in both documents comes from `config.baseUrl` (the same value
+`lib/teams.js` builds invite links from), not from the request's `Host` header,
+which a client controls.
+
+## Crawl policy
+
+`robots.txt` disallows `/api/`, `/admin/`, `/app`, `/hmr`, `/kb`, `/team` and
+`/accept-invite`. This is a statement about *usefulness*, not secrecy — every one
+of those is already behind `requireAuth`, and robots.txt is advisory. The bare
+`Allow: /` is deliberately placed **after** the disallows: above them, a
+first-match-wins crawler would treat it as overriding every line.
+
+Every auth-gated page also carries `<meta name="robots" content="noindex">`
+(`app.html`, `hmr.html`, `team.html`, `accept-invite.html`, and the two admin
+pages, which already had it). `accept-invite.html` is public in the sense that it
+needs no session, but its URL *is* a single-use token — an indexed invite link is
+an indexed credential.
+
+## The reference pages
+
+`public/sip/*.html`: five short pages (488, 408, 486, one-way audio,
+retransmissions) plus a hub at `public/sip/index.html`, each written for someone
+who has the trace open already. They carry a canonical link, Open Graph and
+Twitter tags, and a `TechArticle` (hub: `CollectionPage`) JSON-LD block.
+`index.html` gained a canonical link, a `SoftwareApplication` block and an `h1`
+— the wordmark above the tagline is CSS artwork, so the landing page had no
+heading a crawler could read at all.
+
+Structured data claims only what is checkable against `LICENSE`, `package.json`
+and the page itself: **no `aggregateRating`, no `reviewCount`, no author
+organisation**. There are no reviews and there is no company, and inventing
+either is both untrue and a manual-action risk.
+
+`public/sip.css` styles them. It restates app.css's topbar block rather than
+linking `app.css`, because these pages are the one part of hiccup served to
+people who have not signed in and ~60KB of workbench grid, ladder and chat-drawer
+rules would be entirely unused. That duplication is the known cost: if the shared
+topbar ever moves, it moves in two files.

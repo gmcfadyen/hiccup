@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>One-way audio on a SIP call — causes and what to check — hiccup</title>
+<meta name="description" content="The call connects and one side hears nothing. Private addresses in the c= line, latching that never happened, media anchored on one leg only, SRTP key mismatches — and how to prove which one it is from a capture.">
+<link rel="canonical" href="https://hiccup.monster/sip/one-way-audio">
+<script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="One-way audio on a SIP call — causes and what to check">
+<meta property="og:description" content="Signalling succeeded and the media did not. The usual causes, and how to prove which one it is from a capture.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/sip/one-way-audio">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "One-way audio on a SIP call — causes and what to check",
+  "description": "Why a SIP call can connect cleanly and still carry audio in only one direction, and how to identify the cause from a packet capture.",
+  "url": "https://hiccup.monster/sip/one-way-audio",
+  "inLanguage": "en",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "Real-time Transport Protocol" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/sip">SIP failure reference</a><span>/</span>One-way audio
+  </nav>
+
+  <article class="ref">
+
+    <h1>One-way audio on a SIP call</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> the signalling agreed on where to send media; the
+      media went there and did not arrive, or never left. Every cause below is a
+      disagreement between what the SDP promised and what the network permits — so the whole
+      investigation is "compare the <code>c=</code>/<code>m=</code> pair with the packets
+      that actually flowed".</p>
+    </div>
+
+    <h2>Get the direction right first</h2>
+    <p>
+      "A cannot hear B" means <em>B's</em> media is not reaching A. Half the time lost in
+      these investigations is spent looking at the wrong stream because the fault was
+      reported from the listener's point of view and then debugged from the sender's. Write
+      down which endpoint is silent, invert it once, and stick to that.
+    </p>
+
+    <h2>What actually causes it</h2>
+
+    <h3>A private address in the SDP</h3>
+    <p>
+      The endpoint is behind NAT and advertised <code>c=IN IP4 192.168.x.x</code>. The far
+      end dutifully sends RTP to an address that means something quite different on its own
+      network, and the packets are dropped or delivered to an innocent third party. Your
+      side hears fine; theirs hears nothing. This is the single most common cause, and it is
+      visible in the SDP without any media analysis at all.
+    </p>
+
+    <h3>Latching that never happened</h3>
+    <p>
+      Most SBCs and media gateways handle the case above by ignoring the advertised address
+      and learning the real one from the source of the first inbound RTP packet — latching,
+      or symmetric RTP. It only works if the far end sends first. If both ends are waiting
+      to receive before they transmit, or the far end is on hold, or an announcement server
+      only speaks when spoken to, nothing latches and the stream stays one-way until
+      something breaks the deadlock.
+    </p>
+
+    <h3>Nothing opened the pinhole</h3>
+    <p>
+      A stateful firewall or NAT lets inbound RTP through because outbound RTP created a
+      binding for that port pair. An endpoint that receives before it sends therefore
+      depends on a pinhole that does not exist yet. Same failure mode as latching, one layer
+      down, and it explains why "the first two seconds are missing" and "there is no audio at
+      all" are frequently the same bug seen at different timings.
+    </p>
+
+    <h3>Media anchored on one leg only</h3>
+    <p>
+      If the SBC relays media on the access leg but releases it on the core leg — direct
+      media, media bypass, whatever the vendor calls it — then the two endpoints must have
+      real IP connectivity to each other. Often they do not, and often it works in one
+      direction because only one of them is behind something. Check whether the
+      <code>c=</code> address the SBC advertised is the SBC's own media interface or the
+      other endpoint's.
+    </p>
+
+    <h3>Direction attributes and hold</h3>
+    <p>
+      <code>a=sendonly</code>, <code>a=recvonly</code> and <code>a=inactive</code> mean
+      exactly what they say, and RFC 3264 requires the answer to mirror the offer correctly.
+      Legacy hold using <code>c=IN IP4 0.0.0.0</code> still exists in the field. A box that
+      puts a call on hold and then resumes it with an SDP the other side ignores leaves you
+      with audio in one direction from the moment of resume — which is why "it worked until
+      someone transferred the call" is a direction-attribute bug until proven otherwise.
+    </p>
+
+    <h3>Encrypted media that cannot be decrypted</h3>
+    <p>
+      With SRTP, a key or crypto-suite mismatch produces packets that arrive, fail their
+      authentication check and get discarded. The capture looks healthy — correct
+      addresses, correct rate, no loss — and there is still silence. If you can see RTP
+      arriving at the receiving interface and the receiver still reports nothing, encryption
+      is high on the list.
+    </p>
+
+    <h2>What to check in the trace</h2>
+    <ol>
+      <li>For each leg, read the <code>c=</code> address and the <code>m=</code> port out of
+      both the offer and the answer. Those four values are the contract.</li>
+      <li>Count RTP packets per direction, per five-tuple. Zero packets and plenty of
+      packets are very different diagnoses, and "some packets" (a few hundred then nothing)
+      is a third.</li>
+      <li>Compare the destination of each stream with the other side's advertised
+      <code>c=</code>/<code>m=</code>. A stream going somewhere that was never advertised is
+      your answer.</li>
+      <li>Note who transmitted first, and how long after the 200 OK. Latching problems have
+      a signature: one side starts immediately, the other never does.</li>
+      <li>Look for ICMP port-unreachable coming back from the media destination. It is
+      unambiguous proof that the packets are arriving at a host that is not listening on
+      that port.</li>
+      <li>Watch for a mid-call SSRC change or a sequence-number discontinuity. Those mark
+      the moment media was re-anchored, which is usually a re-INVITE you have not read
+      yet.</li>
+      <li>Check the payload types in the RTP headers against the negotiated ones, and
+      whether the profile is <code>RTP/AVP</code> or <code>RTP/SAVP</code>.</li>
+      <li>Capture on <em>both</em> legs. A one-vantage-point capture cannot distinguish
+      "we never sent it" from "we sent it and it was dropped downstream", and that
+      distinction is the entire question.</li>
+    </ol>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> pulls the media streams out of the capture alongside the
+      SIP, matches each one against the SDP that was supposed to describe it, and flags
+      streams that went somewhere nobody advertised. Self-hosted, free while in beta.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+    <nav class="ref-more" aria-label="related pages">
+      See also:
+      <ul>
+        <li><a href="/sip/488-not-acceptable-here">488 Not Acceptable Here</a> — when the same SDP disagreement is caught during negotiation instead.</li>
+        <li><a href="/sip/retransmissions">Retransmissions and retransmission storms</a> — the signalling-side equivalent of packets that never arrive.</li>
+        <li><a href="/sip">All SIP failure reference pages</a></li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>
