@@ -4,8 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>hiccup — workbench</title>
+<meta name="robots" content="noindex">
 <script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
-<link rel="icon" href="/logo.svg" type="image/svg+xml">
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
 <link rel="stylesheet" href="/hiccup.css">
 <link rel="stylesheet" href="/app.css">
 </head>
@@ -84,12 +88,13 @@
 <a class="skip-link" href="#ladder-pane">skip to the ladder</a>
 
 <header class="topbar">
-  <a class="logo" href="/app" aria-label="hiccup">hic<span class="logo-bump">c</span>up</a>
+  <a class="logo" href="/app" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
   <nav class="topnav" aria-label="tools">
     <a class="topnav-link is-current" href="/app" aria-current="page">workbench</a>
     <a class="topnav-link" href="/hmr">HMR</a>
     <a class="topnav-link" href="/kb">guides</a>
     <a class="topnav-link" href="/team">team</a>
+    <a class="topnav-link" href="/settings">settings</a>
   </nav>
   <span class="topbar-spacer"></span>
   <span id="llm-chip" class="chip llm-chip" title="local model status">LLM …</span>
@@ -100,6 +105,7 @@
           aria-haspopup="dialog" aria-label="Open the command palette"
           title="Commands — Ctrl+K (⌘K on a Mac)">⌘</button>
   <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <button id="feedback-open" class="btn" type="button" title="Send feedback about hiccup">feedback</button>
   <a class="coffee-link" href="https://buymeacoffee.com/mcfadyen" target="_blank" rel="noopener">☕ Buy Me a Coffee</a>
   <span id="user-name" class="user-name mono"></span>
   <button id="logout-btn" class="btn" type="button">Sign out</button>
@@ -133,7 +139,7 @@
       </div>
       <div id="capture-list" class="capture-list scroll-area">
         <p class="pane-empty">no captures yet — drop a pcap or an SBC log above and
-        hiccup analyses it on upload.</p>
+        the monster gets to work.</p>
       </div>
     </div>
 
@@ -191,14 +197,15 @@
     <!-- CONTRACT #lamps — one .lamp[data-key][data-state] per Indicator -->
     <div id="lamps" class="lamps scroll-x" role="group" aria-label="protocol indicators">
       <span class="lamps-empty">indicators light up once a capture is analysed — one lamp
-      per protocol feature hiccup found, dim when absent.</span>
+      per protocol feature hiccup found.</span>
     </div>
 
+    <!-- No "absent" swatch: renderLamps() drops off-state indicators entirely,
+         so the legend only names states that can actually appear. -->
     <div class="lamp-legend" aria-label="lamp legend">
       <span class="lamp lamp-legend-item" data-state="on" aria-hidden="true">present</span>
       <span class="lamp lamp-legend-item" data-state="partial" aria-hidden="true">partial</span>
       <span class="lamp lamp-legend-item" data-state="issue" aria-hidden="true">issue</span>
-      <span class="lamp lamp-legend-item" data-state="off" aria-hidden="true">absent</span>
     </div>
   </div>
 
@@ -330,6 +337,13 @@
      stacking breakpoint with the drawer open, where the drawer covers the
      stacked panes and is therefore modal. Click closes. -->
 <div id="chat-scrim" class="chat-scrim" aria-hidden="true"></div>
+
+<!-- #sev-hovercard — the flagged-message summary shown on hover/focus of a
+     warn or crit row, from the ladder and the selection list alike. app.js
+     fills and positions it (position:fixed, viewport coords) and it is
+     pointer-events:none, so it never steals the hover that opened it. role
+     =status + aria-live=polite announces it without stealing focus. -->
+<div id="sev-hovercard" role="status" aria-live="polite" hidden></div>
 
 <aside id="chat-drawer" class="chat-drawer" aria-label="ask hiccup">
   <div class="chat-head">
@@ -597,5 +611,6 @@
 <script src="/ladder.js"></script>
 <script src="/app.js"></script>
 <script src="/theme.js"></script>
+<script src="/feedback.js"></script>
 </body>
 </html>

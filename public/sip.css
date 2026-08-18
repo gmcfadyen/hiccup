@@ -1,0 +1,254 @@
+/*
+ * sip.css — the public SIP failure reference (/sip and its pages).
+ *
+ * These pages are the only part of hiccup a signed-out visitor or a crawler
+ * ever sees, so they deliberately do NOT link app.css: that file is ~60KB of
+ * workbench-only rules (the five-pane grid, the ladder, the chat drawer) and
+ * none of it applies here. The cost of that decision is the topbar block
+ * below, which restates app.css's shared chrome so the reference pages wear
+ * the same header as the app. Keep the two in sync if the topbar ever moves.
+ *
+ * Everything else builds on hiccup.css's primitives (.card .chip .btn .container
+ * and the theme variables) and adds nothing to them.
+ */
+
+/* ---------- topbar (mirrors app.css §topbar) ---------- */
+
+.topbar {
+  flex: none;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar .logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  text-decoration: none;
+}
+
+.topbar .logo:hover { text-decoration: none; }
+
+.topbar .logo .brand-mark { height: 30px; }
+.topbar .logo .brand-wordmark { height: 26px; }
+
+.topbar-spacer { flex: 1 1 auto; }
+
+.topnav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 10px;
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+}
+
+.topnav-link {
+  padding: 3px 9px;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.topnav-link:hover {
+  background: var(--panel2);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.topnav-link.is-current {
+  color: var(--text);
+  background: var(--panel2);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.topbar .btn { padding: 4px 10px; font-size: 13px; }
+.topbar .icon-btn { padding: 0; }
+
+/* ---------- page shell ---------- */
+
+.page {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 22px 20px 56px;
+}
+
+.page-head h1 { font-size: 26px; margin-bottom: 6px; }
+.page-lede { color: var(--muted); max-width: 80ch; }
+
+.crumbs {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+
+.crumbs a { color: var(--muted); }
+.crumbs a:hover { color: var(--accent); }
+.crumbs span { padding: 0 4px; }
+
+/* ---------- the reference article ---------- */
+
+/*
+ * Prose measure, not the 1040px shell: long technical paragraphs are unreadable
+ * at full width, but the tables and <pre> blocks inside them are not — hence the
+ * measure lives on the text elements rather than on the article itself.
+ */
+.ref h2 {
+  font-size: 19px;
+  margin: 30px 0 8px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.ref h2:first-of-type { border-top: none; padding-top: 0; }
+
+.ref h3 {
+  font-size: 15.5px;
+  color: var(--accent);
+  margin: 20px 0 4px;
+}
+
+.ref p,
+.ref li { max-width: 78ch; }
+
+.ref ul,
+.ref ol {
+  margin: 0 0 0.9em;
+  padding-left: 22px;
+}
+
+.ref li { margin-bottom: 6px; }
+
+.ref code {
+  font-size: 13.5px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+.ref pre {
+  max-width: 78ch;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ref pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* Tables carry the timer values, which are the one thing on these pages a reader
+   may come back for — so they get their own scroll rather than being allowed to
+   wrap a column into unreadability on a phone. */
+.ref-table-wrap {
+  max-width: 78ch;
+  margin-bottom: 0.9em;
+  overflow-x: auto;
+}
+
+.ref-table-wrap table { min-width: 460px; }
+.ref-table-wrap td { font-size: 14px; }
+
+/* The one-line answer at the top of every page: what the failure means, before
+   any of the "it depends". Tinted by severity like the findings in the app. */
+.ref-verdict {
+  margin: 0 0 24px;
+  padding: 14px 16px;
+  border-radius: 0 8px 8px 0;
+  background: var(--tint-warn);
+  box-shadow: inset 3px 0 0 var(--warn);
+  max-width: 78ch;
+}
+
+.ref-verdict p { margin: 0; }
+.ref-verdict strong { color: var(--text); }
+
+/* ---------- the hub page's page list ---------- */
+
+.ref-index {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ref-index li { margin: 0; max-width: none; }
+
+.ref-index .card {
+  display: block;
+  height: 100%;
+  padding: 16px 18px;
+  color: inherit;
+}
+
+.ref-index .card:hover {
+  border-color: var(--border-strong);
+  background: var(--panel2);
+  text-decoration: none;
+}
+
+.ref-index h2 {
+  font-size: 16px;
+  color: var(--accent);
+  margin: 0 0 4px;
+  border: none;
+  padding: 0;
+}
+
+.ref-index p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* ---------- see-also + call to action ---------- */
+
+.ref-cta {
+  margin-top: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.ref-cta p { margin: 0; max-width: 60ch; }
+.ref-cta .btn { flex: none; }
+
+.ref-more {
+  margin-top: 24px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.ref-more ul {
+  margin: 6px 0 0;
+  padding-left: 22px;
+}
+
+.site-footer {
+  text-align: center;
+  padding: 24px 20px 40px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.site-footer p { margin: 0 0 6px; }
+
+@media (max-width: 720px) {
+  .ref-index { grid-template-columns: 1fr; }
+  .topnav { margin-left: 4px; padding-left: 6px; }
+}

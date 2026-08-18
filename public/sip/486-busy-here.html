@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIP 486 Busy Here — causes and what to check — hiccup</title>
+<meta name="description" content="486 Busy Here is not always a busy phone: call admission control, a full hunt group and Q.850 cause 17 from the PSTN all arrive wearing the same code. How to tell them apart in a trace.">
+<link rel="canonical" href="https://hiccup.monster/sip/486-busy-here">
+<script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="SIP 486 Busy Here — causes and what to check">
+<meta property="og:description" content="Call admission control, full hunt groups and Q.850 cause 17 all arrive as 486. How to tell them apart in a trace.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/sip/486-busy-here">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "SIP 486 Busy Here — causes and what to check",
+  "description": "What a SIP 486 Busy Here means beyond a busy phone, including admission control and Q.850 cause 17 from the PSTN, and what to look for in a packet capture.",
+  "url": "https://hiccup.monster/sip/486-busy-here",
+  "inLanguage": "en",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "Session Initiation Protocol" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/sip">SIP failure reference</a><span>/</span>486 Busy Here
+  </nav>
+
+  <article class="ref">
+
+    <h1>SIP 486 Busy Here</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> 486 means "contacted successfully, not taking calls
+      at this device". Whether that is a phone with a call in progress or a policy engine
+      turning you away is decided by <em>how fast</em> it came back and <em>which box</em>
+      sent it.</p>
+    </div>
+
+    <h2>What the response actually means</h2>
+    <p>
+      RFC 3261 is careful about the scope. 486 says the request reached the callee's end
+      system and that end system will not take another call — but it explicitly leaves room
+      for somewhere else to answer, which is why a proxy is entitled to keep trying other
+      contacts or a voicemail system. Its neighbours differ in exactly that respect:
+    </p>
+    <ul>
+      <li><strong>480 Temporarily Unavailable</strong> — contacted, but nothing there to
+      ring: not registered, logged out, do-not-disturb.</li>
+      <li><strong>603 Decline</strong> — the user was asked and actively refused.</li>
+      <li><strong>600 Busy Everywhere</strong> — busy on behalf of the user everywhere, so
+      stop looking. Rare in practice, and a proxy is obliged to take a 6xx seriously.</li>
+    </ul>
+    <p>
+      A 486 may carry <code>Retry-After</code>. It is worth reading, because a machine that
+      bothers to tell you when to come back is usually doing capacity control rather than
+      reporting a human being on the phone.
+    </p>
+
+    <h2>What actually causes it</h2>
+
+    <h3>Admission control on an SBC or PBX</h3>
+    <p>
+      Session limits, concurrent-call caps per trunk or per customer, and burst-rate limits
+      all have to reject something once they bite. Which code they use is vendor- and
+      configuration-dependent — 486 and 503 are both common — so the code alone does not
+      identify the mechanism. The load pattern does: capacity rejections cluster at busy
+      hour, apply across unrelated destinations, and stop when concurrency drops.
+    </p>
+
+    <h3>A full hunt group, queue or line appearance</h3>
+    <p>
+      The PBX has run out of places to put the call. Distinguishable from a busy handset
+      because the rejection typically arrives before any 180 Ringing, and repeats for every
+      caller into that group rather than for one extension.
+    </p>
+
+    <h3>Q.850 cause 17 arriving from the PSTN</h3>
+    <p>
+      On an interworked call, RFC 3398 maps ISUP cause 17 (user busy) onto 486, and back
+      the other way. If the far end is a gateway, look for a <code>Reason</code> header
+      (RFC 3326) of the form <code>Reason: Q.850;cause=17;text="user busy"</code>. That
+      header is the single most useful thing in the whole message: it tells you the verdict
+      was made in the TDM network, not by any SIP element in your path, and it hands you the
+      cause value to take to the carrier.
+    </p>
+    <p>
+      Beware the sibling cause: 34, "no circuit/channel available", is congestion rather
+      than a busy user and maps to 503. If a carrier is returning 486 where you would expect
+      34, that is worth a conversation, because the two are handled very differently by
+      most retry logic.
+    </p>
+
+    <h3>A genuinely busy device</h3>
+    <p>
+      Still real. Many phones also emit 486 rather than 603 when the user presses the reject
+      key, so a 486 that lands a second or two <em>after</em> 180 Ringing usually means a
+      human, and a 486 that lands before any ringing usually does not.
+    </p>
+
+    <h2>What to check in the trace</h2>
+    <ol>
+      <li>Time from INVITE to 486. Under about 100 ms means the decision was local to the
+      first box in the path — no signalling had time to reach a phone.</li>
+      <li>Whether a 180 Ringing preceded it, and whether the <code>To</code> tag on the 486
+      matches the branch that was ringing.</li>
+      <li><code>Reason</code>, <code>Retry-After</code>, <code>Warning</code>, and any
+      <code>Server</code> or <code>User-Agent</code> header. Vendors are much more candid in
+      these than the status line suggests.</li>
+      <li>Via depth: did the 486 traverse the whole path, or does it appear only on your
+      ingress leg with no corresponding rejection on the egress leg? The second case means
+      your own SBC decided it.</li>
+      <li>Concurrency at that moment. Count the calls that were up on the same trunk when
+      the rejection happened, and compare it with a configured limit. Admission control is
+      the only cause on this list that correlates with a number.</li>
+      <li>Whether the call forked. With a forking proxy, one branch returning 486 does not
+      end the call — the proxy picks a single final response from all branches, preferring a
+      6xx if one arrived and otherwise the lowest response class it collected.</li>
+    </ol>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> shows both legs of the call on one ladder with the response
+      timings alongside, so "the carrier said busy" and "we said busy before the carrier ever
+      heard about it" stop looking the same. Self-hosted, free while in beta.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+    <nav class="ref-more" aria-label="related pages">
+      See also:
+      <ul>
+        <li><a href="/sip/408-request-timeout">408 Request Timeout</a> — when nothing answers at all.</li>
+        <li><a href="/sip/488-not-acceptable-here">488 Not Acceptable Here</a> — the other very common rejection.</li>
+        <li><a href="/sip">All SIP failure reference pages</a></li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

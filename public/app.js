@@ -570,6 +570,14 @@
       // Unfiled (the default) omits the header entirely — the capture just
       // gets projectId: null server-side, same as before projects existed.
       if (state.uploadProjectId) headers['X-Project-Id'] = state.uploadProjectId;
+      // Number masking (GDPR). Only sent when the user has actually expressed
+      // a preference on /settings — otherwise the header is omitted entirely
+      // and the server's config default decides, which keeps "no opinion"
+      // distinct from "explicitly wants them unmasked".
+      try {
+        var maskPref = localStorage.getItem('hiccup-mask-numbers');
+        if (maskPref === '1' || maskPref === '0') headers['X-Mask-Numbers'] = maskPref;
+      } catch (e) { /* storage blocked — fall back to the server default */ }
       var r = await fetch('/api/captures', {
         method: 'POST',
         headers: headers,
@@ -1138,20 +1146,51 @@
     return leg && leg.protocol === 'h323' ? 'H.323' : 'SIP';
   }
 
-  function callHasCrit(callId) {
-    var fs = findingsList();
-    for (var i = 0; i < fs.length; i++) {
-      if (fs[i] && fs[i].severity === 'crit' && arr(fs[i].callIds).indexOf(callId) !== -1) return true;
-    }
-    // a crit finding attached only to one of the call's legs still reddens it
+  /**
+   * Findings AND advice, both read for tree-edge severity: some advisor rules
+   * (e.g. the indicator-issue catch-all) go straight from detection to an
+   * Advice card with no backing Finding, so Advice must count on its own too
+   * — see the equivalent fallback in ladder.js's buildSeverityMap().
+   */
+  function findingsAndAdvice() { return findingsList().concat(adviceList()); }
+
+  /**
+   * Worst severity ('crit' | 'warn' | null) tied to this call, directly or via
+   * any of its legs — drives the tree's red/amber left-edge marker so a
+   * problem call is visible without expanding it. Crit always wins over warn.
+   */
+  function worstSeverityForCall(callId) {
+    var fs = findingsAndAdvice();
     var call = state.callById[callId];
     var legIds = call ? arr(call.legIds) : [];
-    for (i = 0; i < fs.length; i++) {
-      if (!fs[i] || fs[i].severity !== 'crit') continue;
-      var lids = arr(fs[i].legIds);
-      for (var j = 0; j < lids.length; j++) { if (legIds.indexOf(lids[j]) !== -1) return true; }
+    var worst = null;
+    for (var i = 0; i < fs.length; i++) {
+      var f = fs[i];
+      if (!f || (f.severity !== 'crit' && f.severity !== 'warn')) continue;
+      var hit = arr(f.callIds).indexOf(callId) !== -1;
+      if (!hit) {
+        var lids = arr(f.legIds);
+        for (var j = 0; j < lids.length && !hit; j++) { if (legIds.indexOf(lids[j]) !== -1) hit = true; }
+      }
+      if (!hit) continue;
+      if (f.severity === 'crit') return 'crit';
+      worst = 'warn';
     }
-    return false;
+    return worst;
+  }
+
+  /** Same idea as worstSeverityForCall(), scoped to a single leg. */
+  function worstSeverityForLeg(legId) {
+    var fs = findingsAndAdvice();
+    var worst = null;
+    for (var i = 0; i < fs.length; i++) {
+      var f = fs[i];
+      if (!f || (f.severity !== 'crit' && f.severity !== 'warn')) continue;
+      if (arr(f.legIds).indexOf(legId) === -1) continue;
+      if (f.severity === 'crit') return 'crit';
+      worst = 'warn';
+    }
+    return worst;
   }
 
   function legRetransCount(legId) {
@@ -1698,7 +1737,7 @@
       hasChildren: lids.length > 0,
       open: open,
       retrans: retrans,
-      edge: callHasCrit(call.id) ? 'crit' : null,
+      edge: worstSeverityForCall(call.id),
       selected: isSelectedNode(sel),
       chip: chip,
       title: 'call ' + call.id + ' \u2014 ' + str(call.state) +
@@ -1731,6 +1770,7 @@
       hasChildren: txs.length > 0,
       open: open,
       retrans: legRetransCount(leg.id),
+      edge: worstSeverityForLeg(leg.id),
       selected: isSelectedNode(sel),
       title: (leg.callId ? 'Call-ID ' + leg.callId + ' \u00b7 ' : '') + 'state ' + str(leg.state) +
         (leg.failCode != null ? ' (' + leg.failCode + ')' : ''),
@@ -2060,8 +2100,17 @@
     node.addEventListener('keydown', function (ev) {
       if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); selectRow(row.rowId); }
     });
-    node.addEventListener('mouseenter', function () { crossHighlight(row.rowId, true); });
-    node.addEventListener('mouseleave', function () { crossHighlight(row.rowId, false); });
+    node.addEventListener('mouseenter', function () {
+      crossHighlight(row.rowId, true);
+      showSevHovercard(row.rowId, node);
+    });
+    node.addEventListener('mouseleave', function () {
+      crossHighlight(row.rowId, false);
+      hideSevHovercard();
+    });
+    // Keyboard parity: the card is reachable without a mouse, same as the row.
+    node.addEventListener('focus', function () { showSevHovercard(row.rowId, node); });
+    node.addEventListener('blur', hideSevHovercard);
     state.selRowEls[row.rowId] = node;
   }
 
@@ -2077,6 +2126,78 @@
     }
     var g = state.gutterRowEls[rowId];
     if (g) g.classList.toggle('is-cross', !!on);
+  }
+
+  // ------------------------------------------------- flagged-row hover card
+
+  /** The advice object behind a row's flag, when the row names one. */
+  function adviceForRow(row) {
+    if (!row || !row.adviceId) return null;
+    var list = adviceList();
+    for (var i = 0; i < list.length; i++) {
+      if (list[i] && list[i].id === row.adviceId) return list[i];
+    }
+    return null;
+  }
+
+  /**
+   * Show the "what's wrong here" card for a warn/crit row near `anchorEl`.
+   * Non-warn/crit rows hide it — every hover path calls this unconditionally
+   * and lets it decide, so there is exactly one place that knows the rule.
+   */
+  function showSevHovercard(rowId, anchorEl) {
+    var card = $('sev-hovercard');
+    if (!card) return;
+    var row = state.rowById[rowId];
+    if (!row || (row.sev !== 'crit' && row.sev !== 'warn') || !anchorEl) {
+      hideSevHovercard();
+      return;
+    }
+
+    var ad = adviceForRow(row);
+    var title = row.adviceTitle || row.findingTitle ||
+      (row.sev === 'crit' ? 'Critical condition on this message' : 'Warning on this message');
+    // whatsWrong is the advisor's plain-English "here is the actual problem"
+    // paragraph — exactly what this card is for. Absent when the flag came
+    // from a bare Finding with no Advice attached; the title still stands alone.
+    var body = ad ? str(ad.whatsWrong) : '';
+
+    clear(card);
+    card.className = 'is-' + row.sev;
+
+    var head = el('div', 'hovercard-head');
+    head.appendChild(el('span', 'hovercard-sev', row.sev === 'crit' ? 'error' : 'warning'));
+    head.appendChild(el('span', 'hovercard-title', title));
+    card.appendChild(head);
+
+    if (body) card.appendChild(el('p', 'hovercard-body', body));
+    if (ad) card.appendChild(el('p', 'hovercard-foot', 'Full advice, fixes and RFC citations are in the ask hiccup panel.'));
+
+    card.hidden = false;
+    positionSevHovercard(card, anchorEl);
+  }
+
+  /**
+   * Place the card beside its anchor, flipping to whichever side has room.
+   * Measured after the card is visible, so getBoundingClientRect is truthful.
+   */
+  function positionSevHovercard(card, anchorEl) {
+    var a = anchorEl.getBoundingClientRect();
+    var c = card.getBoundingClientRect();
+    var pad = 10;
+    var left = a.right + pad;
+    if (left + c.width > window.innerWidth - pad) left = a.left - c.width - pad;
+    if (left < pad) left = pad;
+    var top = a.top;
+    if (top + c.height > window.innerHeight - pad) top = window.innerHeight - c.height - pad;
+    if (top < pad) top = pad;
+    card.style.left = Math.round(left) + 'px';
+    card.style.top = Math.round(top) + 'px';
+  }
+
+  function hideSevHovercard() {
+    var card = $('sev-hovercard');
+    if (card) card.hidden = true;
   }
 
   function selectRow(rowId) {
@@ -2298,8 +2419,11 @@
           zoom: state.zoom,
           onSelect: function (rowId) { selectRow(rowId); },
           onHover: function (rowId) {
-            if (rowId) crossHighlight(rowId, true);
-            else {
+            if (rowId) {
+              crossHighlight(rowId, true);
+              showSevHovercard(rowId, state.ladderRowEls[rowId]);
+            } else {
+              hideSevHovercard();
               for (var k in state.selRowEls) {
                 if (Object.prototype.hasOwnProperty.call(state.selRowEls, k)) {
                   state.selRowEls[k].classList.remove('is-cross');
@@ -2367,11 +2491,17 @@
     var host = $('lamps');
     if (!host) return;
     clear(host);
-    var inds = indicators();
+    // Only what is actually IN this capture. detectIndicators() always returns
+    // the full fixed key set so the shape is stable, but a strip of ~20 dim
+    // "absent" lamps is noise that pushes the real ones off into a scroller \u2014
+    // so the 'off' state is dropped from the UI entirely rather than greyed.
+    var inds = indicators().filter(function (ind) {
+      return ind && ind.key && str(ind.state || 'off') !== 'off';
+    });
     if (!inds.length) {
       host.appendChild(el('span', 'lamps-empty', state.analysis
-        ? 'no protocol indicators for this capture'
-        : 'indicators light up once a capture is analysed \u2014 one lamp per protocol feature hiccup found, dim when absent.'));
+        ? 'no protocol features detected in this capture'
+        : 'indicators light up once a capture is analysed \u2014 one lamp per protocol feature hiccup found.'));
       return;
     }
     for (var i = 0; i < inds.length; i++) {
@@ -3992,7 +4122,7 @@
           sub: call ? (' ' + str(ingress.from || '?') + ' \u2192 ' + str(ingress.to || '?')) : null,
           state: call ? ingress.state : undefined,
           badge: groups[key].length + ' hit' + (groups[key].length === 1 ? '' : 's'),
-          edge: (key && callHasCrit(key)) ? 'crit' : null,
+          edge: key ? worstSeverityForCall(key) : null,
           hasChildren: true,
           open: true,
           selected: !!(call && isSelectedNode({ type: 'call', callId: call.id })),
@@ -4997,6 +5127,84 @@
       trap.release({ restoreFocus: !state.chatOpen });
     }
   }
+
+  // ------------------------------------------------- Wave 6: context probe
+
+  /**
+   * Read-only probe used by feedback.js to describe WHAT IS ON SCREEN without
+   * describing WHAT IS IN THE CAPTURE.
+   *
+   * Everything returned here is either a count, one of hiccup's own generated
+   * ids (c4/d4/s29 — meaningless outside this capture), a SIP protocol verb
+   * (INVITE/486), or a rule/lamp key from hiccup's own vocabulary.
+   *
+   * Deliberately NOT exposed, even though both sit in easy reach on `state`
+   * and would genuinely help reproduce a bug: the capture FILENAME (routinely
+   * carries a customer's name) and state.searchQuery (people search by phone
+   * number). lib/feedback.js would strip them anyway — this is the same
+   * decision enforced at the other end, so neither side can drift alone.
+   * See ARCHITECTURE.md "Wave 6".
+   */
+  window.hiccupContextProbe = function () {
+    var out = {};
+    var a = state.analysis;
+    if (!a) return out;
+
+    var stats = a.stats || {};
+    out.counts = {
+      sip: num0(stats.sipMessages),
+      h323: num0(stats.h323Messages),
+      calls: objs(a.calls).length,
+      legs: objs(a.legs).length,
+      media: mediaStreams().length,
+      aux: auxMessages().length
+    };
+
+    var sc = a.scenario;
+    if (sc && sc.key) {
+      out.scenario = { key: str(sc.key) };
+      if (typeof sc.confidence === 'number') out.scenario.confidence = sc.confidence;
+    }
+
+    out.scopeType = str(state.sel && state.sel.type) || 'capture';
+    var ids = {};
+    if (state.sel && state.sel.callId) ids.callId = str(state.sel.callId);
+    if (state.sel && state.sel.legId) ids.legId = str(state.sel.legId);
+    if (state.sel && state.sel.txKey) ids.txKey = str(state.sel.txKey);
+    if (Object.keys(ids).length) out.scopeIds = ids;
+
+    var row = state.selectedRowId ? state.rowById[state.selectedRowId] : null;
+    if (row) {
+      var sel = { kind: str(row.kind) };
+      // row.obj is the parsed message; only its method/status are read, never
+      // its headers, body or addresses.
+      var m = row.obj || {};
+      if (m.method) sel.method = str(m.method);
+      if (typeof m.status === 'number') sel.status = m.status;
+      if (m.q931Type) sel.method = str(m.q931Type);
+      out.selectedRow = sel;
+    }
+
+    var lamps = [];
+    var inds = indicators();
+    for (var i = 0; i < inds.length; i++) {
+      if (inds[i] && inds[i].key && inds[i].state && inds[i].state !== 'off') {
+        lamps.push({ key: str(inds[i].key), state: str(inds[i].state) });
+      }
+    }
+    if (lamps.length) out.lamps = lamps;
+
+    var ruleIds = [];
+    var adv = adviceList();
+    for (var j = 0; j < adv.length; j++) {
+      if (adv[j] && adv[j].ruleId) ruleIds.push(str(adv[j].ruleId));
+    }
+    if (ruleIds.length) out.adviceRuleIds = ruleIds;
+
+    return out;
+  };
+
+  function num0(v) { return typeof v === 'number' && isFinite(v) ? v : 0; }
 
   // ------------------------------------------------------------------- go
 

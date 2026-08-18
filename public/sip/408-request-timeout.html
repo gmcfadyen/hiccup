@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIP 408 Request Timeout — causes and what to check — hiccup</title>
+<meta name="description" content="Most SIP 408s are minted locally when Timer B expires at 32 seconds. Why the timer fires, what makes the packets disappear, and how to read the silence in a trace.">
+<link rel="canonical" href="https://hiccup.monster/sip/408-request-timeout">
+<script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="SIP 408 Request Timeout — causes and what to check">
+<meta property="og:description" content="Why Timer B fires at 32 seconds, what makes SIP packets disappear, and how to read the silence in a trace.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/sip/408-request-timeout">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "SIP 408 Request Timeout — causes and what to check",
+  "description": "Why a SIP 408 is usually generated locally by Timer B, what makes the packets disappear, and what to look for in a packet capture.",
+  "url": "https://hiccup.monster/sip/408-request-timeout",
+  "inLanguage": "en",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "Session Initiation Protocol" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/sip">SIP failure reference</a><span>/</span>408 Request Timeout
+  </nav>
+
+  <article class="ref">
+
+    <h1>SIP 408 Request Timeout</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> most 408s you see in a CDR were never sent by
+      anybody. Your own stack minted one when its transaction timer expired after 32
+      seconds of silence. The fault is in the packets that are missing, not in the 408.</p>
+    </div>
+
+    <h2>Where a 408 comes from</h2>
+    <p>
+      There are two completely different animals wearing the same number.
+    </p>
+    <p>
+      A <em>received</em> 408 is a real response from a real server that could not produce
+      an answer in time — classically a proxy that could not locate the user quickly enough.
+      These are comparatively rare, and you can see them in the capture as an actual packet
+      with a Via stack.
+    </p>
+    <p>
+      A <em>synthesised</em> 408 is what your UA, proxy or SBC writes into its own logs and
+      CDRs when a transaction times out with no response at all. Nothing crossed the wire.
+      Signalling-layer tools will show it, packet captures will not, and that discrepancy is
+      itself the clue: if the CDR says 408 and the pcap contains no such packet, you are
+      looking at a local timeout.
+    </p>
+
+    <h2>Where 32 seconds comes from</h2>
+    <p>
+      RFC 3261 sets T1 to 500 ms as the default round-trip estimate. For an INVITE over UDP,
+      Timer A starts at T1 and doubles after every retransmission, while Timer B — the
+      transaction timeout — is fixed at 64 × T1 = 32 seconds. That produces the ladder
+      everyone recognises:
+    </p>
+    <pre><code>t=0.0s   INVITE
+t=0.5s   INVITE (retransmit 1)
+t=1.5s   INVITE (retransmit 2)
+t=3.5s   INVITE (retransmit 3)
+t=7.5s   INVITE (retransmit 4)
+t=15.5s  INVITE (retransmit 5)
+t=31.5s  INVITE (retransmit 6)
+t=32.0s  Timer B expires -> local 408</code></pre>
+    <p>
+      Seven INVITEs and then a timeout is not a symptom of anything specific; it is simply
+      what "no reply" looks like. Non-INVITE requests behave the same way except that their
+      retransmit interval caps at T2 = 4 seconds, and Timer F still ends things at 32.
+    </p>
+    <p>
+      One detail worth committing to memory: <strong>a provisional response stops the
+      clock</strong>. Once a 100 Trying arrives, the client transaction leaves the Calling
+      state, retransmissions stop, and Timer B no longer applies. A call that hangs for
+      three minutes before failing therefore did <em>not</em> die of Timer B — that is a
+      proxy's Timer C (RFC 3261 requires more than 3 minutes) giving up on a transaction
+      that was acknowledged and then abandoned.
+    </p>
+
+    <h2>What makes the packets disappear</h2>
+
+    <h3>The request never arrived</h3>
+    <p>
+      Firewall or SBC signalling ACL not updated after the carrier changed a media/SIP
+      address, a route pointing at a decommissioned node, or an SRV record that resolves to
+      a host nobody has been maintaining. Capture at the egress interface: if you can see
+      your own retransmissions leaving, the loss is downstream of you.
+    </p>
+
+    <h3>The response could not get back</h3>
+    <p>
+      Everything about SIP response routing depends on the Via header. If the far end
+      ignores <code>rport</code> (RFC 3581) and answers to the address in
+      <code>sent-by</code> rather than the source it actually received the packet from,
+      responses go to a private address and die. NAT bindings that expire faster than the
+      call takes to be answered produce the same picture, as does asymmetric routing where
+      the return path skips the stateful device that is holding the pinhole open.
+    </p>
+
+    <h3>The request was too big for the path</h3>
+    <p>
+      A UDP INVITE larger than the path MTU fragments, and plenty of firewalls and NATs quietly
+      discard non-initial fragments. The far end never reassembles a complete datagram, so it
+      never answers, so you retransmit the same oversized message six more times. RFC 3261 is
+      explicit about this: a request within 200 bytes of the path MTU, or over 1300 bytes when
+      the MTU is unknown, must be sent over a congestion-controlled transport such as TCP.
+      Large SDP bodies, long Route sets, P-Asserted-Identity plus History-Info plus a
+      certificate-bearing header — they add up faster than people expect.
+    </p>
+
+    <h3>Name resolution</h3>
+    <p>
+      RFC 3263 resolution walks NAPTR, then SRV, then A. A DNS server that blackholes NAPTR
+      queries instead of answering "no such record" adds seconds before the request even
+      leaves. Where DNS is the culprit the capture shows the timeout with <em>no</em> outbound
+      INVITE at all, which is a very distinctive shape.
+    </p>
+
+    <h2>What to check in the trace</h2>
+    <ol>
+      <li>Did any provisional response arrive? A 100 Trying changes the diagnosis
+      completely — the far end saw the request, and the problem is beyond it.</li>
+      <li>Count the retransmissions and check their spacing. A clean 0.5/1/2/4/8/16 ladder
+      means your stack behaved normally and nothing came back. An irregular ladder means
+      something else is going on.</li>
+      <li>Measure the INVITE's size on the wire, and look for IP fragmentation. Any request
+      near or over ~1300 bytes on UDP is a suspect.</li>
+      <li>Compare the <code>Via</code> <code>sent-by</code>, <code>received</code> and
+      <code>rport</code> values against the actual source address of the packet.</li>
+      <li>Check whether the same peer's OPTIONS or REGISTER keepalives were also timing out
+      at the same moment. If they were, the call is a bystander and the peer is the
+      story.</li>
+      <li>Capture on both sides of every NAT or SBC in the path. A 408 is the one failure
+      where a single vantage point is most likely to mislead you.</li>
+    </ol>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> collapses a retransmission ladder into one row, tells you
+      whether it ended in a timeout or a late reply, and flags oversized UDP requests and
+      fragmented datagrams as findings rather than leaving them for you to spot.
+      Self-hosted, free while in beta.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+    <nav class="ref-more" aria-label="related pages">
+      See also:
+      <ul>
+        <li><a href="/sip/retransmissions">Retransmissions and retransmission storms</a> — the timers in detail.</li>
+        <li><a href="/sip/488-not-acceptable-here">488 Not Acceptable Here</a> — when the far end did answer, and said no.</li>
+        <li><a href="/sip">All SIP failure reference pages</a></li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

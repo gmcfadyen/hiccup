@@ -1,6 +1,7 @@
 // server.js — hiccup HTTP server: routes, auth glue, capture upload/analysis,
-// chat proxy, advice/HMR/KB routes, static files. Plain node http, zero runtime
-// dependencies (pdf-parse is an optionalDependency used only inside lib/kb.js).
+// chat proxy, advice/HMR/KB routes, static files, robots/sitemap. Plain node
+// http, zero runtime dependencies (pdf-parse is an optionalDependency used only
+// inside lib/kb.js).
 // Contract: ARCHITECTURE.md §HTTP API + §Wave 2 §New routes. Windows-safe paths.
 'use strict';
 
@@ -75,6 +76,24 @@ const CONFIG_DEFAULTS = {
   rfplexStatusUrl: 'http://127.0.0.1:3001/api/status/llm',
   preferredModels: ['qwen3.5:9b', 'qwen3.5:2b', 'qwen3:8b', 'llama3.1:8b'],
   maxUploadMb: 50,
+  // Wave 6: where the weekly feedback digest goes. Empty disables the digest
+  // entirely (the feedback itself is still collected and readable at
+  // /admin/feedback — only the email is skipped).
+  digestRecipient: '',
+  // Wave 6: who may reach /admin/*. An explicit allow-list, because the
+  // alternative — lib/auth.js's role:'admin', which is simply "whoever signed
+  // up first" — is not something to hang the ops surface on: recreate the user
+  // store and it silently transfers to a stranger. When this list is non-empty
+  // it is authoritative and the role is ignored entirely.
+  adminEmails: ['360gav@gmail.com'],
+  // GDPR Art. 25 (data protection by default): mask caller/callee digits in the
+  // DERIVED analysis unless the uploader opts out per capture via the
+  // X-Mask-Numbers header. The uploaded file itself is never altered.
+  maskNumbersByDefault: true,
+  // GDPR Art. 5(1)(e) (storage limitation): delete captures older than this.
+  // 0 disables the sweep — which is a real choice, not a safe default, so it
+  // is stated here rather than left implicit.
+  captureRetentionDays: 0,
 };
 
 /**
@@ -463,6 +482,7 @@ const STATIC_TYPES = {
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.ico': 'image/x-icon',
+  '.webmanifest': 'application/manifest+json',
 };
 
 /**
@@ -541,6 +561,137 @@ function serveStatic(res, urlPath) {
 function notFoundText(res) {
   res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
   res.end('not found');
+}
+
+// ---------------------------------------------------------------------------
+// The crawlable surface
+// ---------------------------------------------------------------------------
+
+/**
+ * Clean URL -> file under public/, for every page a signed-out visitor can
+ * usefully read. This is the whole of hiccup that belongs in a search index:
+ * the workbench, HMR, the config guides and /team all need a session, and a
+ * crawler that reaches them gets a login redirect and an empty shell.
+ *
+ * It is one table rather than another chain of ifs because /sitemap.xml is
+ * generated from the same entries — a page added here becomes routable AND
+ * crawlable in a single edit, so the router and the sitemap cannot drift apart.
+ * A Map rather than an object literal, so that a request for /__proto__ or
+ * /constructor resolves to nothing at all.
+ */
+const PUBLIC_PAGES = new Map([
+  ['/', 'index.html'],
+  ['/sip', 'sip/index.html'],
+  ['/sip/488-not-acceptable-here', 'sip/488-not-acceptable-here.html'],
+  ['/sip/408-request-timeout', 'sip/408-request-timeout.html'],
+  ['/sip/486-busy-here', 'sip/486-busy-here.html'],
+  ['/sip/one-way-audio', 'sip/one-way-audio.html'],
+  ['/sip/retransmissions', 'sip/retransmissions.html'],
+]);
+
+/**
+ * The absolute origin to put in crawler-facing documents.
+ *
+ * config.baseUrl already knows hiccup's public name — it is what team invite
+ * links are built from (lib/teams.js) — so reuse it rather than reading the
+ * request's Host header, which is client-controlled and would let a visitor
+ * dictate the hostnames in our own sitemap.
+ * @returns {string} origin with no trailing slash
+ */
+function publicOrigin() {
+  const configured = String(config.baseUrl || '').trim().replace(/\/+$/, '');
+  return configured || 'http://' + HOST + ':' + PORT;
+}
+
+/**
+ * Escape text for XML character data. Only needed because publicOrigin() comes
+ * out of an operator-edited config.json and is not guaranteed to be clean.
+ * @param {string} s
+ * @returns {string}
+ */
+function xmlEscape(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/**
+ * GET /robots.txt — the crawl policy.
+ *
+ * Note what this is not: every path below is already behind requireAuth, and
+ * robots.txt is advisory in any case. It exists to keep auth-walled URLs out of
+ * search results — where they are noise for the searcher and a dead end for the
+ * crawler — not to protect them.
+ * @param {http.ServerResponse} res
+ */
+function handleRobots(res) {
+  const body = [
+    '# hiccup — the analyser needs a session. Only the landing page and the',
+    '# /sip reference are worth crawling.',
+    'User-agent: *',
+    'Disallow: /api/',
+    'Disallow: /admin/',
+    'Disallow: /app',
+    'Disallow: /hmr',
+    'Disallow: /kb',
+    'Disallow: /team',
+    'Disallow: /settings',
+    // A single-use token in the query string. Nothing to index, and an indexed
+    // invite URL would be an indexed credential.
+    'Disallow: /accept-invite',
+    // Last, and deliberately so: a bare "Allow: /" placed above the Disallow
+    // lines would undo every one of them on a first-match-wins crawler.
+    'Allow: /',
+    '',
+    'Sitemap: ' + publicOrigin() + '/sitemap.xml',
+    '',
+  ].join('\n');
+  res.writeHead(200, {
+    'Content-Type': 'text/plain; charset=utf-8',
+    'Cache-Control': 'no-cache',
+  });
+  res.end(body);
+}
+
+/**
+ * GET /sitemap.xml — PUBLIC_PAGES rendered as a urlset.
+ *
+ * lastmod comes from each file's mtime rather than a literal date, because a
+ * literal starts lying the day after it is typed and nothing in a deploy would
+ * ever remind anyone to update it. Deploys here are file copies, so the mtime is
+ * the one timestamp that cannot disagree with what is actually being served. A
+ * page whose file is missing is dropped rather than advertised as a 404.
+ *
+ * The stat calls are synchronous: there are seven of them, on a route a crawler
+ * visits about once a day, and the async plumbing would cost more to read than
+ * it could ever save.
+ * @param {http.ServerResponse} res
+ */
+function handleSitemap(res) {
+  const origin = publicOrigin();
+  const entries = [];
+  for (const [urlPath, file] of PUBLIC_PAGES) {
+    let stat;
+    try {
+      stat = fs.statSync(path.join(PUBLIC_DIR, file));
+    } catch {
+      continue;
+    }
+    entries.push('  <url>\n' +
+      '    <loc>' + xmlEscape(origin + urlPath) + '</loc>\n' +
+      '    <lastmod>' + stat.mtime.toISOString().slice(0, 10) + '</lastmod>\n' +
+      '  </url>');
+  }
+  const body = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+    entries.join('\n') + '\n' +
+    '</urlset>\n';
+  res.writeHead(200, {
+    'Content-Type': 'application/xml; charset=utf-8',
+    'Cache-Control': 'no-cache',
+  });
+  res.end(body);
 }
 
 // ---------------------------------------------------------------------------
@@ -625,9 +776,23 @@ async function handleUpload(req, res, user) {
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'original.bin'), buf);
 
+  // GDPR: caller/callee masking. lib/analyze.js has always had
+  // redactNumbersInMessage() behind an opts.redactNumbers flag, but nothing
+  // ever set it — the masking was written and then left unreachable. The
+  // header lets the uploader decide per capture; config.maskNumbersByDefault
+  // decides when they say nothing (Art. 25, data protection BY DEFAULT).
+  //
+  // Note this only masks the DERIVED analysis. original.bin above is the
+  // user's own unmodified file and is never rewritten — masking a trace you
+  // uploaded yourself, in place, would be destroying your own evidence.
+  const maskHeader = req.headers['x-mask-numbers'];
+  const maskNumbers = (maskHeader == null || String(maskHeader).trim() === '')
+    ? config.maskNumbersByDefault !== false
+    : /^(1|true|yes|on)$/i.test(String(maskHeader).trim());
+
   let analysis;
   try {
-    analysis = await analyzeCapture(buf);
+    analysis = await analyzeCapture(buf, { redactNumbers: maskNumbers });
   } catch (e) {
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best effort */ }
     sendJson(res, 422, { error: (e && e.userMessage) || 'could not parse this file' });
@@ -639,6 +804,7 @@ async function handleUpload(req, res, user) {
     filename,
     uploadedAt: new Date().toISOString(),
     sizeBytes: buf.length,
+    maskedNumbers: maskNumbers,   // shown in the UI so nobody wonders why numbers are "…"
     stats: analysis.stats,
     findingCounts: countFindings(analysis.findings),
     projectId,
@@ -930,6 +1096,416 @@ async function handleKbDelete(req, res, user, docId) {
     return;
   }
   sendJson(res, 200, { ok: true });
+}
+
+// ---------------------------------------------------------------------------
+// Wave 6 — feedback
+// See ARCHITECTURE.md "Wave 6 — In-app feedback with structural context".
+// ---------------------------------------------------------------------------
+
+let feedbackMod = null;
+let feedbackTried = false;
+/** lib/feedback.js, or null. Optional like every other Wave-2+ module. */
+function requireFeedback(res) {
+  if (!feedbackTried) {
+    feedbackTried = true;
+    try { feedbackMod = require('./lib/feedback'); } catch { feedbackMod = null; }
+  }
+  if (!feedbackMod) {
+    sendJson(res, 501, { error: 'this build has no feedback module' });
+    return null;
+  }
+  return feedbackMod;
+}
+
+let mailMod = null;
+let mailTried = false;
+function getMail() {
+  if (!mailTried) {
+    mailTried = true;
+    try { mailMod = require('./lib/mail'); } catch { mailMod = null; }
+  }
+  return mailMod;
+}
+
+/**
+ * Site-wide admin gate for every /admin/* surface.
+ *
+ * Two sources of truth, in this order:
+ *   1. config.adminEmails — an explicit allow-list. When non-empty it is
+ *      AUTHORITATIVE and role is ignored.
+ *   2. lib/auth.js's role:'admin' — only consulted when the list is empty.
+ *
+ * The list wins because role:'admin' just means "signed up first"; on a fresh
+ * user store that would silently hand the ops surface to whoever registers
+ * next. An email allow-list says what is actually meant: this box is mine.
+ *
+ * Note this is NOT the team owner/admin role used elsewhere in this file —
+ * a team admin administers their own team, not the whole box.
+ */
+function isSiteAdmin(user) {
+  if (!user) return false;
+  const allow = Array.isArray(config.adminEmails)
+    ? config.adminEmails.map((e) => String(e || '').trim().toLowerCase()).filter(Boolean)
+    : [];
+  if (allow.length) return allow.indexOf(String(user.email || '').trim().toLowerCase()) !== -1;
+  return user.role === 'admin';
+}
+
+function requireSiteAdmin(req, res) {
+  const user = requireAuth(req, res);
+  if (!user) return null;
+  if (!isSiteAdmin(user)) {
+    sendJson(res, 403, { error: 'admin only' });
+    return null;
+  }
+  return user;
+}
+
+// Abuse here is noise in one inbox, not a security boundary, so an in-memory
+// counter that resets on restart is proportionate.
+const FEEDBACK_MAX_PER_HOUR = 5;
+const _feedbackHits = new Map();   // userId -> number[] (epoch ms)
+
+function feedbackRateLimited(userId) {
+  const now = Date.now();
+  const cut = now - 3600000;
+  const hits = (_feedbackHits.get(userId) || []).filter((t) => t > cut);
+  if (hits.length >= FEEDBACK_MAX_PER_HOUR) { _feedbackHits.set(userId, hits); return true; }
+  hits.push(now);
+  _feedbackHits.set(userId, hits);
+  return false;
+}
+
+/** POST /api/feedback {kind, rating, comment, context} */
+async function handleFeedbackSubmit(req, res, user) {
+  let body;
+  try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
+  const fb = requireFeedback(res);
+  if (!fb) return;
+
+  const comment = typeof body.comment === 'string' ? body.comment.trim() : '';
+  if (!comment) {
+    sendJson(res, 400, { error: 'comment is required' });
+    return;
+  }
+  if (feedbackRateLimited(user.id)) {
+    sendJson(res, 429, { error: 'too many submissions — try again later' });
+    return;
+  }
+
+  let rec;
+  try {
+    // userId/email come from the SESSION, never from the body: a client must
+    // not be able to file feedback as somebody else. context is re-sanitised
+    // server-side by lib/feedback.js regardless of what the widget sent.
+    rec = fb.save(DATA_DIR, {
+      userId: user.id,
+      email: user.email,
+      kind: body.kind,
+      rating: body.rating,
+      comment,
+      context: body.context,
+    });
+  } catch (e) {
+    sendJson(res, 422, { error: (e && e.message) || 'could not save that feedback' });
+    return;
+  }
+  sendJson(res, 200, { ok: true, id: rec.id });
+}
+
+// ---------------------------------------------------------------------------
+// GDPR subject rights — Art. 15/20 (access + portability) and Art. 17 (erasure)
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /api/me/export — everything held about the signed-in user, as one JSON.
+ *
+ * Capture BYTES are deliberately excluded and listed as metadata instead: the
+ * originals are already downloadable per capture, and inlining base64 pcaps
+ * would turn a rights request into a multi-hundred-megabyte response. The
+ * export says plainly that they are excluded and where to get them, so this is
+ * a documented scope decision rather than a silent omission.
+ */
+function handleMeExport(req, res, user) {
+  const uid = resolveAccountUid(user.id);
+  const out = {
+    exportedAt: new Date().toISOString(),
+    note: 'Everything hiccup holds about this account. Capture FILE CONTENTS are ' +
+      'not inlined — download them individually from /api/captures/:id/original.',
+    account: sanitizeUser(user),
+    storageAccountId: uid,
+  };
+
+  try { out.captures = store.listCaptures(DATA_DIR, uid); } catch { out.captures = []; }
+
+  try {
+    const projects = optionalModule('./lib/projects');
+    out.projects = (projects && typeof projects.listProjects === 'function')
+      ? projects.listProjects(uid) : [];
+  } catch { out.projects = []; }
+
+  try {
+    const teams = initTeamsIfPossible();
+    out.team = (teams && typeof teams.getTeamView === 'function')
+      ? teams.getTeamView(user.id) : null;
+  } catch { out.team = null; }
+
+  try {
+    const kb = optionalModule('./lib/kb');
+    out.kbDocuments = (kb && typeof kb.listDocs === 'function') ? kb.listDocs(uid) : [];
+  } catch { out.kbDocuments = []; }
+
+  try {
+    const fb = require('./lib/feedback');
+    out.feedback = fb.list(DATA_DIR).filter((r) => r && r.userId === user.id);
+  } catch { out.feedback = []; }
+
+  res.writeHead(200, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Content-Disposition': 'attachment; filename="hiccup-export-' +
+      new Date().toISOString().slice(0, 10) + '.json"',
+    'Cache-Control': 'no-store',
+  });
+  res.end(JSON.stringify(out, null, 2));
+}
+
+/**
+ * DELETE /api/me {confirm:"DELETE"} — erase this account and its data.
+ *
+ * Requires an explicit typed confirmation because this is irreversible and
+ * there is no undo anywhere in the system.
+ *
+ * SHARED-DATA HAZARD, handled deliberately: under Wave 3 a team's captures
+ * live under the TEAM's accountUid, not the individual's. Deleting a team
+ * member's account must therefore NOT delete the shared library — that would
+ * let one departing member destroy their colleagues' data. So captures are
+ * only removed when the user's storage account is their own (uid === user.id).
+ * A team member who leaves has their membership and personal records removed;
+ * the team's shared captures stay with the team.
+ */
+async function handleMeDelete(req, res, user) {
+  let body;
+  try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
+  if (String(body && body.confirm) !== 'DELETE') {
+    sendJson(res, 400, { error: 'send {"confirm":"DELETE"} to confirm this irreversible deletion' });
+    return;
+  }
+
+  const uid = resolveAccountUid(user.id);
+  const solo = uid === user.id;
+  const removed = { captures: 0, sharedLibraryKept: !solo, feedback: 0, team: false, account: false };
+
+  if (solo) {
+    try {
+      for (const cap of store.listCaptures(DATA_DIR, uid)) {
+        if (store.deleteCapture(DATA_DIR, uid, cap.id)) removed.captures++;
+      }
+    } catch { /* keep going — a partial erase still beats none */ }
+  }
+
+  try {
+    const teams = initTeamsIfPossible();
+    // removeMember(actingUserId, targetUserId) - removing yourself is a leave.
+    if (teams && typeof teams.removeMember === 'function') removed.team = !!teams.removeMember(user.id, user.id);
+  } catch { /* not on a team, or the module cannot do it */ }
+
+  try {
+    const fb = require('./lib/feedback');
+    const mine = fb.list(DATA_DIR).filter((r) => r && r.userId === user.id);
+    // Feedback is retained but de-identified: the comment is operationally
+    // useful to keep, the person behind it is not. Erasure of the personal
+    // data is what Art. 17 requires, not destruction of the observation.
+    for (const r of mine) {
+      if (typeof fb.anonymise === 'function') fb.anonymise(DATA_DIR, r.id);
+      removed.feedback++;
+    }
+  } catch { /* best effort */ }
+
+  try {
+    if (typeof auth.deleteUser === 'function') removed.account = !!auth.deleteUser(user.id);
+  } catch { /* reported below */ }
+
+  clearSessionCookie(res);
+  sendJson(res, 200, {
+    ok: true,
+    removed,
+    note: removed.account
+      ? 'Account deleted.'
+      : 'Data removed, but the account record could not be deleted automatically — ' +
+        'contact the administrator to finish erasure.',
+  });
+}
+
+/** Recursive byte total for a directory. Bounded so it cannot walk forever. */
+function dirSize(p, depth) {
+  let total = 0;
+  let files = 0;
+  if ((depth || 0) > 6) return { bytes: 0, files: 0 };
+  let entries;
+  try { entries = fs.readdirSync(p, { withFileTypes: true }); } catch { return { bytes: 0, files: 0 }; }
+  for (const e of entries) {
+    const full = path.join(p, e.name);
+    try {
+      if (e.isDirectory()) {
+        const sub = dirSize(full, (depth || 0) + 1);
+        total += sub.bytes; files += sub.files;
+      } else if (e.isFile()) {
+        total += fs.statSync(full).size; files += 1;
+      }
+    } catch { /* a file vanishing mid-walk is not an error worth failing on */ }
+  }
+  return { bytes: total, files };
+}
+
+/**
+ * GET /api/admin/status — the ops view.
+ *
+ * Deliberately reports CONFIGURED/NOT CONFIGURED for anything sensitive rather
+ * than the value: no SMTP password, no Google client secret, no session
+ * tokens. An admin page is still a web page, and a screenshot of it should
+ * never be a credential leak.
+ */
+function handleAdminStatus(req, res, user) {
+  const out = {
+    app: 'hiccup',
+    version: VERSION,
+    node: process.version,
+    platform: process.platform,
+    pid: process.pid,
+    uptimeSeconds: Math.round(process.uptime()),
+    memoryMb: Math.round(process.memoryUsage().rss / 1048576),
+    now: new Date().toISOString(),
+    dataDir: DATA_DIR,
+    you: { email: user.email, id: user.id, role: user.role || 'user' },
+    config: {
+      baseUrl: config.baseUrl,
+      port: PORT,
+      host: HOST,
+      maxUploadMb: config.maxUploadMb,
+      preferredModels: config.preferredModels,
+      digestRecipient: config.digestRecipient || null,
+      adminEmails: Array.isArray(config.adminEmails) ? config.adminEmails : [],
+      googleSignIn: config.googleClientId ? 'configured' : 'not configured',
+    },
+    engine: { analysis: !!analyzeCapture },
+    llm: llm.getLlmStatus(),
+  };
+
+  try { out.users = auth.countUsers(); } catch { out.users = null; }
+
+  try {
+    const capRoot = store.capturesRoot(DATA_DIR);
+    const accounts = fs.existsSync(capRoot) ? fs.readdirSync(capRoot) : [];
+    let captures = 0;
+    for (const a of accounts) {
+      try { captures += fs.readdirSync(path.join(capRoot, a)).length; } catch { /* skip */ }
+    }
+    out.captures = { accounts: accounts.length, total: captures };
+  } catch { out.captures = null; }
+
+  try {
+    const d = dirSize(DATA_DIR, 0);
+    out.disk = { bytes: d.bytes, mb: Math.round(d.bytes / 1048576 * 10) / 10, files: d.files };
+  } catch { out.disk = null; }
+
+  try {
+    const fb = require('./lib/feedback');
+    const items = fb.list(DATA_DIR);
+    out.feedback = {
+      total: items.length,
+      unread: items.filter((r) => !r.read).length,
+      last7d: fb.since(DATA_DIR, 7 * 24 * 3600 * 1000).length,
+      digest: fb.getDigestState(DATA_DIR),
+      dueNow: fb.digestDue(DATA_DIR, new Date()),
+    };
+  } catch { out.feedback = null; }
+
+  const mail = getMail();
+  out.mail = { configured: !!(mail && mail.isConfigured(DATA_DIR)) };
+
+  sendJson(res, 200, out);
+}
+
+/** GET /api/admin/feedback */
+function handleFeedbackList(req, res) {
+  const fb = requireFeedback(res);
+  if (!fb) return;
+  const items = fb.list(DATA_DIR);
+  const mail = getMail();
+  sendJson(res, 200, {
+    items,
+    unread: items.filter((r) => !r.read).length,
+    mailConfigured: !!(mail && mail.isConfigured(DATA_DIR)),
+    digest: fb.getDigestState(DATA_DIR),
+  });
+}
+
+/** POST /api/admin/feedback/:id/read {read} */
+async function handleFeedbackRead(req, res, id) {
+  let body;
+  try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
+  const fb = requireFeedback(res);
+  if (!fb) return;
+  const rec = fb.setRead(DATA_DIR, id, body.read !== false);
+  if (!rec) { sendJson(res, 404, { error: 'no such feedback' }); return; }
+  sendJson(res, 200, { ok: true, item: rec });
+}
+
+/** POST /api/admin/feedback/digest/send[?dry=1] — send this week's digest now. */
+async function handleFeedbackDigestSend(req, res) {
+  req.resume();
+  const fb = requireFeedback(res);
+  if (!fb) return;
+  // `url` in handle() is a plain string, not a URL object — this file's own
+  // queryParams(req) helper is the one place that knows that.
+  const dry = queryParams(req).get('dry') === '1';
+  const out = await sendFeedbackDigest({ force: true, dry });
+  sendJson(res, out.ok ? 200 : 422, out);
+}
+
+/**
+ * Build and send the weekly digest.
+ * @param {{force?:boolean, dry?:boolean}} [opts] force skips the schedule check
+ */
+async function sendFeedbackDigest(opts) {
+  const o = opts || {};
+  let fb;
+  try { fb = require('./lib/feedback'); } catch { return { ok: false, error: 'no feedback module' }; }
+
+  if (!o.force && !fb.digestDue(DATA_DIR, new Date())) return { ok: true, skipped: 'not due' };
+
+  const records = fb.since(DATA_DIR, 7 * 24 * 3600 * 1000);
+  const digest = fb.buildDigest(records);
+  if (!digest) {
+    // Nothing happened this week. Still stamp the week so the timer does not
+    // re-check every 15 minutes for the rest of it.
+    if (!o.dry) fb.setDigestSent(DATA_DIR, fb.isoWeek(new Date()));
+    return { ok: true, skipped: 'no feedback this week', count: 0 };
+  }
+
+  const to = String(config.digestRecipient || '').trim();
+  if (!to) return { ok: false, error: 'no digestRecipient configured', count: records.length };
+  if (o.dry) return { ok: true, dry: true, count: records.length, subject: digest.subject, to };
+
+  const mail = getMail();
+  if (!mail) return { ok: false, error: 'no mail module', count: records.length };
+
+  let sent;
+  try {
+    sent = await mail.send(DATA_DIR, {
+      to, subject: digest.subject, text: digest.text, html: digest.html,
+    });
+  } catch (e) {
+    // A send failure must NOT stamp the week — otherwise one transient SMTP
+    // error silently eats that week's digest entirely.
+    console.error('hiccup: feedback digest send failed:', (e && e.message) || e);
+    return { ok: false, error: (e && e.message) || 'send failed', count: records.length };
+  }
+  if (!sent.sent) return { ok: false, error: sent.reason || 'not sent', count: records.length };
+
+  fb.setDigestSent(DATA_DIR, fb.isoWeek(new Date()));
+  return { ok: true, sent: true, count: records.length, to };
 }
 
 /** POST /api/kb/search {q, k} — BM25-ish keyword search over this user's docs. */
@@ -1768,6 +2344,11 @@ async function handle(req, res) {
       appName: 'hiccup',
       googleClientId: config.googleClientId || null,
       freeBeta: true,
+      // Facts about THIS deployment that /settings states to the user. Public
+      // because they describe how the box treats data, which is precisely what
+      // someone deciding whether to upload a trace needs to know up front.
+      captureRetentionDays: Number(config.captureRetentionDays) || 0,
+      maskNumbersByDefault: config.maskNumbersByDefault !== false,
     });
     return;
   }
@@ -1783,6 +2364,20 @@ async function handle(req, res) {
     if (!user) return;
     sendJson(res, 200, { user: sanitizeUser(user) });
     return;
+  }
+
+  // --- GDPR subject rights ---
+  if (pathname === '/api/me/export' && method === 'GET') {
+    const user = requireAuth(req, res);
+    if (!user) { req.resume(); return; }
+    req.resume();
+    return handleMeExport(req, res, user);
+  }
+
+  if (pathname === '/api/me' && method === 'DELETE') {
+    const user = requireAuth(req, res);
+    if (!user) { req.resume(); return; }
+    return handleMeDelete(req, res, user);
   }
 
   // --- team (Wave 3) --- two routes are public (accepting an invite happens
@@ -1942,6 +2537,39 @@ async function handle(req, res) {
     return handleKbSearch(req, res, user);
   }
 
+  // --- Wave 6: feedback ---
+  if (pathname === '/api/feedback' && method === 'POST') {
+    const user = requireAuth(req, res);
+    if (!user) { req.resume(); return; }
+    return handleFeedbackSubmit(req, res, user);
+  }
+
+  if (pathname === '/api/admin/status' && method === 'GET') {
+    const user = requireSiteAdmin(req, res);
+    if (!user) { req.resume(); return; }
+    req.resume();
+    return handleAdminStatus(req, res, user);
+  }
+
+  if (pathname === '/api/admin/feedback' && method === 'GET') {
+    const user = requireSiteAdmin(req, res);
+    if (!user) { req.resume(); return; }
+    return handleFeedbackList(req, res);
+  }
+
+  const fbReadMatch = pathname.match(/^\/api\/admin\/feedback\/([A-Za-z0-9_]+)\/read$/);
+  if (fbReadMatch && method === 'POST') {
+    const user = requireSiteAdmin(req, res);
+    if (!user) { req.resume(); return; }
+    return handleFeedbackRead(req, res, fbReadMatch[1]);
+  }
+
+  if (pathname === '/api/admin/feedback/digest/send' && method === 'POST') {
+    const user = requireSiteAdmin(req, res);
+    if (!user) { req.resume(); return; }
+    return handleFeedbackDigestSend(req, res);
+  }
+
   // --- anything else under /api is a JSON 404 ---
   if (pathname.startsWith('/api/')) {
     sendJson(res, 404, { error: 'not found' });
@@ -1950,12 +2578,23 @@ async function handle(req, res) {
 
   // --- pages + static ---
   if (method === 'GET' || method === 'HEAD') {
-    if (pathname === '/') return servePublicFile(res, 'index.html');
+    if (pathname === '/robots.txt') return handleRobots(res);
+    if (pathname === '/sitemap.xml') return handleSitemap(res);
+    // The landing page and the /sip reference: one table, shared with the
+    // sitemap (see PUBLIC_PAGES).
+    const publicPage = PUBLIC_PAGES.get(pathname);
+    if (publicPage) return servePublicFile(res, publicPage);
     if (pathname === '/app') return servePublicFile(res, 'app.html');
     if (pathname === '/hmr') return servePublicPage(res, 'hmr.html');
     if (pathname === '/kb') return servePublicPage(res, 'kb.html');
     if (pathname === '/team') return servePublicPage(res, 'team.html');
     if (pathname === '/accept-invite') return servePublicPage(res, 'accept-invite.html');
+    // The page itself is served to anyone signed in; every /api/admin/* call it
+    // makes is separately gated, so an ordinary user just gets an empty shell
+    // and 403s rather than a leak.
+    if (pathname === '/settings') return servePublicPage(res, 'settings.html');
+    if (pathname === '/admin/feedback') return servePublicPage(res, 'admin-feedback.html');
+    if (pathname === '/admin/status') return servePublicPage(res, 'admin-status.html');
     return serveStatic(res, pathname);
   }
 
@@ -1998,7 +2637,85 @@ server.listen(PORT, HOST, () => {
   if (!analyzeCapture) {
     console.log('hiccup: NOTE — running without the analysis engine; uploads return 501');
   }
+  startFeedbackDigestTimer();
+  startRetentionTimer();
 });
+
+/**
+ * GDPR Art. 5(1)(e): delete captures past config.captureRetentionDays.
+ *
+ * Polled hourly rather than daily for the same reason the digest is polled:
+ * the schedule decision lives in lib/retention.js as "has today's sweep run
+ * yet?", so a restart at any hour still gets exactly one sweep that day.
+ * Disabled (0) is the default and is announced at boot — an unenforced
+ * retention policy should be visible in the log, not silent.
+ */
+function startRetentionTimer() {
+  const days = Number(config.captureRetentionDays) || 0;
+  if (days <= 0) {
+    console.log('hiccup: capture retention disabled (captureRetentionDays: 0) — captures are kept until deleted');
+    return;
+  }
+  let retention;
+  try { retention = require('./lib/retention'); } catch {
+    console.error('hiccup: captureRetentionDays is set but lib/retention.js is missing — nothing will be deleted');
+    return;
+  }
+  const tick = () => {
+    try {
+      const out = retention.sweepIfDue(DATA_DIR, days);
+      if (out && out.removed) {
+        console.log('hiccup: retention sweep removed ' + out.removed + ' capture(s) older than ' + days + ' days');
+      }
+      if (out && out.skippedUndated) {
+        console.log('hiccup: retention sweep skipped ' + out.skippedUndated +
+          ' capture(s) with no readable upload date (kept, not guessed at)');
+      }
+    } catch (e) {
+      console.error('hiccup: retention sweep failed: ' + ((e && e.message) || e));
+    }
+  };
+  const timer = setInterval(tick, 3600 * 1000);
+  if (typeof timer.unref === 'function') timer.unref();
+  tick();
+  console.log('hiccup: capture retention armed — deleting captures older than ' + days + ' days');
+}
+
+/**
+ * Wave 6: weekly feedback digest.
+ *
+ * Polls every 15 minutes rather than sleeping a week, because the schedule
+ * decision lives in lib/feedback.js's digestDue() — which is written as "this
+ * week's digest has not gone out yet", not "it is exactly Monday 09:00". That
+ * matters on this box specifically: it reboots for Windows updates, so a
+ * setInterval(7 days) would drift on every restart and could skip a week
+ * entirely if the reboot landed on a Monday morning.
+ */
+function startFeedbackDigestTimer() {
+  const to = String(config.digestRecipient || '').trim();
+  if (!to) {
+    console.log('hiccup: feedback digest disabled (no digestRecipient in config.json)');
+    return;
+  }
+  const mail = getMail();
+  if (!mail || !mail.isConfigured(DATA_DIR)) {
+    console.log('hiccup: feedback digest recipient set, but data/email-config.json is ' +
+      'missing or incomplete — feedback is still collected at /admin/feedback');
+    return;
+  }
+  const tick = () => {
+    sendFeedbackDigest({}).then((out) => {
+      if (out && out.sent) console.log('hiccup: feedback digest sent to ' + out.to + ' (' + out.count + ' items)');
+      else if (out && !out.ok) console.error('hiccup: feedback digest problem: ' + out.error);
+    }).catch((e) => {
+      console.error('hiccup: feedback digest threw: ' + ((e && e.message) || e));
+    });
+  };
+  const timer = setInterval(tick, 15 * 60 * 1000);
+  if (typeof timer.unref === 'function') timer.unref();   // never hold shutdown open
+  tick();
+  console.log('hiccup: feedback digest armed — Mondays 09:00 local, to ' + to);
+}
 
 let shuttingDown = false;
 /**

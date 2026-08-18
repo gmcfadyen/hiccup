@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIP retransmissions and retransmission storms — hiccup</title>
+<meta name="description" content="What the RFC 3261 timers actually do, how to tell a retransmission from a re-INVITE or a loop, and why repeated 200 OKs with no ACK are the most diagnostic pattern in SIP.">
+<link rel="canonical" href="https://hiccup.monster/sip/retransmissions">
+<script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="SIP retransmissions and retransmission storms">
+<meta property="og:description" content="The RFC 3261 timers, how to read a retransmission ladder, and why repeated 200 OKs with no ACK are the most diagnostic pattern in SIP.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/sip/retransmissions">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "SIP retransmissions and retransmission storms",
+  "description": "How the RFC 3261 transaction timers produce retransmissions, how to tell a retransmission from a re-INVITE or a routing loop, and what each pattern means in a capture.",
+  "url": "https://hiccup.monster/sip/retransmissions",
+  "inLanguage": "en",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "Session Initiation Protocol" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/sip">SIP failure reference</a><span>/</span>Retransmissions
+  </nav>
+
+  <article class="ref">
+
+    <h1>SIP retransmissions and retransmission storms</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> retransmissions are not the fault. They are UDP's
+      transaction layer doing its job while something else is broken. What matters is
+      <em>which</em> message is repeating and what is failing to come back — those two
+      facts identify the fault almost on their own.</p>
+    </div>
+
+    <h2>What counts as a retransmission</h2>
+    <p>
+      A retransmission is the same message, sent again by the same transaction. Concretely:
+      identical <code>branch</code> parameter on the top Via, identical <code>CSeq</code>,
+      identical request line. Three things get mistaken for it:
+    </p>
+    <ul>
+      <li><strong>A re-INVITE</strong> — same Call-ID and same dialog, but a new
+      <code>CSeq</code> number and a new branch. That is a fresh transaction asking for a
+      change, not a repeat.</li>
+      <li><strong>A fork</strong> — same request going to several contacts, each with its own
+      branch.</li>
+      <li><strong>A loop</strong> — the same request coming back around the path with
+      <code>Max-Forwards</code> decremented. If the counter is falling, you have a routing
+      loop, and it will end in 483 Too Many Hops rather than a timeout.</li>
+    </ul>
+
+    <h2>The timers</h2>
+    <p>
+      RFC 3261 defaults: T1 = 500 ms (the assumed round trip), T2 = 4 s (the ceiling for
+      most retransmit intervals), T4 = 5 s.
+    </p>
+    <div class="ref-table-wrap">
+      <table>
+        <thead>
+          <tr><th>What is repeating</th><th>Interval</th><th>Gives up after</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>INVITE request (Timer A)</td><td>T1, doubling — no cap</td><td>Timer B, 64 × T1 = 32 s</td></tr>
+          <tr><td>Non-INVITE request (Timer E)</td><td>T1, doubling, capped at T2</td><td>Timer F, 64 × T1 = 32 s</td></tr>
+          <tr><td>Final non-2xx response (Timer G)</td><td>T1, doubling, capped at T2</td><td>Timer H, 64 × T1, or an ACK</td></tr>
+          <tr><td>2xx response to an INVITE</td><td>T1, doubling, capped at T2</td><td>64 × T1, or an ACK</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Two consequences fall straight out of that table. Over a reliable transport such as TCP
+      there are no transaction-layer retransmissions at all — but the 32-second timeout still
+      applies. And ordinary provisional responses are never retransmitted, so a lost 180
+      Ringing is simply lost; only reliable provisionals (RFC 3262, the ones that demand a
+      PRACK) get repeated.
+    </p>
+
+    <h2>Five patterns and what each one means</h2>
+
+    <h3>INVITE repeating, nothing coming back</h3>
+    <p>
+      The far end never saw it, or cannot answer. Six retransmissions and a local 408 — see
+      <a href="/sip/408-request-timeout">408 Request Timeout</a> for the full list of
+      reasons, of which oversized fragmented UDP is the one people miss most often.
+    </p>
+
+    <h3>INVITE repeating, then a late 100 Trying</h3>
+    <p>
+      Not a loss problem: the far end is slow. Something in its path — a database lookup,
+      an ENUM query, a DNS resolution it does synchronously — is taking longer than 500 ms,
+      so it has not yet produced a provisional. The retransmissions stop the moment the 100
+      arrives, and the call usually completes. Worth fixing, rarely worth alarming about.
+    </p>
+
+    <h3>200 OK repeating, no ACK</h3>
+    <p>
+      The most diagnostic pattern in SIP, and always worth stopping for. The callee answered
+      and cannot get the acknowledgement back, so it repeats the 200 OK for 64 × T1 and then
+      tears down the call with a BYE — roughly 32 seconds of ringback-then-nothing that
+      users report as "it answers and then hangs up". The ACK for a 2xx is a new transaction
+      addressed to the <code>Contact</code> URI from the 200 OK, routed through the Record-Route
+      set, so the usual causes are a <code>Contact</code> containing a private or otherwise
+      unroutable address, a Record-Route set that a B2BUA mangled, or a firewall permitting
+      the INVITE path but not the ACK's.
+    </p>
+
+    <h3>A final 4xx/5xx/6xx repeating</h3>
+    <p>
+      Same idea, opposite direction: the server transaction is retransmitting its final
+      response because no ACK arrived. Note that the ACK for a non-2xx is generated by the
+      transaction layer and carries the <em>same</em> branch as the INVITE — unlike the 2xx
+      case — so if you cannot find one, look for the branch rather than the dialog.
+    </p>
+
+    <h3>Everything on the box repeating at once</h3>
+    <p>
+      When unrelated calls all start retransmitting inside the same few seconds, the call
+      you were asked about is a bystander. The tell is correlation in time rather than in
+      dialog: an interface flap, a CPU or queue overload, a downstream peer that went away,
+      or a DNS server that stopped answering. Fixing the "call" in this situation achieves
+      nothing, and the storm can become self-sustaining, because every retransmission adds
+      load to the box that is already too busy to answer.
+    </p>
+
+    <h2>What to check in the trace</h2>
+    <ol>
+      <li>Group by Via branch, not by Call-ID. That single grouping separates retransmissions
+      from re-INVITEs and forks without any guesswork.</li>
+      <li>Check the intervals against the table above. A ladder that does not double is not
+      RFC 3261's transaction layer — it is an application-level retry, and those come from
+      somewhere much more interesting.</li>
+      <li>Establish what should have answered and did not: a provisional, a final response,
+      or an ACK. That is the actual fault.</li>
+      <li>Measure message size and look for IP fragmentation on anything approaching the
+      path MTU.</li>
+      <li>Widen the window to the whole capture and ask whether other dialogs were
+      retransmitting at the same moment.</li>
+      <li>Resist tuning T1 downwards to "fix" it. Shorter timers put more copies of the same
+      message on a path that is already failing to carry one.</li>
+    </ol>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> collapses a retransmission ladder into a single readable row
+      and classifies it — never arrived, slow far end, UDP fragmentation, ACK not landing, or
+      a box-wide storm that was never about your call. Self-hosted, free while in beta.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+    <nav class="ref-more" aria-label="related pages">
+      See also:
+      <ul>
+        <li><a href="/sip/408-request-timeout">408 Request Timeout</a> — what happens when the ladder runs out.</li>
+        <li><a href="/sip/one-way-audio">One-way audio</a> — the media-side version of packets that never arrive.</li>
+        <li><a href="/sip">All SIP failure reference pages</a></li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

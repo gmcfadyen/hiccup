@@ -4,8 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>hiccup — header manipulation</title>
+<meta name="robots" content="noindex">
 <script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
-<link rel="icon" href="/logo.svg" type="image/svg+xml">
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
 
 <!--
   Fallback chrome styles, deliberately placed BEFORE the stylesheet links so that
@@ -22,9 +26,10 @@
     border-bottom: 1px solid var(--border, #232b36);
   }
   .topbar-spacer { flex: 1 1 auto; }
-  .logo { font-size: 20px; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
+  .logo { display: inline-flex; align-items: center; gap: 8px; flex: none; }
   .logo:hover { text-decoration: none; }
-  .logo-bump { position: relative; top: -3px; display: inline-block; color: var(--accent); }
+  .logo .brand-mark { height: 30px; }
+  .logo .brand-wordmark { height: 26px; }
   .coffee-link { font-size: 13px; color: var(--muted); }
   .user-name { font-size: 13px; color: var(--muted); }
   .topnav { display: flex; align-items: center; gap: 2px; margin-left: 10px; }
@@ -155,15 +160,17 @@
 <body>
 
 <header class="topbar">
-  <a class="logo" href="/app" aria-label="hiccup">hic<span class="logo-bump">c</span>up</a>
+  <a class="logo" href="/app" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
   <nav class="topnav" aria-label="tools">
     <a class="topnav-link" href="/app">workbench</a>
     <a class="topnav-link is-current" href="/hmr" aria-current="page">HMR</a>
     <a class="topnav-link" href="/kb">guides</a>
     <a class="topnav-link" href="/team">team</a>
+    <a class="topnav-link" href="/settings">settings</a>
   </nav>
   <span class="topbar-spacer"></span>
   <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <button id="feedback-open" class="btn" type="button" title="Send feedback about hiccup">feedback</button>
   <a class="coffee-link" href="https://buymeacoffee.com/mcfadyen" target="_blank" rel="noopener">☕ Buy Me a Coffee</a>
   <span id="user-name" class="user-name mono"></span>
   <button id="logout-btn" class="btn" type="button">Sign out</button>
@@ -220,5 +227,6 @@
 
 <script src="/hmr.js"></script>
 <script src="/theme.js"></script>
+<script src="/feedback.js"></script>
 </body>
 </html>
