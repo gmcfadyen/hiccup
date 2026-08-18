@@ -4,11 +4,13 @@ License text copyright (c) 2020 MariaDB Corporation Ab, All Rights Reserved.
 
 Parameters
 
-Licensor:             Gavin McFadyen
-                      [Sole trader, Nice, France. If a company is later
-                      incorporated to publish hiccup, replace this line with
-                      the registered legal entity. The "Licensor" must be a
-                      legal person able to enter into a contract.]
+Licensor:             Gavin McFadyen, sole trader
+                      1460 chemin des Plaines, 06370 Mouans-Sartoux, France
+                      SIRET: registration in progress
+                      [If a company is later incorporated to publish hiccup,
+                      replace this block with the registered legal entity.
+                      The "Licensor" must be a legal person able to enter
+                      into a contract.]
 
 Licensed Work:        hiccup -- the SIP / H.323 trace analyser: server, web
                       application, analysis library, Wireshark bridge plugin,
