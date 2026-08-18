@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy — hiccup</title>
+<meta name="description" content="How hiccup handles personal data: what is stored, why, for how long, and how to get it out or have it erased.">
+<link rel="canonical" href="https://hiccup.monster/privacy">
+<script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+</head>
+<!--
+  Privacy notice. Written against what the code ACTUALLY does — the outbound
+  host list, cookie attributes and stored fields were each checked in source
+  before being asserted here, not written from memory.
+
+  NOT legally reviewed. See the banner at the top of the page, which says so
+  to the reader as well.
+-->
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <span class="topbar-spacer"></span>
+  <a class="topnav-link" href="/sip">SIP reference</a>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+</header>
+
+<main class="doc">
+  <p class="doc-kicker">Privacy</p>
+  <h1>How hiccup handles your data</h1>
+  <p class="doc-lede">
+    hiccup analyses SIP and H.323 traces. Those traces routinely contain phone
+    numbers and IP addresses, so this page is specific about what happens to
+    them rather than generic.
+  </p>
+
+  <div class="doc-note doc-note-warn">
+    <strong>Draft, pending legal review.</strong> This describes what the
+    software actually does today and is written in good faith, but it has not
+    been reviewed by a lawyer. Last updated 18 August 2026.
+  </div>
+
+  <h2>Who is responsible</h2>
+  <p>The data controller is:</p>
+  <address class="doc-address">
+    Gavin McFadyen<br>
+    1460 chemin des Plaines<br>
+    06370 Mouans-Sartoux<br>
+    France<br>
+    SIRET: registration in progress
+  </address>
+  <p>
+    For any question about your data, or to exercise any right below, email
+    <a href="mailto:360gav@gmail.com">360gav@gmail.com</a>.
+  </p>
+
+  <h2>What is stored, and why</h2>
+  <table class="doc-table">
+    <thead>
+      <tr><th>Data</th><th>Why</th><th>Legal basis</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Your email address and a hash of your password</td>
+        <td>To let you sign in and to keep your captures separate from everyone else's</td>
+        <td>Performance of a contract</td>
+      </tr>
+      <tr>
+        <td>The capture files you upload, and the analysis derived from them</td>
+        <td>This is the service. A trace may contain phone numbers, IP addresses, SIP URIs and, if present in the file, media</td>
+        <td>Performance of a contract</td>
+      </tr>
+      <tr>
+        <td>Vendor guides you upload to the library</td>
+        <td>To ground configuration advice in your own documentation</td>
+        <td>Performance of a contract</td>
+      </tr>
+      <tr>
+        <td>Feedback you choose to send</td>
+        <td>To fix and improve the tool</td>
+        <td>Legitimate interest</td>
+      </tr>
+      <tr>
+        <td>A session cookie</td>
+        <td>To keep you signed in. HttpOnly, SameSite=Lax, and Secure over HTTPS</td>
+        <td>Strictly necessary</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Things hiccup deliberately does not do</h2>
+  <ul class="doc-list">
+    <li><strong>No analytics, no tracking, no advertising cookies.</strong> The
+      only cookie is the one that keeps you signed in, which is why there is no
+      cookie banner — there is nothing to consent to.</li>
+    <li><strong>Your traces are not sent anywhere.</strong> Analysis happens on
+      the server you are using. Where an AI feature is available it runs against
+      a language model on that same machine, not a third-party API.</li>
+    <li><strong>Your data is not sold, shared or used to train anything.</strong></li>
+  </ul>
+
+  <h2>Automatic protection of phone numbers</h2>
+  <p>
+    By default hiccup masks caller and callee digits in the analysis it derives
+    from your upload, so a number appears as
+    <code>sip:+3361…00@example.com</code> — still enough to follow a call across
+    legs, without the full number sitting on screen. Credentials in
+    <code>Authorization</code> headers are always removed, and that is not
+    optional.
+  </p>
+  <p>
+    The file you uploaded is kept exactly as you sent it and is never rewritten
+    — masking your own evidence in place would destroy it. You can turn masking
+    off per upload in <a href="/settings">Settings</a>.
+  </p>
+
+  <h2>If you are on a team</h2>
+  <p>
+    A team shares one library. Everyone on your team can see the captures,
+    projects and guides in it, and that is the point of the feature — but it
+    means you should treat anything you upload as visible to your teammates.
+    Deleting your own account does not delete the team's shared library.
+  </p>
+
+  <h2>How long it is kept</h2>
+  <p>
+    Captures are kept until you delete them, unless a retention period is
+    configured on the instance you are using, in which case older captures are
+    swept automatically. The current setting for this instance is shown in
+    <a href="/settings">Settings</a>. Your account is kept until you delete it.
+    Sessions expire on their own.
+  </p>
+
+  <h2>Who else is involved</h2>
+  <ul class="doc-list">
+    <li><strong>Cloudflare</strong> carries traffic between you and the server
+      and terminates TLS, so it necessarily handles your connection in transit.</li>
+    <li><strong>Google</strong> only if you choose "sign in with Google", and
+      only to verify who you are. It is off unless configured.</li>
+    <li><strong>Resend</strong> only if email is configured on the instance, and
+      only to deliver notification email.</li>
+  </ul>
+  <p>The server itself is in France.</p>
+
+  <h2>Your rights</h2>
+  <p>Under the GDPR you can:</p>
+  <ul class="doc-list">
+    <li><strong>See and take a copy of your data</strong> — Settings → Download
+      my data gives you everything, as JSON.</li>
+    <li><strong>Have it erased</strong> — Settings → Delete my data removes your
+      captures and library while keeping your account, or Delete my account
+      removes both.</li>
+    <li><strong>Correct it, object to processing, or restrict it</strong> — email
+      the address above.</li>
+    <li><strong>Complain</strong> to the CNIL (<a href="https://www.cnil.fr"
+      target="_blank" rel="noopener">cnil.fr</a>), the French supervisory
+      authority, if you think something here is wrong.</li>
+  </ul>
+  <p>
+    Deletion is immediate and cannot be undone; there are no backups from which
+    an erased capture could be recovered.
+  </p>
+
+  <h2>Changes</h2>
+  <p>
+    If this notice changes materially, the date at the top changes with it.
+    hiccup is free while in beta and the service may change or end.
+  </p>
+
+  <p class="doc-foot"><a href="/">← back to hiccup</a></p>
+</main>
+
+<script src="/theme.js"></script>
+</body>
+</html>

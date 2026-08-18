@@ -252,3 +252,91 @@
   .ref-index { grid-template-columns: 1fr; }
   .topnav { margin-left: 4px; padding-left: 6px; }
 }
+
+/* ---------------------------------------------------- long-form documents --
+   Used by /privacy. Kept here rather than in app.css for the same reason the
+   /sip pages are: these render for signed-out visitors, and pulling in the
+   workbench stylesheet for a text page is not worth the bytes. */
+
+.doc {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 28px 20px 72px;
+}
+
+.doc-kicker {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.doc h1 { font-size: 28px; margin: 0 0 10px; }
+
+.doc h2 {
+  font-size: 18px;
+  margin: 30px 0 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.doc-lede { font-size: 16px; color: var(--muted); margin: 0 0 18px; }
+
+.doc p { line-height: 1.65; }
+
+.doc-note {
+  margin: 16px 0;
+  padding: 12px 14px;
+  border-left: 3px solid var(--notice);
+  border-radius: 0 6px 6px 0;
+  background: var(--panel2);
+  font-size: 14px;
+}
+
+/* The "not legally reviewed" banner. Amber because it is a caveat the reader
+   should weigh, not an error and not decoration. */
+.doc-note-warn { border-left-color: var(--warn); }
+
+.doc-list { line-height: 1.7; padding-left: 20px; }
+.doc-list li { margin-bottom: 8px; }
+
+.doc-address {
+  margin: 10px 0 16px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--panel2);
+  font-style: normal;
+  line-height: 1.6;
+}
+
+.doc-table {
+  width: 100%;
+  margin: 14px 0;
+  border-collapse: collapse;
+  font-size: 14px;
+  display: block;
+  overflow-x: auto;       /* a 3-column table must not force the page sideways */
+}
+
+.doc-table th,
+.doc-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.doc-table th {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.doc-foot {
+  margin-top: 36px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
