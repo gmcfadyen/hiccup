@@ -1,5 +1,6 @@
 node_modules/
 data/
-test/fixtures/
+test/fixtures/*
+!test/fixtures/adversarial/
 *.log
 .DS_Store

@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "fixtures": "node test/make-fixtures.js",
-    "selftest": "node test/selftest.js"
+    "selftest": "node test/selftest.js",
+    "selftest:adversarial": "node test/adversarial.js"
   },
   "keywords": ["sip", "voip", "pcap", "sbc", "trace", "analysis", "b2bua", "ims"],
   "author": "hiccup",

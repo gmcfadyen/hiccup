@@ -23,6 +23,8 @@ Runtime config lives in `data/config.json` (port, Google client id, model prefer
 
 ```
 npm run selftest      # fixtures + end-to-end assertions
+npm run selftest:adversarial   # RFC 4475 torture messages + real problem captures
+                                # (robustness only -- see test/fixtures/adversarial/SOURCES.md)
 ```
 
 ## The AI part
