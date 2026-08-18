@@ -1,5 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 136 44" width="136" height="44" role="img" aria-label="hiccup">
-  <!-- the word "hiccup" with the second "c" bumped off the baseline: a hiccup.
-       transparent background; designed for dark surfaces. -->
-  <text x="4" y="31" font-family="ui-monospace, Consolas, 'Cascadia Mono', Menlo, monospace" font-size="32" font-weight="600" fill="#dce3ea">hic<tspan dy="-3" fill="#f5a623">c</tspan><tspan dy="3">up</tspan></text>
-</svg>
