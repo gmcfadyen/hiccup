@@ -793,5 +793,17 @@
   "You are on the team \"{0}\". Captures uploaded by any member are visible to every member — the library is shared, not per-person.": "Vous faites partie de l'équipe « {0} ». Les captures envoyées par n'importe quel membre sont visibles par tous les membres — la bibliothèque est partagée, pas individuelle.",
   "Only you. Your captures are not visible to any other account.": "Vous seul. Vos captures ne sont visibles par aucun autre compte.",
   "Only you.": "Vous seul.",
-  "send {\"confirm\":\"ERASE\"} to confirm erasing your data": "envoyez {\"confirm\":\"ERASE\"} pour confirmer l'effacement de vos données"
+  "send {\"confirm\":\"ERASE\"} to confirm erasing your data": "envoyez {\"confirm\":\"ERASE\"} pour confirmer l'effacement de vos données",
+  "or link to a guide hiccup does not host": "ou faites un lien vers un guide que hiccup n'héberge pas",
+  "Guide URL": "URL du guide",
+  "Add link": "Ajouter le lien",
+  "hiccup stores only the link and the tags below — it never fetches, copies or indexes the page, so this guide will not appear in search results.": "hiccup ne conserve que le lien et les étiquettes ci-dessous — il ne récupère, ne copie ni n'indexe jamais la page, donc ce guide n'apparaîtra pas dans les résultats de recherche.",
+  "Paste a link first.": "Collez d'abord un lien.",
+  "That does not look like a web link — it must start with http:// or https://.": "Cela ne ressemble pas à un lien web — il doit commencer par http:// ou https://.",
+  "Adding link…": "Ajout du lien…",
+  "Could not add that link (": "Impossible d'ajouter ce lien (",
+  "Remove the link \"{0}\"?": "Supprimer le lien « {0} » ?",
+  "Title": "Titre",
+  "link": "lien",
+  "this build of lib/kb.js cannot add links": "cette version de lib/kb.js ne peut pas ajouter de liens"
 }

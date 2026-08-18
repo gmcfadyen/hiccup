@@ -64,8 +64,8 @@
       "public/admin-status.html:61",
       "public/app.html:98",
       "public/hmr.html:178",
-      "public/kb.html:130",
-      "public/settings.html:69"
+      "public/kb.html:156",
+      "public/settings.html:74"
     ]
   },
   "302be2b037ca1f9e": {
@@ -76,8 +76,8 @@
       "public/admin-status.html:62",
       "public/app.html:99",
       "public/hmr.html:179",
-      "public/kb.html:131",
-      "public/settings.html:70"
+      "public/kb.html:157",
+      "public/settings.html:75"
     ]
   },
   "a6edc30d22e57748": {
@@ -88,8 +88,8 @@
       "public/admin-status.html:64",
       "public/app.html:101",
       "public/hmr.html:181",
-      "public/kb.html:133",
-      "public/settings.html:72"
+      "public/kb.html:159",
+      "public/settings.html:77"
     ]
   },
   "fa23d9ef19afc32c": {
@@ -100,8 +100,8 @@
       "public/admin-status.html:65",
       "public/app.html:102",
       "public/hmr.html:182",
-      "public/kb.html:134",
-      "public/settings.html:73"
+      "public/kb.html:160",
+      "public/settings.html:78"
     ]
   },
   "5928cfb985c5f790": {
@@ -113,7 +113,7 @@
       "public/app.html:114",
       "public/hmr.html:187",
       "public/index.html:252",
-      "public/kb.html:139"
+      "public/kb.html:165"
     ]
   },
   "bb588bb505779122": {
@@ -129,7 +129,7 @@
     "where": [
       "public/admin-feedback.html:58",
       "public/admin-status.html:80",
-      "public/settings.html:83"
+      "public/settings.html:88"
     ]
   },
   "e995f1b767c96b70": {
@@ -175,7 +175,7 @@
       "public/admin-status.html:67",
       "public/app.html:115",
       "public/hmr.html:188",
-      "public/kb.html:140",
+      "public/kb.html:166",
       "public/team.html:126"
     ]
   },
@@ -228,8 +228,8 @@
     "where": [
       "public/app.html:103",
       "public/hmr.html:183",
-      "public/kb.html:135",
-      "public/settings.html:74",
+      "public/kb.html:161",
+      "public/settings.html:79",
       "public/team.html:121"
     ]
   },
@@ -267,7 +267,7 @@
     "where": [
       "public/app.html:115",
       "public/hmr.html:188",
-      "public/kb.html:140",
+      "public/kb.html:166",
       "public/team.html:126",
       "public/feedback.js:294"
     ]
@@ -278,7 +278,7 @@
     "where": [
       "public/app.html:118",
       "public/hmr.html:191",
-      "public/kb.html:143",
+      "public/kb.html:169",
       "public/team.html:129",
       "public/app.js:4890"
     ]
@@ -306,7 +306,7 @@
     "cat": "html",
     "where": [
       "public/app.html:129",
-      "public/kb.html:160"
+      "public/kb.html:186"
     ]
   },
   "282049f502eac1de": {
@@ -442,7 +442,7 @@
       "public/app.html:178",
       "public/hmr.html:255",
       "public/index.html:366",
-      "public/kb.html:201",
+      "public/kb.html:238",
       "public/team.html:208"
     ]
   },
@@ -1380,84 +1380,112 @@
     "text": "Config guides",
     "cat": "html",
     "where": [
-      "public/kb.html:149"
+      "public/kb.html:175"
     ]
   },
   "f999addfdbf294a3": {
     "text": "What this is for: grounding config suggestions in the vendor's own guide — upload the SBC documentation you trust and hiccup cites its passages instead of guessing.",
     "cat": "html",
     "where": [
-      "public/kb.html:150"
+      "public/kb.html:176"
     ]
   },
   "c7023fd85a9b853b": {
     "text": "Drop vendor guides here",
     "cat": "html",
     "where": [
-      "public/kb.html:158"
+      "public/kb.html:184"
     ]
   },
   "d11046c82fbd9773": {
     "text": ".txt · .md · .html · .ini · .cfg · .conf · .cli · .log — PDF needs an optional dependency",
     "cat": "html",
     "where": [
-      "public/kb.html:159"
+      "public/kb.html:185"
+    ]
+  },
+  "a223c737bb21b418": {
+    "text": "or link to a guide hiccup does not host",
+    "cat": "html",
+    "where": [
+      "public/kb.html:190"
+    ]
+  },
+  "ef2921246ea3de42": {
+    "text": "Guide URL",
+    "cat": "html",
+    "where": [
+      "public/kb.html:192"
+    ]
+  },
+  "aee580759589d4cc": {
+    "text": "Add link",
+    "cat": "html",
+    "where": [
+      "public/kb.html:195"
+    ]
+  },
+  "12c6b10e324c8106": {
+    "text": "hiccup stores only the link and the tags below — it never fetches, copies or indexes the page, so this guide will not appear in search results.",
+    "cat": "html",
+    "where": [
+      "public/kb.html:197"
     ]
   },
   "8acdbb98e99e879e": {
     "text": "Vendor (optional)",
     "cat": "html",
     "where": [
-      "public/kb.html:165"
+      "public/kb.html:202"
     ]
   },
   "d1d1a723544df8e8": {
     "text": "oracle-acme, audiocodes, ribbon…",
     "cat": "html",
     "where": [
-      "public/kb.html:166"
+      "public/kb.html:203"
     ]
   },
   "bd807724e1184623": {
     "text": "Product (optional)",
     "cat": "html",
     "where": [
-      "public/kb.html:170"
+      "public/kb.html:207"
     ]
   },
   "d0739d2d12946821": {
     "text": "Acme Packet 4600, Mediant 4000…",
     "cat": "html",
     "where": [
-      "public/kb.html:171"
+      "public/kb.html:208"
     ]
   },
   "dfa171455b9dc9ef": {
     "text": "Your guides",
     "cat": "html",
     "where": [
-      "public/kb.html:181"
+      "public/kb.html:218"
     ]
   },
   "fe0480c36565268b": {
     "text": "Search the guides",
     "cat": "html",
     "where": [
-      "public/kb.html:186"
+      "public/kb.html:223"
     ]
   },
   "97825158e43702cd": {
     "text": "e.g. session-expires refresher, sip-manipulation store, coder group",
     "cat": "html",
     "where": [
-      "public/kb.html:189"
+      "public/kb.html:226"
     ]
   },
   "5d929ff1619ac0c9": {
     "text": "Search",
     "cat": "html",
     "where": [
-      "public/kb.html:191"
+      "public/kb.html:228"
     ]
   },
   "ebd50aa244e53246": {
@@ -1485,196 +1513,196 @@
     "text": "Settings",
     "cat": "html",
     "where": [
-      "public/settings.html:82"
+      "public/settings.html:87"
     ]
   },
   "c688123bacd22912": {
     "text": "Privacy of your captures",
     "cat": "html",
     "where": [
-      "public/settings.html:87"
+      "public/settings.html:92"
     ]
   },
   "e7a5a68d766b49e2": {
     "text": "Traces routinely contain phone numbers. These control what hiccup keeps in the analysis it builds from them.",
     "cat": "html",
     "where": [
-      "public/settings.html:88"
+      "public/settings.html:93"
     ]
   },
   "4ac03f56f72b4226": {
     "text": "Mask phone numbers in new uploads",
     "cat": "html",
     "where": [
-      "public/settings.html:93"
+      "public/settings.html:98"
     ]
   },
   "8036e4ca267d7125": {
     "text": "Shows numbers as",
     "cat": "html",
     "where": [
-      "public/settings.html:94"
+      "public/settings.html:99"
     ]
   },
   "e4ee48083f224295": {
     "text": "in the analysis — still enough to follow a call across legs, without keeping the full number. Your uploaded file is never altered, only what hiccup derives from it.",
     "cat": "html",
     "where": [
-      "public/settings.html:94"
+      "public/settings.html:99"
     ]
   },
   "9c59c7bdf8a7fd03": {
     "text": "use the server default",
     "cat": "html",
     "where": [
-      "public/settings.html:101"
+      "public/settings.html:106"
     ]
   },
   "dff35ef6dfc95fdc": {
     "text": "always mask",
     "cat": "html",
     "where": [
-      "public/settings.html:102"
+      "public/settings.html:107"
     ]
   },
   "cb9f394fe954695f": {
     "text": "never mask",
     "cat": "html",
     "where": [
-      "public/settings.html:103"
+      "public/settings.html:108"
     ]
   },
   "4661bbea10e4a7ca": {
     "text": "How long captures are kept",
     "cat": "html",
     "where": [
-      "public/settings.html:110"
+      "public/settings.html:115"
     ]
   },
   "7ba9d783b7673877": {
     "text": "checking…",
     "cat": "html",
     "where": [
-      "public/settings.html:111",
-      "public/settings.html:118",
-      "public/settings.html:152",
-      "public/settings.html:173"
+      "public/settings.html:116",
+      "public/settings.html:123",
+      "public/settings.html:157",
+      "public/settings.html:178"
     ]
   },
   "f9ee06b5ff26c62b": {
     "text": "Who else can see your captures",
     "cat": "html",
     "where": [
-      "public/settings.html:117"
+      "public/settings.html:122"
     ]
   },
   "60c9cf051f0b9a39": {
     "text": "Your privacy rights",
     "cat": "html",
     "where": [
-      "public/settings.html:123"
+      "public/settings.html:128"
     ]
   },
   "ad2e6868b10b38aa": {
     "text": "Export, erase, or delete — everything on this page is something you can do yourself, right now, without asking an administrator.",
     "cat": "html",
     "where": [
-      "public/settings.html:124"
+      "public/settings.html:129"
     ]
   },
   "4f115b48fcd53957": {
     "text": "Download a copy",
     "cat": "html",
     "where": [
-      "public/settings.html:128"
+      "public/settings.html:133"
     ]
   },
   "1a459bd2e7b53974": {
     "text": "Everything hiccup holds about this account.",
     "cat": "html",
     "where": [
-      "public/settings.html:129"
+      "public/settings.html:134"
     ]
   },
   "0886ea2a1f4b50d1": {
     "text": "Export as JSON",
     "cat": "html",
     "where": [
-      "public/settings.html:133"
+      "public/settings.html:138"
     ]
   },
   "9b2be74d948736e9": {
     "text": "One file: your account record, capture list, projects, team, library documents and any feedback you have sent. Capture file contents are not included — download those individually from the workbench.",
     "cat": "html",
     "where": [
-      "public/settings.html:134"
+      "public/settings.html:139"
     ]
   },
   "d3386a2ef42e80b9": {
     "text": "Download",
     "cat": "html",
     "where": [
-      "public/settings.html:140"
+      "public/settings.html:145"
     ]
   },
   "0d7192fab7c9eb3c": {
     "text": "Erase your data",
     "cat": "html",
     "where": [
-      "public/settings.html:146"
+      "public/settings.html:151"
     ]
   },
   "54a72ca1b15ba2e0": {
     "text": "Removes your captures, projects and library documents. Your account stays open and signed in — this is not the same as deleting your account.",
     "cat": "html",
     "where": [
-      "public/settings.html:147"
+      "public/settings.html:152"
     ]
   },
   "720689d4346abc1c": {
     "text": "What this removes",
     "cat": "html",
     "where": [
-      "public/settings.html:151",
-      "public/settings.html:172"
+      "public/settings.html:156",
+      "public/settings.html:177"
     ]
   },
   "691d2c8f160c597f": {
     "text": "Erase my data",
     "cat": "html",
     "where": [
-      "public/settings.html:155"
+      "public/settings.html:160"
     ]
   },
   "d2223afb7d6b100d": {
     "text": "Type",
     "cat": "html",
     "where": [
-      "public/settings.html:159",
-      "public/settings.html:180"
+      "public/settings.html:164",
+      "public/settings.html:185"
     ]
   },
   "cfbd46e8a190134a": {
     "text": "to confirm:",
     "cat": "html",
     "where": [
-      "public/settings.html:159",
-      "public/settings.html:180"
+      "public/settings.html:164",
+      "public/settings.html:185"
     ]
   },
   "4082bb30552dd590": {
     "text": "Erase permanently",
     "cat": "html",
     "where": [
-      "public/settings.html:161"
+      "public/settings.html:166"
     ]
   },
   "2ceb11be2290bb1b": {
     "text": "Cancel",
     "cat": "html",
     "where": [
-      "public/settings.html:162",
-      "public/settings.html:183",
+      "public/settings.html:167",
+      "public/settings.html:188",
       "public/app.js:860",
       "public/feedback.js:180"
     ]
@@ -1683,28 +1711,28 @@
     "text": "Delete this account",
     "cat": "html",
     "where": [
-      "public/settings.html:167"
+      "public/settings.html:172"
     ]
   },
   "992032218333b658": {
     "text": "Everything above, plus the account itself. Irreversible — there is no undo and no backup to restore from.",
     "cat": "html",
     "where": [
-      "public/settings.html:168"
+      "public/settings.html:173"
     ]
   },
   "045c3b86aae073c1": {
     "text": "Delete account",
     "cat": "html",
     "where": [
-      "public/settings.html:176"
+      "public/settings.html:181"
     ]
   },
   "f0ef7644098b8a63": {
     "text": "Delete permanently",
     "cat": "html",
     "where": [
-      "public/settings.html:182"
+      "public/settings.html:187"
     ]
   },
   "20d2719255c74e18": {
@@ -2112,7 +2140,7 @@
     "where": [
       "public/app.js:603",
       "public/app.js:4429",
-      "public/kb.js:210"
+      "public/kb.js:215"
     ]
   },
   "039b6034e8a74e94": {
@@ -2235,7 +2263,7 @@
       "public/app.js:824",
       "public/app.js:962",
       "public/app.js:968",
-      "public/kb.js:325"
+      "public/kb.js:395"
     ]
   },
   "d96dc724ec12ae01": {
@@ -2286,8 +2314,8 @@
       "public/app.js:931",
       "public/app.js:963",
       "public/feedback.js:280",
-      "public/settings.js:81",
-      "public/settings.js:118"
+      "public/kb.js:271",
+      "public/settings.js:81"
     ]
   },
   "ab29acd0352515f1": {
@@ -4612,114 +4640,157 @@
     "text": "with zero runtime dependencies. Either run",
     "cat": "js",
     "where": [
-      "public/kb.js:145"
+      "public/kb.js:150"
     ]
   },
   "3fccddc44bf076c3": {
     "text": "guide as .txt, .md or .html and upload that instead.",
     "cat": "js",
     "where": [
-      "public/kb.js:148"
+      "public/kb.js:153"
     ]
   },
   "8d71215b4dd95691": {
     "text": "Could not load your guides. Is hiccup still running?",
     "cat": "js",
     "where": [
-      "public/kb.js:174"
+      "public/kb.js:179"
     ]
   },
   "d8bdfb2aca2820cd": {
     "text": "Indexing",
     "cat": "js",
     "where": [
-      "public/kb.js:190"
+      "public/kb.js:195"
     ]
   },
   "cd601300a28f2ec5": {
     "text": "Upload of",
     "cat": "js",
     "where": [
-      "public/kb.js:209",
-      "public/kb.js:220"
+      "public/kb.js:214",
+      "public/kb.js:225"
     ]
   },
   "d02711241875da0a": {
     "text": "failed:",
     "cat": "js",
     "where": [
-      "public/kb.js:209"
+      "public/kb.js:214"
     ]
   },
   "974c4b0e59e43e71": {
     "text": "was not indexed — see the note below.",
     "cat": "js",
     "where": [
-      "public/kb.js:218"
+      "public/kb.js:223"
     ]
   },
   "2850665590528dfc": {
     "text": "failed (",
     "cat": "js",
     "where": [
-      "public/kb.js:220"
+      "public/kb.js:225"
     ]
   },
   "bdf185df2480292a": {
     "text": "Indexed",
     "cat": "js",
     "where": [
-      "public/kb.js:228"
+      "public/kb.js:233"
     ]
   },
   "0f838176873c8e22": {
     "text": "chunk",
     "cat": "js",
     "where": [
-      "public/kb.js:229"
+      "public/kb.js:234"
+    ]
+  },
+  "14405ec54341db7f": {
+    "text": "Paste a link first.",
+    "cat": "js",
+    "where": [
+      "public/kb.js:245"
+    ]
+  },
+  "5f1070ccee2feb13": {
+    "text": "That does not look like a web link — it must start with http:// or https://.",
+    "cat": "js",
+    "where": [
+      "public/kb.js:249"
+    ]
+  },
+  "cac65f520e17c598": {
+    "text": "Adding link…",
+    "cat": "js",
+    "where": [
+      "public/kb.js:254"
+    ]
+  },
+  "afbc48262512a023": {
+    "text": "Could not add that link (",
+    "cat": "js",
+    "where": [
+      "public/kb.js:278"
+    ]
+  },
+  "e871c20e39ace2a5": {
+    "text": "Added",
+    "cat": "js",
+    "where": [
+      "public/kb.js:284",
+      "public/kb.js:355"
+    ]
+  },
+  "6bfd0d7f752cdcfd": {
+    "text": "Remove the link \"{0}\"?",
+    "cat": "js",
+    "where": [
+      "public/kb.js:291"
     ]
   },
   "2fa02b91c1ba4a3f": {
     "text": "Remove \"",
     "cat": "js",
     "where": [
-      "public/kb.js:234"
+      "public/kb.js:292"
     ]
   },
   "d3f37063cde0033a": {
     "text": "\" from the knowledge base?",
     "cat": "js",
     "where": [
-      "public/kb.js:234"
+      "public/kb.js:292"
     ]
   },
   "918fa8a29f517252": {
     "text": "Config advice will stop citing it.",
     "cat": "js",
     "where": [
-      "public/kb.js:235"
+      "public/kb.js:293"
     ]
   },
   "235ef204d73a8254": {
     "text": "Could not delete \"",
     "cat": "js",
     "where": [
-      "public/kb.js:243",
-      "public/kb.js:248"
+      "public/kb.js:302",
+      "public/kb.js:307"
     ]
   },
   "496548705d9d0dd7": {
     "text": "\" — the server did not answer.",
     "cat": "js",
     "where": [
-      "public/kb.js:248"
+      "public/kb.js:307"
     ]
   },
   "dd3bedf6eb41e3db": {
     "text": "Removed",
     "cat": "js",
     "where": [
-      "public/kb.js:251",
+      "public/kb.js:310",
       "public/team.js:546"
     ]
   },
@@ -4727,161 +4798,168 @@
     "text": "chunks",
     "cat": "js",
     "where": [
-      "public/kb.js:273"
+      "public/kb.js:332"
     ]
   },
   "a77ff879b670c5e9": {
     "text": "No guides yet.",
     "cat": "js",
     "where": [
-      "public/kb.js:284"
+      "public/kb.js:343"
     ]
   },
   "aa56b6dd7718e3e7": {
     "text": "Add the SBC administration guide, a release note, or your own runbook. hiccup",
     "cat": "js",
     "where": [
-      "public/kb.js:286"
+      "public/kb.js:345"
     ]
   },
   "a2ae0f173cbf06ae": {
     "text": "chunks it, indexes the words (no embeddings — the GPU stays free for RFPlex), and",
     "cat": "js",
     "where": [
-      "public/kb.js:287"
+      "public/kb.js:346"
     ]
   },
   "cc859a4d8e59507c": {
     "text": "quotes the relevant passage next to any config suggestion.",
     "cat": "js",
     "where": [
-      "public/kb.js:288"
+      "public/kb.js:347"
+    ]
+  },
+  "99f110d27e30b289": {
+    "text": "Title",
+    "cat": "js",
+    "where": [
+      "public/kb.js:355"
     ]
   },
   "720e2b83a5cad48d": {
     "text": "Vendor / product",
     "cat": "js",
     "where": [
-      "public/kb.js:296"
+      "public/kb.js:355"
     ]
   },
   "816c207ba6213983": {
     "text": "Chunks",
     "cat": "js",
     "where": [
-      "public/kb.js:296"
+      "public/kb.js:355"
     ]
   },
   "78789724e789221c": {
     "text": "Size",
     "cat": "js",
     "where": [
-      "public/kb.js:296"
+      "public/kb.js:355"
     ]
   },
-  "e871c20e39ace2a5": {
-    "text": "Added",
+  "bf4b9bad694f4809": {
+    "text": "link",
     "cat": "js",
     "where": [
-      "public/kb.js:296"
+      "public/kb.js:376"
     ]
   },
   "c165825453577f07": {
     "text": "remove this guide from the knowledge base",
     "cat": "js",
     "where": [
-      "public/kb.js:327"
+      "public/kb.js:397"
     ]
   },
   "0aa6124a98669444": {
     "text": "Type a few words from the guide — hiccup scores passages by keyword,",
     "cat": "js",
     "where": [
-      "public/kb.js:368"
+      "public/kb.js:438"
     ]
   },
   "fd92c80fc6b97fda": {
     "text": "so nouns beat sentences.",
     "cat": "js",
     "where": [
-      "public/kb.js:369"
+      "public/kb.js:439"
     ]
   },
   "fe515bf2902cac81": {
     "text": "Searching…",
     "cat": "js",
     "where": [
-      "public/kb.js:375"
+      "public/kb.js:445"
     ]
   },
   "6228f61c860046d3": {
     "text": "Search failed — could not reach the server.",
     "cat": "js",
     "where": [
-      "public/kb.js:389"
+      "public/kb.js:459"
     ]
   },
   "450e506e7c686c2e": {
     "text": "Search failed (",
     "cat": "js",
     "where": [
-      "public/kb.js:400"
+      "public/kb.js:470"
     ]
   },
   "f351cf3a937f0703": {
     "text": "passage",
     "cat": "js",
     "where": [
-      "public/kb.js:411"
+      "public/kb.js:481"
     ]
   },
   "28e59f305e6cef09": {
     "text": "matched “",
     "cat": "js",
     "where": [
-      "public/kb.js:412"
+      "public/kb.js:482"
     ]
   },
   "53778a1655ccc60b": {
     "text": "Nothing in your guides matched “",
     "cat": "js",
     "where": [
-      "public/kb.js:422"
+      "public/kb.js:492"
     ]
   },
   "b0dacef012169a7d": {
     "text": "Try the vendor’s own wording — parameter names beat descriptions.",
     "cat": "js",
     "where": [
-      "public/kb.js:424"
+      "public/kb.js:494"
     ]
   },
   "bf81cfc3c4f59cd3": {
     "text": "There are no guides uploaded yet, so there is nothing to search.",
     "cat": "js",
     "where": [
-      "public/kb.js:425"
+      "public/kb.js:495"
     ]
   },
   "c10e63fbe7f624f5": {
     "text": "score",
     "cat": "js",
     "where": [
-      "public/kb.js:444"
+      "public/kb.js:514"
     ]
   },
   "d96aabf6b7818413": {
     "text": "BM25-ish keyword score — higher is a closer keyword match, not a ranking of truth",
     "cat": "js",
     "where": [
-      "public/kb.js:445"
+      "public/kb.js:515"
     ]
   },
   "e29a71538c0d17df": {
     "text": "This passage came back without text.",
     "cat": "js",
     "where": [
-      "public/kb.js:457"
+      "public/kb.js:527"
     ]
   },
   "84164bca6b061a4e": {
@@ -5430,9 +5508,9 @@
     "where": [
       "server.js:847",
       "server.js:985",
-      "server.js:2430",
-      "server.js:2731",
-      "server.js:2746"
+      "server.js:2462",
+      "server.js:2763",
+      "server.js:2778"
     ]
   },
   "f79423093897467e": {
@@ -5498,264 +5576,271 @@
       "server.js:1087"
     ]
   },
+  "402ff74fd64be7f1": {
+    "text": "this build of lib/kb.js cannot add links",
+    "cat": "server",
+    "where": [
+      "server.js:1127"
+    ]
+  },
   "2a59e817abd5fd84": {
     "text": "this build of lib/kb.js cannot delete documents",
     "cat": "server",
     "where": [
-      "server.js:1135"
+      "server.js:1167"
     ]
   },
   "f9cb3b7e6e30bdb9": {
     "text": "document not found",
     "cat": "server",
     "where": [
-      "server.js:1146"
+      "server.js:1178"
     ]
   },
   "3f951aec7bc91ff5": {
     "text": "this build has no feedback module",
     "cat": "server",
     "where": [
-      "server.js:1166"
+      "server.js:1198"
     ]
   },
   "c63c0aa33a970b76": {
     "text": "admin only",
     "cat": "server",
     "where": [
-      "server.js:1210"
+      "server.js:1242"
     ]
   },
   "766bccfadc60d6b3": {
     "text": "comment is required",
     "cat": "server",
     "where": [
-      "server.js:1240"
+      "server.js:1272"
     ]
   },
   "f08c15b90c9cd570": {
     "text": "too many submissions — try again later",
     "cat": "server",
     "where": [
-      "server.js:1244"
+      "server.js:1276"
     ]
   },
   "8433e48ee25ebe05": {
     "text": "send {\"confirm\":\"DELETE\"} to confirm this irreversible deletion",
     "cat": "server",
     "where": [
-      "server.js:1342"
+      "server.js:1374"
     ]
   },
   "750fa3e5656e2d66": {
     "text": "send {\"confirm\":\"ERASE\"} to confirm erasing your data",
     "cat": "server",
     "where": [
-      "server.js:1410"
+      "server.js:1442"
     ]
   },
   "b107b578f662fb05": {
     "text": "cross-origin request refused",
     "cat": "server",
     "where": [
-      "server.js:1578"
+      "server.js:1610"
     ]
   },
   "e8d4274657ed2599": {
     "text": "action must be 'status' or 'restart'",
     "cat": "server",
     "where": [
-      "server.js:1585"
+      "server.js:1617"
     ]
   },
   "c9025488a137cf6c": {
     "text": "Not supervised by the hiccup service (state:",
     "cat": "server",
     "where": [
-      "server.js:1615"
+      "server.js:1647"
     ]
   },
   "3fb3204d07f649c4": {
     "text": "no such feedback",
     "cat": "server",
     "where": [
-      "server.js:1698"
+      "server.js:1730"
     ]
   },
   "2668e3335367971b": {
     "text": "no feedback module",
     "cat": "server",
     "where": [
-      "server.js:1721"
+      "server.js:1753"
     ]
   },
   "b5872077e7138177": {
     "text": "no digestRecipient configured",
     "cat": "server",
     "where": [
-      "server.js:1735"
+      "server.js:1767"
     ]
   },
   "3e230b47bf9bb8d3": {
     "text": "no mail module",
     "cat": "server",
     "where": [
-      "server.js:1739"
+      "server.js:1771"
     ]
   },
   "d1638c2147bb7e7d": {
     "text": "this build of lib/kb.js cannot search",
     "cat": "server",
     "where": [
-      "server.js:1766"
+      "server.js:1798"
     ]
   },
   "5337ea8f8150b659": {
     "text": "q (a search query) is required",
     "cat": "server",
     "where": [
-      "server.js:1771"
+      "server.js:1803"
     ]
   },
   "d53aa13ba29ffd09": {
     "text": "the teams module is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:1821",
-      "server.js:1838",
-      "server.js:1850",
-      "server.js:1871",
-      "server.js:1894",
-      "server.js:1944"
+      "server.js:1853",
+      "server.js:1870",
+      "server.js:1882",
+      "server.js:1903",
+      "server.js:1926",
+      "server.js:1976"
     ]
   },
   "b4557baf45c6a947": {
     "text": "this invite link is invalid or has expired",
     "cat": "server",
     "where": [
-      "server.js:1876",
-      "server.js:1904"
+      "server.js:1908",
+      "server.js:1936"
     ]
   },
   "d7bf7c6c99ed4407": {
     "text": "token is required",
     "cat": "server",
     "where": [
-      "server.js:1899"
+      "server.js:1931"
     ]
   },
   "baa0a3344e8c0331": {
     "text": "joined the team, but could not load the account",
     "cat": "server",
     "where": [
-      "server.js:1932"
+      "server.js:1964"
     ]
   },
   "3696efafd4e94786": {
     "text": "role or suspended is required",
     "cat": "server",
     "where": [
-      "server.js:1952"
+      "server.js:1984"
     ]
   },
   "8085f74c9d35d6d7": {
     "text": "Only the team owner can change member roles.",
     "cat": "server",
     "where": [
-      "server.js:1958"
+      "server.js:1990"
     ]
   },
   "0136bec8180be8a5": {
     "text": "Only a team owner or admin can suspend members.",
     "cat": "server",
     "where": [
-      "server.js:1970"
+      "server.js:2002"
     ]
   },
   "00adf0d1bc93484d": {
     "text": "Only a team owner or admin can remove members.",
     "cat": "server",
     "where": [
-      "server.js:1991"
+      "server.js:2023"
     ]
   },
   "408635fc82cc11a8": {
     "text": "Only the team owner can transfer ownership.",
     "cat": "server",
     "where": [
-      "server.js:2013"
+      "server.js:2045"
     ]
   },
   "4bf96ced8828fabd": {
     "text": "the projects module is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:2029",
-      "server.js:2042",
-      "server.js:2065",
-      "server.js:2091"
+      "server.js:2061",
+      "server.js:2074",
+      "server.js:2097",
+      "server.js:2123"
     ]
   },
   "0d9aceb8b8384b7f": {
     "text": "project not found",
     "cat": "server",
     "where": [
-      "server.js:2071",
-      "server.js:2097",
-      "server.js:2102"
+      "server.js:2103",
+      "server.js:2129",
+      "server.js:2134"
     ]
   },
   "8c827ee96db5d1cd": {
     "text": "messages array is required",
     "cat": "server",
     "where": [
-      "server.js:2424"
+      "server.js:2456"
     ]
   },
   "ecfc526de8ae3814": {
     "text": "local model is offline",
     "cat": "server",
     "where": [
-      "server.js:2435"
+      "server.js:2467"
     ]
   },
   "fec5f0616fdf6dd0": {
     "text": "hiccup is busy answering another question — try again in a moment",
     "cat": "server",
     "where": [
-      "server.js:2454"
+      "server.js:2486"
     ]
   },
   "1ab14d1c2578506a": {
     "text": "email and password are required",
     "cat": "server",
     "where": [
-      "server.js:2485",
-      "server.js:2507"
+      "server.js:2517",
+      "server.js:2539"
     ]
   },
   "98c716c4e947ddc8": {
     "text": "wrong email or password",
     "cat": "server",
     "where": [
-      "server.js:2512"
+      "server.js:2544"
     ]
   },
   "f470143a26c5b7c9": {
     "text": "credential is required",
     "cat": "server",
     "where": [
-      "server.js:2523"
+      "server.js:2555"
     ]
   },
   "08565cf8a3e3ee3a": {
     "text": "not found",
     "cat": "server",
     "where": [
-      "server.js:2671",
-      "server.js:2692",
-      "server.js:2752",
-      "server.js:2840"
+      "server.js:2703",
+      "server.js:2724",
+      "server.js:2784",
+      "server.js:2877"
     ]
   }
 }

@@ -2047,3 +2047,40 @@ GDPR stuff into its own subsection."
   same bug); only surfaced because the new erase-data box was screenshotted
   immediately after being added and visibly wasn't hidden. Fixed with one
   `.set-confirm[hidden] { display: none; }` override.
+
+---
+
+# Wave 11 — Link to a vendor guide, instead of ingesting one
+
+`/kb` gains a second way to add a guide: `POST /api/kb/link {url, title?,
+vendor?, product?}` registers a link to a vendor's own hosted documentation.
+This exists in place of the originally-planned "pre-ingest vendor SBC config
+guides" feature, which stalled on a licensing question hiccup cannot answer
+for itself — it holds no redistribution rights to any vendor's manuals, so a
+stored, indexed copy (even one hiccup fetched and extracted text from itself,
+never mind one shipped pre-loaded) raises exactly that question. A link
+raises none of it: `lib/kb.js`'s `addLink()` stores the URL and the two tags
+a user already types for an upload, and **nothing else** — no fetch, no
+extracted text, no `chunks.json`, no index entry. It is a labelled bookmark
+back to the vendor's site, not a copy of anything.
+
+Reuses the existing per-document storage layout on purpose (same
+`data/kb/<userId>/<docId>/`, same `listDocs`/`deleteDoc` lifecycle) so a link
+and an ingested guide sit in the same table, are deleted the same way, and
+required no new storage code — only `chunks: 0` and a `url` field
+distinguish one from the other. `_cleanUrl()` requires `http(s)://`: the URL
+is stored verbatim and later rendered as a real `<a href>` on the client, so
+this is the one point standing between a `javascript:` URI typed into the
+field and stored XSS the moment the person who added it — or anyone else
+looking at their own library — clicks their own link. Verified against a
+disposable throwaway account: added a link, confirmed it lists with
+`chunks:0` and a `url`, confirmed `POST /api/kb/link {"url":"javascript:..."}`
+is rejected with 422, confirmed a search for words in the linked page's title
+returns nothing (proving it truly is not indexed), deleted it, deleted the
+account.
+
+Deliberately out of scope for this pass: surfacing a link as a citable
+reference in advice cards the way an indexed document's chunks are. That
+would need matching a rule or finding's detected vendor against a link's
+vendor tag and is a meaningfully bigger feature than "let someone save a
+link" — worth doing later, not implied by it.

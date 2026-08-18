@@ -125,6 +125,11 @@
       ev.preventDefault();
       search();
     });
+
+    $('kb-link-add').addEventListener('click', function () { addLink(); });
+    $('kb-link-url').addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') { ev.preventDefault(); addLink(); }
+    });
   }
 
   // ------------------------------------------------------------------ docs
@@ -229,10 +234,64 @@
       (chunks != null ? ' — ' + chunks + _t(' chunk') + (chunks === 1 ? '' : 's') : '') + '.');
   }
 
+  /**
+   * Register a link to a vendor's own hosted guide. Unlike uploadFile(), this
+   * sends JSON — there is no file, so no bytes ever leave the browser for
+   * this action beyond the URL and the two tag fields the user already typed.
+   */
+  async function addLink() {
+    var url = ($('kb-link-url').value || '').trim();
+    if (!url) {
+      setMsg(_t('Paste a link first.'), true);
+      return;
+    }
+    if (!/^https?:\/\//i.test(url)) {
+      setMsg(_t('That does not look like a web link — it must start with http:// or https://.'), true);
+      return;
+    }
+    if (state.uploading) return;
+    state.uploading = true;
+    setMsg(_t('Adding link…'));
+
+    var res = null, payload = null;
+    try {
+      res = await fetch('/api/kb/link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: url,
+          vendor: $('kb-vendor').value || undefined,
+          product: $('kb-product').value || undefined
+        })
+      });
+      if (res.status === 401) { location.href = '/'; return; }
+      try { payload = await res.json(); } catch (e) { payload = null; }
+    } catch (e) {
+      state.uploading = false;
+      setMsg(_t('Could not reach the server.'), true);
+      return;
+    }
+    state.uploading = false;
+
+    if (!res.ok) {
+      setMsg(_t((payload && (payload.error || payload.userMessage)) || '') ||
+        (_t('Could not add that link (') + res.status + ').'), true);
+      return;
+    }
+
+    $('kb-link-url').value = '';
+    var doc = payload && payload.doc ? payload.doc : payload;
+    setMsg(_t('Added ') + ((doc && (doc.title || doc.url)) || url) + '.');
+    await loadDocs();
+  }
+
   async function deleteDoc(doc) {
     var name = doc.title || doc.filename || doc.id;
-    if (!confirm(_t('Remove "') + name + _t('" from the knowledge base?\n') +
-      _t('Config advice will stop citing it.'))) return;
+    var question = isStr(doc.url)
+      ? _t('Remove the link "{0}"?', name)
+      : (_t('Remove "') + name + _t('" from the knowledge base?\n') +
+         _t('Config advice will stop citing it.'));
+    if (!confirm(question)) return;
     try {
       var r = await fetch('/api/kb/docs/' + encodeURIComponent(doc.id), { method: 'DELETE' });
       if (r.status === 401) { location.href = '/'; return; }
@@ -293,7 +352,7 @@
     var table = el('table', 'kb-table');
     var thead = el('thead');
     var hrow = el('tr');
-    ['Title', _t('Vendor / product'), _t('Chunks'), _t('Size'), _t('Added'), ''].forEach(function (h) {
+    [_t('Title'), _t('Vendor / product'), _t('Chunks'), _t('Size'), _t('Added'), ''].forEach(function (h) {
       hrow.appendChild(el('th', null, h));
     });
     thead.appendChild(hrow);
@@ -304,11 +363,22 @@
       (function (doc) {
         if (!doc || typeof doc !== 'object') return;
         var row = el('tr');
+        var isLink = isStr(doc.url);
 
         var tdTitle = el('td');
-        tdTitle.appendChild(el('span', 'kb-doc-title', doc.title || doc.filename || doc.id || 'document'));
-        if (isStr(doc.filename) && doc.filename !== doc.title) {
-          tdTitle.appendChild(el('span', 'kb-doc-file mono', doc.filename));
+        if (isLink) {
+          var a = el('a', 'kb-doc-title', doc.title || doc.url);
+          a.href = doc.url;
+          a.target = '_blank';
+          a.rel = 'noopener';
+          a.title = doc.url;
+          tdTitle.appendChild(a);
+          tdTitle.appendChild(el('span', 'kb-link-chip', _t('link')));
+        } else {
+          tdTitle.appendChild(el('span', 'kb-doc-title', doc.title || doc.filename || doc.id || 'document'));
+          if (isStr(doc.filename) && doc.filename !== doc.title) {
+            tdTitle.appendChild(el('span', 'kb-doc-file mono', doc.filename));
+          }
         }
         row.appendChild(tdTitle);
 
@@ -316,8 +386,8 @@
         row.appendChild(el('td', vp ? null : 'muted', vp || '—'));
 
         row.appendChild(el('td', 'kb-num mono',
-          typeof doc.chunks === 'number' ? doc.chunks : '—'));
-        row.appendChild(el('td', 'kb-num mono', fmtBytes(doc.sizeBytes)));
+          isLink ? '—' : (typeof doc.chunks === 'number' ? doc.chunks : '—')));
+        row.appendChild(el('td', 'kb-num mono', isLink ? '—' : fmtBytes(doc.sizeBytes)));
         row.appendChild(el('td', 'mono', fmtDateTime(doc.addedAt)));
 
         var tdDel = el('td');

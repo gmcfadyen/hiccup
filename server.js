@@ -1114,6 +1114,38 @@ async function handleKbAdd(req, res, user) {
   });
 }
 
+/**
+ * POST /api/kb/link {url, title?, vendor?, product?} — register a link to a
+ * vendor's own hosted guide instead of uploading a copy of it. See
+ * lib/kb.js's addLink() header for why this exists in place of hiccup
+ * fetching and indexing the page itself.
+ */
+async function handleKbAddLink(req, res, user) {
+  const uid = resolveAccountUid(user.id);
+  const kb = requireKb(res);
+  if (!kb || typeof kb.addLink !== 'function') {
+    if (kb) sendJson(res, 501, { error: 'this build of lib/kb.js cannot add links' });
+    else req.resume();
+    return;
+  }
+  let body;
+  try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
+  let link;
+  try {
+    link = kb.addLink({
+      userId: uid,
+      url: body && body.url,
+      title: body && body.title,
+      vendor: body && body.vendor,
+      product: body && body.product,
+    });
+  } catch (e) {
+    sendJson(res, 422, { error: (e && e.userMessage) || 'could not save that link' });
+    return;
+  }
+  sendJson(res, 200, { doc: link });
+}
+
 /** GET /api/kb/docs — this account's documents. */
 function handleKbList(req, res, user) {
   const uid = resolveAccountUid(user.id);
@@ -2778,6 +2810,11 @@ async function handle(req, res) {
     const user = requireAuth(req, res);
     if (!user) { req.resume(); return; }
     return handleKbAdd(req, res, user);
+  }
+  if (pathname === '/api/kb/link' && method === 'POST') {
+    const user = requireAuth(req, res);
+    if (!user) { req.resume(); return; }
+    return handleKbAddLink(req, res, user);
   }
   if (pathname === '/api/kb/docs' && method === 'GET') {
     const user = requireAuth(req, res);
