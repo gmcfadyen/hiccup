@@ -2280,3 +2280,68 @@ by the refusal. Two more new tests cover the negative case directly: a fresh
 free account is refused on both `createTeam` and `acceptInvite` (branch 1),
 each confirming the invite survives the refusal and a same-token retry
 succeeds once paid.
+
+---
+
+# Wave 15 — `/subscribe`, and a `plan`-dropping bug the page itself caught
+
+`/subscribe`: two pricing cards (€20/mo, €200/yr — "two months free" framing)
+linking out to `https://buymeacoffee.com/mcfadyen`, with numbered
+instructions for the fully-manual match-a-payment-to-an-account flow Wave 14
+built the admin side of. Deliberately not a checkout integration — hiccup's
+own Buy Me a Coffee page (checked live) turned out to have no configured
+Membership tiers, only the generic one-off/monthly-checkbox widget, so the
+honest, working thing to ship is a plain link with clear instructions rather
+than tier URLs that do not exist. The page explains this rather than hiding
+it ("How this works, for now") — a solo-built tool with a manual upgrade step
+for now is a fact about the product, not an embarrassment to smooth over.
+
+If signed in, the page fetches `/api/me` and shows the account's current
+plan — "already on the paid plan" or "currently on the free plan" — so nobody
+pays twice or wonders why team creation still fails right after paying.
+Best-effort only: the fetch is not required to succeed for the page to work,
+since most of its traffic is signed-out visitors reached from the marketing
+site before they have an account at all.
+
+`team.html`'s "Create your team" form gained a one-line note with a link to
+`/subscribe`, since that is exactly where a free user hits the paid wall
+Wave 14 built.
+
+## A real bug the personalisation caught immediately
+
+First load showed Gavin's own (already-paid, per Wave 14) account as "on the
+free plan." `server.js` turned out to have its own `sanitizeUser()` —
+separate from `lib/auth.js`'s `_publicUser()`, used by `GET /api/me`, the
+GDPR export, and the signup/login response — that predates the `plan` field
+and never picked it up. Every client-facing user object in the app has been
+silently missing `plan` since Wave 14 shipped; `/admin/status`'s Users table
+was unaffected only because it reads `auth.listUsers()` directly rather than
+going through this function. Fixed with the same default-to-`'free'` rule
+`_publicUser()` uses. Caught by loading the page and looking, the same
+lesson as every other live-verification catch this session: the diff looked
+correct, and was not.
+
+## `subscribe.html`'s own translation lessons
+
+Two, both direct repeats of earlier mistakes in this file, worth naming so
+they stop repeating:
+
+- A `<li>` mixed prose with `<strong>€20</strong>` / `<strong>"Make this
+  monthly"</strong>` fragments. `data-i18n` on a parent with mixed inline
+  children extracts each direct text-node fragment separately (Wave 8) —
+  "Enter", "and tick", "for the monthly plan, or" became four disconnected,
+  context-free translation units instead of one sentence. Fixed by dropping
+  the inline emphasis and writing it as one plain sentence; the amounts are
+  already prominent on the pricing cards above.
+- The page's own `<script>` (fetch `/api/me`, personalise the status line)
+  was inline, which — same as `settings.html`'s inline script before Wave 10
+  — is invisible to `scanHtml()`'s extraction on purpose (Wave 8) and would
+  have left "You are already on the paid plan…" English-only on a page whose
+  whole audience is signed-out and signed-in real users, not an admin. Moved
+  to `subscribe.js` before it ever shipped translated.
+
+`"Make this monthly"` stays in English inside every language's translation,
+quoted, on purpose: it is the literal label on Buy Me a Coffee's own
+checkbox, which is not translated by hiccup — translating hiccup's
+*reference* to that label would describe a control the visitor cannot
+actually find on the page they are about to land on.

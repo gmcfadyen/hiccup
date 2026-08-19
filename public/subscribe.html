@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n>hiccup — subscribe</title>
+<meta name="description" content="Upgrade to a paid hiccup account to create or join a team — shared capture library, roles, and invites for your whole SBC/voice team.">
+<link rel="canonical" href="https://hiccup.monster/subscribe">
+<script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<!-- Language, resolved before any markup is parsed — same FOUC-safe shape as the
+     theme line above, and for a stronger reason: _t() and its catalogue must both
+     exist before app.js's first render. document.write gives a blocking load with
+     no fetch race and no build step. -->
+<script>(function(){try{var L=localStorage.getItem('hiccup-lang');if(!/^(en|fr|es|de)$/.test(L||''))L=String(navigator.language||'en').slice(0,2).toLowerCase();if(!/^(en|fr|es|de)$/.test(L))L='en';document.documentElement.lang=L;if(L!=='en')document.write('<script src="/i18n/'+L+'.js"><\/script>');}catch(e){}})();</script>
+<script src="/i18n.js"></script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="hiccup — subscribe">
+<meta property="og:description" content="Upgrade to a paid hiccup account to create or join a team.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/subscribe">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+
+<style>
+  .page { max-width: 880px; margin: 0 auto; padding: 22px 20px 64px; }
+  .page-head h1 { font-size: 24px; margin-bottom: 6px; }
+  .page-lede { color: var(--muted); max-width: 70ch; }
+
+  #sub-status { margin: 14px 0 0; padding: 10px 14px; border-radius: 8px; font-size: 13.5px; }
+  #sub-status.is-free { background: var(--panel2); color: var(--muted); }
+  #sub-status.is-paid { background: var(--tint-info); color: var(--info); border: 1px solid var(--tint-info-strong); }
+
+  .sub-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+    margin-top: 22px;
+  }
+  .sub-card { padding: 22px 22px 20px; display: flex; flex-direction: column; }
+  .sub-card.is-value { border-color: var(--accent); }
+  .sub-badge {
+    align-self: flex-start;
+    font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--accent); background: var(--accent-wash); border-radius: 999px;
+    padding: 3px 10px; margin-bottom: 10px;
+  }
+  .sub-plan-name { font-size: 15px; font-weight: 700; margin: 0; }
+  .sub-price { font-size: 34px; font-weight: 700; margin: 6px 0 2px; }
+  .sub-price span { font-size: 14px; font-weight: 600; color: var(--muted); }
+  .sub-note { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+  .sub-card .btn { margin-top: auto; }
+
+  .sub-steps { margin-top: 30px; }
+  .sub-steps h2 { font-size: 16px; margin-bottom: 10px; }
+  .sub-steps ol { margin: 0; padding-left: 22px; }
+  .sub-steps li { margin: 0 0 8px; line-height: 1.55; }
+  .sub-steps code { font-size: 13px; }
+
+  .sub-includes { margin-top: 30px; }
+  .sub-includes h2 { font-size: 16px; margin-bottom: 10px; }
+  .sub-includes ul { margin: 0; padding-left: 22px; }
+  .sub-includes li { margin: 0 0 6px; line-height: 1.55; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <span class="topbar-spacer"></span>
+  <a data-i18n class="topnav-link" href="/app">workbench</a>
+  <span data-lang-switcher></span>
+  <button data-i18n-attrs="aria-label" class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+</header>
+
+<main class="page">
+
+  <div class="page-head">
+    <h1 data-i18n>Subscribe</h1>
+    <p data-i18n class="page-lede">A paid account can create or join a team: a shared capture
+      library, roles for who can invite and manage members, and everyone working from the
+      same diagnosis instead of forwarding pcaps around.</p>
+  </div>
+
+  <p id="sub-status" hidden></p>
+
+  <div class="sub-grid">
+    <section class="card sub-card">
+      <p data-i18n class="sub-plan-name">Monthly</p>
+      <p class="sub-price">€20<span data-i18n> / month</span></p>
+      <p data-i18n class="sub-note">Cancel any time — no contract.</p>
+      <a data-i18n class="btn btn-primary" id="sub-monthly" href="https://buymeacoffee.com/mcfadyen" target="_blank" rel="noopener">Support monthly →</a>
+    </section>
+
+    <section class="card sub-card is-value">
+      <span data-i18n class="sub-badge">Best value</span>
+      <p data-i18n class="sub-plan-name">Annual</p>
+      <p class="sub-price">€200<span data-i18n> / year</span></p>
+      <p data-i18n class="sub-note">Two months free compared to paying monthly.</p>
+      <a data-i18n class="btn btn-primary" id="sub-annual" href="https://buymeacoffee.com/mcfadyen" target="_blank" rel="noopener">Support annually →</a>
+    </section>
+  </div>
+
+  <section class="card sub-steps">
+    <h2 data-i18n>How this works, for now</h2>
+    <p data-i18n class="sub-note">hiccup is a solo-built, self-hosted tool — there is no
+      payment processor wired into the app yet, so upgrading is a short manual step rather
+      than an instant checkout.</p>
+    <ol>
+      <li data-i18n>Click a plan above — it opens hiccup's Buy Me a Coffee page.</li>
+      <li data-i18n>Enter €20 and tick “Make this monthly” for the monthly plan, or €200 as a
+        one-time amount for the annual plan.</li>
+      <li data-i18n>In the message field, include the email address your hiccup account uses —
+        that is how your payment gets matched to your account.</li>
+      <li data-i18n>Your account is upgraded by hand, usually within a day. No need to wait
+        around — you will be able to create or join a team as soon as it is done.</li>
+    </ol>
+  </section>
+
+  <section class="card sub-includes">
+    <h2 data-i18n>What a paid account unlocks</h2>
+    <ul>
+      <li data-i18n>Create a team, or accept an invite to join one.</li>
+      <li data-i18n>A shared capture library — every team member sees the same uploads and
+        the same diagnosis.</li>
+      <li data-i18n>Owner and admin roles: invite, promote, suspend or remove members.</li>
+      <li data-i18n>Everything hiccup already does — analysis, HMR, config guides — stays
+        available on the free plan too. Paid is about working as a team, not a feature paywall
+        on the analyser itself.</li>
+    </ul>
+  </section>
+
+  <aside data-i18n-attrs="aria-label" class="promo-card" aria-label="also from the same workshop">
+    <p data-i18n><span data-i18n class="promo-kicker">also from the same workshop</span>
+      <a href="https://rfplex.ai/?utm_source=hiccup&amp;utm_medium=app&amp;utm_campaign=crosslink"
+        target="_blank" rel="noopener"><strong>RFPlex.ai</strong></a>
+      — AI that answers RFPs, RFIs and DDQs from your own document library.
+      Self-hosted, EU-sovereign, free during beta.</p>
+  </aside>
+
+</main>
+
+<script src="/subscribe.js"></script>
+<script src="/theme.js"></script>
+</body>
+</html>

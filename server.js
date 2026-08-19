@@ -444,6 +444,12 @@ function sanitizeUser(u) {
     email: u.email,
     name: u.name != null ? u.name : null,
     role: u.role,
+    // 'free' for any record read before this field existed — same rule as
+    // lib/auth.js's own _publicUser(), which this duplicates rather than
+    // reuses (this file gets `user` from auth.getSession(), already a public
+    // view by the time it gets here). An absent plan must read as the
+    // least-privileged one, never as an accidental grant.
+    plan: u.plan === 'paid' ? 'paid' : 'free',
     createdAt: u.createdAt,
     lastLoginAt: u.lastLoginAt != null ? u.lastLoginAt : null,
   };
@@ -583,6 +589,7 @@ function notFoundText(res) {
 const PUBLIC_PAGES = new Map([
   ['/', 'index.html'],
   ['/privacy', 'privacy.html'],
+  ['/subscribe', 'subscribe.html'],
   ['/sip', 'sip/index.html'],
   ['/sip/488-not-acceptable-here', 'sip/488-not-acceptable-here.html'],
   ['/sip/408-request-timeout', 'sip/408-request-timeout.html'],
