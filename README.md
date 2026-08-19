@@ -41,6 +41,42 @@ ingest, and your traces never leave the box.
 
 See `ARCHITECTURE.md` for module contracts and `DESIGN_1.md` for the product brief.
 
+## Runbook (hiccup.monster)
+
+Installed as a Windows service named **`hiccup`** via `install-as-service.bat`
+(NSSM, LocalSystem, auto-start), bound to `127.0.0.1:8400` and reached from the
+internet through a Cloudflare tunnel. `data/` holds everything stateful.
+
+**The one rule that matters when deploying:**
+
+> Editing anything under `public/` is live the moment you save it.
+> Editing `server.js` or `lib/**` does nothing until the service is restarted.
+
+`PUBLIC_DIR` points at this working tree and static files are read per request,
+so there is no build and no publish step for the front end — but Node caches
+`require()`, so the back end is frozen at whatever was on disk when the process
+booted. Ship a commit that touches both and the site runs **split-brain**: new
+pages calling routes that do not exist yet. That has already happened once, and
+it is how `/subscribe` 404'd for four hours while the landing page linking to it
+was live.
+
+Restart after any `server.js` / `lib/**` change, by either:
+
+- clicking **restart server** on `/admin/status` (needs a site-admin session, no UAC), or
+- an **elevated** PowerShell: `Restart-Service hiccup -Force`
+
+Then confirm the deploy actually landed — `/api/status` reports uptime:
+
+```
+curl -s https://hiccup.monster/api/status
+curl -s -o /dev/null -w '%{http_code}\n' https://hiccup.monster/subscribe
+```
+
+**Backups.** `backup-hiccup.ps1` mirrors the project to `F:\backups\hiccup`
+with 30 dated snapshots, run daily at 03:30 by the *Hiccup Backup* scheduled
+task. It deliberately keeps `.git` (commits here are often unpushed) and `data/`
+(gitignored, so it exists nowhere else), and skips only `node_modules`.
+
 ## Licence
 
 hiccup is **source-available, not open source.** Please read this before you deploy it.
