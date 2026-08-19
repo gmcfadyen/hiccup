@@ -1410,7 +1410,16 @@ guessing.
 
 ---
 
-## Known gap — `lib/textlog.js` raw-sip/acme-log parsing (found, not yet fixed)
+## FIXED 2026-08-19 — `lib/textlog.js` raw-sip/acme-log parsing
+
+> **All three gaps below are now closed** (see "Wave 17" at the end of this
+> document for the fix, the regexes and the reasoning). Kept as written because
+> the diagnosis is still the clearest statement of what was wrong and why the
+> *silence* mattered more than the parse miss. Measured result: the repo's own
+> `test/fixtures/adversarial/rfc4475-torture.txt` went from **10 to 19** parsed
+> messages, with one warning where there had been none.
+
+### Original entry (found, not yet fixed)
 
 Found 2026-08-18 running RFC 4475 ("SIP Torture Test Messages") content
 through the parser as a robustness check. The specific fixture file used to
@@ -2450,3 +2459,153 @@ on an isolated `HICCUP_DATA_DIR` instance in both English and French —
 switching the language selector re-rendered all six cards, the three-step
 flow and the enterprise card with no overflow, no layout break, and no
 untranslated leftover text.
+
+# Wave 17 — v0.3.0: the four things the audit said were worst
+
+A 13-agent audit ranked what was outstanding; this wave clears the top four.
+
+## 1. `lib/textlog.js` no longer swallows messages
+
+The body loop broke only on `bytes >= cl`, so a `Content-Length` larger than
+the body actually captured — routine in truncated `sipmsg.log` exports and
+elided SDP — consumed the entire rest of the file as one body. Three valid
+messages parsed as one, `warnings: []`. Silent, and against this document's
+own "skip with a warning" contract.
+
+The body now also stops at a `SEPARATOR` or an `isStartLine` — the module's
+**existing** predicates, deliberately not a second notion of "a message starts
+here" — and records `line N: declared Content-Length 9999 exceeds captured
+body (308 bytes) — body truncated at the next message boundary`.
+
+One deliberate exception: when `Content-Type` is `message/sipfrag` or
+`multipart/*`, start lines do **not** bound the body. RFC 3420 has a REFER's
+NOTIFY carry a literal `SIP/2.0 200 OK` as its whole body, so without this
+every call-transfer trace — core to this product's domain — would shred into a
+body-less NOTIFY plus a phantom message.
+
+The two RFC 4475 start-line misses went with it. `REQ_LINE` now accepts RFC
+3261's real `token` charset (so `RE%47IST%45R` matches) and any
+`SIP/<digits>.<digits>` (so `SIP/7.0` is recognised); `STATUS_LINE` accepts a
+1–10 digit code. Four brakes keep that from over-matching: the method must
+start uppercase with no lowercase and no `:`; the Request-URI must contain a
+`:` (a scheme), which is what kills the realistic false positive `RETRANSMIT
+INVITE SIP/2.0` — a shape the *old* regex would have matched; both stay
+anchored `^…$`; and every digit run is bounded. One deliberate narrowing: a
+scheme-less Request-URI is no longer recognised. `sniffText`'s hand-copied
+patterns are now built from the same sources, so the sniff can never tell
+`analyze.js` "not SIP" about a file the parser would happily read.
+
+**Measured:** `rfc4475-torture.txt` 10 → 19 messages, one warning. Shipped
+fixtures unchanged (`sbc-log.txt` 14, `raw-messages.txt` 7, zero warnings).
+
+Known follow-up, not done: `topVia()` still hardcodes `SIP/2.0`, so a
+`SIP/7.0` message is now recognised but its Via is not parsed and `src`/`dst`
+fall back to `unknown-a`/`unknown-b`. Pre-existing, but reachable more often
+now.
+
+## 2. Team exit, and recovering a team whose owner vanished
+
+`handleMeDelete` called `removeMember(user.id, user.id)` under a comment
+claiming "removing yourself is a leave". `removeMember` refuses a plain member
+*and* refuses acting on yourself, so it **always threw**; a bare `catch {}`
+swallowed it and the account was deleted anyway — leaving a member row
+pointing at a user that no longer existed, still counting against
+`MAX_TEAM_MEMBERS` and rendering as a raw hex id.
+
+Worse, and found while fixing it: `solo` is `uid === user.id`, and a team's
+`dataRootId` **is** the founding owner's user id. So an owner deleting their
+account read as "solo" and fell into the capture-erase loop — **destroying the
+whole team's shared library**. The shared-data hazard note in that function
+protected ordinary members and never covered the owner. The ownership check
+now runs *before* anything is erased, so the refusal is a clean 409 rather
+than an account that survives with its team's captures already gone.
+
+New in `lib/teams.js`:
+
+- `leaveTeam(userId)` — the operation that never existed. An owner with other
+  members must transfer first; a **sole** owner leaving dissolves the team
+  (plus its pending invites, which would otherwise 500 on acceptance) rather
+  than trapping the last person in a team they cannot leave.
+- `getRecoveryState(userId)` / `claimOwnership(userId)` — a member can take
+  over a team whose owner is **orphaned** (account gone: no wait) or
+  **dormant** (no sign-in for `OWNER_DORMANT_DAYS`, 90).
+
+Why 90 days, and why this is a smaller lever than it looks: every member of a
+team already reads and writes the same shared data root via `accountUid()`, so
+claiming ownership grants **management** rights — invite, suspend, remove,
+transfer — and *no new data access*. The realistic abuse is therefore seizing a
+team whose owner is merely quiet, which the window guards. Two further rules:
+a **suspended** member can never claim (they would just un-suspend
+themselves — that turns a moderation action into a takeover), and while any
+active admin remains, only an admin may claim, so an ordinary member cannot go
+over the heads of the people the owner actually delegated to. If no admin is
+left, any active member may — otherwise a team whose only admin also vanished
+stays stuck, which is the failure this exists to fix.
+
+`dataRootId` is never touched, exactly as in `transferOwnership`, and a
+still-existing old owner is demoted to **admin** rather than removed: someone
+back from a long absence finds themselves demoted, not locked out.
+
+Eligibility lives entirely in `getRecoveryState`, and the UI renders that
+answer rather than re-deriving it, so the banner and the enforced rule cannot
+drift apart. `/team` also finally grows the **Leave** and **Transfer
+ownership** controls — the transfer API had existed since Wave 3 with nothing
+in the UI able to call it, and two places in the app told users to "leave the
+team" when no such control existed.
+
+## 3. Rate limiting and security headers
+
+Login is limited on **two** axes because either alone leaves a hole: per-email
+(8 / 15 min) stops a focused attack on one known account from a botnet,
+per-IP (30 / 15 min) stops a spray across many accounts from one host. Signup
+is 5 / hour / IP. Checks use `peek` so a successful sign-in never spends the
+budget — only failures are recorded. The 429 wording is **identical** whichever
+limiter trips, since saying which one would tell an attacker they had found a
+real account.
+
+`clientIp()` prefers `CF-Connecting-IP`: the process binds `127.0.0.1` behind
+a Cloudflare tunnel, so `remoteAddress` is always loopback and useless. That
+header is trustworthy *here* precisely because no internet client can reach
+the socket directly to forge it — an assumption that dies if this is ever
+bound to a public interface, and which is written down at the function.
+
+Security headers are set once at the request entry rather than in each
+response helper, so an error path cannot miss them: `nosniff`,
+`X-Frame-Options: DENY` (nothing here is ever legitimately framed, and
+`/admin/status` hosts the superuser control and the restart button),
+`Referrer-Policy`, HSTS (not preloaded — that is irreversible and the site
+owner's call), and a `Permissions-Policy` denying camera/mic/geolocation.
+
+**No CSP yet, deliberately rather than by omission:** `index.html`, the
+workbench host page and `admin-status.html` all carry inline `<script>`, and
+the landing page loads Google Identity Services. A CSP strict enough to be
+worth having breaks all of them today, and one with `'unsafe-inline'` is
+decoration. It needs the inline scripts lifted into files first.
+
+**Not done: async scrypt.** `scryptSync` still blocks the event loop ~20ms per
+attempt. Making it async forces `createUser` async, which forces
+`acceptInvite` async, which forces its whole call chain async — a cross-cutting
+refactor of the auth core, landing in the same release as the team-ownership
+changes above. Rate limiting removes the *volume* that made the blocking
+matter; doing both at once is how a subtle auth bug ships.
+
+## 4. `server.js` is testable, and `test/http.js` exists
+
+`server.listen()` at module scope with no `require.main` guard meant requiring
+the file bound a port and armed three timers, so 43 API routes and 17 page
+routes had **zero** coverage. That is not abstract: `/subscribe` 404'd in
+production for four and a half hours because `public/` is served live from the
+working tree while `server.js` only changes on restart, and nothing asserted
+that a page in `PUBLIC_PAGES` resolves.
+
+`start()` is now guarded and the module exports `{server, start, handle, …}`.
+`test/http.js` spawns `server.js` as a **child process** — not an in-process
+require, because a child is what production runs and it proves boot, config
+load and route wiring — against a scratch `HICCUP_DATA_DIR` and port, then
+asserts over real HTTP: every page route resolves, gated routes answer **401
+not 404** (a 404 is indistinguishable from "not deployed"), security headers
+are present, signup→`/api/me` carries `plan` (it was silently dropped once),
+a free account cannot create a team, and the rate limiter trips with an
+identical message for a real and an unknown address.
+
+`npm test` now runs both suites. **112 selftest + 10 HTTP.**

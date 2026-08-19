@@ -115,6 +115,15 @@
 
     $('team-invite-url').addEventListener('click', function () { $('team-invite-url').select(); });
     $('team-invite-copy').addEventListener('click', function () { copyInviteUrl(); });
+
+    $('team-transfer-form').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var sel = $('team-transfer-select');
+      if (!sel.value) return;
+      transferOwnership(sel.value, sel.options[sel.selectedIndex].textContent);
+    });
+    $('team-leave-btn').addEventListener('click', function () { leaveTeam(); });
+    $('team-claim-btn').addEventListener('click', function () { claimOwnership(); });
   }
 
   // -------------------------------------------------------------- top state
@@ -196,6 +205,152 @@
     renderInviteCard();
     renderPendingInvites();
     renderMembers();
+    renderExitControls();
+    loadRecovery();
+  }
+
+  // ------------------------------------------------- leaving / handing over
+
+  /**
+   * An owner sees "transfer ownership"; everyone else sees "leave". They are
+   * mutually exclusive on purpose: an owner leaving without appointing anyone
+   * is exactly how a team ends up stranded, so the UI never offers it.
+   */
+  function renderExitControls() {
+    var isOwner = state.myRole === 'owner';
+    var others = state.members.filter(function (m) {
+      return m && isStr(m.userId) && m.role !== 'owner' && !m.suspended;
+    });
+
+    $('team-leave-wrap').hidden = isOwner;
+    // A sole owner has nobody to transfer to; the account-deletion path
+    // dissolves that team instead, so showing an empty picker would be a
+    // dead end.
+    $('team-transfer-wrap').hidden = !isOwner || !others.length;
+
+    if (isOwner && others.length) {
+      var sel = $('team-transfer-select');
+      clear(sel);
+      others.forEach(function (m) {
+        var opt = document.createElement('option');
+        opt.value = m.userId;
+        opt.textContent = (m.email || m.userId) + (m.role === 'admin' ? ' (' + _t('admin') + ')' : '');
+        sel.appendChild(opt);
+      });
+    }
+  }
+
+  async function transferOwnership(userId, label) {
+    if (!window.confirm(_t('Make this person the owner of the team? You will become an admin.') + '\n\n' + label)) return;
+    $('team-transfer-error').textContent = '';
+    var btn = $('team-transfer-btn');
+    btn.disabled = true;
+    try {
+      var res = await fetch('/api/team/transfer-ownership', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userId })
+      });
+      if (res.status === 401) { location.href = '/'; return; }
+      var payload = null;
+      try { payload = await res.json(); } catch (e) { payload = null; }
+      if (!res.ok) {
+        $('team-transfer-error').textContent = errMsg(payload, _t('Could not transfer ownership.'));
+        return;
+      }
+      await loadTeam();
+    } catch (e) {
+      $('team-transfer-error').textContent = _t('Could not reach the server. Is hiccup still running?');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function leaveTeam() {
+    if (!window.confirm(_t('Leave this team? You keep your account, but you lose access to the team\'s shared captures and guides.'))) return;
+    $('team-leave-error').textContent = '';
+    var btn = $('team-leave-btn');
+    btn.disabled = true;
+    try {
+      var res = await fetch('/api/team/leave', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      if (res.status === 401) { location.href = '/'; return; }
+      var payload = null;
+      try { payload = await res.json(); } catch (e) { payload = null; }
+      if (!res.ok) {
+        $('team-leave-error').textContent = errMsg(payload, _t('Could not leave the team.'));
+        return;
+      }
+      await loadTeam();
+    } catch (e) {
+      $('team-leave-error').textContent = _t('Could not reach the server. Is hiccup still running?');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // ------------------------------------------------------------- recovery
+
+  /**
+   * Ask the server whether this member may take the team over. Eligibility is
+   * decided entirely server-side (lib/teams.js getRecoveryState) so the banner
+   * and the enforced rule cannot drift apart; this only renders the answer.
+   */
+  async function loadRecovery() {
+    var card = $('team-recovery');
+    card.hidden = true;
+    var payload = null;
+    try {
+      var res = await fetch('/api/team/recovery');
+      if (!res.ok) return;
+      payload = await res.json();
+    } catch (e) { return; }          // never block the page on this
+    if (!payload || !payload.claimable) return;
+
+    var detail;
+    if (payload.reason === 'orphaned') {
+      detail = _t('The account that owned this team no longer exists, so nobody can manage members. You can take ownership.');
+    } else {
+      // ONE sentence with placeholders, not three _t() fragments glued together.
+      // Concatenating fragments freezes English word order, and the owner and
+      // the day count land in different positions in French and German -- the
+      // translator has to be able to move them.
+      detail = _t('The owner ({owner}) has not signed in for {days} days. You can take ownership so the team can be managed again.')
+        .replace('{owner}', payload.ownerEmail || _t('unknown'))
+        .replace('{days}', String(payload.daysSinceOwnerActive));
+    }
+    $('team-recovery-detail').textContent = detail;
+    $('team-recovery-error').textContent = '';
+    card.hidden = false;
+  }
+
+  async function claimOwnership() {
+    if (!window.confirm(_t('Take ownership of this team? The current owner, if their account still exists, becomes an admin.'))) return;
+    $('team-recovery-error').textContent = '';
+    var btn = $('team-claim-btn');
+    btn.disabled = true;
+    try {
+      var res = await fetch('/api/team/claim-ownership', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      if (res.status === 401) { location.href = '/'; return; }
+      var payload = null;
+      try { payload = await res.json(); } catch (e) { payload = null; }
+      if (!res.ok) {
+        $('team-recovery-error').textContent = errMsg(payload, _t('Could not take ownership of this team.'));
+        return;
+      }
+      await loadTeam();
+    } catch (e) {
+      $('team-recovery-error').textContent = _t('Could not reach the server. Is hiccup still running?');
+    } finally {
+      btn.disabled = false;
+    }
   }
 
   function renderSummary() {

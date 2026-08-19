@@ -1000,6 +1000,128 @@ async function main() {
     eq(w3teams.accountUid(uA.id), w3teams.accountUid(uB.id), 'A and B no longer share an accountUid after ownership transfer');
   });
 
+  // ------------------------------------------- leaving, and owner recovery
+  //
+  // Account deletion used to call removeMember(self, self) under a comment
+  // claiming "removing yourself is a leave". removeMember refuses a plain
+  // member AND refuses acting on yourself, so it ALWAYS threw; server.js
+  // swallowed it with a bare catch and deleted the account anyway, leaving a
+  // member row pointing at a user that no longer existed. leaveTeam() is the
+  // operation that was missing.
+
+  await t('wave3: a member can leave, and the row actually goes', () => {
+    needTeams();
+    const owner = mkUser('leave-owner@example.test', 'Leave Owner');
+    const leaver = mkUser('leave-member@example.test', 'Leaver');
+    w3teams.createTeam(owner.id, 'Team Leave');
+    const inv = w3teams.createInvite(owner.id, leaver.email);
+    w3teams.acceptInvite(inv.token, { sessionUserId: leaver.id });
+    eq(w3teams.getAccountRole(leaver.id), 'member', 'sanity: leaver joined');
+
+    const out = w3teams.leaveTeam(leaver.id);
+    ok(out && out.ok, 'leaveTeam did not report success');
+    eq(w3teams.getTeamIdFor(leaver.id), null, 'leaver still has a teamId');
+    eq(w3teams.getAccountRole(leaver.id), null, 'leaver still has a role');
+    // Back to their own storage, not the team's shared root.
+    eq(w3teams.accountUid(leaver.id), leaver.id, 'leaver accountUid did not revert to their own id');
+  });
+
+  await t('wave3: an owner with other members cannot leave (must transfer first)', () => {
+    needTeams();
+    const owner = mkUser('stuck-owner@example.test', 'Stuck Owner');
+    const other = mkUser('stuck-member@example.test', 'Other');
+    w3teams.createTeam(owner.id, 'Team Stuck');
+    const inv = w3teams.createInvite(owner.id, other.email);
+    w3teams.acceptInvite(inv.token, { sessionUserId: other.id });
+
+    let threw = null;
+    try { w3teams.leaveTeam(owner.id); } catch (e) { threw = e; }
+    ok(threw, 'the owner was allowed to abandon a team with members');
+    ok(/transfer/i.test(threw.userMessage || ''), 'refusal should point at transferring ownership: ' + threw.userMessage);
+    eq(w3teams.getAccountRole(owner.id), 'owner', 'owner lost their role on a failed leave');
+  });
+
+  await t('wave3: a sole owner leaving dissolves the team rather than trapping them', () => {
+    needTeams();
+    const solo = mkUser('solo-owner@example.test', 'Solo');
+    w3teams.createTeam(solo.id, 'Team Solo');
+    const out = w3teams.leaveTeam(solo.id);
+    ok(out && out.dissolved, 'a sole owner leaving should dissolve the team');
+    eq(w3teams.getTeamIdFor(solo.id), null, 'solo owner still on a team after dissolving it');
+  });
+
+  await t('wave3: an active owner means the team cannot be taken over', () => {
+    needTeams();
+    const owner = mkUser('active-owner@example.test', 'Active Owner');
+    const member = mkUser('patient-member@example.test', 'Member');
+    w3teams.createTeam(owner.id, 'Team Active');
+    const inv = w3teams.createInvite(owner.id, member.email);
+    w3teams.acceptInvite(inv.token, { sessionUserId: member.id });
+
+    const st = w3teams.getRecoveryState(member.id);
+    eq(st.claimable, false, 'a team with a fresh owner must not be claimable');
+    eq(st.reason, 'owner-active', 'recovery reason for an active owner');
+    let threw = null;
+    try { w3teams.claimOwnership(member.id); } catch (e) { threw = e; }
+    ok(threw, 'claimOwnership succeeded against an ACTIVE owner — that is a takeover');
+    eq(w3teams.getAccountRole(owner.id), 'owner', 'owner was displaced despite being active');
+  });
+
+  await t('wave3: a suspended member can never claim the team', () => {
+    needTeams();
+    const owner = mkUser('susp-owner@example.test', 'Owner');
+    const bad = mkUser('susp-member@example.test', 'Suspended');
+    w3teams.createTeam(owner.id, 'Team Susp');
+    const inv = w3teams.createInvite(owner.id, bad.email);
+    w3teams.acceptInvite(inv.token, { sessionUserId: bad.id });
+    w3teams.setMemberSuspended(owner.id, bad.id, true);
+
+    // Even with the owner erased -- the most claimable state there is.
+    const raw = JSON.parse(fs.readFileSync(path.join(W3_DIR, 'users.json'), 'utf8'));
+    fs.writeFileSync(path.join(W3_DIR, 'users.json'),
+      JSON.stringify(raw.filter((u) => u.id !== owner.id), null, 2));
+    w3auth.initAuth(W3_DIR);
+
+    const st = w3teams.getRecoveryState(bad.id);
+    eq(st.claimable, false, 'a SUSPENDED member must never be able to claim');
+    eq(st.reason, 'suspended', 'recovery reason for a suspended member');
+    let threw = null;
+    try { w3teams.claimOwnership(bad.id); } catch (e) { threw = e; }
+    ok(threw, 'a suspended member seized the team — they could then un-suspend themselves');
+
+    fs.writeFileSync(path.join(W3_DIR, 'users.json'), JSON.stringify(raw, null, 2));
+    w3auth.initAuth(W3_DIR);
+  });
+
+  await t('wave3: an orphaned team can be recovered by its remaining member', () => {
+    needTeams();
+    const owner = mkUser('gone-owner@example.test', 'Gone');
+    const heir = mkUser('heir@example.test', 'Heir');
+    w3teams.createTeam(owner.id, 'Team Orphan');
+    const inv = w3teams.createInvite(owner.id, heir.email);
+    w3teams.acceptInvite(inv.token, { sessionUserId: heir.id });
+    const sharedUid = w3teams.accountUid(heir.id);
+
+    // Delete the owner's USER record, leaving the team pointing at a ghost.
+    const raw = JSON.parse(fs.readFileSync(path.join(W3_DIR, 'users.json'), 'utf8'));
+    fs.writeFileSync(path.join(W3_DIR, 'users.json'),
+      JSON.stringify(raw.filter((u) => u.id !== owner.id), null, 2));
+    w3auth.initAuth(W3_DIR);
+
+    const st = w3teams.getRecoveryState(heir.id);
+    eq(st.claimable, true, 'an orphaned team should be claimable');
+    eq(st.reason, 'orphaned', 'recovery reason for a deleted owner');
+
+    w3teams.claimOwnership(heir.id);
+    eq(w3teams.getAccountRole(heir.id), 'owner', 'heir did not become owner');
+    // The whole point: the shared library must not move, or every capture and
+    // guide the team owns is orphaned along with the account.
+    eq(w3teams.accountUid(heir.id), sharedUid, 'dataRootId moved during recovery — the team lost its data');
+
+    fs.writeFileSync(path.join(W3_DIR, 'users.json'), JSON.stringify(raw, null, 2));
+    w3auth.initAuth(W3_DIR);
+  });
+
   // -------------------------------------------------------- invite token edges
 
   await t('wave3: getInviteInfo(garbage token) returns null, does not throw', () => {
@@ -1609,6 +1731,202 @@ async function main() {
 
     const noop = al.pruneEmail(['owner@example.com'], 'nobody@example.com');
     eq(noop.changed, false, 'absent email is a no-op');
+  });
+
+  // lib/textlog.js: SIP text-log ingest. Every test below pins a specific way
+  // the parser used to lose messages SILENTLY — the worst possible failure for
+  // this product, because a trace missing half its messages still produces a
+  // confident (and wrong) diagnosis. ARCHITECTURE.md's contract for this
+  // module is "skip malformed input WITH a warning string", so a quiet miss is
+  // a contract violation, not just a parse miss.
+  //
+  //  - The Content-Length tests cover the bug that motivated the pass: a
+  //    declared Content-Length larger than the body actually captured (RFC
+  //    4475 `clerr`, and routine in truncated sipmsg.log exports and elided
+  //    SDP) made the body loop consume the entire rest of the file.
+  //  - The two "not split" tests are the counterweight: bounding the body by
+  //    the next start line is only safe if a start line is recognised
+  //    accurately, since a false positive truncates the message it lands in
+  //    AND invents a phantom one. message/sipfrag is the case that matters in
+  //    the field — every REFER-based transfer trace carries a real status line
+  //    inside a NOTIFY body.
+  //  - The RFC 4475 start-line tests cover the other two known gaps that were
+  //    fixed in the same pass (%-escaped method tokens, non-2.0 versions and
+  //    out-of-range status codes), and the chatter test pins the false-positive
+  //    boundary those relaxations had to respect.
+
+  const CRLF = '\r\n';
+
+  /**
+   * Build a SIP message with an explicitly chosen Content-Length, so a test
+   * can declare a length that does NOT match the body it supplies.
+   * @param {string} startLine request-line or status-line
+   * @param {string[]} headers header lines, in wire order
+   * @param {string} body body text (already CRLF-terminated), '' for none
+   * @param {number} [declaredLen] Content-Length to declare; defaults to the
+   *   real body length
+   * @returns {string}
+   */
+  function textlogMsg(startLine, headers, body, declaredLen) {
+    const b = body || '';
+    const len = declaredLen === undefined ? Buffer.byteLength(b) : declaredLen;
+    return [startLine].concat(headers, ['Content-Length: ' + len], ['', '']).join(CRLF) + b;
+  }
+
+  const TL_SDP = [
+    'v=0', 'o=- 1 1 IN IP4 198.51.100.10', 's=-', 'c=IN IP4 198.51.100.10',
+    't=0 0', 'm=audio 40000 RTP/AVP 0', 'a=rtpmap:0 PCMU/8000',
+  ].join(CRLF) + CRLF;
+
+  const TL_OK = textlogMsg('SIP/2.0 200 OK', [
+    'Via: SIP/2.0/UDP 198.51.100.10:5060;branch=z9hG4bK-1',
+    'From: <sip:alice@example.com>;tag=a1',
+    'To: <sip:bob@example.net>;tag=b1',
+    'Call-ID: tl-1@example.com',
+    'CSeq: 1 INVITE',
+  ], '');
+
+  const TL_BYE = textlogMsg('BYE sip:bob@example.net SIP/2.0', [
+    'Via: SIP/2.0/UDP 198.51.100.10:5060;branch=z9hG4bK-3',
+    'From: <sip:alice@example.com>;tag=a1',
+    'To: <sip:bob@example.net>;tag=b1',
+    'Call-ID: tl-1@example.com',
+    'CSeq: 2 BYE',
+  ], '');
+
+  /**
+   * Body text of a parsed packet (everything after the header/body CRLFCRLF).
+   * @param {object} pkt packet from parseTextLog
+   * @returns {string}
+   */
+  function bodyOf(pkt) {
+    const s = pkt.payload.toString('utf8');
+    const at = s.indexOf(CRLF + CRLF);
+    return at === -1 ? '' : s.slice(at + 4);
+  }
+
+  /**
+   * Start line of a parsed packet.
+   * @param {object} pkt packet from parseTextLog
+   * @returns {string}
+   */
+  function startOf(pkt) {
+    return pkt.payload.toString('utf8').split(CRLF)[0];
+  }
+
+  await t('textlog: an over-declared Content-Length no longer swallows every later message', () => {
+    const r = tryRequire(path.join('lib', 'textlog.js'));
+    if (r.err) throw new Error(r.err);
+    const invite = textlogMsg('INVITE sip:bob@example.net SIP/2.0', [
+      'Via: SIP/2.0/UDP 198.51.100.10:5060;branch=z9hG4bK-1',
+      'From: <sip:alice@example.com>;tag=a1',
+      'To: <sip:bob@example.net>',
+      'Call-ID: tl-1@example.com',
+      'CSeq: 1 INVITE',
+      'Content-Type: application/sdp',
+    ], TL_SDP, 9999);
+    const out = r.mod.parseTextLog(invite + TL_OK + TL_BYE);
+    // Before the fix this was 1: the 9999 was never satisfied, so the loop ran
+    // to end-of-file and ate the 200 OK and the BYE as "body".
+    eq(out.packets.length, 3, 'messages parsed');
+    eq(startOf(out.packets[1]), 'SIP/2.0 200 OK', 'second message');
+    eq(startOf(out.packets[2]), 'BYE sip:bob@example.net SIP/2.0', 'third message');
+    // The body that WAS captured is kept whole — the fix bounds it, not trims it.
+    eq(bodyOf(out.packets[0]), TL_SDP, 'captured body of the truncated message');
+  });
+
+  await t('textlog: a short body is reported as a warning, not silently accepted', () => {
+    const r = tryRequire(path.join('lib', 'textlog.js'));
+    if (r.err) throw new Error(r.err);
+    const invite = textlogMsg('INVITE sip:bob@example.net SIP/2.0', [
+      'Call-ID: tl-1@example.com', 'CSeq: 1 INVITE', 'Content-Type: application/sdp',
+    ], TL_SDP, 9999);
+    const out = r.mod.parseTextLog(invite + TL_OK);
+    const hit = out.warnings.filter((w) => /declared Content-Length 9999 exceeds captured body/.test(w));
+    eq(hit.length, 1, 'warnings naming the shortfall (got: ' + JSON.stringify(out.warnings) + ')');
+    ok(/\(\d+ bytes\)/.test(hit[0]), 'warning does not state how much body was actually captured: ' + hit[0]);
+    ok(/^line \d+:/.test(hit[0]), 'warning does not carry the line prefix this module uses: ' + hit[0]);
+  });
+
+  await t('textlog: a correctly declared Content-Length still parses byte-exactly', () => {
+    const r = tryRequire(path.join('lib', 'textlog.js'));
+    if (r.err) throw new Error(r.err);
+    // Includes a blank line INSIDE the body: with a declared length that is
+    // the thing the old loop got right, and the regression most at risk.
+    const body = 'v=0' + CRLF + CRLF + 's=-' + CRLF;
+    const invite = textlogMsg('INVITE sip:bob@example.net SIP/2.0', [
+      'Call-ID: tl-2@example.com', 'CSeq: 1 INVITE', 'Content-Type: application/sdp',
+    ], body);
+    const out = r.mod.parseTextLog(invite + TL_OK);
+    eq(out.packets.length, 2, 'messages parsed');
+    eq(bodyOf(out.packets[0]), body, 'body is not byte-identical');
+    eq(out.warnings.length, 0, 'a well-formed message must warn about nothing: ' + JSON.stringify(out.warnings));
+    const cl = /Content-Length: (\d+)/.exec(out.packets[0].payload.toString('utf8'));
+    eq(cl && cl[1], String(Buffer.byteLength(body)), 'Content-Length header');
+  });
+
+  await t('textlog: body text that merely resembles a SIP start line does not split the message', () => {
+    const r = tryRequire(path.join('lib', 'textlog.js'));
+    if (r.err) throw new Error(r.err);
+    const body = [
+      'This trace shows INVITE sip:bob@example.com SIP/2.0 arriving late.',
+      'SIP/2.0 is the version we speak.',
+      'Ref: SIP/2.0 200 OK was expected here',
+      'RETRANSMIT INVITE SIP/2.0',
+    ].join(CRLF) + CRLF;
+    const message = textlogMsg('MESSAGE sip:bob@example.net SIP/2.0', [
+      'Call-ID: tl-3@example.com', 'CSeq: 1 MESSAGE', 'Content-Type: text/plain',
+    ], body);
+    const out = r.mod.parseTextLog(message + TL_OK);
+    eq(out.packets.length, 2, 'a body line was mistaken for the next message');
+    eq(bodyOf(out.packets[0]), body, 'body was cut short at a false start line');
+  });
+
+  await t('textlog: a message/sipfrag body containing a real status line is not split', () => {
+    const r = tryRequire(path.join('lib', 'textlog.js'));
+    if (r.err) throw new Error(r.err);
+    // RFC 3420: the NOTIFY for a REFER carries "SIP/2.0 200 OK" as its whole
+    // body. Bounding bodies at start lines must not shred the commonest
+    // transfer trace in the product's own problem domain.
+    const frag = 'SIP/2.0 200 OK' + CRLF;
+    const notify = textlogMsg('NOTIFY sip:alice@example.com SIP/2.0', [
+      'Call-ID: tl-4@example.com', 'CSeq: 3 NOTIFY', 'Event: refer',
+      'Content-Type: message/sipfrag;version=2.0',
+    ], frag);
+    const out = r.mod.parseTextLog(notify + TL_OK);
+    eq(out.packets.length, 2, 'the sipfrag body was split off as a phantom message');
+    eq(bodyOf(out.packets[0]), frag, 'sipfrag body');
+  });
+
+  await t('textlog: RFC 4475 start lines (%-escaped method, SIP/7.0, 10-digit status) are recognised', () => {
+    const r = tryRequire(path.join('lib', 'textlog.js'));
+    if (r.err) throw new Error(r.err);
+    const esc = textlogMsg('RE%47IST%45R sip:sip.example.com SIP/2.0',
+      ['Call-ID: tl-esc@example.com', 'CSeq: 1 RE%47IST%45R'], '');
+    const badvers = textlogMsg('OPTIONS sip:t.example.com SIP/7.0',
+      ['Call-ID: tl-badvers@example.com', 'CSeq: 1 OPTIONS'], '');
+    const bigcode = textlogMsg('SIP/2.0 4294967296 better not break the receiver',
+      ['Call-ID: tl-bigcode@example.com', 'CSeq: 1 OPTIONS'], '');
+    const out = r.mod.parseTextLog(esc + badvers + bigcode);
+    eq(out.packets.length, 3, 'all three used to be invisible to the parser');
+    eq(startOf(out.packets[0]), 'RE%47IST%45R sip:sip.example.com SIP/2.0', 'esc02 method token');
+    eq(startOf(out.packets[1]), 'OPTIONS sip:t.example.com SIP/7.0', 'badvers version');
+    eq(startOf(out.packets[2]), 'SIP/2.0 4294967296 better not break the receiver', 'bigcode status');
+    // sniffText decides whether analyze.js routes the file here at all, so it
+    // must agree with the parser about what a start line is.
+    ok(r.mod.sniffText(Buffer.from(badvers, 'utf8')), 'sniffText rejected a file the parser can read');
+  });
+
+  await t('textlog: uppercase log chatter ending in SIP/2.0 is not mistaken for a request line', () => {
+    const r = tryRequire(path.join('lib', 'textlog.js'));
+    if (r.err) throw new Error(r.err);
+    // The cost of relaxing REQ_LINE: `WORD WORD SIP/2.0` chatter must still be
+    // noise. A false start line here would both truncate the message before it
+    // and invent one that never existed.
+    const chatter = 'RETRANSMIT INVITE SIP/2.0' + CRLF + 'DROP OPTIONS SIP/2.0' + CRLF;
+    const out = r.mod.parseTextLog(chatter);
+    eq(out.packets.length, 0, 'log chatter was parsed as SIP messages');
+    eq(r.mod.sniffText(Buffer.from(chatter, 'utf8')), false, 'sniffText accepted pure chatter as a SIP log');
   });
 
   console.log('NOTE (wave3): HTTP-route-level behavior — a malformed X-Project-Id header or ?project=' +

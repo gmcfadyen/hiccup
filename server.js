@@ -1256,6 +1256,69 @@ function requireSiteAdmin(req, res) {
 
 // Abuse here is noise in one inbox, not a security boundary, so an in-memory
 // counter that resets on restart is proportionate.
+/**
+ * Best-effort client IP.
+ *
+ * hiccup binds 127.0.0.1 and is published through a Cloudflare tunnel, so
+ * req.socket.remoteAddress is ALWAYS loopback and useless for rate limiting.
+ * CF-Connecting-IP is set by Cloudflare and cannot be spoofed by a remote
+ * caller here precisely BECAUSE the only routes to this process are the tunnel
+ * and localhost -- there is no path by which an internet client reaches the
+ * socket directly to forge it. If this server is ever bound to a public
+ * interface, that assumption dies and this must be revisited.
+ */
+function clientIp(req) {
+  const h = req.headers || {};
+  const cf = h['cf-connecting-ip'];
+  if (typeof cf === 'string' && cf.trim()) return cf.trim();
+  const xff = h['x-forwarded-for'];
+  if (typeof xff === 'string' && xff.trim()) return xff.split(',')[0].trim();
+  return (req.socket && req.socket.remoteAddress) || 'unknown';
+}
+
+/**
+ * Sliding-window counter shared by the auth limiters below. Same shape as
+ * feedbackRateLimited, kept generic because auth needs four buckets rather
+ * than one. Memory-only and per-process: a restart forgives everyone, which
+ * is an acceptable trade for a single-process app with no store dependency.
+ * `peek` counts without recording, so a SUCCESSFUL login does not consume the
+ * failure budget.
+ */
+function _slidingLimited(map, key, max, windowMs, peek) {
+  const now = Date.now();
+  const cut = now - windowMs;
+  const hits = (map.get(key) || []).filter((t) => t > cut);
+  if (hits.length >= max) { map.set(key, hits); return true; }
+  if (!peek) hits.push(now);
+  map.set(key, hits);
+  return false;
+}
+
+// Login is limited on TWO axes on purpose. Per-email stops a focused attack on
+// one known account from a botnet; per-IP stops a spray across many accounts
+// from one host. Either alone leaves an obvious hole.
+const LOGIN_MAX_PER_EMAIL = 8;
+const LOGIN_MAX_PER_IP = 30;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const SIGNUP_MAX_PER_IP = 5;
+const SIGNUP_WINDOW_MS = 60 * 60 * 1000;
+const _loginByEmail = new Map();
+const _loginByIp = new Map();
+const _signupByIp = new Map();
+
+/** Prune the auth maps so a long-running process cannot grow them without bound. */
+function _sweepAuthLimiters() {
+  const now = Date.now();
+  for (const [map, win] of [[_loginByEmail, LOGIN_WINDOW_MS], [_loginByIp, LOGIN_WINDOW_MS],
+    [_signupByIp, SIGNUP_WINDOW_MS]]) {
+    for (const [k, arr] of map) {
+      const live = arr.filter((t) => t > now - win);
+      if (live.length) map.set(k, live); else map.delete(k);
+    }
+  }
+}
+setInterval(_sweepAuthLimiters, 10 * 60 * 1000).unref();
+
 const FEEDBACK_MAX_PER_HOUR = 5;
 const _feedbackHits = new Map();   // userId -> number[] (epoch ms)
 
@@ -1384,6 +1447,37 @@ async function handleMeDelete(req, res, user) {
     return;
   }
 
+  // OWNERSHIP CHECK FIRST, BEFORE ANYTHING IS ERASED.
+  //
+  // The `solo` test below is `uid === user.id`, and a team's dataRootId IS the
+  // founding owner's user id -- so an owner deleting their account reads as
+  // "solo" and falls straight into the capture-erase loop, destroying the
+  // WHOLE TEAM's shared library. The shared-data hazard note above protects
+  // ordinary members and never covered the owner.
+  //
+  // An owner of a team with other members must hand over first. Refusing here,
+  // before a single byte is removed, is the difference between a clean 409 and
+  // an account that keeps existing with its team's captures already gone.
+  try {
+    const teams = initTeamsIfPossible();
+    if (teams && typeof teams.getAccountRole === 'function' &&
+        teams.getAccountRole(user.id) === 'owner') {
+      const view = teams.getTeamView(user.id);
+      const others = ((view && view.members) || []).filter((m) => m && m.userId !== user.id);
+      if (others.length) {
+        // One fixed sentence, not a concatenation. The client runs _t() over
+        // the error text, and a string with a count spliced into it can never
+        // match a catalogue key -- so an interpolated message is permanently
+        // English. The exact number is visible on the team page anyway.
+        sendJson(res, 409, {
+          error: 'You still own a team with other members. Transfer ownership to one of them first, then delete your account. Nothing has been deleted.',
+          memberCount: others.length,
+        });
+        return;
+      }
+    }
+  } catch { /* teams unavailable -> fall through; deletion is still allowed */ }
+
   const uid = resolveAccountUid(user.id);
   const solo = uid === user.id;
   const removed = { captures: 0, sharedLibraryKept: !solo, feedback: 0, team: false, account: false };
@@ -1398,9 +1492,25 @@ async function handleMeDelete(req, res, user) {
 
   try {
     const teams = initTeamsIfPossible();
-    // removeMember(actingUserId, targetUserId) - removing yourself is a leave.
-    if (teams && typeof teams.removeMember === 'function') removed.team = !!teams.removeMember(user.id, user.id);
-  } catch { /* not on a team, or the module cannot do it */ }
+    if (teams && typeof teams.leaveTeam === 'function' && teams.getTeamIdFor(user.id)) {
+      // leaveTeam(), NOT removeMember(self, self): removeMember refuses a plain
+      // member and refuses acting on yourself, so it could never express a
+      // leave. It always threw here, the bare catch below swallowed it, and the
+      // account was then deleted anyway -- leaving a member row pointing at a
+      // user that no longer exists.
+      removed.team = !!teams.leaveTeam(user.id).ok;
+    }
+  } catch (e) {
+    // An owner cannot leave, and by this point the erase above has already run,
+    // so failing silently would delete their data and keep their account. Stop
+    // and tell them what to do instead.
+    sendJson(res, 409, {
+      error: (e && e.userMessage) ||
+        'You own a team, so transfer ownership to another member before deleting your account.',
+      erased: removed,
+    });
+    return;
+  }
 
   try {
     const fb = require('./lib/feedback');
@@ -2209,6 +2319,67 @@ function handleTeamMemberDelete(req, res, user, targetUserId) {
 }
 
 /** POST /api/team/transfer-ownership {userId} -> {ok} */
+/**
+ * POST /api/team/leave — leave the team you are on.
+ *
+ * Separate from DELETE /api/team/members/:id, which is a management action one
+ * person takes against another. This is the one a member takes on themselves,
+ * and until now no such control existed anywhere: two places in the UI told
+ * users to "leave the team" and there was nothing to click.
+ */
+async function handleTeamLeave(req, res, user) {
+  req.resume();
+  const teams = initTeamsIfPossible();
+  if (!teams || typeof teams.leaveTeam !== 'function') {
+    sendJson(res, 501, { error: 'the teams module is not deployed on this server yet' });
+    return;
+  }
+  let out;
+  try {
+    out = teams.leaveTeam(user.id);
+  } catch (e) {
+    sendJson(res, 400, { error: (e && e.userMessage) || 'could not leave the team' });
+    return;
+  }
+  console.log('hiccup: ' + user.email + ' left team ' + out.teamId + (out.dissolved ? ' (dissolved)' : ''));
+  sendJson(res, 200, { ok: true, dissolved: !!out.dissolved });
+}
+
+/** GET /api/team/recovery — can this member take the team over, and why not. */
+function handleTeamRecoveryGet(req, res, user) {
+  const teams = initTeamsIfPossible();
+  if (!teams || typeof teams.getRecoveryState !== 'function') {
+    sendJson(res, 501, { error: 'the teams module is not deployed on this server yet' });
+    return;
+  }
+  sendJson(res, 200, teams.getRecoveryState(user.id));
+}
+
+/**
+ * POST /api/team/claim-ownership — take over a team whose owner is gone or
+ * long dormant. The eligibility rules live entirely in lib/teams.js so the
+ * banner the user sees and the decision enforced here cannot disagree.
+ */
+async function handleTeamClaim(req, res, user) {
+  req.resume();
+  const teams = initTeamsIfPossible();
+  if (!teams || typeof teams.claimOwnership !== 'function') {
+    sendJson(res, 501, { error: 'the teams module is not deployed on this server yet' });
+    return;
+  }
+  let out;
+  try {
+    out = teams.claimOwnership(user.id);
+  } catch (e) {
+    sendJson(res, 403, { error: (e && e.userMessage) || 'could not take over this team' });
+    return;
+  }
+  // Worth a log line: this is an ownership change nobody explicitly approved.
+  console.log('hiccup: ' + user.email + ' CLAIMED ownership of team ' + out.teamId +
+    (out.previousOwnerRemoved ? ' (previous owner account was gone)' : ' (previous owner demoted to admin)'));
+  sendJson(res, 200, { ok: true });
+}
+
 async function handleTeamTransfer(req, res, user) {
   let body;
   try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
@@ -2693,6 +2864,13 @@ async function handleSignup(req, res) {
     sendJson(res, 400, { error: 'email and password are required' });
     return;
   }
+  // Unlimited signup lets anyone mint accounts and consume capture storage,
+  // and each one costs a ~20ms synchronous scrypt on the single event loop.
+  if (_slidingLimited(_signupByIp, clientIp(req), SIGNUP_MAX_PER_IP, SIGNUP_WINDOW_MS, false)) {
+    res.setHeader('Retry-After', '3600');
+    sendJson(res, 429, { error: 'Too many accounts created from here recently. Try again later.' });
+    return;
+  }
   let user;
   try {
     user = await auth.createUser({
@@ -2715,8 +2893,27 @@ async function handleLogin(req, res) {
     sendJson(res, 400, { error: 'email and password are required' });
     return;
   }
+  // Checked with peek=true so a legitimate user who signs in successfully
+  // never spends their own budget -- only failures below are recorded. The
+  // email key is normalised so "A@b.com" and "a@b.com" share one bucket
+  // rather than giving an attacker a free bucket per casing.
+  const ip = clientIp(req);
+  const emailKey = String(body.email).trim().toLowerCase();
+  const overEmail = _slidingLimited(_loginByEmail, emailKey, LOGIN_MAX_PER_EMAIL, LOGIN_WINDOW_MS, true);
+  const overIp = _slidingLimited(_loginByIp, ip, LOGIN_MAX_PER_IP, LOGIN_WINDOW_MS, true);
+  if (overEmail || overIp) {
+    res.setHeader('Retry-After', '900');
+    // Deliberately the same wording either way: saying WHICH limit tripped
+    // tells an attacker whether they have found a real account.
+    sendJson(res, 429, { error: 'Too many sign-in attempts. Wait a few minutes and try again.' });
+    return;
+  }
+
   const user = await auth.verifyPassword(String(body.email), String(body.password));
   if (!user) {
+    // Record on failure only.
+    _slidingLimited(_loginByEmail, emailKey, LOGIN_MAX_PER_EMAIL, LOGIN_WINDOW_MS, false);
+    _slidingLimited(_loginByIp, ip, LOGIN_MAX_PER_IP, LOGIN_WINDOW_MS, false);
     sendJson(res, 401, { error: 'wrong email or password' });
     return;
   }
@@ -2869,6 +3066,21 @@ async function handle(req, res) {
     const user = requireAuth(req, res);
     if (!user) { req.resume(); return; }
     return handleTeamTransfer(req, res, user);
+  }
+  if (pathname === '/api/team/leave' && method === 'POST') {
+    const user = requireAuth(req, res);
+    if (!user) { req.resume(); return; }
+    return handleTeamLeave(req, res, user);
+  }
+  if (pathname === '/api/team/recovery' && method === 'GET') {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    return handleTeamRecoveryGet(req, res, user);
+  }
+  if (pathname === '/api/team/claim-ownership' && method === 'POST') {
+    const user = requireAuth(req, res);
+    if (!user) { req.resume(); return; }
+    return handleTeamClaim(req, res, user);
   }
   const teamMemberMatch = pathname.match(/^\/api\/team\/members\/([A-Za-z0-9_-]{1,64})$/);
   if (teamMemberMatch) {
@@ -3097,8 +3309,50 @@ async function handle(req, res) {
 // Server
 // ---------------------------------------------------------------------------
 
+/**
+ * Security headers, set once here rather than in each of sendJson/serveStatic/
+ * servePublicFile so an error path or a future response helper cannot quietly
+ * miss them.
+ *
+ * No Content-Security-Policy yet, and that omission is deliberate rather than
+ * forgotten: index.html, app.js's host page and admin-status.html all carry
+ * inline <script>, and the landing page loads Google Identity Services from
+ * accounts.google.com. A CSP strict enough to be worth having would break all
+ * of them today; shipping a permissive one with 'unsafe-inline' would just be
+ * decoration. It needs the inline scripts lifted into files first -- tracked,
+ * not silently dropped.
+ *
+ * HSTS is sent ONLY on requests that reached us over HTTPS, detected via
+ * X-Forwarded-Proto. This is not pedantry -- sending it unconditionally is an
+ * own goal that a browser finds instantly and curl never will:
+ *
+ *   hiccup binds 127.0.0.1 and Cloudflare terminates TLS, so the ORIGIN
+ *   connection is always plain HTTP. Chrome treats 127.0.0.1 as a secure
+ *   context, so it honours an HSTS header served over http://127.0.0.1:PORT
+ *   and thereafter force-upgrades to https://127.0.0.1:PORT -- which nothing
+ *   is listening on. Local access dies, and it stays dead for max-age.
+ *
+ * Through the tunnel X-Forwarded-Proto is https, so hiccup.monster still gets
+ * HSTS exactly as intended. NOT preloaded: preload is effectively irreversible
+ * and is the site owner's call, not a default.
+ */
+function setSecurityHeaders(req, res) {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  // /admin/status hosts the superuser control and the restart button; DENY
+  // rather than SAMEORIGIN because nothing here is ever legitimately framed.
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  const proto = String((req.headers && req.headers['x-forwarded-proto']) || '').split(',')[0].trim();
+  if (proto === 'https') {
+    res.setHeader('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
+  }
+  // A trace analyser has no business reading a camera or a location.
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()');
+}
+
 const server = http.createServer((req, res) => {
   const startedAt = Date.now();
+  setSecurityHeaders(req, res);
   res.on('finish', () => {
     console.log(req.method + ' ' + (req.url || '/') + ' ' + res.statusCode + ' ' +
       (Date.now() - startedAt) + 'ms');
@@ -3123,16 +3377,33 @@ server.on('error', (err) => {
   throw err;
 });
 
-server.listen(PORT, HOST, () => {
-  console.log('hiccup v' + VERSION + ' listening on http://' + HOST + ':' + PORT +
-    '  (data: ' + DATA_DIR + ')');
-  if (!analyzeCapture) {
-    console.log('hiccup: NOTE — running without the analysis engine; uploads return 501');
-  }
-  startFeedbackDigestTimer();
-  startRetentionTimer();
-  startI18nRefreshTimer();
-});
+/**
+ * Start listening. Guarded by require.main so this file can be REQUIRED by a
+ * test without a side effect that binds a port and arms three timers.
+ *
+ * That side effect is why 43 API routes had no automated coverage, and the
+ * cost was concrete: /subscribe 404'd on the live site for four and a half
+ * hours because nothing anywhere asserts that a page listed in PUBLIC_PAGES
+ * actually resolves. test/http.js now spawns this file as a child process
+ * against a scratch HICCUP_DATA_DIR and exercises the real routes.
+ */
+function start() {
+  server.listen(PORT, HOST, () => {
+    console.log('hiccup v' + VERSION + ' listening on http://' + HOST + ':' + PORT +
+      '  (data: ' + DATA_DIR + ')');
+    if (!analyzeCapture) {
+      console.log('hiccup: NOTE — running without the analysis engine; uploads return 501');
+    }
+    startFeedbackDigestTimer();
+    startRetentionTimer();
+    startI18nRefreshTimer();
+  });
+  return server;
+}
+
+if (require.main === module) start();
+
+module.exports = { server, start, handle, PORT, HOST, DATA_DIR, VERSION };
 
 /**
  * GDPR Art. 5(1)(e): delete captures past config.captureRetentionDays.

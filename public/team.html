@@ -172,6 +172,16 @@
 
     <section id="team-summary" class="card team-card"></section>
 
+    <!-- Shown only when lib/teams.js says this member may take the team over:
+         the owner's account is gone, or they have not signed in for the
+         dormancy window. Server decides; this is a rendering of that answer. -->
+    <section id="team-recovery" class="card team-card team-recovery" hidden>
+      <h2 data-i18n>This team has no active owner</h2>
+      <p id="team-recovery-detail" class="muted"></p>
+      <p id="team-recovery-error" class="form-error" role="alert"></p>
+      <button data-i18n class="btn btn-primary" type="button" id="team-claim-btn">Take ownership of this team</button>
+    </section>
+
     <section id="team-invite-card" class="card team-card" hidden>
       <h2 data-i18n>Invite a colleague</h2>
       <p data-i18n class="muted">hiccup does not send email — you copy the link and share it yourself.</p>
@@ -200,6 +210,33 @@
       <h2 data-i18n>Members</h2>
       <div id="team-members" class="team-table-wrap"></div>
       <p id="team-members-msg" class="team-members-msg" role="status" aria-live="polite"></p>
+    </section>
+
+    <!-- Ownership handover and leaving. The transfer API has existed since
+         Wave 3 with nothing in the UI able to call it, which is how a team
+         could end up permanently stranded: the owner deleted their account,
+         and no path existed to appoint a replacement. -->
+    <section class="card team-card">
+      <h2 data-i18n>Leaving this team</h2>
+
+      <div id="team-transfer-wrap" hidden>
+        <p data-i18n class="muted">You own this team. To leave it, or to delete your
+        account, hand ownership to another member first — the team keeps every
+        capture and guide, and you stay on as an admin.</p>
+        <form id="team-transfer-form" novalidate>
+          <label data-i18n for="team-transfer-select">New owner</label>
+          <select id="team-transfer-select" class="input"></select>
+          <p id="team-transfer-error" class="form-error" role="alert"></p>
+          <button data-i18n class="btn" type="submit" id="team-transfer-btn">Transfer ownership</button>
+        </form>
+      </div>
+
+      <div id="team-leave-wrap" hidden>
+        <p data-i18n class="muted">You keep your account. The team's shared captures
+        and guides stay with the team.</p>
+        <p id="team-leave-error" class="form-error" role="alert"></p>
+        <button data-i18n class="btn" type="button" id="team-leave-btn">Leave this team</button>
+      </div>
     </section>
 
   </div>
