@@ -807,5 +807,7 @@
   "link": "Link",
   "this build of lib/kb.js cannot add links": "diese Version von lib/kb.js kann keine Links hinzufügen",
   "privacy": "Datenschutz",
-  "Read the privacy notice": "Datenschutzhinweis lesen"
+  "Read the privacy notice": "Datenschutzhinweis lesen",
+  "Users": "Benutzer",
+  "Grant or revoke superuser access. Superusers can see this page, restart the service, and manage other users.": "Superuser-Zugriff gewähren oder entziehen. Superuser können diese Seite sehen, den Dienst neu starten und andere Benutzer verwalten."
 }

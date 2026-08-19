@@ -2125,3 +2125,96 @@ Cloudflare/DNS-level, not something a commit here can fix:
 Neither blocks anything today (nobody currently links to the `www` form or
 plain `http`), but both are the kind of thing worth closing before they are
 found by someone other than a self-audit.
+
+---
+
+# Wave 13 — Superuser management, and the adversarial review that rewrote it
+
+`/admin/status` gains a "Users" table: every account, and a button to grant
+or revoke site-admin ("superuser") status — the same `config.adminEmails`
+allow-list `isSiteAdmin()` already gated every `/admin/*` route on. New
+surface: `GET /api/admin/users`, `PATCH /api/admin/users/:id
+{superuser:true|false}`, both `requireSiteAdmin`-gated; `lib/auth.js` gained
+`findUserById()` and `listUsers()` (both reuse the existing `_publicUser()`
+projection, so neither leaks `passwordHash`/`googleSub`).
+
+The first version's grant/revoke logic lived inline in the HTTP handler and
+looked correct — 12 manual HTTP tests passed, including the last-superuser
+guard. All 12 exercised the same clean state: exactly one real admin, no
+stale entries. **Granting admin rights is exactly the kind of change that
+deserves adversarial review before shipping**, so before committing it went
+to an independent agent briefed to find a way to break it. It found five real
+bugs, all invisible on the happy path:
+
+1. **Deleting an account never pruned it from `config.adminEmails`.**
+   Promote someone → they exercise `DELETE /api/me` (their own GDPR erasure
+   right) → the email is free → anyone re-registers that exact address →
+   `isSiteAdmin()` matches the allow-list → instant site admin, no password
+   guessing required. The only genuinely remote, unauthenticated finding —
+   two ordinary in-app actions chained into a privilege-escalation path.
+2. **The last-admin guard counted list *entries*, not live accounts.**
+   `allow.length <= 1` passes even when one of those entries is a stale email
+   with no account behind it (the shipped default seed, on a deployment where
+   that account was never created, being the obvious real-world case) — so
+   the guard could wave through removing the only admin who actually exists.
+3. **A role-fallback admin locked themselves out by promoting someone else.**
+   `isSiteAdmin()` falls back to `role:'admin'` ("whoever signed up first")
+   only while `config.adminEmails` is empty; the first grant made the list
+   non-empty with only the *target* in it. One click on "Make superuser"
+   handed away the whole panel and locked the actor out, with no recovery
+   short of a hand-edit.
+4. **Revoke could report success while access was completely unchanged** —
+   same empty-list root cause as #3 (nothing to remove from an empty list, so
+   both branches were skipped and the handler returned `200 {ok:true}`), plus
+   a duplicate-entry variant (`splice` only removes the *first* match) that
+   the API itself cannot currently produce but a hand-edited `config.json`
+   could.
+5. **No rollback if the disk write failed.** `config.adminEmails` was mutated
+   *before* `store.saveJson()` was even attempted — a failed save left the
+   live authorization gate (every later `isSiteAdmin()` call reads that same
+   object) out of sync with what a restart would actually load from disk, in
+   either direction.
+
+## The fix: pull the logic out where it can be tested at all
+
+`server.js` cannot be unit tested — no `module.exports`, and it calls
+`.listen()` at module scope. That is exactly why the buggy version's rules
+never had a test written against them: there was nowhere to put one. The fix
+extracts every rule above into `lib/adminlist.js` — `applyChange()` and
+`pruneEmail()`, pure functions with no `config`/`res`/disk access — so
+`test/selftest.js` can pin all five regressions down directly (9 new cases).
+`handleAdminUserSet` is now a thin wrapper: normalize the request, call
+`applyChange()`, and on success snapshot-then-swap `config.adminEmails` with
+a rollback in the `catch` (closes #5). `handleMeDelete` now calls
+`pruneEmail()` after a successful account deletion (closes #1) —
+deliberately **never refusing**, even for the sole remaining admin's own
+account: GDPR erasure is the account holder's right regardless of admin
+status, and the alternative (refuse deletion) just re-creates the exact
+reclaimable-phantom-slot bug this exists to close. `applyChange()`'s guard
+now takes an `accountExists()` predicate and counts *live* entries (closes
+#2), and grants while the list is empty seed the actor's own email alongside
+the target (closes #3), while revokes while the list is empty are refused
+outright with an explanatory error rather than silently no-op-ing (closes #4).
+Also added: an Origin check matching `handleServerControl`'s existing
+pattern (granting site-admin is at least as consequential as restarting the
+process), and a `console.log` audit line — there was no record of who
+changed anyone's admin status before this.
+
+Re-verified end to end on an isolated `HICCUP_DATA_DIR` instance after the
+rewrite, including the exact exploit chain from finding #1: promote a test
+account → confirm real admin access via that account's own session → have it
+delete itself → confirm its email is gone from `config.adminEmails` →
+re-register the same email as a fresh account → confirm the new account gets
+a 403, not the inherited access the first version would have granted.
+
+## One finding NOT fixed here, on purpose
+
+The review also flagged (PLAUSIBLE, not reproduced) that `lib/store.js`'s
+`saveJson()` — the atomic-write helper *every* persisted file in this app
+goes through, not just `config.json` — can, on the Windows
+EEXIST/EPERM-then-retry path, `unlinkSync` the real target before the retry,
+and if the retry also fails, the target is gone with nothing written in its
+place. Real, and worth fixing, but it is foundational code every other
+`saveJson()` caller in the app depends on — rewriting its failure handling
+belongs in its own careful, dedicated pass with its own tests, not bundled
+into an unrelated feature commit under review-driven time pressure.

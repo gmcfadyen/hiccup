@@ -11,6 +11,7 @@ const path = require('path');
 
 const store = require('./lib/store');
 const auth = require('./lib/auth');
+const adminlist = require('./lib/adminlist');
 const llm = require('./lib/llm');
 
 // lib/analyze.js is the integrator's module. Require it gracefully so a partial
@@ -1410,6 +1411,30 @@ async function handleMeDelete(req, res, user) {
     if (typeof auth.deleteUser === 'function') removed.account = !!auth.deleteUser(user.id);
   } catch { /* reported below */ }
 
+  // A deleted account's email must not stay in config.adminEmails: left
+  // behind, it is a reclaimable admin slot — anyone who later registers that
+  // exact email inherits superuser access instantly. This was a real,
+  // adversarial-review-confirmed privilege-escalation path (grant yourself
+  // superuser, delete your account via this exact route, re-register the
+  // same email). pruneEmail() never refuses, even if this is the sole
+  // remaining admin's own account — GDPR erasure is the account holder's
+  // right regardless of admin status; see lib/adminlist.js's header for why
+  // that tradeoff is accepted rather than blocking the deletion.
+  if (removed.account) {
+    try {
+      const pruned = adminlist.pruneEmail(config.adminEmails, user.email);
+      if (pruned.changed) {
+        const prevEmails = config.adminEmails;
+        config.adminEmails = pruned.adminEmails;
+        try {
+          store.saveJson(path.join(DATA_DIR, 'config.json'), config);
+        } catch {
+          config.adminEmails = prevEmails;
+        }
+      }
+    } catch { /* best effort — the account is already gone either way */ }
+  }
+
   clearSessionCookie(res);
   sendJson(res, 200, {
     ok: true,
@@ -1572,6 +1597,124 @@ function handleAdminStatus(req, res, user) {
   out.mail = { configured: !!(mail && mail.isConfigured(DATA_DIR)) };
 
   sendJson(res, 200, out);
+}
+
+/**
+ * GET /api/admin/users — every account, for the site-admin user-management
+ * panel. Each row is annotated with `isSuperuser` computed through the exact
+ * same isSiteAdmin() check the real gate uses, so the panel can never show a
+ * state that disagrees with what a restart would actually enforce — and with
+ * best-effort team context (role, team name) since "is this person alone or
+ * on a team" is the first thing an admin looking at a user list wants to know.
+ */
+function handleAdminUsers(req, res, user) {
+  let list;
+  try { list = auth.listUsers(); } catch { list = []; }
+
+  const teams = initTeamsIfPossible();
+  const out = list.map((u) => {
+    const row = {
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      role: u.role,
+      createdAt: u.createdAt,
+      lastLoginAt: u.lastLoginAt,
+      isSuperuser: isSiteAdmin(u),
+      isYou: u.id === user.id,
+      team: null,
+    };
+    if (teams) {
+      try {
+        const teamRole = typeof teams.getAccountRole === 'function' ? teams.getAccountRole(u.id) : null;
+        if (teamRole) row.team = { role: teamRole };
+      } catch { /* best effort */ }
+    }
+    return row;
+  });
+
+  sendJson(res, 200, { users: out, you: { id: user.id, email: user.email } });
+}
+
+/**
+ * PATCH /api/admin/users/:id {superuser: true|false} — grant or revoke
+ * site-admin (superuser) status by adding/removing the target's email from
+ * config.adminEmails, then persisting config.json so the change survives a
+ * restart.
+ *
+ * All the actual safety rules (last-live-admin guard, role-fallback self-seed
+ * on grant, refusing a lying "success" on revoke while the list is empty)
+ * live in lib/adminlist.js's applyChange() — a pure function chosen
+ * specifically so those rules are unit tested directly, after an adversarial
+ * review found real bugs in a first version that had this logic inline here.
+ * See ARCHITECTURE.md for the full writeup.
+ *
+ * Origin-checked like handleServerControl() just below: granting site-admin
+ * is at least as consequential as restarting the process, so it gets the
+ * same defence-in-depth even though SameSite=Lax already blocks a cross-site
+ * fetch from carrying the session cookie.
+ */
+async function handleAdminUserSet(req, res, user, targetId) {
+  let body;
+  try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
+
+  const origin = String(req.headers.origin || '');
+  if (origin) {
+    let ok = false;
+    try {
+      const h = new URL(origin).host;
+      ok = h === String(req.headers.host || '') ||
+           h === String(config.baseUrl || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    } catch { ok = false; }
+    if (!ok) {
+      sendJson(res, 403, { error: 'cross-origin request refused' });
+      return;
+    }
+  }
+
+  if (typeof body.superuser !== 'boolean') {
+    sendJson(res, 400, { error: 'send {"superuser": true or false}' });
+    return;
+  }
+
+  const target = auth.findUserById(targetId);
+  if (!target) {
+    sendJson(res, 404, { error: 'no such user' });
+    return;
+  }
+
+  const result = adminlist.applyChange({
+    currentEmails: config.adminEmails,
+    targetEmail: target.email,
+    wantSuperuser: body.superuser,
+    actorEmail: user.email,
+    accountExists: (email) => !!auth.findUserByEmail(email),
+  });
+  if (!result.ok) {
+    sendJson(res, 400, { error: result.error });
+    return;
+  }
+
+  const prevEmails = config.adminEmails;
+  config.adminEmails = result.adminEmails;
+  try {
+    store.saveJson(path.join(DATA_DIR, 'config.json'), config);
+  } catch (e) {
+    config.adminEmails = prevEmails; // roll back — the live gate must match what is actually on disk
+    sendJson(res, 500, { error: 'could not save the updated admin list to disk' });
+    return;
+  }
+
+  console.log('hiccup: admin list change — ' + user.email + ' ' +
+    (body.superuser ? 'granted' : 'revoked') + ' superuser for ' + target.email +
+    ' at ' + new Date().toISOString());
+
+  sendJson(res, 200, {
+    ok: true,
+    email: adminlist.normalise(target.email),
+    isSuperuser: adminlist.cleanList(result.adminEmails).indexOf(adminlist.normalise(target.email)) !== -1,
+    adminEmails: result.adminEmails,
+  });
 }
 
 /**
@@ -2846,6 +2989,20 @@ async function handle(req, res) {
     if (!user) { req.resume(); return; }
     req.resume();
     return handleAdminStatus(req, res, user);
+  }
+
+  if (pathname === '/api/admin/users' && method === 'GET') {
+    const user = requireSiteAdmin(req, res);
+    if (!user) { req.resume(); return; }
+    req.resume();
+    return handleAdminUsers(req, res, user);
+  }
+
+  const adminUserMatch = pathname.match(/^\/api\/admin\/users\/([A-Za-z0-9_-]{1,64})$/);
+  if (adminUserMatch && method === 'PATCH') {
+    const user = requireSiteAdmin(req, res);
+    if (!user) { req.resume(); return; }
+    return handleAdminUserSet(req, res, user, adminUserMatch[1]);
   }
 
   if (pathname === '/api/admin/server/control' && method === 'POST') {

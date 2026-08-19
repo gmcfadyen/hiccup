@@ -41,6 +41,18 @@
   .st-ok { color: var(--ok); font-weight: 600; }
   .st-bad { color: var(--crit); font-weight: 600; }
   .st-warn { color: var(--warn); font-weight: 600; }
+
+  .st-users-card { margin-top: 16px; padding: 12px 14px; }
+  .st-users-card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 0 0 4px; }
+  .st-users-lede { color: var(--muted); font-size: 12.5px; margin: 0 0 10px; }
+  .st-users-wrap { overflow-x: auto; }
+  table.st-users-table { min-width: 640px; width: 100%; }
+  table.st-users-table td { vertical-align: top; }
+  .st-you { color: var(--muted); font-size: 11.5px; margin-left: 4px; }
+  .st-superuser-yes { color: var(--accent); font-weight: 600; }
+  .st-superuser-no { color: var(--muted); }
+  .st-users-msg { margin: 8px 0 0; font-size: 13px; color: var(--muted); min-height: 18px; }
+  .st-users-msg.err { color: var(--crit); }
 </style>
 </head>
 <!--
@@ -82,6 +94,14 @@
   </div>
   <p id="st-msg" class="feedback-msg" role="status" aria-live="polite"></p>
   <div id="st-body" class="st-grid"></div>
+
+  <section class="card st-users-card">
+    <h2 data-i18n>Users</h2>
+    <p data-i18n class="st-users-lede">Grant or revoke superuser access. Superusers can see this page,
+      restart the service, and manage other users.</p>
+    <div id="st-users" class="st-users-wrap"></div>
+    <p id="st-users-msg" class="st-users-msg" role="status" aria-live="polite"></p>
+  </section>
 </main>
 
 <script>
@@ -198,9 +218,117 @@
         return;
       }
       render(await r.json());
+      loadUsers();
     } catch (e) {
       $('st-msg').textContent = 'could not reach the server';
       $('st-msg').className = 'feedback-msg is-err';
+    }
+  }
+
+  // ------------------------------------------------------------------ users
+
+  function usersMsg(text, isErr) {
+    var m = $('st-users-msg');
+    m.textContent = text || '';
+    m.classList.toggle('err', !!isErr);
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+  }
+
+  function renderUsers(list) {
+    var host = $('st-users');
+    host.textContent = '';
+    if (!list.length) {
+      host.appendChild(el('p', 'muted', 'No user accounts yet.'));
+      return;
+    }
+
+    var table = el('table', 'table-dense st-users-table');
+    var thead = el('thead');
+    var hrow = el('tr');
+    ['Email', 'Name', 'Team role', 'Created', 'Last login', 'Superuser', ''].forEach(function (h) {
+      hrow.appendChild(el('th', null, h));
+    });
+    thead.appendChild(hrow);
+    table.appendChild(thead);
+
+    var tbody = el('tbody');
+    list.forEach(function (u) {
+      var row = el('tr');
+
+      var tdEmail = el('td', null, u.email);
+      if (u.isYou) tdEmail.appendChild(el('span', 'st-you', '(you)'));
+      row.appendChild(tdEmail);
+
+      row.appendChild(el('td', null, u.name || '—'));
+      row.appendChild(el('td', 'muted', (u.team && u.team.role) || '—'));
+      row.appendChild(el('td', 'muted', fmtDate(u.createdAt)));
+      row.appendChild(el('td', 'muted', fmtDate(u.lastLoginAt)));
+      row.appendChild(el('td', u.isSuperuser ? 'st-superuser-yes' : 'st-superuser-no',
+        u.isSuperuser ? 'yes' : 'no'));
+
+      var tdAction = el('td');
+      var btn = el('button', 'btn', u.isSuperuser ? 'Revoke superuser' : 'Make superuser');
+      btn.type = 'button';
+      btn.addEventListener('click', function () { toggleSuperuser(u, btn); });
+      tdAction.appendChild(btn);
+      row.appendChild(tdAction);
+
+      tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+    host.appendChild(table);
+  }
+
+  async function toggleSuperuser(u, btn) {
+    var wantSuperuser = !u.isSuperuser;
+    var question = wantSuperuser
+      ? ('Make "' + u.email + '" a superuser? They will be able to see this page, restart ' +
+         'the service, and manage other users.')
+      : ('Revoke superuser access for "' + u.email + '"?');
+    if (!confirm(question)) return;
+
+    btn.disabled = true;
+    usersMsg(wantSuperuser ? 'Granting…' : 'Revoking…');
+    try {
+      var r = await fetch('/api/admin/users/' + encodeURIComponent(u.id), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ superuser: wantSuperuser })
+      });
+      var d = null;
+      try { d = await r.json(); } catch (e2) { /* non-json */ }
+      if (!r.ok) {
+        usersMsg((d && d.error) || ('request failed (' + r.status + ')'), true);
+        btn.disabled = false;
+        return;
+      }
+      usersMsg(wantSuperuser
+        ? ('"' + u.email + '" is now a superuser.')
+        : ('Superuser access revoked for "' + u.email + '".'));
+      loadUsers();
+    } catch (e) {
+      usersMsg('could not reach the server', true);
+      btn.disabled = false;
+    }
+  }
+
+  async function loadUsers() {
+    try {
+      var r = await fetch('/api/admin/users', { cache: 'no-store' });
+      if (r.status === 401) { location = '/'; return; }
+      if (r.status === 403) { return; } // not a site admin — the main card already said so
+      if (!r.ok) { usersMsg('could not load users (' + r.status + ')', true); return; }
+      var d = await r.json();
+      renderUsers(Array.isArray(d.users) ? d.users : []);
+    } catch (e) {
+      usersMsg('could not reach the server', true);
     }
   }
 

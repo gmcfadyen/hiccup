@@ -1328,6 +1328,135 @@ async function main() {
     ok(!!out.explain && !!out.explain.intent, 'explainRule produced no summary');
   });
 
+  // lib/adminlist.js: the site-admin allow-list edit logic. Every case below
+  // maps to a specific bug an adversarial review found in the first version
+  // of this feature (grant/revoke was inline in server.js's HTTP handler,
+  // untestable and untested) — see ARCHITECTURE.md for the full writeup.
+  // This module was extracted from that handler specifically so these rules
+  // could be pinned down here.
+
+  await t('adminlist: grants and revokes normally when the list already has another live admin', () => {
+    const al = require(path.join(ROOT, 'lib', 'adminlist.js'));
+    const exists = (e) => ['owner@example.com', 'alice@example.com'].indexOf(e) !== -1;
+
+    const granted = al.applyChange({
+      currentEmails: ['owner@example.com'], targetEmail: 'alice@example.com',
+      wantSuperuser: true, actorEmail: 'owner@example.com', accountExists: exists,
+    });
+    eq(granted.ok, true, 'grant ok');
+    eq(granted.adminEmails.join(','), 'owner@example.com,alice@example.com', 'grant result');
+
+    const revoked = al.applyChange({
+      currentEmails: granted.adminEmails, targetEmail: 'alice@example.com',
+      wantSuperuser: false, actorEmail: 'owner@example.com', accountExists: exists,
+    });
+    eq(revoked.ok, true, 'revoke ok');
+    eq(revoked.adminEmails.join(','), 'owner@example.com', 'revoke result');
+  });
+
+  await t('adminlist: granting while the list is empty (role-fallback) seeds the actor, not just the target', () => {
+    // Regression: the first version made the list non-empty with ONLY the
+    // target in it, which isSiteAdmin() then treats as authoritative over
+    // role — silently locking the acting admin out mid-action.
+    const al = require(path.join(ROOT, 'lib', 'adminlist.js'));
+    const out = al.applyChange({
+      currentEmails: [], targetEmail: 'bob@example.com',
+      wantSuperuser: true, actorEmail: 'owner@example.com', accountExists: () => true,
+    });
+    eq(out.ok, true, 'ok');
+    ok(out.adminEmails.indexOf('owner@example.com') !== -1, 'actor was not seeded — actor would be locked out');
+    ok(out.adminEmails.indexOf('bob@example.com') !== -1, 'target was not granted');
+    eq(out.adminEmails.length, 2, 'exactly actor + target, no duplicates');
+  });
+
+  await t('adminlist: granting yourself while the list is empty does not duplicate your own email', () => {
+    const al = require(path.join(ROOT, 'lib', 'adminlist.js'));
+    const out = al.applyChange({
+      currentEmails: [], targetEmail: 'owner@example.com',
+      wantSuperuser: true, actorEmail: 'owner@example.com', accountExists: () => true,
+    });
+    eq(out.ok, true, 'ok');
+    eq(out.adminEmails.join(','), 'owner@example.com', 'actor === target must appear once');
+  });
+
+  await t('adminlist: revoking while the list is empty is refused, not a lying "success"', () => {
+    // Regression: the first version computed already=false (nothing to
+    // remove from an empty list) and skipped both branches, returning
+    // {ok:true, isSuperuser:false} while the actor's real access — via role
+    // fallback — was completely unchanged.
+    const al = require(path.join(ROOT, 'lib', 'adminlist.js'));
+    const out = al.applyChange({
+      currentEmails: [], targetEmail: 'owner@example.com',
+      wantSuperuser: false, actorEmail: 'owner@example.com', accountExists: () => true,
+    });
+    eq(out.ok, false, 'must refuse, not silently succeed');
+    ok(/empty/i.test(out.error), 'error should explain the list is empty: ' + out.error);
+  });
+
+  await t('adminlist: revoking a target not currently listed is an idempotent no-op success', () => {
+    const al = require(path.join(ROOT, 'lib', 'adminlist.js'));
+    const out = al.applyChange({
+      currentEmails: ['owner@example.com'], targetEmail: 'nobody@example.com',
+      wantSuperuser: false, actorEmail: 'owner@example.com', accountExists: () => true,
+    });
+    eq(out.ok, true, 'ok');
+    eq(out.adminEmails.join(','), 'owner@example.com', 'list unchanged');
+  });
+
+  await t('adminlist: the last-admin guard counts LIVE accounts, not raw list length', () => {
+    // Regression: a stale entry (e.g. the default seed email before that
+    // account has ever signed up, or left behind after deletion) made
+    // allow.length look like 2 when only one entry was a real account —
+    // the old guard (`allow.length <= 1`) let the real last admin be removed.
+    const al = require(path.join(ROOT, 'lib', 'adminlist.js'));
+    const exists = (e) => e === 'owner@example.com'; // 'ghost@example.com' has no account
+    const out = al.applyChange({
+      currentEmails: ['owner@example.com', 'ghost@example.com'], targetEmail: 'owner@example.com',
+      wantSuperuser: false, actorEmail: 'owner@example.com', accountExists: exists,
+    });
+    eq(out.ok, false, 'must refuse — removing the only LIVE admin');
+    ok(/last superuser/i.test(out.error), 'error should name the last-superuser guard: ' + out.error);
+  });
+
+  await t('adminlist: the last-admin guard allows removal when a live admin remains', () => {
+    const al = require(path.join(ROOT, 'lib', 'adminlist.js'));
+    const exists = (e) => e === 'owner@example.com' || e === 'alice@example.com';
+    const out = al.applyChange({
+      currentEmails: ['owner@example.com', 'alice@example.com'], targetEmail: 'owner@example.com',
+      wantSuperuser: false, actorEmail: 'owner@example.com', accountExists: exists,
+    });
+    eq(out.ok, true, 'ok — alice is still live');
+    eq(out.adminEmails.join(','), 'alice@example.com', 'owner removed, alice remains');
+  });
+
+  await t('adminlist: input is normalised and deduplicated regardless of case/whitespace', () => {
+    const al = require(path.join(ROOT, 'lib', 'adminlist.js'));
+    const out = al.applyChange({
+      currentEmails: [' Owner@Example.com ', 'owner@example.com', 'OWNER@EXAMPLE.COM'],
+      targetEmail: '  Alice@Example.COM  ',
+      wantSuperuser: true, actorEmail: 'owner@example.com', accountExists: () => true,
+    });
+    eq(out.ok, true, 'ok');
+    eq(out.adminEmails.join(','), 'owner@example.com,alice@example.com',
+      'three case/whitespace variants of the same address must collapse to one');
+  });
+
+  await t('adminlist: pruneEmail removes a deleted account\'s email, case-insensitively, and never refuses', () => {
+    const al = require(path.join(ROOT, 'lib', 'adminlist.js'));
+    const removed = al.pruneEmail(['owner@example.com', 'bob@example.com'], 'BOB@example.com');
+    eq(removed.changed, true, 'changed');
+    eq(removed.adminEmails.join(','), 'owner@example.com', 'bob removed');
+
+    // Pruning the SOLE remaining admin must still succeed (never refuse) —
+    // GDPR erasure is the account holder's right regardless of admin status.
+    const soleAdmin = al.pruneEmail(['owner@example.com'], 'owner@example.com');
+    eq(soleAdmin.changed, true, 'changed');
+    eq(soleAdmin.adminEmails.length, 0, 'list may end up empty — that is accepted, not refused');
+
+    const noop = al.pruneEmail(['owner@example.com'], 'nobody@example.com');
+    eq(noop.changed, false, 'absent email is a no-op');
+  });
+
   console.log('NOTE (wave3): HTTP-route-level behavior — a malformed X-Project-Id header or ?project=' +
     ' filter degrading to a clean 4xx, and a suspended member\'s existing session 401ing on the next ' +
     'request — is NOT exercised by this file. server.js has no module.exports and calls server.listen() ' +

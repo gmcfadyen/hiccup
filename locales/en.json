@@ -61,7 +61,7 @@
     "cat": "html",
     "where": [
       "public/admin-feedback.html:43",
-      "public/admin-status.html:61",
+      "public/admin-status.html:73",
       "public/app.html:98",
       "public/hmr.html:178",
       "public/kb.html:156",
@@ -73,7 +73,7 @@
     "cat": "html",
     "where": [
       "public/admin-feedback.html:44",
-      "public/admin-status.html:62",
+      "public/admin-status.html:74",
       "public/app.html:99",
       "public/hmr.html:179",
       "public/kb.html:157",
@@ -85,7 +85,7 @@
     "cat": "html",
     "where": [
       "public/admin-feedback.html:46",
-      "public/admin-status.html:64",
+      "public/admin-status.html:76",
       "public/app.html:101",
       "public/hmr.html:181",
       "public/kb.html:159",
@@ -97,7 +97,7 @@
     "cat": "html",
     "where": [
       "public/admin-feedback.html:47",
-      "public/admin-status.html:65",
+      "public/admin-status.html:77",
       "public/app.html:102",
       "public/hmr.html:182",
       "public/kb.html:160",
@@ -109,7 +109,7 @@
     "cat": "html",
     "where": [
       "public/admin-feedback.html:51",
-      "public/admin-status.html:73",
+      "public/admin-status.html:85",
       "public/app.html:114",
       "public/hmr.html:187",
       "public/index.html:252",
@@ -128,7 +128,7 @@
     "cat": "html",
     "where": [
       "public/admin-feedback.html:58",
-      "public/admin-status.html:80",
+      "public/admin-status.html:92",
       "public/settings.html:88"
     ]
   },
@@ -164,7 +164,7 @@
     "text": "status",
     "cat": "html",
     "where": [
-      "public/admin-status.html:66",
+      "public/admin-status.html:78",
       "public/app.js:370"
     ]
   },
@@ -172,7 +172,7 @@
     "text": "feedback",
     "cat": "html",
     "where": [
-      "public/admin-status.html:67",
+      "public/admin-status.html:79",
       "public/app.html:115",
       "public/hmr.html:188",
       "public/kb.html:166",
@@ -183,29 +183,43 @@
     "text": "Restart the hiccup service so it picks up new code",
     "cat": "html",
     "where": [
-      "public/admin-status.html:70"
+      "public/admin-status.html:82"
     ]
   },
   "419e2d74343beee7": {
     "text": "restart server",
     "cat": "html",
     "where": [
-      "public/admin-status.html:70"
+      "public/admin-status.html:82"
     ]
   },
   "02e1cb3ec3737d54": {
     "text": "refresh",
     "cat": "html",
     "where": [
-      "public/admin-status.html:71"
+      "public/admin-status.html:83"
     ]
   },
   "ad3e3c8146fc920f": {
     "text": "Status",
     "cat": "html",
     "where": [
-      "public/admin-status.html:79",
+      "public/admin-status.html:91",
       "public/team.js:410"
+    ]
+  },
+  "586d6bd2eca2da93": {
+    "text": "Users",
+    "cat": "html",
+    "where": [
+      "public/admin-status.html:99"
+    ]
+  },
+  "c26bfe7eea4ab376": {
+    "text": "Grant or revoke superuser access. Superusers can see this page, restart the service, and manage other users.",
+    "cat": "html",
+    "where": [
+      "public/admin-status.html:100"
     ]
   },
   "c9531ffbb25b1bea": {
@@ -5522,9 +5536,9 @@
     "where": [
       "server.js:848",
       "server.js:986",
-      "server.js:2463",
-      "server.js:2764",
-      "server.js:2779"
+      "server.js:2557",
+      "server.js:2858",
+      "server.js:2873"
     ]
   },
   "f79423093897467e": {
@@ -5653,208 +5667,236 @@
       "server.js:1443"
     ]
   },
+  "e025d7663460a89d": {
+    "text": "send {\"superuser\": true or false}",
+    "cat": "server",
+    "where": [
+      "server.js:1631"
+    ]
+  },
+  "114895a695d6cf0c": {
+    "text": "no such user",
+    "cat": "server",
+    "where": [
+      "server.js:1637"
+    ]
+  },
+  "9a23633d0adc89ae": {
+    "text": "cannot remove the last superuser — add another one first, or edit",
+    "cat": "server",
+    "where": [
+      "server.js:1651"
+    ]
+  },
+  "f69098f93dd285bb": {
+    "text": "could not save the updated admin list to disk",
+    "cat": "server",
+    "where": [
+      "server.js:1664"
+    ]
+  },
   "b107b578f662fb05": {
     "text": "cross-origin request refused",
     "cat": "server",
     "where": [
-      "server.js:1611"
+      "server.js:1705"
     ]
   },
   "e8d4274657ed2599": {
     "text": "action must be 'status' or 'restart'",
     "cat": "server",
     "where": [
-      "server.js:1618"
+      "server.js:1712"
     ]
   },
   "c9025488a137cf6c": {
     "text": "Not supervised by the hiccup service (state:",
     "cat": "server",
     "where": [
-      "server.js:1648"
+      "server.js:1742"
     ]
   },
   "3fb3204d07f649c4": {
     "text": "no such feedback",
     "cat": "server",
     "where": [
-      "server.js:1731"
+      "server.js:1825"
     ]
   },
   "2668e3335367971b": {
     "text": "no feedback module",
     "cat": "server",
     "where": [
-      "server.js:1754"
+      "server.js:1848"
     ]
   },
   "b5872077e7138177": {
     "text": "no digestRecipient configured",
     "cat": "server",
     "where": [
-      "server.js:1768"
+      "server.js:1862"
     ]
   },
   "3e230b47bf9bb8d3": {
     "text": "no mail module",
     "cat": "server",
     "where": [
-      "server.js:1772"
+      "server.js:1866"
     ]
   },
   "d1638c2147bb7e7d": {
     "text": "this build of lib/kb.js cannot search",
     "cat": "server",
     "where": [
-      "server.js:1799"
+      "server.js:1893"
     ]
   },
   "5337ea8f8150b659": {
     "text": "q (a search query) is required",
     "cat": "server",
     "where": [
-      "server.js:1804"
+      "server.js:1898"
     ]
   },
   "d53aa13ba29ffd09": {
     "text": "the teams module is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:1854",
-      "server.js:1871",
-      "server.js:1883",
-      "server.js:1904",
-      "server.js:1927",
-      "server.js:1977"
+      "server.js:1948",
+      "server.js:1965",
+      "server.js:1977",
+      "server.js:1998",
+      "server.js:2021",
+      "server.js:2071"
     ]
   },
   "b4557baf45c6a947": {
     "text": "this invite link is invalid or has expired",
     "cat": "server",
     "where": [
-      "server.js:1909",
-      "server.js:1937"
+      "server.js:2003",
+      "server.js:2031"
     ]
   },
   "d7bf7c6c99ed4407": {
     "text": "token is required",
     "cat": "server",
     "where": [
-      "server.js:1932"
+      "server.js:2026"
     ]
   },
   "baa0a3344e8c0331": {
     "text": "joined the team, but could not load the account",
     "cat": "server",
     "where": [
-      "server.js:1965"
+      "server.js:2059"
     ]
   },
   "3696efafd4e94786": {
     "text": "role or suspended is required",
     "cat": "server",
     "where": [
-      "server.js:1985"
+      "server.js:2079"
     ]
   },
   "8085f74c9d35d6d7": {
     "text": "Only the team owner can change member roles.",
     "cat": "server",
     "where": [
-      "server.js:1991"
+      "server.js:2085"
     ]
   },
   "0136bec8180be8a5": {
     "text": "Only a team owner or admin can suspend members.",
     "cat": "server",
     "where": [
-      "server.js:2003"
+      "server.js:2097"
     ]
   },
   "00adf0d1bc93484d": {
     "text": "Only a team owner or admin can remove members.",
     "cat": "server",
     "where": [
-      "server.js:2024"
+      "server.js:2118"
     ]
   },
   "408635fc82cc11a8": {
     "text": "Only the team owner can transfer ownership.",
     "cat": "server",
     "where": [
-      "server.js:2046"
+      "server.js:2140"
     ]
   },
   "4bf96ced8828fabd": {
     "text": "the projects module is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:2062",
-      "server.js:2075",
-      "server.js:2098",
-      "server.js:2124"
+      "server.js:2156",
+      "server.js:2169",
+      "server.js:2192",
+      "server.js:2218"
     ]
   },
   "0d9aceb8b8384b7f": {
     "text": "project not found",
     "cat": "server",
     "where": [
-      "server.js:2104",
-      "server.js:2130",
-      "server.js:2135"
+      "server.js:2198",
+      "server.js:2224",
+      "server.js:2229"
     ]
   },
   "8c827ee96db5d1cd": {
     "text": "messages array is required",
     "cat": "server",
     "where": [
-      "server.js:2457"
+      "server.js:2551"
     ]
   },
   "ecfc526de8ae3814": {
     "text": "local model is offline",
     "cat": "server",
     "where": [
-      "server.js:2468"
+      "server.js:2562"
     ]
   },
   "fec5f0616fdf6dd0": {
     "text": "hiccup is busy answering another question — try again in a moment",
     "cat": "server",
     "where": [
-      "server.js:2487"
+      "server.js:2581"
     ]
   },
   "1ab14d1c2578506a": {
     "text": "email and password are required",
     "cat": "server",
     "where": [
-      "server.js:2518",
-      "server.js:2540"
+      "server.js:2612",
+      "server.js:2634"
     ]
   },
   "98c716c4e947ddc8": {
     "text": "wrong email or password",
     "cat": "server",
     "where": [
-      "server.js:2545"
+      "server.js:2639"
     ]
   },
   "f470143a26c5b7c9": {
     "text": "credential is required",
     "cat": "server",
     "where": [
-      "server.js:2556"
+      "server.js:2650"
     ]
   },
   "08565cf8a3e3ee3a": {
     "text": "not found",
     "cat": "server",
     "where": [
-      "server.js:2704",
-      "server.js:2725",
-      "server.js:2785",
-      "server.js:2878"
+      "server.js:2798",
+      "server.js:2819",
+      "server.js:2879",
+      "server.js:2986"
     ]
   }
 }

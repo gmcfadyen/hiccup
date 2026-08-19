@@ -807,5 +807,7 @@
   "link": "enlace",
   "this build of lib/kb.js cannot add links": "esta versión de lib/kb.js no puede añadir enlaces",
   "privacy": "privacidad",
-  "Read the privacy notice": "Leer el aviso de privacidad"
+  "Read the privacy notice": "Leer el aviso de privacidad",
+  "Users": "Usuarios",
+  "Grant or revoke superuser access. Superusers can see this page, restart the service, and manage other users.": "Conceder o revocar el acceso de superusuario. Los superusuarios pueden ver esta página, reiniciar el servicio y gestionar a otros usuarios."
 }
