@@ -23,7 +23,6 @@
   ],
   "author": "hiccup",
   "license": "BUSL-1.1",
-  "dependencies": {},
   "optionalDependencies": {
     "pdf-parse": "^2.4.5"
   }

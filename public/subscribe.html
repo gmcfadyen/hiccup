@@ -25,6 +25,12 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
 <link rel="stylesheet" href="/hiccup.css">
+<!-- app.css carries the .topbar / .logo / .brand-* / .topnav-link rules this page's
+     header uses. hiccup.css's .brand-mark and .brand-wordmark are inline-block
+     background-images with no height of their own ("Callers set the height"), so
+     without this the logo collapses to nothing and the header has no layout. Every
+     other page with a topbar loads both sheets; this one was the exception. -->
+<link rel="stylesheet" href="/app.css">
 
 <style>
   .page { max-width: 880px; margin: 0 auto; padding: 22px 20px 64px; }
