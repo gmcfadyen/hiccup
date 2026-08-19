@@ -1,9 +1,33 @@
 # hiccup
 
-**see where the call went wrong** — a web-based SIP / H.323 trace analyser for the
-SBC-curious: two-leg B2BUA correlation with an explicit delta view, a retransmission
-classifier that tells you *why* the INVITE retransmitted, and a ladder that collapses
-the noise. Free while in beta; accounts required.
+**see where the call went wrong** — a self-hosted SIP / H.323 / Diameter trace
+analyser for the SBC-curious. Upload a pcap or paste an SBC log and get a ladder,
+a two-leg diff and a ranked, automatic diagnosis instead of two 200-line INVITEs
+to eyeball. **Free for individual users**; accounts required.
+
+## What it does
+
+- **Automatic fault detection** — every capture runs through a deterministic rule
+  engine (never an LLM) that ranks findings by severity, each cited to an RFC section.
+- **Multi-protocol correlation** — H.323 (Q.931/H.225) and Diameter (Rx/Gx/Cx/Sh)
+  alongside SIP, stitching IWF calls and IMS charging events into one flow with a
+  confidence score, and an explicit `AMBIGUOUS` state rather than a silent wrong guess.
+- **Two-leg diff** — pairs ingress and egress across the B2BUA and emits a structured
+  delta: headers added or stripped, codecs narrowed, DTMF payload-type mismatches,
+  100rel asymmetry, session-timer conflicts, topology leaks.
+- **Retransmission classifier** — collapses the noise, then says *why*: never arrived,
+  slow far end, UDP fragmentation, ACK not landing, or a box-wide storm.
+- **Header-rule explainer** — parses Oracle/Acme, AudioCodes and Ribbon manipulation
+  rules into plain-English intent, checks them against the protocol, and reports which
+  rule explains what the capture actually shows.
+- **Rules from a description** — describe a change in plain English and get a draft
+  rule in your vendor's syntax, with hiccup's reading shown back for review.
+  Deterministic for common intents; ambiguity produces a question, never a guess.
+- **Your own config guides** — ingest vendor documentation (including PDF) and have
+  advice grounded in the exact passage, cited back to you.
+
+Paid plans exist only for **teams** (shared capture library, owner/admin roles,
+invites). Every analysis feature above is free for an individual.
 
 ## What it ingests
 
@@ -11,6 +35,9 @@ the noise. Free while in beta; accounts required.
 - SBC text log exports (Oracle/Acme `sipmsg.log` style, multiple legs interleaved)
 - sngrep/sipgrep text output and bare concatenated SIP messages
 - SIP over UDP and TCP; H.323 (Q.931/H.225 over TPKT) including SIP↔H.323 IWF pairing
+- Diameter over TCP (3868/3869), correlated to SIP via the charging vector
+- Vendor guides for the config KB: `.txt` `.md` `.html` `.ini` `.cfg` `.conf` `.cli`
+  `.log`, plus PDF when the optional `pdf-parse` dependency is installed
 
 ## Quickstart
 
@@ -105,8 +132,10 @@ Each released version converts automatically to the **Apache License 2.0** four 
 after publication (Change Date **2030-08-17** for version 0.1.0), after which that
 version is fully permissive open source with no commercial restrictions.
 
-hiccup is currently **free while in beta**. That is a pricing decision about the beta,
-not a change to the licence above.
+hiccup is **free for individual users**, with paid plans only for team accounts.
+That is a pricing decision about the hosted service, not a change to the licence
+above — and it is orthogonal to it: the BSL terms apply to what you use the code
+*for*, regardless of which plan you are on.
 
 The name **hiccup** and its wordmark are trademarks and are *not* licensed with the
 code — see [NOTICE](NOTICE). Fork freely; rename the fork.
