@@ -2218,3 +2218,65 @@ place. Real, and worth fixing, but it is foundational code every other
 `saveJson()` caller in the app depends on — rewriting its failure handling
 belongs in its own careful, dedicated pass with its own tests, not bundled
 into an unrelated feature commit under review-driven time pressure.
+
+---
+
+# Wave 14 — Free vs. paid accounts: team participation is a paid feature
+
+Adds `plan: 'free'|'paid'` to the user record (`lib/auth.js`) — a free
+account cannot create or join a team; a paid account can be a team owner,
+admin or member. This turned out to be a small addition on top of a lot that
+already existed: the owner/admin/member role system, suspend, remove and
+invite were all already fully built in `lib/teams.js` (see Wave 3) — the only
+gap was that **anyone** could create or join a team regardless of plan.
+
+## Where the gate lives, and why
+
+`_isPaid(user)` and the two call sites live in `lib/teams.js`, not
+`server.js` — `teams.js` already reads user records directly (`_userById`/
+`_userByEmail`, used for `acceptInvite`'s identity verification), so this is
+one more field on an existing read, not new coupling. `createTeam()` checks
+it first, before name validation. `acceptInvite()` checks it **after**
+resolving `userId` (all three branches — already-authenticated, existing
+account + password, brand-new account) but **before** the invite token is
+consumed or the membership is created.
+
+That ordering is deliberate for branch 3 (a brand-new email): the account is
+created either way — a real, working login — but is refused team membership
+if not paid. The token is **not consumed** on refusal, so the identical
+invite link works once the person subscribes and reopens it. The alternative
+(refuse to create the account at all until paid) would mean a genuinely new
+invitee has no way to even sign up to look at the product before paying,
+which defeats the point of an invite.
+
+## Granting 'paid' — no payment gateway, so it's a manual admin action
+
+There is no billing integration (see Wave 15's payment page). `PATCH
+/api/admin/users/:id` — the same endpoint Wave 13 built for granting
+superuser — now also accepts `{plan: 'free'|'paid'}` as an independent
+optional field, same shape as `PATCH /api/team/members/:userId` already
+accepting `{role}` and `{suspended}` independently. The `/admin/status`
+Users table gained a Plan column and a Set paid/Set free button next to the
+existing superuser toggle. In practice: someone pays via Buy Me a Coffee,
+the site admin matches the payment to an account by email in this table and
+flips it.
+
+## Existing tests, not new bugs
+
+`test/selftest.js`'s wave-3 suite predates this feature and creates its test
+users via a `mkUser()` helper that never set `plan`, so — correctly —
+`createTeam`/`acceptInvite` started refusing them the moment the gate shipped
+(25 cascading failures on the first run, all from that one root cause).
+`mkUser()` now grants `plan:'paid'` immediately after creation: this suite is
+about team ROLE mechanics, not the paid gate, so its fixtures being paid by
+construction is correct — the gate itself gets its own dedicated tests. The
+one test that could not just get a `setUserPlan` call and move on was branch
+3's "brand-new email" case, since the whole point of that branch is an
+account that does not exist until the call itself creates it; it is now two
+tests — the first captures the invite token and asserts the refusal (account
+created, not joined, token still valid), the second marks that same account
+paid and reuses the **identical** captured token to prove nothing was wasted
+by the refusal. Two more new tests cover the negative case directly: a fresh
+free account is refused on both `createTeam` and `acceptInvite` (branch 1),
+each confirming the invite survives the refusal and a same-token retry
+succeeds once paid.

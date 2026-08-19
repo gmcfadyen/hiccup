@@ -53,6 +53,7 @@
   .st-superuser-no { color: var(--muted); }
   .st-users-msg { margin: 8px 0 0; font-size: 13px; color: var(--muted); min-height: 18px; }
   .st-users-msg.err { color: var(--crit); }
+  table.st-users-table td:last-child { display: flex; gap: 6px; flex-wrap: wrap; }
 </style>
 </head>
 <!--
@@ -252,7 +253,7 @@
     var table = el('table', 'table-dense st-users-table');
     var thead = el('thead');
     var hrow = el('tr');
-    ['Email', 'Name', 'Team role', 'Created', 'Last login', 'Superuser', ''].forEach(function (h) {
+    ['Email', 'Name', 'Team role', 'Created', 'Last login', 'Plan', 'Superuser', ''].forEach(function (h) {
       hrow.appendChild(el('th', null, h));
     });
     thead.appendChild(hrow);
@@ -270,20 +271,58 @@
       row.appendChild(el('td', 'muted', (u.team && u.team.role) || '—'));
       row.appendChild(el('td', 'muted', fmtDate(u.createdAt)));
       row.appendChild(el('td', 'muted', fmtDate(u.lastLoginAt)));
+      row.appendChild(el('td', u.plan === 'paid' ? 'st-superuser-yes' : 'st-superuser-no',
+        u.plan === 'paid' ? 'paid' : 'free'));
       row.appendChild(el('td', u.isSuperuser ? 'st-superuser-yes' : 'st-superuser-no',
         u.isSuperuser ? 'yes' : 'no'));
 
       var tdAction = el('td');
-      var btn = el('button', 'btn', u.isSuperuser ? 'Revoke superuser' : 'Make superuser');
-      btn.type = 'button';
-      btn.addEventListener('click', function () { toggleSuperuser(u, btn); });
-      tdAction.appendChild(btn);
+      var planBtn = el('button', 'btn', u.plan === 'paid' ? 'Set free' : 'Set paid');
+      planBtn.type = 'button';
+      planBtn.addEventListener('click', function () { togglePlan(u, planBtn); });
+      tdAction.appendChild(planBtn);
+
+      var suBtn = el('button', 'btn', u.isSuperuser ? 'Revoke superuser' : 'Make superuser');
+      suBtn.type = 'button';
+      suBtn.addEventListener('click', function () { toggleSuperuser(u, suBtn); });
+      tdAction.appendChild(suBtn);
       row.appendChild(tdAction);
 
       tbody.appendChild(row);
     });
     table.appendChild(tbody);
     host.appendChild(table);
+  }
+
+  async function togglePlan(u, btn) {
+    var wantPlan = u.plan === 'paid' ? 'free' : 'paid';
+    var question = wantPlan === 'paid'
+      ? ('Mark "' + u.email + '" as paid? They will be able to create or join a team.')
+      : ('Set "' + u.email + '" back to free? If they own a team, the team itself is untouched — ' +
+         'this only blocks creating or joining a NEW one.');
+    if (!confirm(question)) return;
+
+    btn.disabled = true;
+    usersMsg('Saving…');
+    try {
+      var r = await fetch('/api/admin/users/' + encodeURIComponent(u.id), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: wantPlan })
+      });
+      var d = null;
+      try { d = await r.json(); } catch (e2) { /* non-json */ }
+      if (!r.ok) {
+        usersMsg((d && d.error) || ('request failed (' + r.status + ')'), true);
+        btn.disabled = false;
+        return;
+      }
+      usersMsg('"' + u.email + '" is now on the ' + wantPlan + ' plan.');
+      loadUsers();
+    } catch (e) {
+      usersMsg('could not reach the server', true);
+      btn.disabled = false;
+    }
   }
 
   async function toggleSuperuser(u, btn) {

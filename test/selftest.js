@@ -471,12 +471,21 @@ async function main() {
   let uA = null, uB = null, uC = null, uD = null;
   let team1 = null;
   let uidAForProjects = null;
+  let brandNewInviteToken = null;
   let w3SharedCaptureId = null;
   let realProjectA = null, realProjectC = null;
 
   function needTeams() { ok(w3teams, 'lib/teams.js unavailable (see load test above)'); }
   function needProjects() { ok(w3projects, 'lib/projects.js unavailable (see load test above)'); }
-  function mkUser(email, name) { return w3auth.createUser({ email, password: 'correct-horse-8', name }); }
+  // Team participation is a paid feature (see lib/teams.js's _isPaid()) —
+  // this suite is about team ROLE mechanics, not the paid gate itself (that
+  // has its own dedicated tests below), so every user this suite creates
+  // through the normal path is paid by construction.
+  function mkUser(email, name) {
+    const u = w3auth.createUser({ email, password: 'correct-horse-8', name });
+    w3auth.setUserPlan(u.id, 'paid');
+    return u;
+  }
 
   await t('wave3: lib/teams.js loads with the documented exports', () => {
     const r = tryRequire(path.join('lib', 'teams.js'));
@@ -582,21 +591,84 @@ async function main() {
     eq(view.myCanManage, true, 'getTeamView(A).myCanManage');
   });
 
-  await t('wave3: acceptInvite branch 3 — brand-new email + createAccount creates the user and joins', async () => {
+  await t('wave3: acceptInvite branch 3 — brand-new email creates a real account even when not paid, but does not join', async () => {
+    // Team participation needs plan:'paid' (see the paid-gate tests below),
+    // checked AFTER a branch-3 account is created and BEFORE the invite
+    // token is consumed — on purpose, so a genuinely new person can sign up,
+    // subscribe, then reopen the exact same link. First attempt here must
+    // fail without wasting the invite; the follow-up test completes it once paid.
     needTeams();
     const email = 'w3-brandnew@example.com';
     ok(!w3auth.findUserByEmail(email), 'sanity: this email must not already have an account');
     const inv = w3teams.createInvite(uA.id, email);
+    brandNewInviteToken = inv.token;
 
-    const res = await within(Promise.resolve(
-      w3teams.acceptInvite(inv.token, { createAccount: { password: 'correct-horse-8', name: 'Brand New' } })
-    ), 5000, 'acceptInvite branch 3 (new account)');
-    ok(res && res.userId, 'acceptInvite (branch 3) did not return {userId}');
+    const e = await expectThrowsOrRejects(
+      () => w3teams.acceptInvite(inv.token, { createAccount: { password: 'correct-horse-8', name: 'Brand New' } }),
+      'acceptInvite branch 3 (new account, not yet paid)'
+    );
+    ok(/paid/i.test(errMsg(e)), 'rejection should explain a paid account is needed: ' + errMsg(e));
 
     const created = w3auth.findUserByEmail(email);
-    ok(created && created.id === res.userId, 'branch 3 did not actually create an account for the invited email');
-    eq(w3teams.accountUid(res.userId), w3teams.accountUid(uA.id), 'new user\'s accountUid after branch-3 join');
-    eq(w3teams.getAccountRole(res.userId), 'member', 'new user\'s role after branch-3 join');
+    ok(created, 'branch 3 must still create the account even though joining was refused');
+    eq(w3teams.getTeamIdFor(created.id), null, 'the unpaid account must not have been joined to the team');
+    eq(w3teams.accountUid(created.id), created.id, 'accountUid must be untouched — still the new account\'s own id');
+  });
+
+  await t('wave3: acceptInvite branch 3 — the SAME token still works once the new account is marked paid', async () => {
+    // The whole point of refusing rather than consuming the token above is
+    // that the identical link still works — so this reuses brandNewInviteToken
+    // rather than a fresh invite, which would only prove a WEAKER claim
+    // (re-inviting works) and not that nothing was wasted by the refusal.
+    needTeams();
+    ok(brandNewInviteToken, 'prerequisite: the previous test must have captured the invite token');
+    const email = 'w3-brandnew@example.com';
+    const created = w3auth.findUserByEmail(email);
+    ok(created, 'prerequisite: the previous test must have created this account');
+    w3auth.setUserPlan(created.id, 'paid');
+
+    const info = w3teams.getInviteInfo(brandNewInviteToken);
+    ok(info, 'the invite token must still be valid after the earlier paid-refusal — it must not have been consumed');
+
+    const res = await within(Promise.resolve(
+      w3teams.acceptInvite(brandNewInviteToken, { sessionUserId: created.id })
+    ), 5000, 'acceptInvite branch 3 retry (now paid, same token)');
+    ok(res && res.userId === created.id, 'acceptInvite (paid retry) did not return {userId}');
+    eq(w3teams.accountUid(res.userId), w3teams.accountUid(uA.id), 'new user\'s accountUid after the paid retry');
+    eq(w3teams.getAccountRole(res.userId), 'member', 'new user\'s role after the paid retry');
+  });
+
+  await t('wave3 paid-gate: a free user cannot create a team', () => {
+    needTeams();
+    const free = w3auth.createUser({ email: 'w3-free-create@example.com', password: 'correct-horse-8', name: 'Free' });
+    eq(free.plan, 'free', 'sanity: a freshly created account must default to plan:"free"');
+    let threw = null;
+    try { w3teams.createTeam(free.id, 'Should Not Exist'); } catch (e) { threw = e; }
+    ok(threw, 'createTeam must refuse a free account');
+    ok(/paid/i.test(errMsg(threw)), 'rejection should explain a paid account is needed: ' + errMsg(threw));
+    eq(w3teams.getTeamIdFor(free.id), null, 'no team must have been created for the free account');
+  });
+
+  await t('wave3 paid-gate: a free user cannot accept an invite (branch 1, already-authenticated), and the invite survives', async () => {
+    needTeams();
+    const free = w3auth.createUser({ email: 'w3-free-accept@example.com', password: 'correct-horse-8', name: 'Free' });
+    const inv = w3teams.createInvite(uA.id, free.email);
+
+    const e = await expectThrowsOrRejects(
+      () => w3teams.acceptInvite(inv.token, { sessionUserId: free.id }),
+      'acceptInvite branch 1 for a free account'
+    );
+    ok(/paid/i.test(errMsg(e)), 'rejection should explain a paid account is needed: ' + errMsg(e));
+    eq(w3teams.getTeamIdFor(free.id), null, 'the free account must not have been joined to the team');
+    ok(w3teams.getInviteInfo(inv.token), 'the invite must still be valid — refusing must not consume it');
+
+    // Now pay, and the identical token works.
+    w3auth.setUserPlan(free.id, 'paid');
+    const res = await within(Promise.resolve(
+      w3teams.acceptInvite(inv.token, { sessionUserId: free.id })
+    ), 5000, 'acceptInvite branch 1 retry (now paid)');
+    eq(res.userId, free.id, 'paid retry did not join the expected account');
+    eq(w3teams.getAccountRole(free.id), 'member', 'role after the paid retry');
   });
 
   await t('wave3: acceptInvite branch 2 — existing account, correct password, not pre-authenticated', async () => {

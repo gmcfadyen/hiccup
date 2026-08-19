@@ -1618,6 +1618,7 @@ function handleAdminUsers(req, res, user) {
       email: u.email,
       name: u.name,
       role: u.role,
+      plan: u.plan === 'paid' ? 'paid' : 'free',
       createdAt: u.createdAt,
       lastLoginAt: u.lastLoginAt,
       isSuperuser: isSiteAdmin(u),
@@ -1637,22 +1638,28 @@ function handleAdminUsers(req, res, user) {
 }
 
 /**
- * PATCH /api/admin/users/:id {superuser: true|false} — grant or revoke
- * site-admin (superuser) status by adding/removing the target's email from
- * config.adminEmails, then persisting config.json so the change survives a
- * restart.
+ * PATCH /api/admin/users/:id {superuser?: true|false, plan?: 'free'|'paid'}
+ * — grant/revoke site-admin (superuser) status and/or set the subscription
+ * plan. Same shape as PATCH /api/team/members/:userId (role and suspended as
+ * independent optional fields) — at least one of the two must be present.
  *
- * All the actual safety rules (last-live-admin guard, role-fallback self-seed
- * on grant, refusing a lying "success" on revoke while the list is empty)
- * live in lib/adminlist.js's applyChange() — a pure function chosen
- * specifically so those rules are unit tested directly, after an adversarial
- * review found real bugs in a first version that had this logic inline here.
- * See ARCHITECTURE.md for the full writeup.
+ * superuser: adds/removes the target's email from config.adminEmails, then
+ * persists config.json so the change survives a restart. All the actual
+ * safety rules (last-live-admin guard, role-fallback self-seed on grant,
+ * refusing a lying "success" on revoke while the list is empty) live in
+ * lib/adminlist.js's applyChange() — a pure function chosen specifically so
+ * those rules are unit tested directly, after an adversarial review found
+ * real bugs in a first version that had this logic inline here. See
+ * ARCHITECTURE.md for the full writeup.
+ *
+ * plan: there is no payment gateway wired up (see ARCHITECTURE.md) — this is
+ * the one place 'paid' status is granted, after a Buy Me a Coffee payment is
+ * seen and matched to an account manually.
  *
  * Origin-checked like handleServerControl() just below: granting site-admin
- * is at least as consequential as restarting the process, so it gets the
- * same defence-in-depth even though SameSite=Lax already blocks a cross-site
- * fetch from carrying the session cookie.
+ * or a paid plan is at least as consequential as restarting the process, so
+ * both get the same defence-in-depth even though SameSite=Lax already blocks
+ * a cross-site fetch from carrying the session cookie.
  */
 async function handleAdminUserSet(req, res, user, targetId) {
   let body;
@@ -1672,8 +1679,10 @@ async function handleAdminUserSet(req, res, user, targetId) {
     }
   }
 
-  if (typeof body.superuser !== 'boolean') {
-    sendJson(res, 400, { error: 'send {"superuser": true or false}' });
+  const hasSuperuser = typeof body.superuser === 'boolean';
+  const hasPlan = body.plan === 'free' || body.plan === 'paid';
+  if (!hasSuperuser && !hasPlan) {
+    sendJson(res, 400, { error: 'send {"superuser": true|false} and/or {"plan": "free"|"paid"}' });
     return;
   }
 
@@ -1683,38 +1692,54 @@ async function handleAdminUserSet(req, res, user, targetId) {
     return;
   }
 
-  const result = adminlist.applyChange({
-    currentEmails: config.adminEmails,
-    targetEmail: target.email,
-    wantSuperuser: body.superuser,
-    actorEmail: user.email,
-    accountExists: (email) => !!auth.findUserByEmail(email),
-  });
-  if (!result.ok) {
-    sendJson(res, 400, { error: result.error });
-    return;
+  const out = { ok: true, email: adminlist.normalise(target.email) };
+
+  if (hasSuperuser) {
+    const result = adminlist.applyChange({
+      currentEmails: config.adminEmails,
+      targetEmail: target.email,
+      wantSuperuser: body.superuser,
+      actorEmail: user.email,
+      accountExists: (email) => !!auth.findUserByEmail(email),
+    });
+    if (!result.ok) {
+      sendJson(res, 400, { error: result.error });
+      return;
+    }
+    const prevEmails = config.adminEmails;
+    config.adminEmails = result.adminEmails;
+    try {
+      store.saveJson(path.join(DATA_DIR, 'config.json'), config);
+    } catch (e) {
+      config.adminEmails = prevEmails; // roll back — the live gate must match what is actually on disk
+      sendJson(res, 500, { error: 'could not save the updated admin list to disk' });
+      return;
+    }
+    console.log('hiccup: admin list change — ' + user.email + ' ' +
+      (body.superuser ? 'granted' : 'revoked') + ' superuser for ' + target.email +
+      ' at ' + new Date().toISOString());
+    out.isSuperuser = adminlist.cleanList(result.adminEmails).indexOf(out.email) !== -1;
+    out.adminEmails = result.adminEmails;
   }
 
-  const prevEmails = config.adminEmails;
-  config.adminEmails = result.adminEmails;
-  try {
-    store.saveJson(path.join(DATA_DIR, 'config.json'), config);
-  } catch (e) {
-    config.adminEmails = prevEmails; // roll back — the live gate must match what is actually on disk
-    sendJson(res, 500, { error: 'could not save the updated admin list to disk' });
-    return;
+  if (hasPlan) {
+    let updated;
+    try {
+      updated = auth.setUserPlan(target.id, body.plan);
+    } catch (e) {
+      sendJson(res, 400, { error: (e && e.userMessage) || 'could not set the plan' });
+      return;
+    }
+    if (!updated) {
+      sendJson(res, 404, { error: 'no such user' });
+      return;
+    }
+    console.log('hiccup: plan change — ' + user.email + ' set ' + target.email +
+      ' to plan "' + body.plan + '" at ' + new Date().toISOString());
+    out.plan = updated.plan;
   }
 
-  console.log('hiccup: admin list change — ' + user.email + ' ' +
-    (body.superuser ? 'granted' : 'revoked') + ' superuser for ' + target.email +
-    ' at ' + new Date().toISOString());
-
-  sendJson(res, 200, {
-    ok: true,
-    email: adminlist.normalise(target.email),
-    isSuperuser: adminlist.cleanList(result.adminEmails).indexOf(adminlist.normalise(target.email)) !== -1,
-    adminEmails: result.adminEmails,
-  });
+  sendJson(res, 200, out);
 }
 
 /**
