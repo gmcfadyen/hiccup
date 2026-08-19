@@ -227,6 +227,10 @@
     // dissolves that team instead, so showing an empty picker would be a
     // dead end.
     $('team-transfer-wrap').hidden = !isOwner || !others.length;
+    // ...and with BOTH halves hidden — which is exactly a sole owner's state —
+    // the card would otherwise render as a lone "Leaving this team" heading
+    // with nothing under it, which reads as a broken page.
+    $('team-exit-card').hidden = $('team-leave-wrap').hidden && $('team-transfer-wrap').hidden;
 
     if (isOwner && others.length) {
       var sel = $('team-transfer-select');
