@@ -112,7 +112,7 @@
       "public/admin-status.html:86",
       "public/app.html:114",
       "public/hmr.html:187",
-      "public/index.html:329",
+      "public/index.html:370",
       "public/kb.html:165"
     ]
   },
@@ -445,8 +445,8 @@
       "public/app.html:176",
       "public/hmr.html:252",
       "public/hmr.html:253",
-      "public/index.html:506",
-      "public/index.html:507"
+      "public/index.html:545",
+      "public/index.html:546"
     ]
   },
   "c8444bcade4335ca": {
@@ -455,7 +455,7 @@
     "where": [
       "public/app.html:178",
       "public/hmr.html:255",
-      "public/index.html:509",
+      "public/index.html:548",
       "public/kb.html:238",
       "public/subscribe.html:140",
       "public/team.html:210"
@@ -1142,7 +1142,7 @@
     "text": "see where the call went wrong",
     "cat": "html",
     "where": [
-      "public/index.html:339",
+      "public/index.html:380",
       "public/app.js:2400"
     ]
   },
@@ -1150,207 +1150,207 @@
     "text": "a big friendly monster lives at hiccup.monster — its whole job is fixing yours.",
     "cat": "html",
     "where": [
-      "public/index.html:340"
+      "public/index.html:381"
     ]
   },
   "b897c33a90df5f73": {
     "text": "a self-hosted SIP, H.323 and Diameter trace analyser for the SBC-curious. upload a pcap or paste an SBC log — get the ladder, the deltas, and a ranked, automatic diagnosis instead of two 200-line INVITEs to eyeball. nothing leaves this box.",
     "cat": "html",
     "where": [
-      "public/index.html:341"
+      "public/index.html:382"
+    ]
+  },
+  "bc7871b7c9c8cba3": {
+    "text": "free for individual users",
+    "cat": "html",
+    "where": [
+      "public/index.html:386"
+    ]
+  },
+  "1468a82f94607d69": {
+    "text": "every analysis feature, no card, no time limit. paid plans exist only for teams who want a shared library and roles.",
+    "cat": "html",
+    "where": [
+      "public/index.html:387"
     ]
   },
   "be45a3a6ee3c626a": {
     "text": "features",
     "cat": "html",
     "where": [
-      "public/index.html:349"
-    ]
-  },
-  "a29a82ae8e58d031": {
-    "text": "two-leg diff + delta view",
-    "cat": "html",
-    "where": [
-      "public/index.html:351"
-    ]
-  },
-  "be5bdf89a1580bd1": {
-    "text": "pairs ingress and egress legs across the B2BUA and emits a structured delta: headers added or stripped, codec lists narrowed, DTMF payload-type mismatches, 100rel asymmetry, session-timer conflicts, topology leaks.",
-    "cat": "html",
-    "where": [
-      "public/index.html:352"
-    ]
-  },
-  "c90b85d8db04bf81": {
-    "text": "retransmission classifier",
-    "cat": "html",
-    "where": [
-      "public/index.html:357"
-    ]
-  },
-  "00f5cdc803751349": {
-    "text": "seven INVITEs collapse into one readable row — then get classified: never arrived, slow far end, UDP fragmentation, ACK not landing, or a box-wide storm that was never about your call in the first place.",
-    "cat": "html",
-    "where": [
-      "public/index.html:358"
+      "public/index.html:393"
     ]
   },
   "204ac44286ceac03": {
     "text": "automatic fault detection",
     "cat": "html",
     "where": [
-      "public/index.html:363"
+      "public/index.html:395"
     ]
   },
   "a5cebf748ef4cac5": {
     "text": "every capture runs through a rule engine that surfaces what is actually wrong, ranked by severity — each finding cited to an RFC section instead of a hunch.",
     "cat": "html",
     "where": [
-      "public/index.html:364"
+      "public/index.html:396"
     ]
   },
   "07e26b41c2b19f55": {
     "text": "multi-protocol correlation",
     "cat": "html",
     "where": [
-      "public/index.html:369"
+      "public/index.html:401"
     ]
   },
   "5fd31e21a4e4a24c": {
     "text": "decodes H.323 (Q.931/H.225) and Diameter (Rx/Gx/Cx/Sh) alongside SIP, stitching IWF calls and IMS charging events into one flow with a confidence score — and an honest AMBIGUOUS state instead of a silent wrong guess.",
     "cat": "html",
     "where": [
-      "public/index.html:370"
+      "public/index.html:402"
     ]
   },
   "7735e9b639e73075": {
     "text": "header-rule explainer",
     "cat": "html",
     "where": [
-      "public/index.html:375"
+      "public/index.html:407"
     ]
   },
   "42073c95556cbcfd": {
     "text": "paste your SBC's manipulation rules — Oracle/Acme, AudioCodes, Ribbon — and get the plain-English intent, a correctness check against the protocol, and which rule explains what the capture actually shows.",
     "cat": "html",
     "where": [
-      "public/index.html:376"
+      "public/index.html:408"
+    ]
+  },
+  "eb4ef92d3b1847b6": {
+    "text": "describe it, get the config",
+    "cat": "html",
+    "where": [
+      "public/index.html:413"
+    ]
+  },
+  "8b3a378284acab1c": {
+    "text": "describe the change in plain English — “strip P-Asserted-Identity on requests to the carrier” — and get a draft rule in Oracle/Acme, AudioCodes or Ribbon syntax, with hiccup's reading of it shown beside it. ambiguous wording gets a question, never a confident guess.",
+    "cat": "html",
+    "where": [
+      "public/index.html:414"
     ]
   },
   "0b7eb914fea41e75": {
     "text": "your own config guides",
     "cat": "html",
     "where": [
-      "public/index.html:381"
+      "public/index.html:420"
     ]
   },
   "1d12b107d71afd53": {
     "text": "upload the vendor guide for your box — AudioCodes, Ribbon, Oracle/Acme SBC docs, release notes, PDFs — and hiccup grounds its advice in the exact passage, cited back to you.",
     "cat": "html",
     "where": [
-      "public/index.html:382"
+      "public/index.html:421"
     ]
   },
   "a183f4359a1bb370": {
     "text": "how it works",
     "cat": "html",
     "where": [
-      "public/index.html:388",
-      "public/index.html:389"
+      "public/index.html:427",
+      "public/index.html:428"
     ]
   },
   "5225bd77a61f971c": {
     "text": "upload",
     "cat": "html",
     "where": [
-      "public/index.html:393"
+      "public/index.html:432"
     ]
   },
   "0d132f8f1fade63d": {
     "text": "a pcap or pcapng, a pasted SBC text log, a header-manipulation rule set, or a vendor config guide.",
     "cat": "html",
     "where": [
-      "public/index.html:394"
+      "public/index.html:433"
     ]
   },
   "3af6a7a476ec0859": {
     "text": "get a diagnosis",
     "cat": "html",
     "where": [
-      "public/index.html:399"
+      "public/index.html:438"
     ]
   },
   "dfe6b6f7d4a1d27f": {
     "text": "a ladder diagram, a two-leg diff, and a ranked list of findings — each one cited to an RFC section or to your own documentation.",
     "cat": "html",
     "where": [
-      "public/index.html:400"
+      "public/index.html:439"
     ]
   },
   "68edf4408f47230f": {
     "text": "fix it, or hand it off",
     "cat": "html",
     "where": [
-      "public/index.html:405"
+      "public/index.html:444"
     ]
   },
   "1a7299f9d5d14774": {
     "text": "fix it yourself, or bring the diagnosis to your team — a shared library and roles are one plan away.",
     "cat": "html",
     "where": [
-      "public/index.html:406"
+      "public/index.html:445"
     ]
   },
   "80acb9f47238932e": {
     "text": "get started",
     "cat": "html",
     "where": [
-      "public/index.html:415"
+      "public/index.html:454"
     ]
   },
-  "408bda2695161659": {
-    "text": "free while in beta",
+  "01e544babcc5402c": {
+    "text": "free for individuals",
     "cat": "html",
     "where": [
-      "public/index.html:416"
+      "public/index.html:455"
     ]
   },
   "7749728bbcc6de13": {
     "text": "create an account",
     "cat": "html",
     "where": [
-      "public/index.html:421"
+      "public/index.html:460"
     ]
   },
   "123467b419acbc07": {
     "text": "email",
     "cat": "html",
     "where": [
-      "public/index.html:422",
-      "public/index.html:435"
+      "public/index.html:461",
+      "public/index.html:474"
     ]
   },
   "24ea3f43230aae41": {
     "text": "you@example.com",
     "cat": "html",
     "where": [
-      "public/index.html:423",
-      "public/index.html:436"
+      "public/index.html:462",
+      "public/index.html:475"
     ]
   },
   "4b1a493507b3a318": {
     "text": "password",
     "cat": "html",
     "where": [
-      "public/index.html:425",
-      "public/index.html:438"
+      "public/index.html:464",
+      "public/index.html:477"
     ]
   },
   "c83cb3057ed6fbbb": {
     "text": "at least 8 characters",
     "cat": "html",
     "where": [
-      "public/index.html:426",
+      "public/index.html:465",
       "public/accept-invite.js:241"
     ]
   },
@@ -1358,22 +1358,22 @@
     "text": "sign up",
     "cat": "html",
     "where": [
-      "public/index.html:430"
+      "public/index.html:469"
     ]
   },
   "3c09a8ce5e850b03": {
     "text": "sign in",
     "cat": "html",
     "where": [
-      "public/index.html:434",
-      "public/index.html:442"
+      "public/index.html:473",
+      "public/index.html:481"
     ]
   },
   "a7d87b64dc113843": {
     "text": "your password",
     "cat": "html",
     "where": [
-      "public/index.html:439",
+      "public/index.html:478",
       "public/accept-invite.js:196"
     ]
   },
@@ -1381,63 +1381,63 @@
     "text": "or",
     "cat": "html",
     "where": [
-      "public/index.html:447"
+      "public/index.html:486"
     ]
   },
   "af3b5fce2fbc7c63": {
     "text": "you're already signed in.",
     "cat": "html",
     "where": [
-      "public/index.html:454"
+      "public/index.html:493"
     ]
   },
   "b7e7c1321e842c0e": {
     "text": "Open app",
     "cat": "html",
     "where": [
-      "public/index.html:455"
+      "public/index.html:494"
     ]
   },
   "af00a32f7b00fccf": {
     "text": "for teams and enterprises",
     "cat": "html",
     "where": [
-      "public/index.html:461"
+      "public/index.html:500"
     ]
   },
   "33be5e46f7023f98": {
     "text": "running an SBC estate with more than one engineer on call? a paid account turns hiccup into a shared workbench instead of everyone forwarding pcaps around.",
     "cat": "html",
     "where": [
-      "public/index.html:462"
+      "public/index.html:501"
     ]
   },
   "908dfcfe8a57f457": {
     "text": "a shared capture library — everyone sees the same uploads and the same diagnosis",
     "cat": "html",
     "where": [
-      "public/index.html:466"
+      "public/index.html:505"
     ]
   },
   "3ff5fc885b0df004": {
     "text": "owner and admin roles — invite, promote, suspend or remove teammates",
     "cat": "html",
     "where": [
-      "public/index.html:468"
+      "public/index.html:507"
     ]
   },
   "8e67314e4e83ba87": {
     "text": "everything on the free plan stays free — paid is about working as a team, not a feature paywall",
     "cat": "html",
     "where": [
-      "public/index.html:470"
+      "public/index.html:509"
     ]
   },
   "6c6559110431703c": {
     "text": "/ month",
     "cat": "html",
     "where": [
-      "public/index.html:475",
+      "public/index.html:514",
       "public/subscribe.html:94"
     ]
   },
@@ -1445,14 +1445,14 @@
     "text": "or €200 / year — two months free",
     "cat": "html",
     "where": [
-      "public/index.html:476"
+      "public/index.html:515"
     ]
   },
   "302851c586974df6": {
     "text": "See plans →",
     "cat": "html",
     "where": [
-      "public/index.html:477",
+      "public/index.html:516",
       "public/team.html:167"
     ]
   },
@@ -1460,85 +1460,85 @@
     "text": "SIP failure reference",
     "cat": "html",
     "where": [
-      "public/index.html:481",
-      "public/index.html:482"
+      "public/index.html:520",
+      "public/index.html:521"
     ]
   },
   "72b75f6e2765d68f": {
     "text": "no account needed — short pages on the failures that send people looking for a trace in the first place. what the thing you are staring at means, and what to check.",
     "cat": "html",
     "where": [
-      "public/index.html:483"
+      "public/index.html:522"
     ]
   },
   "2c0e10c6af0f76b9": {
     "text": "— codec, payload-type or SRTP mismatch in the SDP",
     "cat": "html",
     "where": [
-      "public/index.html:487"
+      "public/index.html:526"
     ]
   },
   "366b4d7b006aaa31": {
     "text": "— Timer B expired at 32 seconds and nothing ever came back",
     "cat": "html",
     "where": [
-      "public/index.html:489"
+      "public/index.html:528"
     ]
   },
   "6be0783b8f8ada83": {
     "text": "— a busy phone, admission control, or Q.850 cause 17 from the PSTN",
     "cat": "html",
     "where": [
-      "public/index.html:491"
+      "public/index.html:530"
     ]
   },
   "abcf3d1b765ed7a3": {
     "text": "one-way audio",
     "cat": "html",
     "where": [
-      "public/index.html:492"
+      "public/index.html:531"
     ]
   },
   "be2a6b4e618b3c14": {
     "text": "— the signalling worked and the RTP went somewhere else",
     "cat": "html",
     "where": [
-      "public/index.html:493"
+      "public/index.html:532"
     ]
   },
   "662c8219d6a2150e": {
     "text": "retransmissions and storms",
     "cat": "html",
     "where": [
-      "public/index.html:494"
+      "public/index.html:533"
     ]
   },
   "58e1d5db27a987a9": {
     "text": "— reading the ladder, and why 200 OK retransmits matter most",
     "cat": "html",
     "where": [
-      "public/index.html:495"
+      "public/index.html:534"
     ]
   },
   "ee2074488cbb8817": {
     "text": "all reference pages →",
     "cat": "html",
     "where": [
-      "public/index.html:497"
+      "public/index.html:536"
     ]
   },
   "c56e382dd98062e7": {
     "text": "privacy",
     "cat": "html",
     "where": [
-      "public/index.html:504"
+      "public/index.html:543"
     ]
   },
   "d486e88b5301428b": {
     "text": "self-hosted · your traces never leave this box",
     "cat": "html",
     "where": [
-      "public/index.html:505"
+      "public/index.html:544"
     ]
   },
   "5a29a54158399ac4": {

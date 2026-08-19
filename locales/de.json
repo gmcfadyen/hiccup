@@ -858,5 +858,10 @@
   "a shared capture library — everyone sees the same uploads and the same diagnosis": "eine gemeinsam genutzte Aufnahme-Bibliothek — alle sehen dieselben Uploads und dieselbe Diagnose",
   "owner and admin roles — invite, promote, suspend or remove teammates": "Besitzer- und Admin-Rollen — Teammitglieder einladen, befördern, sperren oder entfernen",
   "everything on the free plan stays free — paid is about working as a team, not a feature paywall": "alles, was im kostenlosen Plan bereits verfügbar ist, bleibt es — bezahlt zu sein betrifft die Teamarbeit, keine Bezahlschranke auf Funktionen",
-  "or €200 / year — two months free": "oder 200 € / Jahr — zwei Monate gespart"
+  "or €200 / year — two months free": "oder 200 € / Jahr — zwei Monate gespart",
+  "free for individual users": "kostenlos für Einzelnutzer",
+  "every analysis feature, no card, no time limit. paid plans exist only for teams who want a shared library and roles.": "alle Analysefunktionen, ohne Kreditkarte, ohne zeitliche Begrenzung. bezahlte Pläne gibt es nur für Teams, die eine gemeinsame Bibliothek und Rollen möchten.",
+  "free for individuals": "kostenlos für Einzelpersonen",
+  "describe it, get the config": "beschreiben, Konfiguration erhalten",
+  "describe the change in plain English — “strip P-Asserted-Identity on requests to the carrier” — and get a draft rule in Oracle/Acme, AudioCodes or Ribbon syntax, with hiccup's reading of it shown beside it. ambiguous wording gets a question, never a confident guess.": "beschreiben Sie die Änderung in einfachem Englisch — „strip P-Asserted-Identity on requests to the carrier“ — und erhalten Sie einen Regelentwurf in Oracle/Acme-, AudioCodes- oder Ribbon-Syntax, mit hiccups Auslegung daneben. eine mehrdeutige Formulierung führt zu einer Rückfrage, nie zu einer selbstsicheren Vermutung."
 }

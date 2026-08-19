@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title data-i18n>hiccup — see where the call went wrong</title>
-<meta name="description" content="hiccup — a self-hosted SIP / H.323 / Diameter trace analyser. automatic fault detection with RFC-cited findings, header-rule explanation, and advice grounded in your own vendor config guides.">
+<meta name="description" content="hiccup — a self-hosted SIP / H.323 / Diameter trace analyser, free for individual users. automatic fault detection with RFC-cited findings, header-manipulation rules written from a plain-language description, and advice grounded in your own vendor config guides.">
 <link rel="canonical" href="https://hiccup.monster/">
 <script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <!-- Language, resolved before any markup is parsed — same FOUC-safe shape as the
@@ -18,7 +18,7 @@
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
 <meta property="og:title" content="hiccup — see where the call went wrong">
-<meta property="og:description" content="a self-hosted SIP / H.323 / Diameter trace analyser. automatic fault detection, header-rule explanation, and advice grounded in your own vendor config guides.">
+<meta property="og:description" content="a self-hosted SIP / H.323 / Diameter trace analyser, free for individual users. automatic fault detection, SBC rules written from a plain-language description, and advice grounded in your own vendor config guides.">
 <meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
 <meta property="og:url" content="https://hiccup.monster/">
 <meta property="og:type" content="website">
@@ -51,15 +51,33 @@
     "Automatic fault detection: a rule engine ranks findings by severity, each cited to an RFC section",
     "Multi-protocol correlation: SIP to H.323 (Q.931/H.225) and SIP to Diameter (Rx/Gx/Cx/Sh) via the charging vector, with an explicit ambiguous state",
     "Header-manipulation rule explainer for Oracle/Acme, AudioCodes and Ribbon SBC configs — plain-English intent, a correctness check, and which rule explains what the capture shows",
+    "Generate a header-manipulation rule from a plain-language description, rendered to Oracle/Acme, AudioCodes or Ribbon syntax, with the interpretation shown back for review",
     "Config-guide knowledge base: ingest your own vendor documentation and ground advice in the exact passage, cited back to you",
     "Ladder diagram and per-message inspection of pcap, pcapng and SBC text logs"
   ],
-  "offers": {
-    "@type": "Offer",
-    "price": "0",
-    "priceCurrency": "EUR",
-    "description": "Free while in beta"
-  }
+  "offers": [
+    {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "EUR",
+      "name": "Individual",
+      "description": "Free for individual users — every analysis feature, no time limit"
+    },
+    {
+      "@type": "Offer",
+      "price": "20",
+      "priceCurrency": "EUR",
+      "name": "Team (monthly)",
+      "description": "Shared capture library, owner and admin roles, member invites"
+    },
+    {
+      "@type": "Offer",
+      "price": "200",
+      "priceCurrency": "EUR",
+      "name": "Team (annual)",
+      "description": "Shared capture library, owner and admin roles, member invites"
+    }
+  ]
 }
 </script>
 <style>
@@ -109,11 +127,40 @@
     color: var(--muted);
   }
 
+  /* the free-tier promise, given its own visual weight in the hero: it is the
+     single thing most likely to stop a visitor bouncing, and burying it in the
+     sub-copy wasted it */
+  .hero-free { margin: 22px 0 0; }
+
+  .hero-free-pill {
+    display: inline-block;
+    padding: 7px 18px;
+    border-radius: 999px;
+    background: var(--accent-wash);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-size: 14.5px;
+    font-weight: 700;
+  }
+
+  .hero-free-note {
+    max-width: 560px;
+    margin: 10px auto 0;
+    color: var(--muted);
+    font-size: 13.5px;
+  }
+
+  /* five cards, so a fixed 3 wide wraps to a balanced 3 + 2. auto-fit was
+     letting wide viewports pull 4 into the first row and leave one orphan. */
   .features {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 16px;
     margin: 12px 0 44px;
+  }
+
+  @media (max-width: 900px) {
+    .features { grid-template-columns: repeat(2, 1fr); }
   }
 
   .feature h3 {
@@ -342,23 +389,14 @@
   SBC-curious. upload a pcap or paste an SBC log — get the ladder, the deltas, and a
   ranked, automatic diagnosis instead of two 200-line INVITEs to eyeball. nothing
   leaves this box.</p>
+  <p class="hero-free"><span data-i18n class="hero-free-pill">free for individual users</span></p>
+  <p data-i18n class="hero-free-note">every analysis feature, no card, no time limit. paid
+  plans exist only for teams who want a shared library and roles.</p>
 </header>
 
 <main class="container">
 
   <section data-i18n-attrs="aria-label" class="features" aria-label="features">
-    <div class="card feature">
-      <h3 data-i18n>two-leg diff + delta view</h3>
-      <p data-i18n>pairs ingress and egress legs across the B2BUA and emits a structured
-      delta: headers added or stripped, codec lists narrowed, DTMF payload-type
-      mismatches, 100rel asymmetry, session-timer conflicts, topology leaks.</p>
-    </div>
-    <div class="card feature">
-      <h3 data-i18n>retransmission classifier</h3>
-      <p data-i18n>seven INVITEs collapse into one readable row — then get classified:
-      never arrived, slow far end, UDP fragmentation, ACK not landing, or a
-      box-wide storm that was never about your call in the first place.</p>
-    </div>
     <div class="card feature">
       <h3 data-i18n>automatic fault detection</h3>
       <p data-i18n>every capture runs through a rule engine that surfaces what is actually
@@ -376,6 +414,13 @@
       <p data-i18n>paste your SBC's manipulation rules — Oracle/Acme, AudioCodes, Ribbon —
       and get the plain-English intent, a correctness check against the protocol, and
       which rule explains what the capture actually shows.</p>
+    </div>
+    <div class="card feature">
+      <h3 data-i18n>describe it, get the config</h3>
+      <p data-i18n>describe the change in plain English — “strip P-Asserted-Identity on
+      requests to the carrier” — and get a draft rule in Oracle/Acme, AudioCodes or Ribbon
+      syntax, with hiccup's reading of it shown beside it. ambiguous wording gets a
+      question, never a confident guess.</p>
     </div>
     <div class="card feature">
       <h3 data-i18n>your own config guides</h3>
@@ -413,7 +458,7 @@
     <div id="auth-body">
       <div class="auth-head">
         <h2 data-i18n>get started</h2>
-        <span data-i18n class="chip">free while in beta</span>
+        <span data-i18n class="chip">free for individuals</span>
       </div>
 
       <div class="auth-grid">

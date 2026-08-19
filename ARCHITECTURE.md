@@ -2397,6 +2397,49 @@ between two projects on the same box. A visitor evaluating hiccup has no
 use for it and no way to act on it; it would only read as hiccup being
 second-class to something else, which is not the pitch.
 
+## Wave 16a — free-tier framing, the NL→HMR card, and an English-only feature
+
+A follow-up pass on the same page:
+
+- Dropped the `two-leg diff + delta view` and `retransmission classifier`
+  cards. They were the two survivors of the pre-marketing page and the only
+  two not on the brief's promote-list; they were also the most jargon-dense
+  copy on the page ("100rel asymmetry", "session-timer conflicts", "UDP
+  fragmentation"). Both capabilities still exist and still ship — they are
+  simply not what the front door leads with. `how it works` step 2 still
+  names the two-leg diff, so the capability is not invisible.
+- Added a `describe it, get the config` card for `lib/hmr-generate.js`
+  (`POST /api/hmr/generate`), which was shipped and routed but had never been
+  mentioned on the public site.
+- Made "free for individual users" a hero pill rather than a line of body
+  copy, with a clarifying note that paid exists only for teams. The auth
+  card's chip changed `free while in beta` → `free for individuals`: the beta
+  framing implied the free tier expires, which undercuts the exact message
+  the pill is there to deliver, and nothing in the code expires it.
+- `offers` in the JSON-LD went from a single free Offer to an array of three
+  (Individual 0, Team monthly 20, Team annual 200) so the structured data
+  describes the tiers that now actually exist.
+- Grid went back to a fixed `repeat(3, 1fr)` (plus a 2-col break at 900px).
+  With five cards, `auto-fit` pulled four onto row one on wide viewports and
+  left a single orphan; fixed 3 wraps to a deliberate-looking 3 + 2.
+
+**The English-only catch.** The obvious copy for the new card was "describe
+the change in plain language". That would have been a lie in three of the
+four languages hiccup ships. `lib/hmr-generate.js`'s intent detection is
+English regexes — `/\b(strip|remove|delete|drop|get rid of|take out)\b/`
+(:232), `/\b(add|insert|set|stamp|put)\b/` (:261) — and its clarifying
+questions are hardcoded English (:401). There is no locale awareness in the
+module at all. A French visitor reading "décrivez en langage courant" would
+type French and get questions back, every time.
+
+So the source string says "plain **English**", and each translation says so
+explicitly ("en anglais courant", "en inglés sencillo", "in einfachem
+Englisch"). The quoted example stays untranslated for the same reason
+`"Make this monthly"` does on `/subscribe` (Wave 15): it is literal text the
+user types into a box, not prose about the product. Marketing copy is a
+claim about behaviour — it gets checked against the module that implements
+it, not against what would read best.
+
 **Translation**: 22 new strings, all fr/es/de, zero fragmentation — checked
 the missing-string list *before* translating this time (a script comparing
 `locales/en.json`'s hash-keyed catalogue against each language's
