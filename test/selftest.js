@@ -75,6 +75,39 @@ function ok(cond, msg) {
 }
 
 /**
+ * Build a minimal, structurally valid single-page PDF carrying `lines` as real
+ * extractable text. Hand-rolled rather than committed as a binary fixture so
+ * the KB test needs no checked-in .pdf and no third-party generator, and so it
+ * is obvious what the bytes are. xref offsets are computed, because a PDF with
+ * wrong offsets is exactly the kind of "test passes on junk" trap worth avoiding.
+ * @param {string[]} lines
+ * @returns {Buffer}
+ */
+function makeMinimalPdf(lines) {
+  const text = lines
+    .map((l, i) => 'BT /F1 12 Tf 72 ' + (720 - i * 18) + ' Td (' + String(l).replace(/[()\\]/g, '\\$&') + ') Tj ET')
+    .join('\n');
+  const objs = [
+    '<</Type/Catalog/Pages 2 0 R>>',
+    '<</Type/Pages/Kids[3 0 R]/Count 1>>',
+    '<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>',
+    '<</Length ' + Buffer.byteLength(text) + '>>\nstream\n' + text + '\nendstream',
+    '<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>',
+  ];
+  let pdf = '%PDF-1.4\n';
+  const offsets = [];
+  objs.forEach((body, i) => {
+    offsets.push(Buffer.byteLength(pdf));
+    pdf += (i + 1) + ' 0 obj\n' + body + '\nendobj\n';
+  });
+  const xrefAt = Buffer.byteLength(pdf);
+  pdf += 'xref\n0 ' + (objs.length + 1) + '\n0000000000 65535 f \n';
+  offsets.forEach((o) => { pdf += String(o).padStart(10, '0') + ' 00000 n \n'; });
+  pdf += 'trailer\n<</Size ' + (objs.length + 1) + '/Root 1 0 R>>\nstartxref\n' + xrefAt + '\n%%EOF\n';
+  return Buffer.from(pdf, 'latin1');
+}
+
+/**
  * Throw unless `actual` strictly equals `expected`.
  * @param {*} actual observed value
  * @param {*} expected required value
@@ -420,6 +453,55 @@ async function main() {
 
     const leftovers = fs.readdirSync(dir).filter((f) => f !== 'roundtrip.json');
     ok(leftovers.length === 0, 'saveJson left temp files behind: ' + leftovers.join(', '));
+  });
+
+  // ---------------------------------------------------------------------- kb
+  // Regression test for a bug that shipped silently: lib/kb.js was written
+  // against pdf-parse v1 (`module.exports = fn`), but package.json asks for
+  // ^2.4.5, and v2 is a rewrite exporting a namespace with a PDFParse class.
+  // v2 ships a CJS build, so `require()` SUCCEEDED and only the call failed --
+  // which surfaced to the user as "PDF support needs an optional dependency"
+  // even with pdf-parse correctly installed. Every PDF upload was rejected,
+  // and PDFs are the exact artefact /kb exists to ingest.
+  //
+  // Skips (rather than fails) when pdf-parse is absent, because it is a real
+  // optionalDependency and a core install is meant to work without it.
+  await t('kb: ingests a PDF and finds its text, with page numbers', async () => {
+    const r = tryRequire(path.join('lib', 'kb.js'));
+    if (r.err) throw new Error(r.err);
+    const kb = r.mod;
+
+    let havePdfParse = true;
+    try { require('pdf-parse'); } catch { havePdfParse = false; }
+    if (!havePdfParse) {
+      console.log('  (skipped: pdf-parse not installed — optional dependency)');
+      return;
+    }
+
+    // initKb FIRST: without it kb.js falls back to process.cwd()/data, i.e.
+    // the real library. Isolation here is not optional.
+    const dir = path.join(TMP_DATA, 'kb');
+    fs.mkdirSync(dir, { recursive: true });
+    kb.initKb(dir);
+
+    const uid = 'a1b2c3d4e5f6';
+    const line = 'To strip the P-Asserted-Identity header towards the carrier, use StripPAI.';
+    const pdf = makeMinimalPdf([
+      'AudioCodes Mediant SBC Configuration Guide',
+      'Section 4.2 Message Manipulation',
+      line,
+    ]);
+
+    const doc = await kb.addDoc({ userId: uid, filename: 'guide.pdf', buffer: pdf });
+    ok(doc && doc.chunks > 0, 'addDoc returned no chunks for a text-bearing PDF');
+    eq(doc.pages, 1, 'kb: page count from the PDF');
+
+    const hits = kb.searchKb(uid, 'strip P-Asserted-Identity carrier', 3);
+    ok(hits.length > 0, 'searchKb found nothing in an ingested PDF');
+    ok(/P-Asserted-Identity/.test(hits[0].text), 'top hit did not contain the searched text');
+    // The \f-joined page split is what makes a citation say "page 3" — assert it
+    // rather than trusting that extraction alone is enough.
+    eq(hits[0].page, 1, 'kb: page number carried through to the search hit');
   });
 
   // --------------------------------------------------------------------- llm
