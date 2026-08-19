@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title data-i18n>hiccup — see where the call went wrong</title>
-<meta name="description" content="hiccup — a self-hosted SIP / H.323 trace analyser. two-leg SBC diffs, retransmission classification, SIP↔H.323 correlation.">
+<meta name="description" content="hiccup — a self-hosted SIP / H.323 / Diameter trace analyser. automatic fault detection with RFC-cited findings, header-rule explanation, and advice grounded in your own vendor config guides.">
 <link rel="canonical" href="https://hiccup.monster/">
 <script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <!-- Language, resolved before any markup is parsed — same FOUC-safe shape as the
@@ -18,7 +18,7 @@
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
 <meta property="og:title" content="hiccup — see where the call went wrong">
-<meta property="og:description" content="a self-hosted SIP / H.323 trace analyser. two-leg SBC diffs, retransmission classification, SIP↔H.323 correlation.">
+<meta property="og:description" content="a self-hosted SIP / H.323 / Diameter trace analyser. automatic fault detection, header-rule explanation, and advice grounded in your own vendor config guides.">
 <meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
 <meta property="og:url" content="https://hiccup.monster/">
 <meta property="og:type" content="website">
@@ -39,16 +39,19 @@
   "url": "https://hiccup.monster/",
   "image": "https://hiccup.monster/brand/social-card.png",
   "applicationCategory": "DeveloperApplication",
-  "applicationSubCategory": "SIP and H.323 trace analysis",
+  "applicationSubCategory": "SIP, H.323 and Diameter trace analysis",
   "operatingSystem": "Any platform that runs Node.js",
   "softwareRequirements": "Node.js",
   "license": "https://spdx.org/licenses/BUSL-1.1.html",
   "isAccessibleForFree": true,
-  "description": "A self-hosted SIP / H.323 trace analyser: upload a packet capture or paste an SBC log and get a ladder diagram, a two-leg diff and a diagnosis of why the call failed.",
+  "description": "A self-hosted SIP / H.323 / Diameter trace analyser: upload a packet capture or paste an SBC log and get a ladder diagram, a two-leg diff and an automatic, RFC-cited diagnosis of why the call failed.",
   "featureList": [
     "Two-leg SBC diff with a structured delta of added, stripped and rewritten headers",
     "Retransmission classification (never arrived, slow far end, fragmentation, ACK not landing, box-wide storm)",
-    "SIP to H.323 correlation with an explicit ambiguous state",
+    "Automatic fault detection: a rule engine ranks findings by severity, each cited to an RFC section",
+    "Multi-protocol correlation: SIP to H.323 (Q.931/H.225) and SIP to Diameter (Rx/Gx/Cx/Sh) via the charging vector, with an explicit ambiguous state",
+    "Header-manipulation rule explainer for Oracle/Acme, AudioCodes and Ribbon SBC configs — plain-English intent, a correctness check, and which rule explains what the capture shows",
+    "Config-guide knowledge base: ingest your own vendor documentation and ground advice in the exact passage, cited back to you",
     "Ladder diagram and per-message inspection of pcap, pcapng and SBC text logs"
   ],
   "offers": {
@@ -108,7 +111,7 @@
 
   .features {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
     gap: 16px;
     margin: 12px 0 44px;
   }
@@ -122,6 +125,80 @@
     color: var(--muted);
     font-size: 14px;
     margin: 0;
+  }
+
+  /* "how it works" — a lightweight numbered flow, deliberately not styled as
+     cards: it is a sequence, not a set of independent facts like .features. */
+  .how-it-works {
+    max-width: 900px;
+    margin: 0 auto 48px;
+    text-align: center;
+  }
+
+  .how-it-works h2 { font-size: 20px; margin-bottom: 26px; }
+
+  .how-steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 24px;
+    text-align: left;
+  }
+
+  .how-step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    background: var(--accent-wash);
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .how-steps h3 { font-size: 15px; margin: 0 0 4px; }
+  .how-steps p { color: var(--muted); font-size: 13.5px; margin: 0; }
+
+  /* teams / enterprise upsell — a single promo card rather than duplicating
+     /subscribe's pricing cards; the job here is "who this is for and why",
+     the job on /subscribe is "which plan and how to pay". */
+  .enterprise-card {
+    max-width: 900px;
+    margin: 0 auto 56px;
+    padding: 28px 30px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 28px;
+    flex-wrap: wrap;
+  }
+
+  .enterprise-copy { flex: 1 1 420px; }
+  .enterprise-copy h2 { font-size: 20px; margin: 0 0 8px; }
+  .enterprise-copy > p { color: var(--muted); margin: 0 0 14px; max-width: 56ch; }
+  .enterprise-copy ul { margin: 0; padding-left: 20px; }
+  .enterprise-copy li { margin-bottom: 6px; color: var(--text); }
+
+  .enterprise-cta {
+    flex: 0 0 auto;
+    text-align: center;
+    padding: 14px 22px;
+    border-left: 1px solid var(--border);
+  }
+
+  .enterprise-price { font-size: 30px; font-weight: 700; margin: 0 0 2px; }
+  .enterprise-price span { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .enterprise-cta .muted { font-size: 12.5px; margin: 0 0 14px; }
+
+  @media (max-width: 640px) {
+    .enterprise-cta {
+      border-left: none;
+      border-top: 1px solid var(--border);
+      width: 100%;
+      padding-top: 18px;
+    }
   }
 
   .auth-card {
@@ -261,9 +338,10 @@
        landing page had no h1 at all and its headings started at h2. -->
   <h1 data-i18n class="tagline">see where the call went wrong</h1>
   <p data-i18n class="mascot-line">a big friendly monster lives at hiccup.monster — its whole job is fixing yours.</p>
-  <p data-i18n class="sub">a self-hosted SIP / H.323 trace analyser for the SBC-curious.
-  upload a pcap or paste an SBC log — get the ladder, the deltas, and a diagnosis
-  instead of two 200-line INVITEs to eyeball.</p>
+  <p data-i18n class="sub">a self-hosted SIP, H.323 and Diameter trace analyser for the
+  SBC-curious. upload a pcap or paste an SBC log — get the ladder, the deltas, and a
+  ranked, automatic diagnosis instead of two 200-line INVITEs to eyeball. nothing
+  leaves this box.</p>
 </header>
 
 <main class="container">
@@ -282,10 +360,52 @@
       box-wide storm that was never about your call in the first place.</p>
     </div>
     <div class="card feature">
-      <h3 data-i18n>SIP↔H.323 correlation</h3>
-      <p data-i18n>decodes Q.931/H.225 alongside SIP and stitches IWF calls into a single
-      flow with a confidence score — and an honest AMBIGUOUS state instead of a
-      silent wrong guess.</p>
+      <h3 data-i18n>automatic fault detection</h3>
+      <p data-i18n>every capture runs through a rule engine that surfaces what is actually
+      wrong, ranked by severity — each finding cited to an RFC section instead of a
+      hunch.</p>
+    </div>
+    <div class="card feature">
+      <h3 data-i18n>multi-protocol correlation</h3>
+      <p data-i18n>decodes H.323 (Q.931/H.225) and Diameter (Rx/Gx/Cx/Sh) alongside SIP,
+      stitching IWF calls and IMS charging events into one flow with a confidence
+      score — and an honest AMBIGUOUS state instead of a silent wrong guess.</p>
+    </div>
+    <div class="card feature">
+      <h3 data-i18n>header-rule explainer</h3>
+      <p data-i18n>paste your SBC's manipulation rules — Oracle/Acme, AudioCodes, Ribbon —
+      and get the plain-English intent, a correctness check against the protocol, and
+      which rule explains what the capture actually shows.</p>
+    </div>
+    <div class="card feature">
+      <h3 data-i18n>your own config guides</h3>
+      <p data-i18n>upload the vendor guide for your box — AudioCodes, Ribbon, Oracle/Acme
+      SBC docs, release notes, PDFs — and hiccup grounds its advice in the exact
+      passage, cited back to you.</p>
+    </div>
+  </section>
+
+  <section data-i18n-attrs="aria-label" class="how-it-works" aria-label="how it works">
+    <h2 data-i18n>how it works</h2>
+    <div class="how-steps">
+      <div>
+        <span class="how-step-num">1</span>
+        <h3 data-i18n>upload</h3>
+        <p data-i18n>a pcap or pcapng, a pasted SBC text log, a header-manipulation rule
+        set, or a vendor config guide.</p>
+      </div>
+      <div>
+        <span class="how-step-num">2</span>
+        <h3 data-i18n>get a diagnosis</h3>
+        <p data-i18n>a ladder diagram, a two-leg diff, and a ranked list of findings —
+        each one cited to an RFC section or to your own documentation.</p>
+      </div>
+      <div>
+        <span class="how-step-num">3</span>
+        <h3 data-i18n>fix it, or hand it off</h3>
+        <p data-i18n>fix it yourself, or bring the diagnosis to your team — a shared
+        library and roles are one plan away.</p>
+      </div>
     </div>
   </section>
 
@@ -333,6 +453,28 @@
     <div id="open-app" hidden>
       <p data-i18n>you're already signed in.</p>
       <a data-i18n class="btn btn-primary" href="/app">Open app</a>
+    </div>
+  </section>
+
+  <section class="card enterprise-card">
+    <div class="enterprise-copy">
+      <h2 data-i18n>for teams and enterprises</h2>
+      <p data-i18n>running an SBC estate with more than one engineer on call? a paid
+      account turns hiccup into a shared workbench instead of everyone forwarding
+      pcaps around.</p>
+      <ul>
+        <li data-i18n>a shared capture library — everyone sees the same uploads and the
+        same diagnosis</li>
+        <li data-i18n>owner and admin roles — invite, promote, suspend or remove
+        teammates</li>
+        <li data-i18n>everything on the free plan stays free — paid is about working as
+        a team, not a feature paywall</li>
+      </ul>
+    </div>
+    <div class="enterprise-cta">
+      <p class="enterprise-price">€20<span data-i18n> / month</span></p>
+      <p data-i18n class="muted">or €200 / year — two months free</p>
+      <a data-i18n class="btn btn-primary" href="/subscribe">See plans →</a>
     </div>
   </section>
 

@@ -2345,3 +2345,65 @@ quoted, on purpose: it is the literal label on Buy Me a Coffee's own
 checkbox, which is not translated by hiccup — translating hiccup's
 *reference* to that label would describe a control the visitor cannot
 actually find on the page they are about to land on.
+
+# Wave 16 — the landing page actually sells the product
+
+`index.html` shipped three feature cards (two-leg diff, retransmission
+classifier, SIP↔H.323 correlation) and nothing else: no mention of the
+advisor engine, no Diameter, no HMR, no config-guide KB, and no path from
+"this looks useful" to a paid team account. Meanwhile `lib/diameter.js`,
+`lib/hmr.js` and `lib/kb.js` are all real, shipped, tested features that the
+front door never mentioned. Fixed by expanding the page rather than
+replacing it — same hero, same auth card, same SIP-reference teaser and
+footer, all still true and all still working.
+
+**Verified before writing a word of marketing copy** (a claim on a landing
+page is a claim, not vibes): grepped `lib/diameter.js` for its actual scope
+— Rx/Gx/Cx/Sh AVP decode, cross-protocol correlation specifically via
+AF-Charging-Identifier / the SIP `P-Charging-Vector` icid, not "full Diameter
+support" — and read `lib/hmr.js`'s header comment for what the header-rule
+explainer actually does (parses Oracle/Acme `sip-manipulation`, AudioCodes
+`.ini` MessageManipulations, Ribbon SMM rule text; explains intent, checks
+correctness, cites RFCs, matches configured rules against what a capture
+actually shows). Both claims on the page now trace to code, not hope.
+
+**New content**:
+- Three new feature cards — automatic fault detection (the advisor rule
+  engine, RFC-cited, severity-ranked), multi-protocol correlation (the old
+  H.323 card's copy folded in with Diameter, both named precisely as above),
+  header-rule explainer (HMR), your own config guides (`lib/kb.js`). Grid
+  went from a fixed 3-column layout to `repeat(auto-fit, minmax(230px,
+  1fr))` so six cards wrap 3×2 without a media-query rewrite.
+- A "how it works" section: three numbered steps (upload → get a diagnosis →
+  fix it or hand it off), deliberately *not* styled as cards — it is a
+  sequence, and dressing a sequence up as a set of independent facts (like
+  `.features`) would misrepresent it.
+- An enterprise/teams promo card between the auth card and the SIP-reference
+  teaser: who it's for, three bullets, and the €20/€200 price reused
+  verbatim from `/subscribe`'s already-translated " / month" / " / year" /
+  "See plans →" strings rather than re-authoring (and re-translating) the
+  same numbers a second time. This card's job is "who this is for and why
+  paid exists at all" — `/subscribe` still owns "which plan and how to pay".
+  It does not duplicate `/subscribe`'s pricing cards.
+- Hero sub-copy and the JSON-LD `featureList`/`applicationSubCategory`/
+  descriptions updated to match — the structured data a crawler reads should
+  claim the same things the page itself claims.
+
+**What deliberately stayed out**: no mention that RFPlex.ai holds LLM/GPU
+priority over hiccup's own shared Ollama instance (`lib/kb.js`'s "an
+embedding model would compete with RFPlex for the GPU, which the LLM
+contract forbids") — true, load-bearing, and entirely an operational detail
+between two projects on the same box. A visitor evaluating hiccup has no
+use for it and no way to act on it; it would only read as hiccup being
+second-class to something else, which is not the pitch.
+
+**Translation**: 22 new strings, all fr/es/de, zero fragmentation — checked
+the missing-string list *before* translating this time (a script comparing
+`locales/en.json`'s hash-keyed catalogue against each language's
+text-keyed file), rather than discovering a split `<strong>` after the fact
+as happened twice already in this file. All 22 came back as complete
+sentences or short noun phrases, none as orphaned fragments. Verified live
+on an isolated `HICCUP_DATA_DIR` instance in both English and French —
+switching the language selector re-rendered all six cards, the three-step
+flow and the enterprise card with no overflow, no layout break, and no
+untranslated leftover text.
