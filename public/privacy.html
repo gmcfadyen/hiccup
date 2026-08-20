@@ -96,6 +96,17 @@
         <td>Legitimate interest</td>
       </tr>
       <tr>
+        <td>A server access log line per request: time, a shortened form of your
+          IP address, the page asked for, and your browser identification string</td>
+        <td>To see whether the site is working and how much of its traffic is
+          automated scanning rather than people. The address is shortened before it
+          is written &mdash; the last part of an IPv4 address, and all but the first
+          three groups of an IPv6 one, are dropped &mdash; so it is enough to tell
+          one network from another but not enough to identify you. Full addresses
+          are never stored unless the operator changes a setting to do so.</td>
+        <td>Legitimate interest</td>
+      </tr>
+      <tr>
         <td>A session cookie</td>
         <td>To keep you signed in. HttpOnly, SameSite=Lax, and Secure over HTTPS</td>
         <td>Strictly necessary</td>
@@ -105,9 +116,12 @@
 
   <h2>Things hiccup deliberately does not do</h2>
   <ul class="doc-list">
-    <li><strong>No analytics, no tracking, no advertising cookies.</strong> The
-      only cookie is the one that keeps you signed in, which is why there is no
-      cookie banner — there is nothing to consent to.</li>
+    <li><strong>No analytics, no tracking, no advertising cookies.</strong> There
+      is no third-party analytics script and nothing follows you between sites.
+      The only cookie is the one that keeps you signed in, which is why there is
+      no cookie banner — there is nothing to consent to. The server does keep
+      the short access log described above; that is not the same thing, but it is
+      not nothing either, so it is listed rather than glossed over.</li>
     <li><strong>Your traces are not sent anywhere.</strong> Analysis happens on
       the server you are using. Where an AI feature is available it runs against
       a language model on that same machine, not a third-party API.</li>

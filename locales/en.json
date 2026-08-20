@@ -10,43 +10,43 @@
     "text": "Loading your invite…",
     "cat": "html",
     "where": [
-      "public/accept-invite.html:66"
+      "public/accept-invite.html:62"
     ]
   },
   "8a95baa1ea9e45a7": {
     "text": "This invite is invalid or has expired.",
     "cat": "html",
     "where": [
-      "public/accept-invite.html:70"
+      "public/accept-invite.html:66"
     ]
   },
   "fa8b38bae20b22d7": {
     "text": "Ask your teammate to send you a new invite link.",
     "cat": "html",
     "where": [
-      "public/accept-invite.html:71"
+      "public/accept-invite.html:67"
     ]
   },
   "982f5e7c59cfb66c": {
     "text": "Go to hiccup",
     "cat": "html",
     "where": [
-      "public/accept-invite.html:72"
+      "public/accept-invite.html:68"
     ]
   },
   "cd1dd6ff53d0d01a": {
     "text": "Try again",
     "cat": "html",
     "where": [
-      "public/accept-invite.html:77",
-      "public/team.html:149"
+      "public/accept-invite.html:73",
+      "public/team.html:145"
     ]
   },
   "6409fab9e8bec6cb": {
     "text": "Join a team",
     "cat": "html",
     "where": [
-      "public/accept-invite.html:81"
+      "public/accept-invite.html:77"
     ]
   },
   "c6f916d02977bdc6": {
@@ -60,6 +60,42 @@
     "text": "tools",
     "cat": "html",
     "where": [
+      "public/admin-feedback.html:39",
+      "public/admin-status.html:70",
+      "public/app.html:94",
+      "public/hmr.html:174",
+      "public/kb.html:152",
+      "public/settings.html:70"
+    ]
+  },
+  "302be2b037ca1f9e": {
+    "text": "workbench",
+    "cat": "html",
+    "where": [
+      "public/admin-feedback.html:40",
+      "public/admin-status.html:71",
+      "public/app.html:95",
+      "public/hmr.html:175",
+      "public/kb.html:153",
+      "public/settings.html:71"
+    ]
+  },
+  "a6edc30d22e57748": {
+    "text": "guides",
+    "cat": "html",
+    "where": [
+      "public/admin-feedback.html:42",
+      "public/admin-status.html:73",
+      "public/app.html:97",
+      "public/hmr.html:177",
+      "public/kb.html:155",
+      "public/settings.html:73"
+    ]
+  },
+  "fa23d9ef19afc32c": {
+    "text": "team",
+    "cat": "html",
+    "where": [
       "public/admin-feedback.html:43",
       "public/admin-status.html:74",
       "public/app.html:98",
@@ -68,89 +104,53 @@
       "public/settings.html:74"
     ]
   },
-  "302be2b037ca1f9e": {
-    "text": "workbench",
-    "cat": "html",
-    "where": [
-      "public/admin-feedback.html:44",
-      "public/admin-status.html:75",
-      "public/app.html:99",
-      "public/hmr.html:179",
-      "public/kb.html:157",
-      "public/settings.html:75"
-    ]
-  },
-  "a6edc30d22e57748": {
-    "text": "guides",
-    "cat": "html",
-    "where": [
-      "public/admin-feedback.html:46",
-      "public/admin-status.html:77",
-      "public/app.html:101",
-      "public/hmr.html:181",
-      "public/kb.html:159",
-      "public/settings.html:77"
-    ]
-  },
-  "fa23d9ef19afc32c": {
-    "text": "team",
-    "cat": "html",
-    "where": [
-      "public/admin-feedback.html:47",
-      "public/admin-status.html:78",
-      "public/app.html:102",
-      "public/hmr.html:182",
-      "public/kb.html:160",
-      "public/settings.html:78"
-    ]
-  },
   "5928cfb985c5f790": {
     "text": "Toggle theme",
     "cat": "html",
     "where": [
-      "public/admin-feedback.html:51",
-      "public/admin-status.html:86",
-      "public/app.html:114",
-      "public/hmr.html:187",
-      "public/index.html:376",
-      "public/kb.html:165"
+      "public/admin-feedback.html:47",
+      "public/admin-status.html:82",
+      "public/app.html:110",
+      "public/hmr.html:183",
+      "public/index.html:372",
+      "public/kb.html:161"
     ]
   },
   "bb588bb505779122": {
     "text": "Feedback",
     "cat": "html",
     "where": [
-      "public/admin-feedback.html:57"
+      "public/admin-feedback.html:53"
     ]
   },
   "eba8ef88cc7dd4e1": {
     "text": "loading…",
     "cat": "html",
     "where": [
-      "public/admin-feedback.html:58",
-      "public/admin-status.html:93",
-      "public/settings.html:88"
+      "public/admin-feedback.html:54",
+      "public/admin-status.html:89",
+      "public/settings.html:84"
     ]
   },
   "e995f1b767c96b70": {
     "text": "unread only",
     "cat": "html",
     "where": [
-      "public/admin-feedback.html:63"
+      "public/admin-feedback.html:59"
     ]
   },
   "2d2fffc5458ea3ad": {
     "text": "preview digest",
     "cat": "html",
     "where": [
-      "public/admin-feedback.html:65"
+      "public/admin-feedback.html:61"
     ]
   },
   "9f7565468855a429": {
     "text": "send digest now",
     "cat": "html",
     "where": [
-      "public/admin-feedback.html:66"
+      "public/admin-feedback.html:62"
     ]
   },
   "3362fc2ad43b98cb": {
@@ -164,7 +164,7 @@
     "text": "status",
     "cat": "html",
     "where": [
-      "public/admin-status.html:79",
+      "public/admin-status.html:75",
       "public/app.js:370"
     ]
   },
@@ -172,39 +172,39 @@
     "text": "feedback",
     "cat": "html",
     "where": [
-      "public/admin-status.html:80",
-      "public/app.html:115",
-      "public/hmr.html:188",
-      "public/kb.html:166",
-      "public/team.html:126"
+      "public/admin-status.html:76",
+      "public/app.html:111",
+      "public/hmr.html:184",
+      "public/kb.html:162",
+      "public/team.html:122"
     ]
   },
   "fbe431bed6ae75a3": {
     "text": "Restart the hiccup service so it picks up new code",
     "cat": "html",
     "where": [
-      "public/admin-status.html:83"
+      "public/admin-status.html:79"
     ]
   },
   "419e2d74343beee7": {
     "text": "restart server",
     "cat": "html",
     "where": [
-      "public/admin-status.html:83"
+      "public/admin-status.html:79"
     ]
   },
   "02e1cb3ec3737d54": {
     "text": "refresh",
     "cat": "html",
     "where": [
-      "public/admin-status.html:84"
+      "public/admin-status.html:80"
     ]
   },
   "ad3e3c8146fc920f": {
     "text": "Status",
     "cat": "html",
     "where": [
-      "public/admin-status.html:92",
+      "public/admin-status.html:88",
       "public/team.js:569"
     ]
   },
@@ -212,14 +212,14 @@
     "text": "Users",
     "cat": "html",
     "where": [
-      "public/admin-status.html:100"
+      "public/admin-status.html:96"
     ]
   },
   "c26bfe7eea4ab376": {
     "text": "Grant or revoke superuser access. Superusers can see this page, restart the service, and manage other users.",
     "cat": "html",
     "where": [
-      "public/admin-status.html:101"
+      "public/admin-status.html:97"
     ]
   },
   "c9531ffbb25b1bea": {
@@ -233,56 +233,56 @@
     "text": "skip to the ladder",
     "cat": "html",
     "where": [
-      "public/app.html:94"
+      "public/app.html:90"
     ]
   },
   "ee5f6d7b48b44de8": {
     "text": "settings",
     "cat": "html",
     "where": [
-      "public/app.html:103",
-      "public/hmr.html:183",
-      "public/kb.html:161",
-      "public/settings.html:79",
-      "public/team.html:121"
+      "public/app.html:99",
+      "public/hmr.html:179",
+      "public/kb.html:157",
+      "public/settings.html:75",
+      "public/team.html:117"
     ]
   },
   "bdf783d621a56d89": {
     "text": "local model status",
     "cat": "html",
     "where": [
-      "public/app.html:106"
+      "public/app.html:102"
     ]
   },
   "133d25345abdfa34": {
     "text": "LLM …",
     "cat": "html",
     "where": [
-      "public/app.html:106"
+      "public/app.html:102"
     ]
   },
   "477b8a67724eb5ef": {
     "text": "Commands — Ctrl+K (⌘K on a Mac)",
     "cat": "html",
     "where": [
-      "public/app.html:110"
+      "public/app.html:106"
     ]
   },
   "9ba4af9304dc80ec": {
     "text": "Open the command palette",
     "cat": "html",
     "where": [
-      "public/app.html:110"
+      "public/app.html:106"
     ]
   },
   "e8426bdfb8839245": {
     "text": "Send feedback about hiccup",
     "cat": "html",
     "where": [
-      "public/app.html:115",
-      "public/hmr.html:188",
-      "public/kb.html:166",
-      "public/team.html:126",
+      "public/app.html:111",
+      "public/hmr.html:184",
+      "public/kb.html:162",
+      "public/team.html:122",
       "public/feedback.js:294"
     ]
   },
@@ -290,10 +290,10 @@
     "text": "Sign out",
     "cat": "html",
     "where": [
-      "public/app.html:118",
-      "public/hmr.html:191",
-      "public/kb.html:169",
-      "public/team.html:129",
+      "public/app.html:114",
+      "public/hmr.html:187",
+      "public/kb.html:165",
+      "public/team.html:125",
       "public/app.js:4890"
     ]
   },
@@ -301,8 +301,8 @@
     "text": "captures",
     "cat": "html",
     "where": [
-      "public/app.html:124",
-      "public/app.html:139",
+      "public/app.html:120",
+      "public/app.html:135",
       "public/app.js:540",
       "public/app.js:811",
       "public/hmr.js:200"
@@ -312,30 +312,30 @@
     "text": "Drop a capture here",
     "cat": "html",
     "where": [
-      "public/app.html:127"
+      "public/app.html:123"
     ]
   },
   "260f242932cb5996": {
     "text": "Choose file…",
     "cat": "html",
     "where": [
-      "public/app.html:129",
-      "public/kb.html:186"
+      "public/app.html:125",
+      "public/kb.html:182"
     ]
   },
   "282049f502eac1de": {
     "text": "Project",
     "cat": "html",
     "where": [
-      "public/app.html:132"
+      "public/app.html:128"
     ]
   },
   "f83a843570c34e68": {
     "text": "Unfiled",
     "cat": "html",
     "where": [
-      "public/app.html:133",
-      "public/app.html:143",
+      "public/app.html:129",
+      "public/app.html:139",
       "public/app.js:736",
       "public/app.js:753"
     ]
@@ -344,14 +344,14 @@
     "text": "filter captures by project",
     "cat": "html",
     "where": [
-      "public/app.html:141"
+      "public/app.html:137"
     ]
   },
   "3f89d25b99662857": {
     "text": "All captures",
     "cat": "html",
     "where": [
-      "public/app.html:142",
+      "public/app.html:138",
       "public/app.js:733"
     ]
   },
@@ -359,28 +359,28 @@
     "text": "+ manage projects",
     "cat": "html",
     "where": [
-      "public/app.html:145"
+      "public/app.html:141"
     ]
   },
   "31483df448ccabe9": {
     "text": "no captures yet — drop a pcap or an SBC log above and the monster gets to work.",
     "cat": "html",
     "where": [
-      "public/app.html:148"
+      "public/app.html:144"
     ]
   },
   "146317ff545814b0": {
     "text": "manage projects",
     "cat": "html",
     "where": [
-      "public/app.html:154"
+      "public/app.html:150"
     ]
   },
   "d15ad42f11c69d10": {
     "text": "Manage projects",
     "cat": "html",
     "where": [
-      "public/app.html:156",
+      "public/app.html:152",
       "public/app.js:4862"
     ]
   },
@@ -388,36 +388,36 @@
     "text": "close",
     "cat": "html",
     "where": [
-      "public/app.html:157",
-      "public/app.html:427"
+      "public/app.html:153",
+      "public/app.html:423"
     ]
   },
   "42d935fb49da5d2d": {
     "text": "no projects yet — create one below.",
     "cat": "html",
     "where": [
-      "public/app.html:160"
+      "public/app.html:156"
     ]
   },
   "f28d171a302d2b60": {
     "text": "New project",
     "cat": "html",
     "where": [
-      "public/app.html:163"
+      "public/app.html:159"
     ]
   },
   "446c46bc623ccce1": {
     "text": "Project name",
     "cat": "html",
     "where": [
-      "public/app.html:164"
+      "public/app.html:160"
     ]
   },
   "4751dfb9fb0442c4": {
     "text": "Description (optional)",
     "cat": "html",
     "where": [
-      "public/app.html:166",
+      "public/app.html:162",
       "public/app.js:845"
     ]
   },
@@ -425,14 +425,14 @@
     "text": "What is this project for?",
     "cat": "html",
     "where": [
-      "public/app.html:167"
+      "public/app.html:163"
     ]
   },
   "fb43be2359ccab14": {
     "text": "Create project",
     "cat": "html",
     "where": [
-      "public/app.html:169",
+      "public/app.html:165",
       "public/app.js:896",
       "public/app.js:901"
     ]
@@ -441,59 +441,59 @@
     "text": "also from the same workshop",
     "cat": "html",
     "where": [
-      "public/app.html:175",
-      "public/app.html:176",
-      "public/hmr.html:252",
-      "public/hmr.html:253",
-      "public/index.html:551",
-      "public/index.html:552"
+      "public/app.html:171",
+      "public/app.html:172",
+      "public/hmr.html:248",
+      "public/hmr.html:249",
+      "public/index.html:547",
+      "public/index.html:548"
     ]
   },
   "c8444bcade4335ca": {
     "text": "— AI that answers RFPs, RFIs and DDQs from your own document library. Self-hosted, EU-sovereign, free during beta.",
     "cat": "html",
     "where": [
-      "public/app.html:178",
-      "public/hmr.html:255",
-      "public/index.html:554",
-      "public/kb.html:238",
-      "public/subscribe.html:146",
-      "public/team.html:247"
+      "public/app.html:174",
+      "public/hmr.html:251",
+      "public/index.html:550",
+      "public/kb.html:234",
+      "public/subscribe.html:142",
+      "public/team.html:243"
     ]
   },
   "cb5f17fdfee392d7": {
     "text": "search the trace",
     "cat": "html",
     "where": [
-      "public/app.html:188"
+      "public/app.html:184"
     ]
   },
   "eda9d9fde54d2b9d": {
     "text": "bare text matches anything (raw messages, headers, URIs, Call-IDs, tags, branches, SDP, aux summaries, findings, advice). 4+ digits match phone numbers ignoring + - ( ) spaces. Filters: call: leg: callid: from: to: method: status: ip: port: codec: proto: sev: has:",
     "cat": "html",
     "where": [
-      "public/app.html:189"
+      "public/app.html:185"
     ]
   },
   "bc6103433112f0e5": {
     "text": "search the trace — 654321 · from:alice · method:INVITE · sev:crit · has:t38",
     "cat": "html",
     "where": [
-      "public/app.html:189"
+      "public/app.html:185"
     ]
   },
   "f531f89544a910a2": {
     "text": "clear",
     "cat": "html",
     "where": [
-      "public/app.html:193"
+      "public/app.html:189"
     ]
   },
   "574d8b7e94cc4c17": {
     "text": "clear the search",
     "cat": "html",
     "where": [
-      "public/app.html:193",
+      "public/app.html:189",
       "public/app.js:3646"
     ]
   },
@@ -501,7 +501,7 @@
     "text": "no search",
     "cat": "html",
     "where": [
-      "public/app.html:194",
+      "public/app.html:190",
       "public/app.js:4059"
     ]
   },
@@ -509,14 +509,14 @@
     "text": "detected scenario — opens the advice drawer",
     "cat": "html",
     "where": [
-      "public/app.html:201"
+      "public/app.html:197"
     ]
   },
   "eb61e97a21e26ad9": {
     "text": "scenario: —",
     "cat": "html",
     "where": [
-      "public/app.html:202",
+      "public/app.html:198",
       "public/app.js:2558"
     ]
   },
@@ -524,14 +524,14 @@
     "text": "protocol indicators",
     "cat": "html",
     "where": [
-      "public/app.html:205"
+      "public/app.html:201"
     ]
   },
   "f18b0f57ab41281e": {
     "text": "indicators light up once a capture is analysed — one lamp per protocol feature hiccup found.",
     "cat": "html",
     "where": [
-      "public/app.html:206",
+      "public/app.html:202",
       "public/app.js:2508"
     ]
   },
@@ -539,113 +539,113 @@
     "text": "lamp legend",
     "cat": "html",
     "where": [
-      "public/app.html:212"
+      "public/app.html:208"
     ]
   },
   "6f3f2303c0258eac": {
     "text": "present",
     "cat": "html",
     "where": [
-      "public/app.html:213"
+      "public/app.html:209"
     ]
   },
   "b5d43e6c2878bc7a": {
     "text": "partial",
     "cat": "html",
     "where": [
-      "public/app.html:214"
+      "public/app.html:210"
     ]
   },
   "1c54d4fa8357f520": {
     "text": "issue",
     "cat": "html",
     "where": [
-      "public/app.html:215"
+      "public/app.html:211"
     ]
   },
   "acebadbd2040ebac": {
     "text": "sessions",
     "cat": "html",
     "where": [
-      "public/app.html:221",
-      "public/app.html:223"
+      "public/app.html:217",
+      "public/app.html:219"
     ]
   },
   "dcbae06900da7ec6": {
     "text": "expand all",
     "cat": "html",
     "where": [
-      "public/app.html:225"
+      "public/app.html:221"
     ]
   },
   "fc2749975c75b3e1": {
     "text": "expand",
     "cat": "html",
     "where": [
-      "public/app.html:225"
+      "public/app.html:221"
     ]
   },
   "793261ff368975c1": {
     "text": "collapse all",
     "cat": "html",
     "where": [
-      "public/app.html:226"
+      "public/app.html:222"
     ]
   },
   "494951a1e157797e": {
     "text": "collapse",
     "cat": "html",
     "where": [
-      "public/app.html:226"
+      "public/app.html:222"
     ]
   },
   "fc4412094f15b997": {
     "text": "calls, legs and transactions",
     "cat": "html",
     "where": [
-      "public/app.html:230"
+      "public/app.html:226"
     ]
   },
   "8f249268b3007c1b": {
     "text": "no capture selected — calls, their legs and each transaction appear here. selecting a node scopes the ladder, the message list and the info pane.",
     "cat": "html",
     "where": [
-      "public/app.html:231"
+      "public/app.html:227"
     ]
   },
   "db9904d53db88c68": {
     "text": "ladder diagram",
     "cat": "html",
     "where": [
-      "public/app.html:240"
+      "public/app.html:236"
     ]
   },
   "c9fdce47f12e86dd": {
     "text": "ladder controls",
     "cat": "html",
     "where": [
-      "public/app.html:241"
+      "public/app.html:237"
     ]
   },
   "d7bae7e66a6099a9": {
     "text": "ladder",
     "cat": "html",
     "where": [
-      "public/app.html:242"
+      "public/app.html:238"
     ]
   },
   "ebddd46117f69692": {
     "text": "zoom",
     "cat": "html",
     "where": [
-      "public/app.html:244"
+      "public/app.html:240"
     ]
   },
   "148789d2deadc1da": {
     "text": "zoom out",
     "cat": "html",
     "where": [
-      "public/app.html:245",
+      "public/app.html:241",
       "public/app.js:2241",
       "public/app.js:2242"
     ]
@@ -654,7 +654,7 @@
     "text": "reset zoom",
     "cat": "html",
     "where": [
-      "public/app.html:246",
+      "public/app.html:242",
       "public/app.js:2259"
     ]
   },
@@ -662,7 +662,7 @@
     "text": "zoom in",
     "cat": "html",
     "where": [
-      "public/app.html:247",
+      "public/app.html:243",
       "public/app.js:2252",
       "public/app.js:2253"
     ]
@@ -671,119 +671,119 @@
     "text": "export the ladder as SVG",
     "cat": "html",
     "where": [
-      "public/app.html:249"
+      "public/app.html:245"
     ]
   },
   "edb2d39755161f73": {
     "text": "export",
     "cat": "html",
     "where": [
-      "public/app.html:249"
+      "public/app.html:245"
     ]
   },
   "6023efbd4196adc8": {
     "text": "timestamps and deltas",
     "cat": "html",
     "where": [
-      "public/app.html:253"
+      "public/app.html:249"
     ]
   },
   "6e5e49606812cf5f": {
     "text": "time · Δ",
     "cat": "html",
     "where": [
-      "public/app.html:254"
+      "public/app.html:250"
     ]
   },
   "7c1ea9c38b4a0a54": {
     "text": "the ladder for the selected session is drawn here — one column per host:port, arrows coloured by class, retransmissions collapsed to a single ×N row.",
     "cat": "html",
     "where": [
-      "public/app.html:258"
+      "public/app.html:254"
     ]
   },
   "0d40d80466f736bd": {
     "text": "messages in the selection",
     "cat": "html",
     "where": [
-      "public/app.html:267"
+      "public/app.html:263"
     ]
   },
   "478fee1bd52522b5": {
     "text": "selection",
     "cat": "html",
     "where": [
-      "public/app.html:269"
+      "public/app.html:265"
     ]
   },
   "f06954424e5bdc20": {
     "text": "sort by capture order",
     "cat": "html",
     "where": [
-      "public/app.html:271"
+      "public/app.html:267"
     ]
   },
   "314fcaa85e159b47": {
     "text": "sort by number",
     "cat": "html",
     "where": [
-      "public/app.html:271"
+      "public/app.html:267"
     ]
   },
   "3ca622239962ebac": {
     "text": "sort by delta",
     "cat": "html",
     "where": [
-      "public/app.html:273"
+      "public/app.html:269"
     ]
   },
   "0cc44970c8397929": {
     "text": "description",
     "cat": "html",
     "where": [
-      "public/app.html:279"
+      "public/app.html:275"
     ]
   },
   "1ca71b7c84289429": {
     "text": "Δ ms",
     "cat": "html",
     "where": [
-      "public/app.html:280"
+      "public/app.html:276"
     ]
   },
   "50b183f1066a07fa": {
     "text": "numbered message list",
     "cat": "html",
     "where": [
-      "public/app.html:283"
+      "public/app.html:279"
     ]
   },
   "25beae50c0d77f6f": {
     "text": "every message of the selected session lands here, numbered, with the delta from the previous row — the column engineers actually read.",
     "cat": "html",
     "where": [
-      "public/app.html:284"
+      "public/app.html:280"
     ]
   },
   "ab516cd8e24a3f6b": {
     "text": "details for the selection",
     "cat": "html",
     "where": [
-      "public/app.html:293"
+      "public/app.html:289"
     ]
   },
   "0aa6088403916c02": {
     "text": "detail views",
     "cat": "html",
     "where": [
-      "public/app.html:294"
+      "public/app.html:290"
     ]
   },
   "f0ca10f343249063": {
     "text": "Contents",
     "cat": "html",
     "where": [
-      "public/app.html:296",
+      "public/app.html:292",
       "public/app.js:40"
     ]
   },
@@ -791,7 +791,7 @@
     "text": "Packet Info",
     "cat": "html",
     "where": [
-      "public/app.html:298",
+      "public/app.html:294",
       "public/app.js:41"
     ]
   },
@@ -799,7 +799,7 @@
     "text": "Media",
     "cat": "html",
     "where": [
-      "public/app.html:300",
+      "public/app.html:296",
       "public/app.js:42"
     ]
   },
@@ -807,14 +807,14 @@
     "text": "open the chat scoped to the current selection",
     "cat": "html",
     "where": [
-      "public/app.html:302"
+      "public/app.html:298"
     ]
   },
   "b0b4eedf6b94e20f": {
     "text": "explain in chat",
     "cat": "html",
     "where": [
-      "public/app.html:303",
+      "public/app.html:299",
       "public/app.js:2662",
       "public/app.js:3385"
     ]
@@ -823,140 +823,140 @@
     "text": "pick a message in the ladder or the selection list to read its full text here — redacted, monospaced, with search terms highlighted.",
     "cat": "html",
     "where": [
-      "public/app.html:309"
+      "public/app.html:305"
     ]
   },
   "10c71a3914dc6fb5": {
     "text": "the parsed view: SIP headers and SDP, ISUP parameters for SIP-I bodies, Q.931 information elements for H.323 — field by field.",
     "cat": "html",
     "where": [
-      "public/app.html:315"
+      "public/app.html:311"
     ]
   },
   "b5d241607288a671": {
     "text": "RTP / RTCP streams for the selected session: packets, loss, jitter, gaps and an estimated MOS, with a loss-over-time sparkline.",
     "cat": "html",
     "where": [
-      "public/app.html:321"
+      "public/app.html:317"
     ]
   },
   "d88b333cf6eb6d33": {
     "text": "resize the sessions pane",
     "cat": "html",
     "where": [
-      "public/app.html:329"
+      "public/app.html:325"
     ]
   },
   "86e347aa8da4cc38": {
     "text": "resize the ladder pane",
     "cat": "html",
     "where": [
-      "public/app.html:331"
+      "public/app.html:327"
     ]
   },
   "53a796f7a7f02712": {
     "text": "resize the selection pane",
     "cat": "html",
     "where": [
-      "public/app.html:333"
+      "public/app.html:329"
     ]
   },
   "36faf8b49e338767": {
     "text": "close chat",
     "cat": "html",
     "where": [
-      "public/app.html:360"
+      "public/app.html:356"
     ]
   },
   "765b4e47fe68816a": {
     "text": "advice for the current selection",
     "cat": "html",
     "where": [
-      "public/app.html:363"
+      "public/app.html:359"
     ]
   },
   "dfdb112320130bb1": {
     "text": "advice",
     "cat": "html",
     "where": [
-      "public/app.html:366"
+      "public/app.html:362"
     ]
   },
   "626432e10c59ddc6": {
     "text": "what is wrong, why it matters, the mechanism, then fix cards per vendor with copyable draft config and RFC citations. deterministic — no invented section numbers.",
     "cat": "html",
     "where": [
-      "public/app.html:370"
+      "public/app.html:366"
     ]
   },
   "e2947be2b8e39914": {
     "text": "hiccup and RFPlex.ai share the same local-LLM stack.",
     "cat": "html",
     "where": [
-      "public/app.html:376"
+      "public/app.html:372"
     ]
   },
   "f669755c06354255": {
     "text": "local model offline — chat is unavailable. Every other feature still works.",
     "cat": "html",
     "where": [
-      "public/app.html:381"
+      "public/app.html:377"
     ]
   },
   "f82bbec0014387a5": {
     "text": "Ask about this capture, SIP, H.323…",
     "cat": "html",
     "where": [
-      "public/app.html:385"
+      "public/app.html:381"
     ]
   },
   "57adf424d57c8a0f": {
     "text": "Send",
     "cat": "html",
     "where": [
-      "public/app.html:387"
+      "public/app.html:383"
     ]
   },
   "4b305030ec421c71": {
     "text": "Command palette",
     "cat": "html",
     "where": [
-      "public/app.html:403"
+      "public/app.html:399"
     ]
   },
   "fef0b5b4a31c4250": {
     "text": "Type a command — theme, HMR, media, sign out…",
     "cat": "html",
     "where": [
-      "public/app.html:404"
+      "public/app.html:400"
     ]
   },
   "3cc8bf892e4522d3": {
     "text": "commands",
     "cat": "html",
     "where": [
-      "public/app.html:408"
+      "public/app.html:404"
     ]
   },
   "0085f9deba09815f": {
     "text": "No command matches that.",
     "cat": "html",
     "where": [
-      "public/app.html:410"
+      "public/app.html:406"
     ]
   },
   "0d3b2977440bb113": {
     "text": "↑ ↓ move · ⏎ run · esc close",
     "cat": "html",
     "where": [
-      "public/app.html:411"
+      "public/app.html:407"
     ]
   },
   "e3b4c857f91f80d7": {
     "text": "Keyboard shortcuts",
     "cat": "html",
     "where": [
-      "public/app.html:426",
+      "public/app.html:422",
       "public/app.js:4889"
     ]
   },
@@ -964,63 +964,63 @@
     "text": "Open the command palette (",
     "cat": "html",
     "where": [
-      "public/app.html:432"
+      "public/app.html:428"
     ]
   },
   "f7251d0cec55980c": {
     "text": "on a Mac). The one shortcut that still works while you are typing — except in the chat box, where it would interrupt a half-written question.",
     "cat": "html",
     "where": [
-      "public/app.html:432"
+      "public/app.html:428"
     ]
   },
   "5cb9d10965a46e0f": {
     "text": "Focus the trace search.",
     "cat": "html",
     "where": [
-      "public/app.html:437"
+      "public/app.html:433"
     ]
   },
   "2435fee70616b7b7": {
     "text": "Move down / up one row in whichever list you last selected in — the sessions tree or the selection list.",
     "cat": "html",
     "where": [
-      "public/app.html:440"
+      "public/app.html:436"
     ]
   },
   "7542880be85d168f": {
     "text": "This list.",
     "cat": "html",
     "where": [
-      "public/app.html:444"
+      "public/app.html:440"
     ]
   },
   "fab8e68a14401c3b": {
     "text": "Close the palette or this dialog · else clear and leave the search · else close the chat drawer when it is covering the panes on a narrow screen.",
     "cat": "html",
     "where": [
-      "public/app.html:447"
+      "public/app.html:443"
     ]
   },
   "81b0e97fa0c7633f": {
     "text": "Inside a dialog, cycles within it. Closing returns you to wherever you were.",
     "cat": "html",
     "where": [
-      "public/app.html:452"
+      "public/app.html:448"
     ]
   },
   "cb5963d72b509559": {
     "text": "Single-key shortcuts never fire while you are typing in a field —",
     "cat": "html",
     "where": [
-      "public/app.html:455"
+      "public/app.html:451"
     ]
   },
   "82b2c69ee50d9598": {
     "text": "in the search box types a j.",
     "cat": "html",
     "where": [
-      "public/app.html:456"
+      "public/app.html:452"
     ]
   },
   "2998d26faa5a5ffd": {
@@ -1034,42 +1034,42 @@
     "text": "Header manipulation rules",
     "cat": "html",
     "where": [
-      "public/hmr.html:197"
+      "public/hmr.html:193"
     ]
   },
   "1aac075d80795d6c": {
     "text": "Describe a rule in plain English and hiccup drafts it, or paste an existing SBC config and hiccup reads the header-manipulation rules back to you, checks them for the usual mistakes, and can re-render any rule for another vendor. Drafts are for review — hiccup never applies config.",
     "cat": "html",
     "where": [
-      "public/hmr.html:198"
+      "public/hmr.html:194"
     ]
   },
   "32bb9435ac92cf86": {
     "text": "Generate a rule from a description",
     "cat": "html",
     "where": [
-      "public/hmr.html:206"
+      "public/hmr.html:202"
     ]
   },
   "cdcc60ab6a867fcd": {
     "text": "Describe the rule you want, in plain English",
     "cat": "html",
     "where": [
-      "public/hmr.html:208"
+      "public/hmr.html:204"
     ]
   },
   "c0ae216edc87e1d9": {
     "text": "e.g. strip the P-Asserted-Identity header on outbound INVITEs",
     "cat": "html",
     "where": [
-      "public/hmr.html:209"
+      "public/hmr.html:205"
     ]
   },
   "9178bdd03e53dd70": {
     "text": "Generate rule",
     "cat": "html",
     "where": [
-      "public/hmr.html:214",
+      "public/hmr.html:210",
       "public/hmr.js:327"
     ]
   },
@@ -1077,43 +1077,43 @@
     "text": "Clear",
     "cat": "html",
     "where": [
-      "public/hmr.html:215",
-      "public/hmr.html:241"
+      "public/hmr.html:211",
+      "public/hmr.html:237"
     ]
   },
   "be1e3a4fcc2edac3": {
     "text": "Or paste an existing config",
     "cat": "html",
     "where": [
-      "public/hmr.html:223"
+      "public/hmr.html:219"
     ]
   },
   "56bde584f2a00456": {
     "text": "SBC config — Oracle/Acme",
     "cat": "html",
     "where": [
-      "public/hmr.html:225"
+      "public/hmr.html:221"
     ]
   },
   "d0682a765687a875": {
     "text": ", AudioCodes",
     "cat": "html",
     "where": [
-      "public/hmr.html:225"
+      "public/hmr.html:221"
     ]
   },
   "ac59308083cc0c09": {
     "text": "MessageManipulations, or Ribbon SMM rules",
     "cat": "html",
     "where": [
-      "public/hmr.html:226"
+      "public/hmr.html:222"
     ]
   },
   "02fda68c559e5704": {
     "text": "Analyse config",
     "cat": "html",
     "where": [
-      "public/hmr.html:231",
+      "public/hmr.html:227",
       "public/hmr.js:238"
     ]
   },
@@ -1121,14 +1121,14 @@
     "text": "Choose config file…",
     "cat": "html",
     "where": [
-      "public/hmr.html:232"
+      "public/hmr.html:228"
     ]
   },
   "5eb9db3357f09035": {
     "text": "Check against a capture",
     "cat": "html",
     "where": [
-      "public/hmr.html:238"
+      "public/hmr.html:234"
     ]
   },
   "c9506b0ffb78f9e7": {
@@ -1142,7 +1142,7 @@
     "text": "see where the call went wrong",
     "cat": "html",
     "where": [
-      "public/index.html:386",
+      "public/index.html:382",
       "public/app.js:2400"
     ]
   },
@@ -1150,207 +1150,207 @@
     "text": "a big friendly monster lives at hiccup.monster — its whole job is fixing yours.",
     "cat": "html",
     "where": [
-      "public/index.html:387"
+      "public/index.html:383"
     ]
   },
   "b897c33a90df5f73": {
     "text": "a self-hosted SIP, H.323 and Diameter trace analyser for the SBC-curious. upload a pcap or paste an SBC log — get the ladder, the deltas, and a ranked, automatic diagnosis instead of two 200-line INVITEs to eyeball. nothing leaves this box.",
     "cat": "html",
     "where": [
-      "public/index.html:388"
+      "public/index.html:384"
     ]
   },
   "bc7871b7c9c8cba3": {
     "text": "free for individual users",
     "cat": "html",
     "where": [
-      "public/index.html:392"
+      "public/index.html:388"
     ]
   },
   "1468a82f94607d69": {
     "text": "every analysis feature, no card, no time limit. paid plans exist only for teams who want a shared library and roles.",
     "cat": "html",
     "where": [
-      "public/index.html:393"
+      "public/index.html:389"
     ]
   },
   "be45a3a6ee3c626a": {
     "text": "features",
     "cat": "html",
     "where": [
-      "public/index.html:399"
+      "public/index.html:395"
     ]
   },
   "204ac44286ceac03": {
     "text": "automatic fault detection",
     "cat": "html",
     "where": [
-      "public/index.html:401"
+      "public/index.html:397"
     ]
   },
   "a5cebf748ef4cac5": {
     "text": "every capture runs through a rule engine that surfaces what is actually wrong, ranked by severity — each finding cited to an RFC section instead of a hunch.",
     "cat": "html",
     "where": [
-      "public/index.html:402"
+      "public/index.html:398"
     ]
   },
   "07e26b41c2b19f55": {
     "text": "multi-protocol correlation",
     "cat": "html",
     "where": [
-      "public/index.html:407"
+      "public/index.html:403"
     ]
   },
   "5fd31e21a4e4a24c": {
     "text": "decodes H.323 (Q.931/H.225) and Diameter (Rx/Gx/Cx/Sh) alongside SIP, stitching IWF calls and IMS charging events into one flow with a confidence score — and an honest AMBIGUOUS state instead of a silent wrong guess.",
     "cat": "html",
     "where": [
-      "public/index.html:408"
+      "public/index.html:404"
     ]
   },
   "7735e9b639e73075": {
     "text": "header-rule explainer",
     "cat": "html",
     "where": [
-      "public/index.html:413"
+      "public/index.html:409"
     ]
   },
   "42073c95556cbcfd": {
     "text": "paste your SBC's manipulation rules — Oracle/Acme, AudioCodes, Ribbon — and get the plain-English intent, a correctness check against the protocol, and which rule explains what the capture actually shows.",
     "cat": "html",
     "where": [
-      "public/index.html:414"
+      "public/index.html:410"
     ]
   },
   "eb4ef92d3b1847b6": {
     "text": "describe it, get the config",
     "cat": "html",
     "where": [
-      "public/index.html:419"
+      "public/index.html:415"
     ]
   },
   "8b3a378284acab1c": {
     "text": "describe the change in plain English — “strip P-Asserted-Identity on requests to the carrier” — and get a draft rule in Oracle/Acme, AudioCodes or Ribbon syntax, with hiccup's reading of it shown beside it. ambiguous wording gets a question, never a confident guess.",
     "cat": "html",
     "where": [
-      "public/index.html:420"
+      "public/index.html:416"
     ]
   },
   "0b7eb914fea41e75": {
     "text": "your own config guides",
     "cat": "html",
     "where": [
-      "public/index.html:426"
+      "public/index.html:422"
     ]
   },
   "1d12b107d71afd53": {
     "text": "upload the vendor guide for your box — AudioCodes, Ribbon, Oracle/Acme SBC docs, release notes, PDFs — and hiccup grounds its advice in the exact passage, cited back to you.",
     "cat": "html",
     "where": [
-      "public/index.html:427"
+      "public/index.html:423"
     ]
   },
   "a183f4359a1bb370": {
     "text": "how it works",
     "cat": "html",
     "where": [
-      "public/index.html:433",
-      "public/index.html:434"
+      "public/index.html:429",
+      "public/index.html:430"
     ]
   },
   "5225bd77a61f971c": {
     "text": "upload",
     "cat": "html",
     "where": [
-      "public/index.html:438"
+      "public/index.html:434"
     ]
   },
   "0d132f8f1fade63d": {
     "text": "a pcap or pcapng, a pasted SBC text log, a header-manipulation rule set, or a vendor config guide.",
     "cat": "html",
     "where": [
-      "public/index.html:439"
+      "public/index.html:435"
     ]
   },
   "3af6a7a476ec0859": {
     "text": "get a diagnosis",
     "cat": "html",
     "where": [
-      "public/index.html:444"
+      "public/index.html:440"
     ]
   },
   "dfe6b6f7d4a1d27f": {
     "text": "a ladder diagram, a two-leg diff, and a ranked list of findings — each one cited to an RFC section or to your own documentation.",
     "cat": "html",
     "where": [
-      "public/index.html:445"
+      "public/index.html:441"
     ]
   },
   "68edf4408f47230f": {
     "text": "fix it, or hand it off",
     "cat": "html",
     "where": [
-      "public/index.html:450"
+      "public/index.html:446"
     ]
   },
   "1a7299f9d5d14774": {
     "text": "fix it yourself, or bring the diagnosis to your team — a shared library and roles are one plan away.",
     "cat": "html",
     "where": [
-      "public/index.html:451"
+      "public/index.html:447"
     ]
   },
   "80acb9f47238932e": {
     "text": "get started",
     "cat": "html",
     "where": [
-      "public/index.html:460"
+      "public/index.html:456"
     ]
   },
   "01e544babcc5402c": {
     "text": "free for individuals",
     "cat": "html",
     "where": [
-      "public/index.html:461"
+      "public/index.html:457"
     ]
   },
   "7749728bbcc6de13": {
     "text": "create an account",
     "cat": "html",
     "where": [
-      "public/index.html:466"
+      "public/index.html:462"
     ]
   },
   "123467b419acbc07": {
     "text": "email",
     "cat": "html",
     "where": [
-      "public/index.html:467",
-      "public/index.html:480"
+      "public/index.html:463",
+      "public/index.html:476"
     ]
   },
   "24ea3f43230aae41": {
     "text": "you@example.com",
     "cat": "html",
     "where": [
-      "public/index.html:468",
-      "public/index.html:481"
+      "public/index.html:464",
+      "public/index.html:477"
     ]
   },
   "4b1a493507b3a318": {
     "text": "password",
     "cat": "html",
     "where": [
-      "public/index.html:470",
-      "public/index.html:483"
+      "public/index.html:466",
+      "public/index.html:479"
     ]
   },
   "c83cb3057ed6fbbb": {
     "text": "at least 8 characters",
     "cat": "html",
     "where": [
-      "public/index.html:471",
+      "public/index.html:467",
       "public/accept-invite.js:241"
     ]
   },
@@ -1358,22 +1358,22 @@
     "text": "sign up",
     "cat": "html",
     "where": [
-      "public/index.html:475"
+      "public/index.html:471"
     ]
   },
   "3c09a8ce5e850b03": {
     "text": "sign in",
     "cat": "html",
     "where": [
-      "public/index.html:479",
-      "public/index.html:487"
+      "public/index.html:475",
+      "public/index.html:483"
     ]
   },
   "a7d87b64dc113843": {
     "text": "your password",
     "cat": "html",
     "where": [
-      "public/index.html:484",
+      "public/index.html:480",
       "public/accept-invite.js:196"
     ]
   },
@@ -1381,164 +1381,164 @@
     "text": "or",
     "cat": "html",
     "where": [
-      "public/index.html:492"
+      "public/index.html:488"
     ]
   },
   "af3b5fce2fbc7c63": {
     "text": "you're already signed in.",
     "cat": "html",
     "where": [
-      "public/index.html:499"
+      "public/index.html:495"
     ]
   },
   "b7e7c1321e842c0e": {
     "text": "Open app",
     "cat": "html",
     "where": [
-      "public/index.html:500"
+      "public/index.html:496"
     ]
   },
   "af00a32f7b00fccf": {
     "text": "for teams and enterprises",
     "cat": "html",
     "where": [
-      "public/index.html:506"
+      "public/index.html:502"
     ]
   },
   "33be5e46f7023f98": {
     "text": "running an SBC estate with more than one engineer on call? a paid account turns hiccup into a shared workbench instead of everyone forwarding pcaps around.",
     "cat": "html",
     "where": [
-      "public/index.html:507"
+      "public/index.html:503"
     ]
   },
   "908dfcfe8a57f457": {
     "text": "a shared capture library — everyone sees the same uploads and the same diagnosis",
     "cat": "html",
     "where": [
-      "public/index.html:511"
+      "public/index.html:507"
     ]
   },
   "3ff5fc885b0df004": {
     "text": "owner and admin roles — invite, promote, suspend or remove teammates",
     "cat": "html",
     "where": [
-      "public/index.html:513"
+      "public/index.html:509"
     ]
   },
   "8e67314e4e83ba87": {
     "text": "everything on the free plan stays free — paid is about working as a team, not a feature paywall",
     "cat": "html",
     "where": [
-      "public/index.html:515"
+      "public/index.html:511"
     ]
   },
   "6c6559110431703c": {
     "text": "/ month",
     "cat": "html",
     "where": [
-      "public/index.html:520",
-      "public/subscribe.html:100"
+      "public/index.html:516",
+      "public/subscribe.html:96"
     ]
   },
   "3d0b2f921747592f": {
     "text": "or €200 / year — two months free",
     "cat": "html",
     "where": [
-      "public/index.html:521"
+      "public/index.html:517"
     ]
   },
   "302851c586974df6": {
     "text": "See plans →",
     "cat": "html",
     "where": [
-      "public/index.html:522",
-      "public/team.html:167"
+      "public/index.html:518",
+      "public/team.html:163"
     ]
   },
   "c14eb09dbd62d084": {
     "text": "SIP failure reference",
     "cat": "html",
     "where": [
-      "public/index.html:526",
-      "public/index.html:527"
+      "public/index.html:522",
+      "public/index.html:523"
     ]
   },
   "72b75f6e2765d68f": {
     "text": "no account needed — short pages on the failures that send people looking for a trace in the first place. what the thing you are staring at means, and what to check.",
     "cat": "html",
     "where": [
-      "public/index.html:528"
+      "public/index.html:524"
     ]
   },
   "2c0e10c6af0f76b9": {
     "text": "— codec, payload-type or SRTP mismatch in the SDP",
     "cat": "html",
     "where": [
-      "public/index.html:532"
+      "public/index.html:528"
     ]
   },
   "366b4d7b006aaa31": {
     "text": "— Timer B expired at 32 seconds and nothing ever came back",
     "cat": "html",
     "where": [
-      "public/index.html:534"
+      "public/index.html:530"
     ]
   },
   "6be0783b8f8ada83": {
     "text": "— a busy phone, admission control, or Q.850 cause 17 from the PSTN",
     "cat": "html",
     "where": [
-      "public/index.html:536"
+      "public/index.html:532"
     ]
   },
   "abcf3d1b765ed7a3": {
     "text": "one-way audio",
     "cat": "html",
     "where": [
-      "public/index.html:537"
+      "public/index.html:533"
     ]
   },
   "be2a6b4e618b3c14": {
     "text": "— the signalling worked and the RTP went somewhere else",
     "cat": "html",
     "where": [
-      "public/index.html:538"
+      "public/index.html:534"
     ]
   },
   "662c8219d6a2150e": {
     "text": "retransmissions and storms",
     "cat": "html",
     "where": [
-      "public/index.html:539"
+      "public/index.html:535"
     ]
   },
   "58e1d5db27a987a9": {
     "text": "— reading the ladder, and why 200 OK retransmits matter most",
     "cat": "html",
     "where": [
-      "public/index.html:540"
+      "public/index.html:536"
     ]
   },
   "ee2074488cbb8817": {
     "text": "all reference pages →",
     "cat": "html",
     "where": [
-      "public/index.html:542"
+      "public/index.html:538"
     ]
   },
   "c56e382dd98062e7": {
     "text": "privacy",
     "cat": "html",
     "where": [
-      "public/index.html:549"
+      "public/index.html:545"
     ]
   },
   "d486e88b5301428b": {
     "text": "self-hosted · your traces never leave this box",
     "cat": "html",
     "where": [
-      "public/index.html:550"
+      "public/index.html:546"
     ]
   },
   "5a29a54158399ac4": {
@@ -1552,126 +1552,126 @@
     "text": "Config guides",
     "cat": "html",
     "where": [
-      "public/kb.html:175"
+      "public/kb.html:171"
     ]
   },
   "f999addfdbf294a3": {
     "text": "What this is for: grounding config suggestions in the vendor's own guide — upload the SBC documentation you trust and hiccup cites its passages instead of guessing.",
     "cat": "html",
     "where": [
-      "public/kb.html:176"
+      "public/kb.html:172"
     ]
   },
   "c7023fd85a9b853b": {
     "text": "Drop vendor guides here",
     "cat": "html",
     "where": [
-      "public/kb.html:184"
+      "public/kb.html:180"
     ]
   },
   "d11046c82fbd9773": {
     "text": ".txt · .md · .html · .ini · .cfg · .conf · .cli · .log — PDF needs an optional dependency",
     "cat": "html",
     "where": [
-      "public/kb.html:185"
+      "public/kb.html:181"
     ]
   },
   "a223c737bb21b418": {
     "text": "or link to a guide hiccup does not host",
     "cat": "html",
     "where": [
-      "public/kb.html:190"
+      "public/kb.html:186"
     ]
   },
   "ef2921246ea3de42": {
     "text": "Guide URL",
     "cat": "html",
     "where": [
-      "public/kb.html:192"
+      "public/kb.html:188"
     ]
   },
   "aee580759589d4cc": {
     "text": "Add link",
     "cat": "html",
     "where": [
-      "public/kb.html:195"
+      "public/kb.html:191"
     ]
   },
   "12c6b10e324c8106": {
     "text": "hiccup stores only the link and the tags below — it never fetches, copies or indexes the page, so this guide will not appear in search results.",
     "cat": "html",
     "where": [
-      "public/kb.html:197"
+      "public/kb.html:193"
     ]
   },
   "8acdbb98e99e879e": {
     "text": "Vendor (optional)",
     "cat": "html",
     "where": [
-      "public/kb.html:202"
+      "public/kb.html:198"
     ]
   },
   "d1d1a723544df8e8": {
     "text": "oracle-acme, audiocodes, ribbon…",
     "cat": "html",
     "where": [
-      "public/kb.html:203"
+      "public/kb.html:199"
     ]
   },
   "bd807724e1184623": {
     "text": "Product (optional)",
     "cat": "html",
     "where": [
-      "public/kb.html:207"
+      "public/kb.html:203"
     ]
   },
   "d0739d2d12946821": {
     "text": "Acme Packet 4600, Mediant 4000…",
     "cat": "html",
     "where": [
-      "public/kb.html:208"
+      "public/kb.html:204"
     ]
   },
   "dfa171455b9dc9ef": {
     "text": "Your guides",
     "cat": "html",
     "where": [
-      "public/kb.html:218"
+      "public/kb.html:214"
     ]
   },
   "fe0480c36565268b": {
     "text": "Search the guides",
     "cat": "html",
     "where": [
-      "public/kb.html:223"
+      "public/kb.html:219"
     ]
   },
   "97825158e43702cd": {
     "text": "e.g. session-expires refresher, sip-manipulation store, coder group",
     "cat": "html",
     "where": [
-      "public/kb.html:226"
+      "public/kb.html:222"
     ]
   },
   "5d929ff1619ac0c9": {
     "text": "Search",
     "cat": "html",
     "where": [
-      "public/kb.html:228"
+      "public/kb.html:224"
     ]
   },
   "ebd50aa244e53246": {
     "text": "SIP reference",
     "cat": "html",
     "where": [
-      "public/privacy.html:33"
+      "public/privacy.html:29"
     ]
   },
   "eb881f610517141d": {
     "text": "← back to hiccup",
     "cat": "html",
     "where": [
-      "public/privacy.html:189"
+      "public/privacy.html:199"
     ]
   },
   "12ee598766626354": {
@@ -1685,203 +1685,203 @@
     "text": "Settings",
     "cat": "html",
     "where": [
-      "public/settings.html:87"
+      "public/settings.html:83"
     ]
   },
   "c688123bacd22912": {
     "text": "Privacy of your captures",
     "cat": "html",
     "where": [
-      "public/settings.html:92"
+      "public/settings.html:88"
     ]
   },
   "e7a5a68d766b49e2": {
     "text": "Traces routinely contain phone numbers. These control what hiccup keeps in the analysis it builds from them.",
     "cat": "html",
     "where": [
-      "public/settings.html:93"
+      "public/settings.html:89"
     ]
   },
   "4ac03f56f72b4226": {
     "text": "Mask phone numbers in new uploads",
     "cat": "html",
     "where": [
-      "public/settings.html:98"
+      "public/settings.html:94"
     ]
   },
   "8036e4ca267d7125": {
     "text": "Shows numbers as",
     "cat": "html",
     "where": [
-      "public/settings.html:99"
+      "public/settings.html:95"
     ]
   },
   "e4ee48083f224295": {
     "text": "in the analysis — still enough to follow a call across legs, without keeping the full number. Your uploaded file is never altered, only what hiccup derives from it.",
     "cat": "html",
     "where": [
-      "public/settings.html:99"
+      "public/settings.html:95"
     ]
   },
   "9c59c7bdf8a7fd03": {
     "text": "use the server default",
     "cat": "html",
     "where": [
-      "public/settings.html:106"
+      "public/settings.html:102"
     ]
   },
   "dff35ef6dfc95fdc": {
     "text": "always mask",
     "cat": "html",
     "where": [
-      "public/settings.html:107"
+      "public/settings.html:103"
     ]
   },
   "cb9f394fe954695f": {
     "text": "never mask",
     "cat": "html",
     "where": [
-      "public/settings.html:108"
+      "public/settings.html:104"
     ]
   },
   "4661bbea10e4a7ca": {
     "text": "How long captures are kept",
     "cat": "html",
     "where": [
-      "public/settings.html:115"
+      "public/settings.html:111"
     ]
   },
   "7ba9d783b7673877": {
     "text": "checking…",
     "cat": "html",
     "where": [
-      "public/settings.html:116",
-      "public/settings.html:123",
-      "public/settings.html:158",
-      "public/settings.html:179"
+      "public/settings.html:112",
+      "public/settings.html:119",
+      "public/settings.html:154",
+      "public/settings.html:175"
     ]
   },
   "f9ee06b5ff26c62b": {
     "text": "Who else can see your captures",
     "cat": "html",
     "where": [
-      "public/settings.html:122"
+      "public/settings.html:118"
     ]
   },
   "60c9cf051f0b9a39": {
     "text": "Your privacy rights",
     "cat": "html",
     "where": [
-      "public/settings.html:128"
+      "public/settings.html:124"
     ]
   },
   "ad2e6868b10b38aa": {
     "text": "Export, erase, or delete — everything on this page is something you can do yourself, right now, without asking an administrator.",
     "cat": "html",
     "where": [
-      "public/settings.html:129"
+      "public/settings.html:125"
     ]
   },
   "9b8a8e248af82262": {
     "text": "Read the privacy notice",
     "cat": "html",
     "where": [
-      "public/settings.html:131"
+      "public/settings.html:127"
     ]
   },
   "4f115b48fcd53957": {
     "text": "Download a copy",
     "cat": "html",
     "where": [
-      "public/settings.html:134"
+      "public/settings.html:130"
     ]
   },
   "1a459bd2e7b53974": {
     "text": "Everything hiccup holds about this account.",
     "cat": "html",
     "where": [
-      "public/settings.html:135"
+      "public/settings.html:131"
     ]
   },
   "0886ea2a1f4b50d1": {
     "text": "Export as JSON",
     "cat": "html",
     "where": [
-      "public/settings.html:139"
+      "public/settings.html:135"
     ]
   },
   "9b2be74d948736e9": {
     "text": "One file: your account record, capture list, projects, team, library documents and any feedback you have sent. Capture file contents are not included — download those individually from the workbench.",
     "cat": "html",
     "where": [
-      "public/settings.html:140"
+      "public/settings.html:136"
     ]
   },
   "d3386a2ef42e80b9": {
     "text": "Download",
     "cat": "html",
     "where": [
-      "public/settings.html:146"
+      "public/settings.html:142"
     ]
   },
   "0d7192fab7c9eb3c": {
     "text": "Erase your data",
     "cat": "html",
     "where": [
-      "public/settings.html:152"
+      "public/settings.html:148"
     ]
   },
   "54a72ca1b15ba2e0": {
     "text": "Removes your captures, projects and library documents. Your account stays open and signed in — this is not the same as deleting your account.",
     "cat": "html",
     "where": [
-      "public/settings.html:153"
+      "public/settings.html:149"
     ]
   },
   "720689d4346abc1c": {
     "text": "What this removes",
     "cat": "html",
     "where": [
-      "public/settings.html:157",
-      "public/settings.html:178"
+      "public/settings.html:153",
+      "public/settings.html:174"
     ]
   },
   "691d2c8f160c597f": {
     "text": "Erase my data",
     "cat": "html",
     "where": [
-      "public/settings.html:161"
+      "public/settings.html:157"
     ]
   },
   "d2223afb7d6b100d": {
     "text": "Type",
     "cat": "html",
     "where": [
-      "public/settings.html:165",
-      "public/settings.html:186"
+      "public/settings.html:161",
+      "public/settings.html:182"
     ]
   },
   "cfbd46e8a190134a": {
     "text": "to confirm:",
     "cat": "html",
     "where": [
-      "public/settings.html:165",
-      "public/settings.html:186"
+      "public/settings.html:161",
+      "public/settings.html:182"
     ]
   },
   "4082bb30552dd590": {
     "text": "Erase permanently",
     "cat": "html",
     "where": [
-      "public/settings.html:167"
+      "public/settings.html:163"
     ]
   },
   "2ceb11be2290bb1b": {
     "text": "Cancel",
     "cat": "html",
     "where": [
-      "public/settings.html:168",
-      "public/settings.html:189",
+      "public/settings.html:164",
+      "public/settings.html:185",
       "public/app.js:860",
       "public/feedback.js:180"
     ]
@@ -1890,28 +1890,28 @@
     "text": "Delete this account",
     "cat": "html",
     "where": [
-      "public/settings.html:173"
+      "public/settings.html:169"
     ]
   },
   "992032218333b658": {
     "text": "Everything above, plus the account itself. Irreversible — there is no undo and no backup to restore from.",
     "cat": "html",
     "where": [
-      "public/settings.html:174"
+      "public/settings.html:170"
     ]
   },
   "045c3b86aae073c1": {
     "text": "Delete account",
     "cat": "html",
     "where": [
-      "public/settings.html:182"
+      "public/settings.html:178"
     ]
   },
   "f0ef7644098b8a63": {
     "text": "Delete permanently",
     "cat": "html",
     "where": [
-      "public/settings.html:188"
+      "public/settings.html:184"
     ]
   },
   "0269f257720613cf": {
@@ -1925,147 +1925,147 @@
     "text": "Subscribe",
     "cat": "html",
     "where": [
-      "public/subscribe.html:89"
+      "public/subscribe.html:85"
     ]
   },
   "46e551a860965436": {
     "text": "A paid account can create or join a team: a shared capture library, roles for who can invite and manage members, and everyone working from the same diagnosis instead of forwarding pcaps around.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:90"
+      "public/subscribe.html:86"
     ]
   },
   "046a35bfdd88a596": {
     "text": "Monthly",
     "cat": "html",
     "where": [
-      "public/subscribe.html:99"
+      "public/subscribe.html:95"
     ]
   },
   "8b13ebdf0e08c66f": {
     "text": "Cancel any time — no contract.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:101"
+      "public/subscribe.html:97"
     ]
   },
   "9cce2dea6711bac3": {
     "text": "Support monthly →",
     "cat": "html",
     "where": [
-      "public/subscribe.html:102"
+      "public/subscribe.html:98"
     ]
   },
   "c5e3abcf5ddfeb6a": {
     "text": "Best value",
     "cat": "html",
     "where": [
-      "public/subscribe.html:106"
+      "public/subscribe.html:102"
     ]
   },
   "0321c7dccee14a8a": {
     "text": "Annual",
     "cat": "html",
     "where": [
-      "public/subscribe.html:107"
+      "public/subscribe.html:103"
     ]
   },
   "a1867795dfba0687": {
     "text": "/ year",
     "cat": "html",
     "where": [
-      "public/subscribe.html:108"
+      "public/subscribe.html:104"
     ]
   },
   "83dffa756fb16abb": {
     "text": "Two months free compared to paying monthly.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:109"
+      "public/subscribe.html:105"
     ]
   },
   "1332606b57db4706": {
     "text": "Support annually →",
     "cat": "html",
     "where": [
-      "public/subscribe.html:110"
+      "public/subscribe.html:106"
     ]
   },
   "43f8157d090a9820": {
     "text": "How this works, for now",
     "cat": "html",
     "where": [
-      "public/subscribe.html:115"
+      "public/subscribe.html:111"
     ]
   },
   "22a803812ddc28ed": {
     "text": "hiccup is a solo-built, self-hosted tool — there is no payment processor wired into the app yet, so upgrading is a short manual step rather than an instant checkout.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:116"
+      "public/subscribe.html:112"
     ]
   },
   "3373c93116973142": {
     "text": "Click a plan above — it opens hiccup's Buy Me a Coffee page.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:120"
+      "public/subscribe.html:116"
     ]
   },
   "19f99146217354e3": {
     "text": "Enter €20 and tick “Make this monthly” for the monthly plan, or €200 as a one-time amount for the annual plan.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:121"
+      "public/subscribe.html:117"
     ]
   },
   "b745e50fdfbd6137": {
     "text": "In the message field, include the email address your hiccup account uses — that is how your payment gets matched to your account.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:123"
+      "public/subscribe.html:119"
     ]
   },
   "62534b90cb936f84": {
     "text": "Your account is upgraded by hand, usually within a day. No need to wait around — you will be able to create or join a team as soon as it is done.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:125"
+      "public/subscribe.html:121"
     ]
   },
   "763fc39b81e3c680": {
     "text": "What a paid account unlocks",
     "cat": "html",
     "where": [
-      "public/subscribe.html:131"
+      "public/subscribe.html:127"
     ]
   },
   "d3f09120684ca249": {
     "text": "Create a team, or accept an invite to join one.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:133"
+      "public/subscribe.html:129"
     ]
   },
   "c7c5a9e4257b08d8": {
     "text": "A shared capture library — every team member sees the same uploads and the same diagnosis.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:134"
+      "public/subscribe.html:130"
     ]
   },
   "d03f19b67fe9fea2": {
     "text": "Owner and admin roles: invite, promote, suspend or remove members.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:136"
+      "public/subscribe.html:132"
     ]
   },
   "b08d194e9bccb09b": {
     "text": "Everything hiccup already does — analysis, HMR, config guides — stays available on the free plan too. Paid is about working as a team, not a feature paywall on the analyser itself.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:137"
+      "public/subscribe.html:133"
     ]
   },
   "20d2719255c74e18": {
@@ -2079,56 +2079,56 @@
     "text": "Team",
     "cat": "html",
     "where": [
-      "public/team.html:135"
+      "public/team.html:131"
     ]
   },
   "0d39a60a5814cb56": {
     "text": "A team shares every capture and guide with all of its members equally — there is no per-project permission to configure. Invite a colleague and you will both see the same library.",
     "cat": "html",
     "where": [
-      "public/team.html:136"
+      "public/team.html:132"
     ]
   },
   "238faafc43142fb1": {
     "text": "Loading your team…",
     "cat": "html",
     "where": [
-      "public/team.html:144"
+      "public/team.html:140"
     ]
   },
   "9f5c475fc7d6614d": {
     "text": "Create your team",
     "cat": "html",
     "where": [
-      "public/team.html:154"
+      "public/team.html:150"
     ]
   },
   "8c359b69c2dfb726": {
     "text": "Create a team and every capture and guide already in your library becomes shared with whoever you invite — nothing to migrate, nothing to configure per file.",
     "cat": "html",
     "where": [
-      "public/team.html:155"
+      "public/team.html:151"
     ]
   },
   "4e6bac96fe4475bf": {
     "text": "Team name",
     "cat": "html",
     "where": [
-      "public/team.html:160"
+      "public/team.html:156"
     ]
   },
   "3a4272d5c2aff670": {
     "text": "e.g. Acme NetOps",
     "cat": "html",
     "where": [
-      "public/team.html:161"
+      "public/team.html:157"
     ]
   },
   "ccdc445505b97876": {
     "text": "Create team",
     "cat": "html",
     "where": [
-      "public/team.html:164",
+      "public/team.html:160",
       "public/team.js:187",
       "public/team.js:192"
     ]
@@ -2137,42 +2137,42 @@
     "text": "Creating a team needs a paid account.",
     "cat": "html",
     "where": [
-      "public/team.html:166"
+      "public/team.html:162"
     ]
   },
   "3a85be90c011b81a": {
     "text": "This team has no active owner",
     "cat": "html",
     "where": [
-      "public/team.html:179"
+      "public/team.html:175"
     ]
   },
   "71e6300a835a6d55": {
     "text": "Take ownership of this team",
     "cat": "html",
     "where": [
-      "public/team.html:182"
+      "public/team.html:178"
     ]
   },
   "edfd3b1ef4c879e8": {
     "text": "Invite a colleague",
     "cat": "html",
     "where": [
-      "public/team.html:186"
+      "public/team.html:182"
     ]
   },
   "4c228342c58c38d6": {
     "text": "hiccup does not send email — you copy the link and share it yourself.",
     "cat": "html",
     "where": [
-      "public/team.html:187"
+      "public/team.html:183"
     ]
   },
   "d1f44f1a8bc20e67": {
     "text": "Email",
     "cat": "html",
     "where": [
-      "public/team.html:189",
+      "public/team.html:185",
       "public/team.js:569"
     ]
   },
@@ -2180,14 +2180,14 @@
     "text": "colleague@example.com",
     "cat": "html",
     "where": [
-      "public/team.html:190"
+      "public/team.html:186"
     ]
   },
   "f4f6ec349795904e": {
     "text": "Create invite link",
     "cat": "html",
     "where": [
-      "public/team.html:193",
+      "public/team.html:189",
       "public/team.js:412",
       "public/team.js:417"
     ]
@@ -2196,14 +2196,14 @@
     "text": "Invite link for",
     "cat": "html",
     "where": [
-      "public/team.html:197"
+      "public/team.html:193"
     ]
   },
   "3687049d1af562c4": {
     "text": "Copy",
     "cat": "html",
     "where": [
-      "public/team.html:200",
+      "public/team.html:196",
       "public/hmr.js:872",
       "public/hmr.js:881",
       "public/team.js:473"
@@ -2213,56 +2213,56 @@
     "text": "No email is sent — copy this link and send it to your colleague yourself.",
     "cat": "html",
     "where": [
-      "public/team.html:202"
+      "public/team.html:198"
     ]
   },
   "9f5a5f23312798f0": {
     "text": "Members",
     "cat": "html",
     "where": [
-      "public/team.html:210"
+      "public/team.html:206"
     ]
   },
   "4a6b60c560092f6e": {
     "text": "Leaving this team",
     "cat": "html",
     "where": [
-      "public/team.html:220"
+      "public/team.html:216"
     ]
   },
   "528cf0029897392b": {
     "text": "You own this team. To leave it, or to delete your account, hand ownership to another member first — the team keeps every capture and guide, and you stay on as an admin.",
     "cat": "html",
     "where": [
-      "public/team.html:223"
+      "public/team.html:219"
     ]
   },
   "c18e7750364b1976": {
     "text": "New owner",
     "cat": "html",
     "where": [
-      "public/team.html:227"
+      "public/team.html:223"
     ]
   },
   "3df0bc21c11764a7": {
     "text": "Transfer ownership",
     "cat": "html",
     "where": [
-      "public/team.html:230"
+      "public/team.html:226"
     ]
   },
   "476efaa8f5584146": {
     "text": "You keep your account. The team's shared captures and guides stay with the team.",
     "cat": "html",
     "where": [
-      "public/team.html:235"
+      "public/team.html:231"
     ]
   },
   "8a61911c187e89ad": {
     "text": "Leave this team",
     "cat": "html",
     "where": [
-      "public/team.html:238"
+      "public/team.html:234"
     ]
   },
   "ad65264d44677cf0": {
@@ -5967,458 +5967,458 @@
     "text": "request body too large",
     "cat": "server",
     "where": [
-      "server.js:286"
+      "server.js:296"
     ]
   },
   "1627440cbbf9267a": {
     "text": "invalid JSON body",
     "cat": "server",
     "where": [
-      "server.js:288"
+      "server.js:298"
     ]
   },
   "e54edbad841de52c": {
     "text": "could not read request body",
     "cat": "server",
     "where": [
-      "server.js:290"
+      "server.js:300"
     ]
   },
   "92131c3083744724": {
     "text": "sign in required",
     "cat": "server",
     "where": [
-      "server.js:395",
-      "server.js:409"
+      "server.js:405",
+      "server.js:419"
     ]
   },
   "dd20e2a9d82b5bd7": {
     "text": "hiccup: public/",
     "cat": "server",
     "where": [
-      "server.js:525"
+      "server.js:535"
     ]
   },
   "5ecbec6cbb901e2c": {
     "text": "analysis engine not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:745"
+      "server.js:755"
     ]
   },
   "6a2b7043de978ef9": {
     "text": "that project was not found",
     "cat": "server",
     "where": [
-      "server.js:759"
+      "server.js:769"
     ]
   },
   "a80b26feac395b9e": {
     "text": "upload exceeds the",
     "cat": "server",
     "where": [
-      "server.js:771"
+      "server.js:781"
     ]
   },
   "54c6c9cc108f2242": {
     "text": "could not read upload",
     "cat": "server",
     "where": [
-      "server.js:773",
-      "server.js:1099"
+      "server.js:783",
+      "server.js:1109"
     ]
   },
   "0801d0a52741c7bf": {
     "text": "empty upload",
     "cat": "server",
     "where": [
-      "server.js:778",
-      "server.js:1104"
+      "server.js:788",
+      "server.js:1114"
     ]
   },
   "01a383ac2116bf20": {
     "text": "capture not found",
     "cat": "server",
     "where": [
-      "server.js:856",
-      "server.js:994",
-      "server.js:2809",
-      "server.js:3151",
-      "server.js:3166"
+      "server.js:866",
+      "server.js:1004",
+      "server.js:2846",
+      "server.js:3188",
+      "server.js:3203"
     ]
   },
   "f79423093897467e": {
     "text": "the rule generator is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:902"
+      "server.js:912"
     ]
   },
   "090e1a119d8daa21": {
     "text": "description (what the rule should do, in English) is required",
     "cat": "server",
     "where": [
-      "server.js:908"
+      "server.js:918"
     ]
   },
   "d7b4031340d3e796": {
     "text": "vendors must be a subset of",
     "cat": "server",
     "where": [
-      "server.js:916"
+      "server.js:926"
     ]
   },
   "620fd49ea6d862c9": {
     "text": "could not process that description",
     "cat": "server",
     "where": [
-      "server.js:929"
+      "server.js:939"
     ]
   },
   "e29465da56a30135": {
     "text": "the config-manipulation engine is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:952"
+      "server.js:962"
     ]
   },
   "020034a3e7c22a8c": {
     "text": "text (an SBC config excerpt) is required",
     "cat": "server",
     "where": [
-      "server.js:958"
+      "server.js:968"
     ]
   },
   "546478ca51bb0dbb": {
     "text": "the config-guide library is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:1033"
+      "server.js:1043"
     ]
   },
   "540a07c7e762b016": {
     "text": "this build of lib/kb.js cannot add documents",
     "cat": "server",
     "where": [
-      "server.js:1084"
+      "server.js:1094"
     ]
   },
   "e27a75ef46fcc316": {
     "text": "document exceeds the",
     "cat": "server",
     "where": [
-      "server.js:1096"
+      "server.js:1106"
     ]
   },
   "402ff74fd64be7f1": {
     "text": "this build of lib/kb.js cannot add links",
     "cat": "server",
     "where": [
-      "server.js:1136"
+      "server.js:1146"
     ]
   },
   "2a59e817abd5fd84": {
     "text": "this build of lib/kb.js cannot delete documents",
     "cat": "server",
     "where": [
-      "server.js:1176"
+      "server.js:1186"
     ]
   },
   "f9cb3b7e6e30bdb9": {
     "text": "document not found",
     "cat": "server",
     "where": [
-      "server.js:1187"
+      "server.js:1197"
     ]
   },
   "3f951aec7bc91ff5": {
     "text": "this build has no feedback module",
     "cat": "server",
     "where": [
-      "server.js:1207"
+      "server.js:1217"
     ]
   },
   "c63c0aa33a970b76": {
     "text": "admin only",
     "cat": "server",
     "where": [
-      "server.js:1251"
+      "server.js:1261"
     ]
   },
   "766bccfadc60d6b3": {
     "text": "comment is required",
     "cat": "server",
     "where": [
-      "server.js:1344"
+      "server.js:1381"
     ]
   },
   "f08c15b90c9cd570": {
     "text": "too many submissions — try again later",
     "cat": "server",
     "where": [
-      "server.js:1348"
+      "server.js:1385"
     ]
   },
   "8433e48ee25ebe05": {
     "text": "send {\"confirm\":\"DELETE\"} to confirm this irreversible deletion",
     "cat": "server",
     "where": [
-      "server.js:1446"
+      "server.js:1483"
     ]
   },
   "ce52b93db38ac16b": {
     "text": "You still own a team with other members. Transfer ownership to one of them first, then delete your account. Nothing has been deleted.",
     "cat": "server",
     "where": [
-      "server.js:1473"
+      "server.js:1510"
     ]
   },
   "750fa3e5656e2d66": {
     "text": "send {\"confirm\":\"ERASE\"} to confirm erasing your data",
     "cat": "server",
     "where": [
-      "server.js:1585"
+      "server.js:1622"
     ]
   },
   "b107b578f662fb05": {
     "text": "cross-origin request refused",
     "cat": "server",
     "where": [
-      "server.js:1794",
-      "server.js:1896"
+      "server.js:1831",
+      "server.js:1933"
     ]
   },
   "dcf5915a2294ef24": {
     "text": "send {\"superuser\": true|false} and/or {\"plan\": \"free\"|\"paid\"}",
     "cat": "server",
     "where": [
-      "server.js:1802"
+      "server.js:1839"
     ]
   },
   "114895a695d6cf0c": {
     "text": "no such user",
     "cat": "server",
     "where": [
-      "server.js:1808",
-      "server.js:1851"
+      "server.js:1845",
+      "server.js:1888"
     ]
   },
   "f69098f93dd285bb": {
     "text": "could not save the updated admin list to disk",
     "cat": "server",
     "where": [
-      "server.js:1832"
+      "server.js:1869"
     ]
   },
   "e8d4274657ed2599": {
     "text": "action must be 'status' or 'restart'",
     "cat": "server",
     "where": [
-      "server.js:1903"
+      "server.js:1940"
     ]
   },
   "c9025488a137cf6c": {
     "text": "Not supervised by the hiccup service (state:",
     "cat": "server",
     "where": [
-      "server.js:1933"
+      "server.js:1970"
     ]
   },
   "3fb3204d07f649c4": {
     "text": "no such feedback",
     "cat": "server",
     "where": [
-      "server.js:2016"
+      "server.js:2053"
     ]
   },
   "2668e3335367971b": {
     "text": "no feedback module",
     "cat": "server",
     "where": [
-      "server.js:2039"
+      "server.js:2076"
     ]
   },
   "b5872077e7138177": {
     "text": "no digestRecipient configured",
     "cat": "server",
     "where": [
-      "server.js:2053"
+      "server.js:2090"
     ]
   },
   "3e230b47bf9bb8d3": {
     "text": "no mail module",
     "cat": "server",
     "where": [
-      "server.js:2057"
+      "server.js:2094"
     ]
   },
   "d1638c2147bb7e7d": {
     "text": "this build of lib/kb.js cannot search",
     "cat": "server",
     "where": [
-      "server.js:2084"
+      "server.js:2121"
     ]
   },
   "5337ea8f8150b659": {
     "text": "q (a search query) is required",
     "cat": "server",
     "where": [
-      "server.js:2089"
+      "server.js:2126"
     ]
   },
   "d53aa13ba29ffd09": {
     "text": "the teams module is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:2139",
-      "server.js:2156",
-      "server.js:2168",
-      "server.js:2189",
-      "server.js:2212",
-      "server.js:2262"
+      "server.js:2176",
+      "server.js:2193",
+      "server.js:2205",
+      "server.js:2226",
+      "server.js:2249",
+      "server.js:2299"
     ]
   },
   "b4557baf45c6a947": {
     "text": "this invite link is invalid or has expired",
     "cat": "server",
     "where": [
-      "server.js:2194",
-      "server.js:2222"
+      "server.js:2231",
+      "server.js:2259"
     ]
   },
   "d7bf7c6c99ed4407": {
     "text": "token is required",
     "cat": "server",
     "where": [
-      "server.js:2217"
+      "server.js:2254"
     ]
   },
   "baa0a3344e8c0331": {
     "text": "joined the team, but could not load the account",
     "cat": "server",
     "where": [
-      "server.js:2250"
+      "server.js:2287"
     ]
   },
   "3696efafd4e94786": {
     "text": "role or suspended is required",
     "cat": "server",
     "where": [
-      "server.js:2270"
+      "server.js:2307"
     ]
   },
   "8085f74c9d35d6d7": {
     "text": "Only the team owner can change member roles.",
     "cat": "server",
     "where": [
-      "server.js:2276"
+      "server.js:2313"
     ]
   },
   "0136bec8180be8a5": {
     "text": "Only a team owner or admin can suspend members.",
     "cat": "server",
     "where": [
-      "server.js:2288"
+      "server.js:2325"
     ]
   },
   "00adf0d1bc93484d": {
     "text": "Only a team owner or admin can remove members.",
     "cat": "server",
     "where": [
-      "server.js:2309"
+      "server.js:2346"
     ]
   },
   "408635fc82cc11a8": {
     "text": "Only the team owner can transfer ownership.",
     "cat": "server",
     "where": [
-      "server.js:2392"
+      "server.js:2429"
     ]
   },
   "4bf96ced8828fabd": {
     "text": "the projects module is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:2408",
-      "server.js:2421",
-      "server.js:2444",
-      "server.js:2470"
+      "server.js:2445",
+      "server.js:2458",
+      "server.js:2481",
+      "server.js:2507"
     ]
   },
   "0d9aceb8b8384b7f": {
     "text": "project not found",
     "cat": "server",
     "where": [
-      "server.js:2450",
-      "server.js:2476",
-      "server.js:2481"
+      "server.js:2487",
+      "server.js:2513",
+      "server.js:2518"
     ]
   },
   "8c827ee96db5d1cd": {
     "text": "messages array is required",
     "cat": "server",
     "where": [
-      "server.js:2803"
+      "server.js:2840"
     ]
   },
   "ecfc526de8ae3814": {
     "text": "local model is offline",
     "cat": "server",
     "where": [
-      "server.js:2814"
+      "server.js:2851"
     ]
   },
   "fec5f0616fdf6dd0": {
     "text": "hiccup is busy answering another question — try again in a moment",
     "cat": "server",
     "where": [
-      "server.js:2833"
+      "server.js:2870"
     ]
   },
   "1ab14d1c2578506a": {
     "text": "email and password are required",
     "cat": "server",
     "where": [
-      "server.js:2864",
-      "server.js:2893"
+      "server.js:2901",
+      "server.js:2930"
     ]
   },
   "9068dc9b3017c5ef": {
     "text": "Too many accounts created from here recently. Try again later.",
     "cat": "server",
     "where": [
-      "server.js:2871"
+      "server.js:2908"
     ]
   },
   "c0fa34830fadc18a": {
     "text": "Too many sign-in attempts. Wait a few minutes and try again.",
     "cat": "server",
     "where": [
-      "server.js:2908"
+      "server.js:2945"
     ]
   },
   "98c716c4e947ddc8": {
     "text": "wrong email or password",
     "cat": "server",
     "where": [
-      "server.js:2917"
+      "server.js:2954"
     ]
   },
   "f470143a26c5b7c9": {
     "text": "credential is required",
     "cat": "server",
     "where": [
-      "server.js:2928"
+      "server.js:2965"
     ]
   },
   "08565cf8a3e3ee3a": {
     "text": "not found",
     "cat": "server",
     "where": [
-      "server.js:3091",
-      "server.js:3112",
-      "server.js:3172",
-      "server.js:3279"
+      "server.js:3128",
+      "server.js:3149",
+      "server.js:3209",
+      "server.js:3316"
     ]
   }
 }

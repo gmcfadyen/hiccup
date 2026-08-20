@@ -1,6 +1,6 @@
 {
   "name": "hiccup",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "hiccup — SIP trace analysis that finds where the call went wrong",
   "main": "server.js",
   "scripts": {
@@ -11,7 +11,8 @@
     "test:http": "node test/http.js",
     "selftest:adversarial": "node test/adversarial.js",
     "i18n": "node bin/i18n-extract.js && node bin/i18n-build.js",
-    "i18n:report": "node bin/i18n-report.js --force"
+    "i18n:report": "node bin/i18n-report.js --force",
+    "traffic": "node bin/traffic.js"
   },
   "keywords": [
     "sip",

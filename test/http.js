@@ -256,6 +256,24 @@ async function main() {
     eq(known, unknown, 'the 429 wording differs for a real vs unknown account');
   });
 
+  // The access log records the caller. An IP is personal data, so it is
+  // coarsened before being written -- and this asserts the coarsening really
+  // happens, because the failure mode is silent: a broken regex logs the full
+  // address and nothing looks wrong. It broke exactly that way once already.
+  await t("access log anonymises the caller IP", async () => {
+    const mark = 'ualog-' + Date.now();
+    await client('GET', '/api/status', undefined, {
+      'CF-Connecting-IP': '203.0.113.47',
+      'User-Agent': mark,
+    });
+    await new Promise((r) => setTimeout(r, 150));   // let the finish handler write
+    const line = serverLog.split('\n').find((l) => l.indexOf(mark) !== -1);
+    ok(line, 'no access-log line carried the marker user-agent');
+    ok(line.indexOf('203.0.113.0') !== -1, 'IP was not truncated to /24: ' + line);
+    ok(line.indexOf('203.0.113.47') === -1, 'FULL IP leaked into the log: ' + line);
+    ok(/^\d{4}-\d{2}-\d{2}T/.test(line), 'log line has no leading timestamp: ' + line);
+  });
+
   // ------------------------------------------------------------------ teams
   await t('team recovery endpoint answers for a teamless user', async () => {
     const r = await client('GET', '/api/team/recovery');

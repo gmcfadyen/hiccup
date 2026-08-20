@@ -2704,3 +2704,58 @@ an identity fallback so a missing catalogue degrades that page to English
 rather than breaking sign-in.
 
 **112 selftest + 13 HTTP.**
+
+# Wave 19 — an access log that can answer a question
+
+The log line was `METHOD path status ms`. No timestamp, no caller, no
+user-agent — so the only questions anyone actually asks of an access log
+("is traffic growing?", "is this people or scanners?") could not be answered at
+all, and the first time they were asked the honest reply was an inference from
+the ratio of `GET /` to `GET /hiccup.css`.
+
+Now: `2026-08-20T08:28:09.252Z 203.0.113.0 GET / 200 2ms "Mozilla/5.0 …"`.
+
+## The IP is coarsened before it is written
+
+An IP is personal data, and hiccup makes a point of its privacy posture
+elsewhere — Art. 17 erasure, retention sweeps, de-identified feedback. Writing
+full addresses to a log with no retention policy would have quietly contradicted
+all of it. So `config.accessLogIp` defaults to `'anonymised'`: IPv4 keeps three
+octets, IPv6 three hextets, with `'full'` and `'off'` available to the operator.
+A /24 still separates one network from another, which is all the traffic
+questions need.
+
+**This nearly shipped broken, silently.** The generated regex lost its
+backslashes in transit and became `/(d+.d+.d+).d+$/` — which matches almost
+nothing, so `anonymiseIp` would have returned the address unchanged and logged
+it in full while looking entirely correct. There is now a test that sends a
+known `CF-Connecting-IP` and asserts both that the /24 appears **and** that the
+full address does not; the failure mode has no visible symptom, so it needs an
+assertion rather than an eyeball.
+
+## Disclosed, not just implemented
+
+The privacy policy's data table had no row for server logs, so this would have
+been undisclosed processing. It now has one, in plain language, saying what is
+kept and that the address is shortened first. The neighbouring "no analytics, no
+tracking" claim gained a qualifier: it is still true (no third-party script,
+nothing cross-site), but an unqualified version could be read as "nothing is
+recorded", which is no longer accurate.
+
+## `npm run traffic`
+
+`bin/traffic.js` turns the lines back into an answer: automated vs non-bot
+split, vulnerability probes, distinct networks, non-bot requests per day,
+top pages and user-agents.
+
+Two deliberate honesty properties:
+
+- A hit counts as automated only if the UA self-identifies **or** the path is a
+  known probe. Everything else counts as a browser, so the "people" figure is
+  an over-estimate, not a flattering one.
+- It prints what share of page views also fetched CSS. A real browser always
+  does, so a low ratio means most of what it just counted as "not obviously
+  bots" never rendered the page. That is the number to trust.
+
+Existing logs predate the format, so the tool reports how many lines it skipped
+rather than presenting zeros as if they were the answer.

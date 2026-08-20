@@ -77,6 +77,16 @@ const CONFIG_DEFAULTS = {
   rfplexStatusUrl: 'http://127.0.0.1:3001/api/status/llm',
   preferredModels: ['qwen3.5:9b', 'qwen3.5:2b', 'qwen3:8b', 'llama3.1:8b'],
   maxUploadMb: 50,
+  // What the access log records about the caller:
+  //   'anonymised' (default) - IPv4 truncated to /24, IPv6 to /48
+  //   'full'                 - the exact address
+  //   'off'                  - no address at all
+  // Default is anonymised rather than full because an IP is personal data
+  // under GDPR and hiccup makes a point of its privacy posture elsewhere
+  // (erasure, retention sweeps, de-identified feedback). A /24 still answers
+  // the questions a log is for -- is traffic growing, is this one crawler or
+  // many people -- without keeping something that identifies a person.
+  accessLogIp: 'anonymised',
   // Wave 6: where the weekly feedback digest goes. Empty disables the digest
   // entirely (the feedback itself is still collected and readable at
   // /admin/feedback — only the email is skipped).
@@ -1274,6 +1284,33 @@ function clientIp(req) {
   const xff = h['x-forwarded-for'];
   if (typeof xff === 'string' && xff.trim()) return xff.split(',')[0].trim();
   return (req.socket && req.socket.remoteAddress) || 'unknown';
+}
+
+/**
+ * Coarsen an address so the log answers traffic questions without storing
+ * something that identifies a person: IPv4 keeps three octets, IPv6 keeps
+ * three hextets. Both are the conventional anonymisation boundary.
+ * @param {string} ip
+ * @returns {string}
+ */
+function anonymiseIp(ip) {
+  const s = String(ip || '');
+  if (!s) return '-';
+  if (s.indexOf(':') !== -1) {                       // IPv6 (or ::ffff:1.2.3.4)
+    const v4 = s.match(/(\d+\.\d+\.\d+)\.\d+$/);        // v4-mapped: treat as IPv4
+    if (v4) return v4[1] + '.0';
+    return s.split(':').slice(0, 3).join(':') + '::';
+  }
+  const m = s.match(/^(\d+\.\d+\.\d+)\.\d+$/);
+  return m ? m[1] + '.0' : s;
+}
+
+/** The caller as the access log should record it, per config.accessLogIp. */
+function logIp(req) {
+  const mode = config && config.accessLogIp;
+  if (mode === 'off') return '-';
+  const ip = clientIp(req);
+  return mode === 'full' ? ip : anonymiseIp(ip);
 }
 
 /**
@@ -3395,8 +3432,16 @@ const server = http.createServer((req, res) => {
   const startedAt = Date.now();
   setSecurityHeaders(req, res);
   res.on('finish', () => {
-    console.log(req.method + ' ' + (req.url || '/') + ' ' + res.statusCode + ' ' +
-      (Date.now() - startedAt) + 'ms');
+    // Timestamp + caller + user-agent, because the old line (method/path/
+    // status/ms) could not answer the only questions anyone actually asks of
+    // an access log: is traffic growing, and is this a person or a scanner.
+    // The UA is what separates the two -- a crawler hitting / and nothing else
+    // looks identical to a browser until you can see who asked.
+    const ua = String((req.headers && req.headers['user-agent']) || '-')
+      .replace(/["\r\n]/g, '').slice(0, 120);
+    console.log(new Date().toISOString() + ' ' + logIp(req) + ' ' +
+      req.method + ' ' + (req.url || '/') + ' ' + res.statusCode + ' ' +
+      (Date.now() - startedAt) + 'ms "' + ua + '"');
   });
   Promise.resolve(handle(req, res)).catch((err) => {
     console.error('hiccup: unhandled route error:', err && (err.stack || err.message || err));
