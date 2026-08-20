@@ -50,6 +50,10 @@ fs.writeFileSync(path.join(DATA_DIR, 'config.json'), JSON.stringify({
   stripeSecretKey: 'sk_test_harness_not_a_real_key',
   stripePriceMonthly: 'price_harness_monthly',
   stripePriceAnnual: 'price_harness_annual',
+  // This suite legitimately creates a handful of accounts from one IP, which
+  // the production default (5/hour) is meant to stop. Raised here rather than
+  // weakened there.
+  signupMaxPerHour: 100,
 }, null, 2));
 
 /** A signed Stripe-Signature header for a body, as Stripe would send it. */
@@ -421,6 +425,72 @@ async function main() {
     eq(r.status, 200, 'accepted and ignored');
     const after = await anon('GET', '/api/me');
     eq(after.json.user.plan, 'free', 'a one-off payment session granted a subscription plan');
+  });
+
+
+  // A lapsed team goes READ-ONLY: reads and deletes keep working, writes do not.
+  // The two limits matter as much as the gate -- a teamless free account must
+  // never be frozen (analysis is free), and nobody may be locked away from data
+  // they already own.
+  await t('a lapsed team is frozen for writes but not for reads', async () => {
+    const anon = makeClient();
+    const em = 'frozen-' + process.pid + '@example.test';
+    await anon('POST', '/api/auth/signup', { email: em, password: 'correct-horse-8' });
+    const who = await anon('GET', '/api/me');
+    const uid = who.json.user.id;
+
+    // Upgrade via a signed webhook, make a team, then let it lapse.
+    const paid = {
+      id: 'evt_frz_' + Date.now(), type: 'checkout.session.completed', livemode: false,
+      data: { object: { id: 'cs_frz', mode: 'subscription', subscription: 'sub_frz',
+        payment_status: 'paid', metadata: { hiccup_user_id: uid }, customer: 'cus_frz' } },
+    };
+    await anon('POST', '/api/stripe/webhook', paid,
+      { 'Stripe-Signature': stripeSig(Buffer.from(JSON.stringify(paid))) });
+    const made = await anon('POST', '/api/team', { name: 'Frozen Team' });
+    eq(made.status, 200, 'a paid user should be able to create a team');
+
+    // While paid, a write is allowed through the gate.
+    const okWrite = await anon('POST', '/api/projects', { name: 'Before lapse' });
+    ok(okWrite.status < 400, 'a paid team should accept a write, got ' + okWrite.status);
+
+    // Now cancel, exactly as Stripe would.
+    const gone = {
+      id: 'evt_frz_del_' + Date.now(), type: 'customer.subscription.deleted', livemode: false,
+      data: { object: { id: 'sub_frz', status: 'canceled', customer: 'cus_frz',
+        metadata: { hiccup_user_id: uid } } },
+    };
+    const d = await anon('POST', '/api/stripe/webhook', gone,
+      { 'Stripe-Signature': stripeSig(Buffer.from(JSON.stringify(gone))) });
+    eq(d.status, 200, 'cancellation webhook should be accepted');
+    const nowFree = await anon('GET', '/api/me');
+    eq(nowFree.json.user.plan, 'free', 'cancellation did not downgrade the plan');
+
+    // WRITES are refused...
+    const w = await anon('POST', '/api/projects', { name: 'After lapse' });
+    eq(w.status, 402, 'a write on a lapsed team should be 402 Payment Required');
+    ok(w.json && w.json.frozen === true, 'the refusal should be flagged as frozen');
+
+    // ...but READS still work. Being unable to reach your own data would be a
+    // worse failure than the one this is preventing.
+    const readProjects = await anon('GET', '/api/projects');
+    eq(readProjects.status, 200, 'reading projects must still work when frozen');
+    const readCaps = await anon('GET', '/api/captures');
+    eq(readCaps.status, 200, 'reading captures must still work when frozen');
+
+    // And inviting is refused too, so a lapsed team cannot grow.
+    const inv = await anon('POST', '/api/team/invite', { email: 'x-' + process.pid + '@example.test' });
+    ok(inv.status >= 400, 'a lapsed team should not be able to invite, got ' + inv.status);
+  });
+
+  await t('a teamless free account is never frozen', async () => {
+    const anon = makeClient();
+    await anon('POST', '/api/auth/signup', { email: 'solo-' + process.pid + '@example.test', password: 'correct-horse-8' });
+    const me2 = await anon('GET', '/api/me');
+    eq(me2.json.user.plan, 'free', 'this account should be free');
+    // Analysis and storage are free for individuals; the paid tier is teams.
+    const w = await anon('POST', '/api/projects', { name: 'Solo project' });
+    ok(w.status < 400, 'a free solo account must not be frozen, got ' + w.status);
   });
 
   // ------------------------------------------------------------------ teams

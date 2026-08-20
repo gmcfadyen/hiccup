@@ -88,6 +88,10 @@ const CONFIG_DEFAULTS = {
   // the questions a log is for -- is traffic growing, is this one crawler or
   // many people -- without keeping something that identifies a person.
   accessLogIp: 'anonymised',
+  // New accounts per hour per IP. Tunable because the sensible value depends on
+  // the deployment: a public site wants it low, and a test harness or an
+  // internal box legitimately needs to create many accounts quickly.
+  signupMaxPerHour: 5,
   // Stripe. All four must be set for checkout to switch on; with any missing,
   // /subscribe keeps showing the manual Buy Me a Coffee flow instead of a
   // half-working payment button. Keys live here (data/ is gitignored) and
@@ -443,6 +447,46 @@ function requireAuth(req, res) {
  * @param {string} userId
  * @returns {string}
  */
+/**
+ * Are writes frozen for this user, because their TEAM has no paying member?
+ *
+ * Enforcement at use time, not just at create/join time. _isPaid gated only
+ * createTeam and acceptInvite, so once a team existed, cancelling revoked
+ * nothing: one month bought the shared library forever.
+ *
+ * Two deliberate limits on how far this goes:
+ *   - A TEAMLESS account is never frozen, whatever its plan. Everything except
+ *     team participation is free, and freezing a free user out of their own
+ *     library would be charging for something that was never sold.
+ *   - Reads and deletes stay open. Nobody is locked away from data they already
+ *     own, and erasure has to keep working regardless of billing.
+ * @param {object} user the authenticated user
+ * @returns {boolean}
+ */
+function teamWritesFrozen(user) {
+  const teams = initTeamsIfPossible();
+  if (!teams || typeof teams.teamHasPaidMember !== 'function') return false;
+  try {
+    const teamId = teams.getTeamIdFor(user.id);
+    if (!teamId) return false;                 // solo account: never frozen
+    return !teams.teamHasPaidMember(teamId);
+  } catch {
+    return false;                              // never block on a teams failure
+  }
+}
+
+/**
+ * Gate a write route on the team still being paid for. Answers 402 Payment
+ * Required, which is precisely what this is.
+ * @returns {boolean} true when the caller may proceed
+ */
+function allowTeamWrite(req, res, user) {
+  if (!teamWritesFrozen(user)) return true;
+  req.resume();
+  sendJson(res, 402, { error: 'The subscription for this team has lapsed, so it is read-only. Your captures and guides are all still here - renew to add new ones.', frozen: true });
+  return false;
+}
+
 function resolveAccountUid(userId) {
   const teams = initTeamsIfPossible();
   if (!teams || typeof teams.accountUid !== 'function') return String(userId);
@@ -1347,7 +1391,7 @@ function _slidingLimited(map, key, max, windowMs, peek) {
 const LOGIN_MAX_PER_EMAIL = 8;
 const LOGIN_MAX_PER_IP = 30;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
-const SIGNUP_MAX_PER_IP = 5;
+const SIGNUP_MAX_PER_IP = Number(config.signupMaxPerHour) > 0 ? Number(config.signupMaxPerHour) : 5;
 const SIGNUP_WINDOW_MS = 60 * 60 * 1000;
 const _loginByEmail = new Map();
 const _loginByIp = new Map();
@@ -3385,6 +3429,7 @@ async function handle(req, res) {
   if (pathname === '/api/projects' && method === 'POST') {
     const user = requireAuth(req, res);
     if (!user) { req.resume(); return; }
+    if (!allowTeamWrite(req, res, user)) return;
     return handleProjectsCreate(req, res, user);
   }
   const projectMatch = pathname.match(/^\/api\/projects\/([A-Za-z0-9_-]{1,64})$/);
@@ -3401,6 +3446,7 @@ async function handle(req, res) {
   if (pathname === '/api/captures' && method === 'POST') {
     const user = requireAuth(req, res);
     if (!user) { req.resume(); return; }
+    if (!allowTeamWrite(req, res, user)) return;
     return handleUpload(req, res, user);
   }
   if (pathname === '/api/captures' && method === 'GET') {
@@ -3481,11 +3527,13 @@ async function handle(req, res) {
   if (pathname === '/api/kb/docs' && method === 'POST') {
     const user = requireAuth(req, res);
     if (!user) { req.resume(); return; }
+    if (!allowTeamWrite(req, res, user)) return;
     return handleKbAdd(req, res, user);
   }
   if (pathname === '/api/kb/link' && method === 'POST') {
     const user = requireAuth(req, res);
     if (!user) { req.resume(); return; }
+    if (!allowTeamWrite(req, res, user)) return;
     return handleKbAddLink(req, res, user);
   }
   if (pathname === '/api/kb/docs' && method === 'GET') {
