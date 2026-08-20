@@ -890,5 +890,15 @@
   "enter a valid email address": "saisissez une adresse e-mail valide",
   "password must be at least 8 characters": "le mot de passe doit comporter au moins 8 caractères",
   "enter your password": "saisissez votre mot de passe",
-  "google sign-in returned no credential": "la connexion Google n'a renvoyé aucune identification"
+  "google sign-in returned no credential": "la connexion Google n'a renvoyé aucune identification",
+  "How this works": "Comment ça marche",
+  "Payment is handled by Stripe on their own checkout page — your card details never reach hiccup. Your account switches to the paid plan as soon as Stripe confirms the payment, usually instantly.": "Le paiement est traité par Stripe sur sa propre page de paiement — les données de votre carte n'atteignent jamais hiccup. Votre compte passe à la formule payante dès que Stripe confirme le paiement, généralement instantanément.",
+  "Cancel any time from the billing portal link Stripe emails you with your receipt.": "Résiliez à tout moment via le lien vers le portail de facturation que Stripe vous envoie avec votre reçu.",
+  "Payment received. Your account will switch over in a moment — reload this page shortly.": "Paiement reçu. Votre compte va basculer dans un instant — rechargez cette page sous peu.",
+  "Opening checkout…": "Ouverture du paiement…",
+  "Could not start checkout.": "Impossible de démarrer le paiement.",
+  "Checkout cancelled — nothing has been charged.": "Paiement annulé — rien n'a été débité.",
+  "Card payment is not set up on this server yet.": "Le paiement par carte n'est pas encore configuré sur ce serveur.",
+  "Choose a monthly or annual plan.": "Choisissez une formule mensuelle ou annuelle.",
+  "You are already on the paid plan.": "Vous êtes déjà sur la formule payante."
 }

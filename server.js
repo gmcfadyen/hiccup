@@ -12,6 +12,7 @@ const path = require('path');
 const store = require('./lib/store');
 const auth = require('./lib/auth');
 const adminlist = require('./lib/adminlist');
+const stripe = require('./lib/stripe');
 const llm = require('./lib/llm');
 
 // lib/analyze.js is the integrator's module. Require it gracefully so a partial
@@ -87,6 +88,14 @@ const CONFIG_DEFAULTS = {
   // the questions a log is for -- is traffic growing, is this one crawler or
   // many people -- without keeping something that identifies a person.
   accessLogIp: 'anonymised',
+  // Stripe. All four must be set for checkout to switch on; with any missing,
+  // /subscribe keeps showing the manual Buy Me a Coffee flow instead of a
+  // half-working payment button. Keys live here (data/ is gitignored) and
+  // never in the repo.
+  stripeSecretKey: '',
+  stripeWebhookSecret: '',
+  stripePriceMonthly: '',
+  stripePriceAnnual: '',
   // Wave 6: where the weekly feedback digest goes. Empty disables the digest
   // entirely (the feedback itself is still collected and readable at
   // /admin/feedback — only the email is skipped).
@@ -130,6 +139,7 @@ function loadConfig() {
 const config = loadConfig();
 auth.initAuth(DATA_DIR, config);
 llm.initLlm(config);
+stripe.initStripe(config);
 
 // lib/kb.js keeps the config-guide library under <dataDir>/kb; initialise it at
 // boot when the module is present. A missing kb module is not fatal.
@@ -2241,6 +2251,158 @@ function handleInviteInfo(req, res, token) {
  * accepted, exactly so an invite can never be redirected to a different
  * account by a client claiming a different email.
  */
+/**
+ * POST /api/billing/checkout {plan:'monthly'|'annual'}
+ *
+ * Creates a hosted Stripe Checkout session and returns its URL for the browser
+ * to redirect to. The client sends only a plan NAME -- the price id it maps to
+ * is server-side config, because a client that can name its own price can name
+ * its own price.
+ */
+async function handleBillingCheckout(req, res, user) {
+  let body;
+  try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
+  if (!stripe.isConfigured()) {
+    sendJson(res, 501, { error: 'Card payment is not set up on this server yet.' });
+    return;
+  }
+  const plan = (body && body.plan === 'annual') ? 'annual'
+    : ((body && body.plan === 'monthly') ? 'monthly' : null);
+  if (!plan) { sendJson(res, 400, { error: 'Choose a monthly or annual plan.' }); return; }
+
+  // Already paid: sending them to checkout would take a second subscription
+  // for something they already have.
+  if (user.plan === 'paid') {
+    sendJson(res, 409, { error: 'You are already on the paid plan.' });
+    return;
+  }
+
+  let out;
+  try {
+    out = await stripe.createCheckoutSession({
+      userId: user.id,
+      email: user.email,
+      plan: plan,
+      baseUrl: config.baseUrl,
+    });
+  } catch (e) {
+    console.error('hiccup: stripe checkout failed: ' + ((e && e.message) || e));
+    sendJson(res, 502, { error: (e && e.userMessage) || 'Could not start checkout.' });
+    return;
+  }
+  console.log('hiccup: checkout session ' + out.id + ' for ' + user.email + ' (' + plan + ')');
+  sendJson(res, 200, { url: out.url });
+}
+
+/** Events already applied, so Stripe retries cannot double-apply them. */
+const _stripeSeen = new Map();   // event id -> epoch ms
+function _stripeAlreadyHandled(id) {
+  const now = Date.now();
+  for (const [k, t] of _stripeSeen) if (now - t > 24 * 3600 * 1000) _stripeSeen.delete(k);
+  if (_stripeSeen.has(id)) return true;
+  _stripeSeen.set(id, now);
+  return false;
+}
+
+
+/**
+ * POST /api/stripe/webhook -- Stripe -> hiccup.
+ *
+ * Deliberately NOT behind requireAuth: the caller is Stripe, not a signed-in
+ * person. The signature IS the authentication, which is why it is verified
+ * against the RAW bytes before the body is trusted for anything at all.
+ *
+ * Always answers 2xx once the signature is good, even if hiccup then fails to
+ * act on the event: a non-2xx makes Stripe retry, and a retry will not fix a
+ * bug on this side. Failures are logged loudly instead.
+ */
+async function handleStripeWebhook(req, res) {
+  let rawBody;
+  try { rawBody = await readRawBody(req, JSON_BODY_LIMIT); } catch (e) { return sendBodyError(res, e); }
+
+  let event;
+  try {
+    event = stripe.verifyWebhook(rawBody, req.headers['stripe-signature'] || '');
+  } catch (e) {
+    console.error('hiccup: REJECTED stripe webhook: ' + ((e && e.message) || e));
+    sendJson(res, 400, { error: 'signature verification failed' });
+    return;
+  }
+
+  if (_stripeAlreadyHandled(event.id)) {
+    console.log('hiccup: stripe event ' + event.id + ' already handled, ignoring retry');
+    sendJson(res, 200, { received: true, duplicate: true });
+    return;
+  }
+
+  try {
+    await applyStripeEvent(event);
+  } catch (e) {
+    console.error('hiccup: stripe event ' + event.id + ' (' + event.type + ') failed: ' +
+      ((e && e.message) || e));
+  }
+  sendJson(res, 200, { received: true });
+}
+
+
+/**
+ * Apply one verified Stripe event.
+ *
+ * Upgrades resolve the account by client_reference_id -- hiccup's own user id,
+ * set when the session was created. NOT by email: an email can be edited on
+ * Stripe's side mid-flow, and matching on it would land a payment on the wrong
+ * account.
+ *
+ * Downgrades resolve by the stored Stripe customer id, since a cancellation
+ * carries no client_reference_id.
+ * @param {object} event
+ */
+async function applyStripeEvent(event) {
+  const obj = (event && event.data && event.data.object) || {};
+
+  if (event.type === 'checkout.session.completed') {
+    // payment_status matters: a session can complete while payment is still
+    // pending, and granting on that would hand out the plan for free.
+    if (obj.payment_status && obj.payment_status !== 'paid' &&
+        obj.payment_status !== 'no_payment_required') {
+      console.log('hiccup: checkout ' + obj.id + ' completed but payment_status=' +
+        obj.payment_status + ' - not upgrading');
+      return;
+    }
+    const userId = obj.client_reference_id ||
+      (obj.metadata && obj.metadata.hiccup_user_id) || null;
+    if (!userId) { console.error('hiccup: checkout ' + obj.id + ' has no client_reference_id'); return; }
+    const u = auth.findUserById(userId);
+    if (!u) { console.error('hiccup: checkout ' + obj.id + ' references unknown user ' + userId); return; }
+    auth.setUserBilling(userId, { customerId: obj.customer, subscriptionId: obj.subscription || null });
+    auth.setUserPlan(userId, 'paid');
+    console.log('hiccup: PAID ' + u.email + ' via checkout ' + obj.id);
+    return;
+  }
+
+  if (event.type === 'customer.subscription.deleted' ||
+      (event.type === 'customer.subscription.updated' &&
+       (obj.status === 'canceled' || obj.status === 'unpaid'))) {
+    const userId = (obj.metadata && obj.metadata.hiccup_user_id) || null;
+    const u = userId ? auth.findUserById(userId) : auth.findUserByStripeCustomer(obj.customer);
+    if (!u) { console.error('hiccup: subscription ' + obj.id + ' matches no account'); return; }
+    // Ignore a stale event about a subscription this account has replaced,
+    // which would otherwise downgrade someone who just resubscribed.
+    const current = auth.getUserSubscriptionId(u.id);
+    if (current && obj.id && current !== obj.id) {
+      console.log('hiccup: ignoring stale subscription event ' + obj.id + ' for ' + u.email);
+      return;
+    }
+    auth.setUserPlan(u.id, 'free');
+    auth.setUserBilling(u.id, { subscriptionId: null });
+    console.log('hiccup: DOWNGRADED ' + u.email + ' (' + event.type + ', status=' + obj.status + ')');
+    return;
+  }
+
+  console.log('hiccup: stripe event ' + event.type + ' ignored (nothing to do)');
+}
+
+
 async function handleTeamAccept(req, res) {
   let body;
   try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
@@ -3038,6 +3200,10 @@ async function handle(req, res) {
       // someone deciding whether to upload a trace needs to know up front.
       captureRetentionDays: Number(config.captureRetentionDays) || 0,
       maskNumbersByDefault: config.maskNumbersByDefault !== false,
+      // Whether card checkout is wired up, so /subscribe can show real buttons
+      // instead of the manual Buy Me a Coffee flow. A boolean only -- no key,
+      // no price id, nothing the browser has any business knowing.
+      cardPayments: stripe.isConfigured(),
     });
     return;
   }
@@ -3077,6 +3243,17 @@ async function handle(req, res) {
 
   // --- team (Wave 3) --- two routes are public (accepting an invite happens
   // before the invitee necessarily has a session); the rest require auth.
+  // --- billing (Stripe) ---
+  if (pathname === '/api/billing/checkout' && method === 'POST') {
+    const user = requireAuth(req, res);
+    if (!user) { req.resume(); return; }
+    return handleBillingCheckout(req, res, user);
+  }
+  // No requireAuth: the caller is Stripe. The signature is the authentication.
+  if (pathname === '/api/stripe/webhook' && method === 'POST') {
+    return handleStripeWebhook(req, res);
+  }
+
   if (pathname === '/api/team/accept' && method === 'POST') {
     return handleTeamAccept(req, res);
   }

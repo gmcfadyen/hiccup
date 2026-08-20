@@ -890,5 +890,15 @@
   "enter a valid email address": "Geben Sie eine gültige E-Mail-Adresse ein",
   "password must be at least 8 characters": "Das Passwort muss mindestens 8 Zeichen lang sein",
   "enter your password": "Geben Sie Ihr Passwort ein",
-  "google sign-in returned no credential": "Die Google-Anmeldung hat keine Anmeldedaten zurückgegeben"
+  "google sign-in returned no credential": "Die Google-Anmeldung hat keine Anmeldedaten zurückgegeben",
+  "How this works": "So funktioniert es",
+  "Payment is handled by Stripe on their own checkout page — your card details never reach hiccup. Your account switches to the paid plan as soon as Stripe confirms the payment, usually instantly.": "Die Zahlung wickelt Stripe auf einer eigenen Checkout-Seite ab — Ihre Kartendaten erreichen hiccup nie. Ihr Konto wechselt auf den bezahlten Plan, sobald Stripe die Zahlung bestätigt, in der Regel sofort.",
+  "Cancel any time from the billing portal link Stripe emails you with your receipt.": "Jederzeit kündbar über den Link zum Rechnungsportal, den Stripe Ihnen mit dem Beleg per E-Mail schickt.",
+  "Payment received. Your account will switch over in a moment — reload this page shortly.": "Zahlung eingegangen. Ihr Konto wird gleich umgestellt — laden Sie diese Seite in Kürze neu.",
+  "Opening checkout…": "Checkout wird geöffnet…",
+  "Could not start checkout.": "Checkout konnte nicht gestartet werden.",
+  "Checkout cancelled — nothing has been charged.": "Checkout abgebrochen — es wurde nichts abgebucht.",
+  "Card payment is not set up on this server yet.": "Kartenzahlung ist auf diesem Server noch nicht eingerichtet.",
+  "Choose a monthly or annual plan.": "Wählen Sie einen monatlichen oder jährlichen Plan.",
+  "You are already on the paid plan.": "Sie haben bereits den bezahlten Plan."
 }

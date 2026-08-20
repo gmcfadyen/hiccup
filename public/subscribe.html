@@ -67,6 +67,12 @@
   .sub-includes h2 { font-size: 16px; margin-bottom: 10px; }
   .sub-includes ul { margin: 0; padding-left: 22px; }
   .sub-includes li { margin: 0 0 6px; line-height: 1.55; }
+
+  /* subscribe.js sets data-pay="card" once /api/config/public says Stripe is
+     configured. Doing the swap in CSS keeps both blocks in the served HTML,
+     so the page still says something useful if the script never runs. */
+  body[data-pay="card"] #sub-manual { display: none; }
+  body[data-pay="card"] #sub-card-note { display: block !important; }
 </style>
 </head>
 <body>
@@ -107,7 +113,9 @@
     </section>
   </div>
 
-  <section class="card sub-steps">
+  <p id="sub-error" class="form-error" role="alert"></p>
+
+  <section class="card sub-steps" id="sub-manual">
     <h2 data-i18n>How this works, for now</h2>
     <p data-i18n class="sub-note">hiccup is a solo-built, self-hosted tool — there is no
       payment processor wired into the app yet, so upgrading is a short manual step rather
@@ -121,6 +129,15 @@
       <li data-i18n>Your account is upgraded by hand, usually within a day. No need to wait
         around — you will be able to create or join a team as soon as it is done.</li>
     </ol>
+  </section>
+
+  <section class="card sub-steps" id="sub-card-note" hidden>
+    <h2 data-i18n>How this works</h2>
+    <p data-i18n class="sub-note">Payment is handled by Stripe on their own
+      checkout page — your card details never reach hiccup. Your account switches
+      to the paid plan as soon as Stripe confirms the payment, usually instantly.</p>
+    <p data-i18n class="sub-note">Cancel any time from the billing portal link
+      Stripe emails you with your receipt.</p>
   </section>
 
   <section class="card sub-includes">

@@ -29,11 +29,19 @@ const http = require('http');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const crypto = require('crypto');
 
 const ROOT = path.join(__dirname, '..');
 const PORT = 8400 + 90 + Math.floor(process.pid % 50);   // avoid a fixed-port clash
 const HOST = '127.0.0.1';
 const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'hiccup-http-'));
+
+// Seed ONLY the webhook secret. isConfigured() needs all four Stripe values,
+// so checkout stays switched off (and never calls out to Stripe) while the
+// webhook path -- the one that can hand out paid plans -- is fully exercised.
+const WEBHOOK_SECRET = 'whsec_http_harness';
+fs.writeFileSync(path.join(DATA_DIR, 'config.json'),
+  JSON.stringify({ stripeWebhookSecret: WEBHOOK_SECRET }, null, 2));
 
 const results = [];
 let child = null;
@@ -272,6 +280,85 @@ async function main() {
     ok(line.indexOf('203.0.113.0') !== -1, 'IP was not truncated to /24: ' + line);
     ok(line.indexOf('203.0.113.47') === -1, 'FULL IP leaked into the log: ' + line);
     ok(/^\d{4}-\d{2}-\d{2}T/.test(line), 'log line has no leading timestamp: ' + line);
+  });
+
+
+  // ----------------------------------------------------------- billing
+  // The webhook is the one unauthenticated route that can grant a paid plan.
+  // Its signature IS its authentication, so these are attacks, not niceties.
+  await t('stripe webhook rejects an unsigned or badly signed POST', async () => {
+    const anon = makeClient();
+    const body = { id: 'evt_bad', type: 'checkout.session.completed' };
+    const r1 = await anon('POST', '/api/stripe/webhook', body);
+    eq(r1.status, 400, 'an unsigned webhook must be refused');
+    const r2 = await anon('POST', '/api/stripe/webhook', body, { 'Stripe-Signature': 't=1,v1=deadbeef' });
+    eq(r2.status, 400, 'a bogus signature must be refused');
+    // 400 and not 401 matters: a 401 would mean it had been put behind
+    // requireAuth, which would break every real delivery from Stripe.
+    ok(r2.status !== 401, 'the webhook must not sit behind requireAuth');
+  });
+
+  await t('a correctly signed webhook upgrades the account end to end', async () => {
+    const meRes = await client('GET', '/api/me');
+    eq(meRes.status, 200, 'need a signed-in user for this test');
+    const userId = meRes.json.user.id;
+    eq(meRes.json.user.plan, 'free', 'user should start on the free plan');
+
+    const event = {
+      id: 'evt_http_' + Date.now(),
+      type: 'checkout.session.completed',
+      data: { object: {
+        id: 'cs_test_1',
+        payment_status: 'paid',
+        client_reference_id: userId,
+        customer: 'cus_test_1',
+        subscription: 'sub_test_1',
+      } },
+    };
+    const raw = Buffer.from(JSON.stringify(event));
+    const ts = Math.floor(Date.now() / 1000);
+    const sig = crypto.createHmac('sha256', WEBHOOK_SECRET)
+      .update(ts + '.' + raw.toString('utf8'), 'utf8').digest('hex');
+
+    const r = await client('POST', '/api/stripe/webhook', event,
+      { 'Stripe-Signature': 't=' + ts + ',v1=' + sig });
+    eq(r.status, 200, 'a valid webhook should be accepted');
+
+    const after = await client('GET', '/api/me');
+    eq(after.json.user.plan, 'paid', 'the webhook did not upgrade the account');
+
+    // Stripe retries on any non-2xx, so the same event id must be a no-op.
+    const again = await client('POST', '/api/stripe/webhook', event,
+      { 'Stripe-Signature': 't=' + ts + ',v1=' + sig });
+    eq(again.status, 200, 'a retried webhook should still be 200');
+    ok(again.json && again.json.duplicate === true, 'a retried event was not detected as a duplicate');
+  });
+
+  await t('an unpaid checkout session does NOT grant the plan', async () => {
+    const anon = makeClient();
+    await anon('POST', '/api/auth/signup', { email: 'unpaid-' + process.pid + '@example.test', password: 'correct-horse-8' });
+    const who = await anon('GET', '/api/me');
+    const event = {
+      id: 'evt_unpaid_' + Date.now(),
+      type: 'checkout.session.completed',
+      data: { object: { id: 'cs_2', payment_status: 'unpaid', client_reference_id: who.json.user.id } },
+    };
+    const raw = Buffer.from(JSON.stringify(event));
+    const ts = Math.floor(Date.now() / 1000);
+    const sig = crypto.createHmac('sha256', WEBHOOK_SECRET)
+      .update(ts + '.' + raw.toString('utf8'), 'utf8').digest('hex');
+    const r = await anon('POST', '/api/stripe/webhook', event, { 'Stripe-Signature': 't=' + ts + ',v1=' + sig });
+    eq(r.status, 200, 'webhook should still be accepted');
+    const after = await anon('GET', '/api/me');
+    eq(after.json.user.plan, 'free', 'an UNPAID session granted the paid plan');
+  });
+
+  await t('checkout is refused while Stripe is not fully configured', async () => {
+    const r = await client('POST', '/api/billing/checkout', { plan: 'monthly' });
+    eq(r.status, 501, 'checkout should report not-configured');
+    const anon = makeClient();
+    const a = await anon('POST', '/api/billing/checkout', { plan: 'monthly' });
+    eq(a.status, 401, 'checkout must require sign-in');
   });
 
   // ------------------------------------------------------------------ teams

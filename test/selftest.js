@@ -504,6 +504,74 @@ async function main() {
     eq(hits[0].page, 1, 'kb: page number carried through to the search hit');
   });
 
+
+  // ------------------------------------------------------------------ stripe
+  // Webhook signature verification is the ONLY thing standing between a POST
+  // from anywhere on the internet and "mark this account paid". Every one of
+  // these is an attack that must fail, not a nicety.
+  await t('stripe: webhook signature verification accepts and rejects correctly', () => {
+    const r = tryRequire(path.join('lib', 'stripe.js'));
+    if (r.err) throw new Error(r.err);
+    const stripeMod = r.mod;
+    const SECRET = 'whsec_selftest_secret';
+    stripeMod.initStripe({ stripeWebhookSecret: SECRET });
+
+    const body = Buffer.from(JSON.stringify({ id: 'evt_1', type: 'checkout.session.completed' }));
+    const now = () => Math.floor(Date.now() / 1000);
+    const sign = (ts, b, secret) => require('crypto')
+      .createHmac('sha256', secret || SECRET)
+      .update(ts + '.' + b.toString('utf8'), 'utf8').digest('hex');
+    const accepts = (b, h) => { try { stripeMod.verifyWebhook(b, h); return true; } catch { return false; } };
+
+    const ts = now();
+    ok(accepts(body, 't=' + ts + ',v1=' + sign(ts, body)), 'a valid signature was rejected');
+
+    const tampered = Buffer.from(JSON.stringify({ id: 'evt_1', type: 'checkout.session.completed', evil: 1 }));
+    ok(!accepts(tampered, 't=' + ts + ',v1=' + sign(ts, body)), 'a TAMPERED body was accepted');
+    ok(!accepts(body, 't=' + ts + ',v1=' + sign(ts, body, 'whsec_attacker')), 'a signature from the WRONG secret was accepted');
+
+    const old = now() - 600;
+    ok(!accepts(body, 't=' + old + ',v1=' + sign(old, body)), 'a REPLAY outside the tolerance was accepted');
+    ok(!accepts(body, 't=' + ts + ',v1=' + sign(old, body)), 'a fresh timestamp with an old signature was accepted');
+
+    // Stripe sends a fake v0 on test events; honouring any non-v1 scheme is a
+    // downgrade attack.
+    ok(!accepts(body, 't=' + ts + ',v0=' + sign(ts, body)), 'a v0-only (downgrade) signature was accepted');
+
+    ok(!accepts(body, 'garbage'), 'a malformed Stripe-Signature was accepted');
+    ok(!accepts(body, ''), 'an empty Stripe-Signature was accepted');
+    // timingSafeEqual throws on a length mismatch; a short signature must be a
+    // clean rejection, not a 500.
+    ok(!accepts(body, 't=' + ts + ',v1=abc'), 'a truncated signature was accepted');
+    ok(!accepts(body.toString('utf8'), 't=' + ts + ',v1=' + sign(ts, body)), 'a non-Buffer body was accepted');
+
+    // Several v1 values is how Stripe presents a rotating secret.
+    ok(accepts(body, 't=' + ts + ',v1=' + sign(ts, body, 'whsec_other') + ',v1=' + sign(ts, body)),
+      'a valid signature alongside a stale one was rejected');
+  });
+
+  await t('stripe: stays disabled until every key is configured', () => {
+    const r = tryRequire(path.join('lib', 'stripe.js'));
+    if (r.err) throw new Error(r.err);
+    const m = r.mod;
+    m.initStripe({});
+    eq(m.isConfigured(), false, 'isConfigured with no config');
+    m.initStripe({ stripeSecretKey: 'sk_test_x', stripeWebhookSecret: 'whsec_x', stripePriceMonthly: 'price_m' });
+    eq(m.isConfigured(), false, 'isConfigured with the annual price missing');
+    m.initStripe({ stripeSecretKey: 'sk_test_x', stripeWebhookSecret: 'whsec_x',
+      stripePriceMonthly: 'price_m', stripePriceAnnual: 'price_a' });
+    eq(m.isConfigured(), true, 'isConfigured with all four set');
+    eq(m.isLiveMode(), false, 'a sk_test_ key must not read as live');
+    m.initStripe({ stripeSecretKey: 'sk_live_x', stripeWebhookSecret: 'whsec_x',
+      stripePriceMonthly: 'price_m', stripePriceAnnual: 'price_a' });
+    eq(m.isLiveMode(), true, 'a sk_live_ key must read as live');
+    // The client names a plan, never a price.
+    eq(m.priceIdFor('monthly'), 'price_m', 'priceIdFor(monthly)');
+    eq(m.priceIdFor('annual'), 'price_a', 'priceIdFor(annual)');
+    eq(m.priceIdFor('price_evil'), null, 'priceIdFor must not echo an arbitrary string');
+    eq(m.priceIdFor(''), null, 'priceIdFor("")');
+  });
+
   // --------------------------------------------------------------------- llm
   await t('llm: degrades cleanly with Ollama down', async () => {
     const r = tryRequire(path.join('lib', 'llm.js'));
