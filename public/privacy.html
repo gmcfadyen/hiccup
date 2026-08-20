@@ -6,12 +6,8 @@
 <title>Privacy — hiccup</title>
 <meta name="description" content="How hiccup handles personal data: what is stored, why, for how long, and how to get it out or have it erased.">
 <link rel="canonical" href="https://hiccup.monster/privacy">
-<script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
-<!-- Language, resolved before any markup is parsed — same FOUC-safe shape as the
-     theme line above, and for a stronger reason: _t() and its catalogue must both
-     exist before app.js's first render. document.write gives a blocking load with
-     no fetch race and no build step. -->
-<script>(function(){try{var L=localStorage.getItem('hiccup-lang');if(!/^(en|fr|es|de)$/.test(L||''))L=String(navigator.language||'en').slice(0,2).toLowerCase();if(!/^(en|fr|es|de)$/.test(L))L='en';document.documentElement.lang=L;if(L!=='en')document.write('<script src="/i18n/'+L+'.js"><\/script>');}catch(e){}})();</script>
+<script src="/boot-theme.js"></script>
+<script src="/boot-lang.js"></script>
 <script src="/i18n.js"></script>
 <link rel="icon" href="/brand/favicon.ico" sizes="32x32">
 <link rel="stylesheet" href="/hiccup.css">

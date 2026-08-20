@@ -2609,3 +2609,98 @@ a free account cannot create a team, and the rate limiter trips with an
 identical message for a real and an unknown address.
 
 `npm test` now runs both suites. **112 selftest + 10 HTTP.**
+
+# Wave 18 — the three deferred items, closed
+
+Wave 17 shipped with three things explicitly parked. This closes all of them.
+
+## 1. `topVia()` no longer hardcodes SIP/2.0
+
+Wave 17 relaxed `REQ_LINE`/`STATUS_LINE` to accept any `SIP/<d>.<d>`, but left
+`topVia()`'s Via matcher on a literal `2\.0`. The effect was a message that had
+become *recognisable* but not *readable*: a `SIP/7.0` INVITE parsed, then its
+Via silently failed to match, so `src`/`dst` fell back to `unknown-a` /
+`unknown-b` and transport defaulted to `udp`. Reaching more messages had made
+that fallback reachable more often, so it was made worse by the previous fix.
+
+Now `/SIP\s*\/\s*\d{1,3}\.\d{1,3}\s*\/\s*([A-Za-z]+)\s+([^\s;,]+)/`. Verified:
+a `SIP/7.0` message with `Via: SIP/7.0/TCP 10.1.1.1:5060` resolves
+`src 10.1.1.1, transport tcp` where it previously gave `unknown-a, udp`;
+`SIP/2.0` is byte-for-byte unchanged.
+
+## 2. scrypt runs on the threadpool, not the event loop
+
+`scryptSync` at N=16384 costs ~20ms, and this is a single-threaded server, so
+**every password hash froze every other in-flight request** — uploads, analysis,
+everything — for that whole time. A burst of sign-ins was a self-inflicted
+denial of service on real users, which is what made Wave 17's missing rate limit
+worth more than it looked.
+
+`crypto.scrypt` via `promisify` moves the work to libuv's threadpool. Measured,
+8 hashes:
+
+| | wall | event loop available |
+|---|---|---|
+| `scryptSync` (old) | 158 ms | **10%** |
+| `scrypt` (new) | 45 ms | **78%** |
+
+Faster *and* non-blocking: the threadpool runs four at once instead of
+serialising them. Raise `UV_THREADPOOL_SIZE` if sign-in concurrency ever
+becomes the limit.
+
+The cascade this was deferred for is real but small: `_hashPassword` /
+`_checkPassword` → `createUser` / `verifyPassword` → `acceptInvite` → its
+callers. `server.js` already `await`ed the auth calls, so only
+`teams.acceptInvite` and the test suite needed touching.
+
+One wrinkle worth recording: `initAuth` builds the timing-safe dummy hash, and
+`initAuth` is synchronous and called at module scope by `server.js`, so it
+cannot `await`. The dummy is now built lazily and **the promise is memoised,
+not the value**, so concurrent first-time callers share one computation rather
+than each starting their own.
+
+## 3. A real CSP — `script-src 'self'`, no `'unsafe-inline'`
+
+The blocker was never the header, it was the 32 executable inline `<script>`
+blocks across 17 pages. A CSP that keeps `'unsafe-inline'` does not stop the
+injected-script class it exists to stop, so shipping one would have been
+decoration.
+
+All 32 were lifted into real files. They turned out to be only six distinct
+scripts: two bootstraps repeated across nearly every page (`boot-theme.js` in
+17, `boot-lang.js` in 11) plus four page-specific blocks (`index-auth.js`,
+`app-boot.js`, `admin-status.js`, `admin-feedback.js`). Two properties made
+`'self'` reachable at all, both checked before committing to it: **zero inline
+event handlers** and **no `javascript:` URLs** anywhere in `public/`.
+
+Both bootstraps must stay plain parser-blocking `<script src>` in `<head>` —
+`async`/`defer` would let the page paint first, which is the flash they exist
+to prevent, and would break `boot-lang.js`'s `document.write`.
+
+`style-src` **does** keep `'unsafe-inline'`, deliberately: nine pages carry
+`<style>` blocks, CSS injection is far weaker than script injection, and
+hashing would not even cover the one `style=` attribute without also adding
+`'unsafe-hashes'`. `ld+json` is untouched by `script-src` in current browsers —
+verified, the structured data still parses.
+
+Proven rather than assumed, in a browser: every page's own script still runs
+under the policy (`_t` is a function, `admin-status.js` still performs its
+401 redirect), and a **negative control** — injecting `<script>` with inline
+text — returns `pwned: false` with `script-src-elem blocked inline`.
+
+Two regression tests guard it: one asserts `script-src` carries neither
+`'unsafe-inline'` nor `'unsafe-eval'`, the other walks six pages and fails on
+any executable inline block. Re-adding one inline script plus the escape hatch
+to make it work would otherwise silently undo the whole exercise.
+
+### Side effect: the signup funnel is finally translatable
+
+Lifting `index.html`'s block into `index-auth.js` made it visible to
+`lib/i18n.js`'s scanner, which only reads `.js`. Its six error strings —
+`enter a valid email address`, `password must be at least 8 characters` and the
+rest — were hardcoded English on the one public, unauthenticated page that
+matters for conversion. They now go through `_t()` and ship in fr/es/de, with
+an identity fallback so a missing catalogue degrades that page to English
+rather than breaking sign-in.
+
+**112 selftest + 13 HTTP.**

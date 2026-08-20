@@ -172,6 +172,37 @@ async function main() {
       'HSTS missing when X-Forwarded-Proto is https — production loses it');
   });
 
+  // The CSP is only worth having if script-src has no escape hatch. Reaching
+  // that meant lifting 32 inline blocks out of 17 HTML files, so this asserts
+  // the payoff is still there -- re-adding one inline <script> plus an
+  // 'unsafe-inline' to make it work would silently undo the whole exercise.
+  await t("CSP forbids inline script and keeps no 'unsafe-inline' escape hatch", async () => {
+    const r = await client('GET', '/');
+    const csp = r.headers['content-security-policy'];
+    ok(csp, 'no Content-Security-Policy header');
+    const script = (csp.split(';').map((d) => d.trim()).find((d) => d.startsWith('script-src')) || '');
+    ok(script, 'CSP has no script-src directive');
+    ok(!script.includes("'unsafe-inline'"), "script-src allows 'unsafe-inline': " + script);
+    ok(!script.includes("'unsafe-eval'"), "script-src allows 'unsafe-eval': " + script);
+    for (const d of ['object-src', 'base-uri', 'frame-ancestors']) {
+      ok(csp.includes(d), 'CSP is missing ' + d);
+    }
+  });
+
+  // Every executable inline block was moved to a file; a new one would be
+  // refused at runtime by the policy above, so catch it here instead.
+  await t('no page ships an executable inline <script>', async () => {
+    for (const p of ['/', '/subscribe', '/team', '/app', '/settings', '/admin/status']) {
+      const r = await client('GET', p);
+      const blocks = r.text.match(new RegExp("<script\\b[^>]*>[^]*?</script>", "gi")) || [];
+      for (const b of blocks) {
+        const open = b.slice(0, b.indexOf('>'));
+        if (open.indexOf("src=") !== -1) continue;                   // external, fine
+        if (open.indexOf("ld+json") !== -1) continue;              // data, not executed
+        ok(false, p + ' still has an executable inline <script>: ' + open);
+      }
+    }
+  });
   // ------------------------------------------------------------------- auth
   const me = { email: 'harness-' + process.pid + '@example.test', password: 'correct-horse-8' };
 

@@ -5,12 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title data-i18n>hiccup — feedback</title>
 <meta name="robots" content="noindex">
-<script>(function(){try{var t=localStorage.getItem('hiccup-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
-<!-- Language, resolved before any markup is parsed — same FOUC-safe shape as the
-     theme line above, and for a stronger reason: _t() and its catalogue must both
-     exist before app.js's first render. document.write gives a blocking load with
-     no fetch race and no build step. -->
-<script>(function(){try{var L=localStorage.getItem('hiccup-lang');if(!/^(en|fr|es|de)$/.test(L||''))L=String(navigator.language||'en').slice(0,2).toLowerCase();if(!/^(en|fr|es|de)$/.test(L))L='en';document.documentElement.lang=L;if(L!=='en')document.write('<script src="/i18n/'+L+'.js"><\/script>');}catch(e){}})();</script>
+<script src="/boot-theme.js"></script>
+<script src="/boot-lang.js"></script>
 <script src="/i18n.js"></script>
 <link rel="icon" href="/brand/favicon.ico" sizes="32x32">
 <link rel="stylesheet" href="/hiccup.css">
@@ -70,129 +66,7 @@
   <div id="fb-list"></div>
 </main>
 
-<script>
-(function () {
-  'use strict';
-
-  var state = { items: [], unreadOnly: false };
-
-  function $(id) { return document.getElementById(id); }
-  function el(tag, cls, text) {
-    var n = document.createElement(tag);
-    if (cls) n.className = cls;
-    if (text != null) n.textContent = text;
-    return n;
-  }
-  function say(text, isErr) {
-    var m = $('fb-msg');
-    m.textContent = text || '';
-    m.className = 'feedback-msg' + (isErr ? ' is-err' : '');
-  }
-
-  function when(ts) {
-    try { return new Date(ts).toLocaleString(); } catch (e) { return String(ts); }
-  }
-
-  function render() {
-    var host = $('fb-list');
-    host.textContent = '';
-    var items = state.unreadOnly ? state.items.filter(function (r) { return !r.read; }) : state.items;
-
-    if (!items.length) {
-      host.appendChild(el('p', 'fb-empty', state.items.length
-        ? 'Nothing unread.'
-        : 'No feedback yet. It will appear here as users send it.'));
-      return;
-    }
-
-    items.forEach(function (r) {
-      var card = el('div', 'fb-item ' + (r.read ? 'is-read' : 'is-unread'));
-
-      var head = el('div', 'fb-item-head');
-      head.appendChild(el('span', 'fb-kind', r.kind + (r.rating ? ' · ' + r.rating + '/5' : '')));
-      head.appendChild(el('span', 'fb-when', when(r.ts)));
-      head.appendChild(el('span', 'fb-who', r.email || r.userId || 'unknown'));
-      var spacer = el('span', 'topbar-spacer');
-      head.appendChild(spacer);
-      var toggle = el('button', 'btn', r.read ? 'mark unread' : 'mark read');
-      toggle.type = 'button';
-      toggle.addEventListener('click', function () { setRead(r, !r.read); });
-      head.appendChild(toggle);
-      card.appendChild(head);
-
-      card.appendChild(el('p', 'fb-comment', r.comment));
-
-      if (r.context) {
-        card.appendChild(el('pre', 'fb-context mono', JSON.stringify(r.context, null, 2)));
-      } else {
-        card.appendChild(el('p', 'fb-empty', 'no context attached'));
-      }
-      host.appendChild(card);
-    });
-  }
-
-  async function setRead(rec, read) {
-    try {
-      var r = await fetch('/api/admin/feedback/' + encodeURIComponent(rec.id) + '/read', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ read: read })
-      });
-      if (!r.ok) { say('could not update that item', true); return; }
-      rec.read = read;
-      summarise();
-      render();
-    } catch (e) { say('could not reach the server', true); }
-  }
-
-  function summarise() {
-    var unread = state.items.filter(function (r) { return !r.read; }).length;
-    $('fb-summary').textContent = state.items.length + ' total · ' + unread + ' unread' +
-      (state.mailConfigured === false ? ' · email not configured (digest disabled)' : '');
-  }
-
-  async function digest(dry) {
-    say(dry ? 'building preview…' : 'sending…');
-    try {
-      var r = await fetch('/api/admin/feedback/digest/send' + (dry ? '?dry=1' : ''), { method: 'POST' });
-      var d = await r.json();
-      if (!r.ok || d.ok === false) { say(d.error || 'digest failed', true); return; }
-      if (d.skipped) { say('nothing to send: ' + d.skipped); return; }
-      say(dry
-        ? ('preview: "' + d.subject + '" → ' + d.to + ' (' + d.count + ' items)')
-        : ('sent ' + d.count + ' items to ' + d.to));
-    } catch (e) { say('could not reach the server', true); }
-  }
-
-  async function load() {
-    try {
-      var r = await fetch('/api/admin/feedback');
-      if (r.status === 403) {
-        $('fb-summary').textContent = 'You are not a site admin.';
-        $('fb-list').appendChild(el('p', 'fb-empty',
-          'This page is only useful to the site administrator.'));
-        return;
-      }
-      if (r.status === 401) { location = '/'; return; }
-      if (!r.ok) { say('could not load feedback (' + r.status + ')', true); return; }
-      var d = await r.json();
-      state.items = Array.isArray(d.items) ? d.items : [];
-      state.mailConfigured = d.mailConfigured;
-      summarise();
-      render();
-    } catch (e) { say('could not reach the server', true); }
-  }
-
-  $('fb-unread-only').addEventListener('change', function (ev) {
-    state.unreadOnly = ev.target.checked;
-    render();
-  });
-  $('fb-digest-dry').addEventListener('click', function () { digest(true); });
-  $('fb-digest-send').addEventListener('click', function () { digest(false); });
-
-  load();
-})();
-</script>
+<script src="/admin-feedback.js"></script>
 <script src="/theme.js"></script>
 </body>
 </html>

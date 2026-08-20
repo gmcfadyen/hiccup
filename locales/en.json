@@ -205,7 +205,7 @@
     "cat": "html",
     "where": [
       "public/admin-status.html:92",
-      "public/team.js:565"
+      "public/team.js:569"
     ]
   },
   "586d6bd2eca2da93": {
@@ -2173,7 +2173,7 @@
     "cat": "html",
     "where": [
       "public/team.html:189",
-      "public/team.js:565"
+      "public/team.js:569"
     ]
   },
   "1bf586d4e16bfb89": {
@@ -2188,8 +2188,8 @@
     "cat": "html",
     "where": [
       "public/team.html:193",
-      "public/team.js:408",
-      "public/team.js:413"
+      "public/team.js:412",
+      "public/team.js:417"
     ]
   },
   "3fbbdd951b460b4f": {
@@ -2206,7 +2206,7 @@
       "public/team.html:200",
       "public/hmr.js:872",
       "public/hmr.js:881",
-      "public/team.js:469"
+      "public/team.js:473"
     ]
   },
   "3bc8830b974426c7": {
@@ -2437,6 +2437,13 @@
     "cat": "js",
     "where": [
       "public/accept-invite.js:285"
+    ]
+  },
+  "236c950e934f851f": {
+    "text": "Restart the hiccup service now? In-flight requests are dropped and the app is unreachable for a few seconds.",
+    "cat": "js",
+    "where": [
+      "public/admin-status.js:271"
     ]
   },
   "b50ee4a7a3cad2d6": {
@@ -2699,7 +2706,7 @@
     "where": [
       "public/app.js:883",
       "public/team.js:175",
-      "public/team.js:396"
+      "public/team.js:400"
     ]
   },
   "ca3a1b6fa9671d70": {
@@ -4627,9 +4634,9 @@
       "public/hmr.js:282",
       "public/hmr.js:352",
       "public/team.js:149",
-      "public/team.js:263",
-      "public/team.js:289",
-      "public/team.js:350"
+      "public/team.js:267",
+      "public/team.js:293",
+      "public/team.js:354"
     ]
   },
   "b21da1f1e0b54220": {
@@ -4975,7 +4982,7 @@
     "cat": "js",
     "where": [
       "public/hmr.js:878",
-      "public/team.js:465"
+      "public/team.js:469"
     ]
   },
   "fdac821ad17ac772": {
@@ -5033,6 +5040,49 @@
     "where": [
       "public/i18n.js:241",
       "public/i18n.js:242"
+    ]
+  },
+  "bee2564f330a90f7": {
+    "text": "request failed",
+    "cat": "js",
+    "where": [
+      "public/index-auth.js:33"
+    ]
+  },
+  "e5f03607dcb73e9e": {
+    "text": "could not reach the server",
+    "cat": "js",
+    "where": [
+      "public/index-auth.js:35"
+    ]
+  },
+  "4379b3a2776e93c0": {
+    "text": "enter a valid email address",
+    "cat": "js",
+    "where": [
+      "public/index-auth.js:46",
+      "public/index-auth.js:56"
+    ]
+  },
+  "56e342337738e25e": {
+    "text": "password must be at least 8 characters",
+    "cat": "js",
+    "where": [
+      "public/index-auth.js:47"
+    ]
+  },
+  "5b0cd0613434a81d": {
+    "text": "enter your password",
+    "cat": "js",
+    "where": [
+      "public/index-auth.js:57"
+    ]
+  },
+  "01c8e93626f6fd10": {
+    "text": "google sign-in returned no credential",
+    "cat": "js",
+    "where": [
+      "public/index-auth.js:65"
     ]
   },
   "0610ec68322bfed4": {
@@ -5190,7 +5240,7 @@
     "cat": "js",
     "where": [
       "public/kb.js:310",
-      "public/team.js:701"
+      "public/team.js:705"
     ]
   },
   "99034d67cbe5d3a3": {
@@ -5514,7 +5564,7 @@
     "where": [
       "public/settings.js:154",
       "public/subscribe.js:29",
-      "public/team.js:368"
+      "public/team.js:372"
     ]
   },
   "01da8beea2de4826": {
@@ -5641,260 +5691,260 @@
     "text": "admin",
     "cat": "js",
     "where": [
-      "public/team.js:237"
+      "public/team.js:241"
     ]
   },
   "4851fe12383b2a5e": {
     "text": "Make this person the owner of the team? You will become an admin.",
     "cat": "js",
     "where": [
-      "public/team.js:244"
+      "public/team.js:248"
     ]
   },
   "e4387bb4426f378b": {
     "text": "Could not transfer ownership.",
     "cat": "js",
     "where": [
-      "public/team.js:258"
+      "public/team.js:262"
     ]
   },
   "6b61ca78da78d5be": {
     "text": "Leave this team? You keep your account, but you lose access to the team's shared captures and guides.",
     "cat": "js",
     "where": [
-      "public/team.js:270"
+      "public/team.js:274"
     ]
   },
   "d8111d74de37b64a": {
     "text": "Could not leave the team.",
     "cat": "js",
     "where": [
-      "public/team.js:284"
+      "public/team.js:288"
     ]
   },
   "4039af07b52f2808": {
     "text": "The account that owned this team no longer exists, so nobody can manage members. You can take ownership.",
     "cat": "js",
     "where": [
-      "public/team.js:315"
+      "public/team.js:319"
     ]
   },
   "b7557d6db6e7a8ad": {
     "text": "The owner ({owner}) has not signed in for {days} days. You can take ownership so the team can be managed again.",
     "cat": "js",
     "where": [
-      "public/team.js:321"
+      "public/team.js:325"
     ]
   },
   "498865c7bd1f3959": {
     "text": "unknown",
     "cat": "js",
     "where": [
-      "public/team.js:322"
+      "public/team.js:326"
     ]
   },
   "d12d5c1fe5cedc5d": {
     "text": "Take ownership of this team? The current owner, if their account still exists, becomes an admin.",
     "cat": "js",
     "where": [
-      "public/team.js:331"
+      "public/team.js:335"
     ]
   },
   "05130ff346223741": {
     "text": "Could not take ownership of this team.",
     "cat": "js",
     "where": [
-      "public/team.js:345"
+      "public/team.js:349"
     ]
   },
   "70b2a928d2cc5f17": {
     "text": "Your team",
     "cat": "js",
     "where": [
-      "public/team.js:362"
+      "public/team.js:366"
     ]
   },
   "0518900372e0ea0c": {
     "text": ". Every member sees every capture and guide — there is",
     "cat": "js",
     "where": [
-      "public/team.js:368"
+      "public/team.js:372"
     ]
   },
   "1e94e27c870cd8ea": {
     "text": "no per-project permission.",
     "cat": "js",
     "where": [
-      "public/team.js:369"
+      "public/team.js:373"
     ]
   },
   "4647d5733475ee5f": {
     "text": "Could not create an invite (status",
     "cat": "js",
     "where": [
-      "public/team.js:415"
+      "public/team.js:419"
     ]
   },
   "1b2cf687b759bbba": {
     "text": "Pending invites",
     "cat": "js",
     "where": [
-      "public/team.js:446"
+      "public/team.js:450"
     ]
   },
   "b1b241f06bb1cf03": {
     "text": "expires",
     "cat": "js",
     "where": [
-      "public/team.js:452"
+      "public/team.js:456"
     ]
   },
   "8fa24daae78dead9": {
     "text": "Copy blocked by the browser — the link is selected, press Ctrl/Cmd+C.",
     "cat": "js",
     "where": [
-      "public/team.js:473"
+      "public/team.js:477"
     ]
   },
   "339cc6ad232433e3": {
     "text": "No members yet.",
     "cat": "js",
     "where": [
-      "public/team.js:557"
+      "public/team.js:561"
     ]
   },
   "ca7fed2bef53cb99": {
     "text": "Role",
     "cat": "js",
     "where": [
-      "public/team.js:565"
+      "public/team.js:569"
     ]
   },
   "8af61807443f32a4": {
     "text": "Actions",
     "cat": "js",
     "where": [
-      "public/team.js:565"
+      "public/team.js:569"
     ]
   },
   "a61c2eb0c12377d5": {
     "text": "(you)",
     "cat": "js",
     "where": [
-      "public/team.js:582"
+      "public/team.js:586"
     ]
   },
   "702dc3661c2fb511": {
     "text": "this member",
     "cat": "js",
     "where": [
-      "public/team.js:601"
+      "public/team.js:605"
     ]
   },
   "bcf612e1db77bcec": {
     "text": "Make admin",
     "cat": "js",
     "where": [
-      "public/team.js:605"
+      "public/team.js:609"
     ]
   },
   "0139bbfdf9b1a4a8": {
     "text": "Revoke admin",
     "cat": "js",
     "where": [
-      "public/team.js:605"
+      "public/team.js:609"
     ]
   },
   "10d2dbc4613397f0": {
     "text": "Updated",
     "cat": "js",
     "where": [
-      "public/team.js:609"
+      "public/team.js:613"
     ]
   },
   "3906cd4a102867a3": {
     "text": "Suspend",
     "cat": "js",
     "where": [
-      "public/team.js:615"
+      "public/team.js:619"
     ]
   },
   "26f91b6796e33111": {
     "text": "Restore",
     "cat": "js",
     "where": [
-      "public/team.js:615"
+      "public/team.js:619"
     ]
   },
   "155e35813a089462": {
     "text": "Suspended",
     "cat": "js",
     "where": [
-      "public/team.js:620"
+      "public/team.js:624"
     ]
   },
   "1c7b0605640d09cf": {
     "text": "Restored",
     "cat": "js",
     "where": [
-      "public/team.js:620"
+      "public/team.js:624"
     ]
   },
   "ea4f08110bb8f15d": {
     "text": "Remove",
     "cat": "js",
     "where": [
-      "public/team.js:626",
-      "public/team.js:677"
+      "public/team.js:630",
+      "public/team.js:681"
     ]
   },
   "963cace19c8b2f91": {
     "text": "Updating…",
     "cat": "js",
     "where": [
-      "public/team.js:647"
+      "public/team.js:651"
     ]
   },
   "ce26c5bf45dd2b75": {
     "text": "That action failed (status",
     "cat": "js",
     "where": [
-      "public/team.js:667"
+      "public/team.js:671"
     ]
   },
   "c9e34cb12aab0e3a": {
     "text": "Updated.",
     "cat": "js",
     "where": [
-      "public/team.js:671"
+      "public/team.js:675"
     ]
   },
   "ae99f2707eb88943": {
     "text": "from the team? They will lose access to every",
     "cat": "js",
     "where": [
-      "public/team.js:677"
+      "public/team.js:681"
     ]
   },
   "9fa8561e836cb7b3": {
     "text": "shared capture and guide.",
     "cat": "js",
     "where": [
-      "public/team.js:678"
+      "public/team.js:682"
     ]
   },
   "bfd448043b93b6d6": {
     "text": "Removing…",
     "cat": "js",
     "where": [
-      "public/team.js:681"
+      "public/team.js:685"
     ]
   },
   "e21b89185b6c5e84": {
     "text": "Remove failed (status",
     "cat": "js",
     "where": [
-      "public/team.js:697"
+      "public/team.js:701"
     ]
   },
   "6ce0fded45fae733": {

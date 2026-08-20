@@ -563,8 +563,8 @@ async function main() {
   // this suite is about team ROLE mechanics, not the paid gate itself (that
   // has its own dedicated tests below), so every user this suite creates
   // through the normal path is paid by construction.
-  function mkUser(email, name) {
-    const u = w3auth.createUser({ email, password: 'correct-horse-8', name });
+  async function mkUser(email, name) {
+    const u = await w3auth.createUser({ email, password: 'correct-horse-8', name });
     w3auth.setUserPlan(u.id, 'paid');
     return u;
   }
@@ -609,11 +609,11 @@ async function main() {
     await within(Promise.resolve(w3projects.initProjects(W3_DIR)), 10000, 'initProjects');
   });
 
-  await t('wave3: create users A, B, C', () => {
+  await t('wave3: create users A, B, C', async () => {
     ok(w3auth, 'auth unavailable');
-    uA = mkUser('w3-a@example.com', 'Alice A');
-    uB = mkUser('w3-b@example.com', 'Bob B');
-    uC = mkUser('w3-c@example.com', 'Carol C');
+    uA = await mkUser('w3-a@example.com', 'Alice A');
+    uB = await mkUser('w3-b@example.com', 'Bob B');
+    uC = await mkUser('w3-c@example.com', 'Carol C');
     ok(uA && uA.id && uB && uB.id && uC && uC.id, 'user creation did not return usable ids');
   });
 
@@ -650,7 +650,7 @@ async function main() {
     ok(got && got.user && got.user.id === uB.id, 'B\'s session did not resolve back to B');
 
     const res = await within(Promise.resolve(
-      w3teams.acceptInvite(inv.token, { sessionUserId: uB.id })
+      await w3teams.acceptInvite(inv.token, { sessionUserId: uB.id })
     ), 5000, 'acceptInvite(B, already-authenticated branch)');
     ok(res && res.userId === uB.id, 'acceptInvite did not return {userId: B.id}');
 
@@ -713,16 +713,16 @@ async function main() {
     ok(info, 'the invite token must still be valid after the earlier paid-refusal — it must not have been consumed');
 
     const res = await within(Promise.resolve(
-      w3teams.acceptInvite(brandNewInviteToken, { sessionUserId: created.id })
+      await w3teams.acceptInvite(brandNewInviteToken, { sessionUserId: created.id })
     ), 5000, 'acceptInvite branch 3 retry (now paid, same token)');
     ok(res && res.userId === created.id, 'acceptInvite (paid retry) did not return {userId}');
     eq(w3teams.accountUid(res.userId), w3teams.accountUid(uA.id), 'new user\'s accountUid after the paid retry');
     eq(w3teams.getAccountRole(res.userId), 'member', 'new user\'s role after the paid retry');
   });
 
-  await t('wave3 paid-gate: a free user cannot create a team', () => {
+  await t('wave3 paid-gate: a free user cannot create a team', async () => {
     needTeams();
-    const free = w3auth.createUser({ email: 'w3-free-create@example.com', password: 'correct-horse-8', name: 'Free' });
+    const free = await w3auth.createUser({ email: 'w3-free-create@example.com', password: 'correct-horse-8', name: 'Free' });
     eq(free.plan, 'free', 'sanity: a freshly created account must default to plan:"free"');
     let threw = null;
     try { w3teams.createTeam(free.id, 'Should Not Exist'); } catch (e) { threw = e; }
@@ -733,7 +733,7 @@ async function main() {
 
   await t('wave3 paid-gate: a free user cannot accept an invite (branch 1, already-authenticated), and the invite survives', async () => {
     needTeams();
-    const free = w3auth.createUser({ email: 'w3-free-accept@example.com', password: 'correct-horse-8', name: 'Free' });
+    const free = await w3auth.createUser({ email: 'w3-free-accept@example.com', password: 'correct-horse-8', name: 'Free' });
     const inv = w3teams.createInvite(uA.id, free.email);
 
     const e = await expectThrowsOrRejects(
@@ -747,7 +747,7 @@ async function main() {
     // Now pay, and the identical token works.
     w3auth.setUserPlan(free.id, 'paid');
     const res = await within(Promise.resolve(
-      w3teams.acceptInvite(inv.token, { sessionUserId: free.id })
+      await w3teams.acceptInvite(inv.token, { sessionUserId: free.id })
     ), 5000, 'acceptInvite branch 1 retry (now paid)');
     eq(res.userId, free.id, 'paid retry did not join the expected account');
     eq(w3teams.getAccountRole(free.id), 'member', 'role after the paid retry');
@@ -756,11 +756,11 @@ async function main() {
   await t('wave3: acceptInvite branch 2 — existing account, correct password, not pre-authenticated', async () => {
     needTeams();
     const email = 'w3-existing-ok@example.com';
-    const existing = mkUser(email, 'Existing Ok');
+    const existing = await mkUser(email, 'Existing Ok');
     const inv = w3teams.createInvite(uA.id, email);
 
     const res = await within(Promise.resolve(
-      w3teams.acceptInvite(inv.token, { password: 'correct-horse-8' })
+      await w3teams.acceptInvite(inv.token, { password: 'correct-horse-8' })
     ), 5000, 'acceptInvite branch 2 (correct password)');
     ok(res && res.userId === existing.id, 'acceptInvite (branch 2) did not resolve to the existing account');
     eq(w3teams.accountUid(existing.id), w3teams.accountUid(uA.id), 'accountUid after branch-2 join');
@@ -769,7 +769,7 @@ async function main() {
   await t('wave3: acceptInvite branch 2 — wrong password is rejected and does not join', async () => {
     needTeams();
     const email = 'w3-existing-badpw@example.com';
-    const existing = mkUser(email, 'Existing BadPw');
+    const existing = await mkUser(email, 'Existing BadPw');
     const inv = w3teams.createInvite(uA.id, email);
 
     // This is the exact attack the spec's identity-verification step exists
@@ -786,7 +786,7 @@ async function main() {
   await t('wave3: acceptInvite branch 2 — Google-only account (no password) rejects clearly', async () => {
     needTeams();
     const email = 'w3-google-only@example.com';
-    const existing = w3auth.createUser({ email, googleSub: 'fake-google-sub-w3-1', name: 'Google Only' });
+    const existing = await w3auth.createUser({ email, googleSub: 'fake-google-sub-w3-1', name: 'Google Only' });
     const inv = w3teams.createInvite(uA.id, email);
 
     const e = await expectThrowsOrRejects(
@@ -915,10 +915,10 @@ async function main() {
 
   await t('wave3: create + onboard a second admin, D', async () => {
     needTeams();
-    uD = mkUser('w3-d@example.com', 'Dana D');
+    uD = await mkUser('w3-d@example.com', 'Dana D');
     const inv = w3teams.createInvite(uA.id, uD.email);
     const res = await within(Promise.resolve(
-      w3teams.acceptInvite(inv.token, { sessionUserId: uD.id })
+      await w3teams.acceptInvite(inv.token, { sessionUserId: uD.id })
     ), 5000, 'acceptInvite(D)');
     ok(res && res.userId === uD.id, 'D failed to join the team');
     await within(Promise.resolve(w3teams.setMemberRole(uA.id, uD.id, 'admin')), 5000, 'setMemberRole(D, admin)');
@@ -938,7 +938,7 @@ async function main() {
 
   await t('wave3: setMemberSuspended takes effect immediately, decoupled from lib/auth.js sessions', async () => {
     needTeams();
-    const e2 = mkUser('w3-e@example.com', 'Eve E');
+    const e2 = await mkUser('w3-e@example.com', 'Eve E');
     const inv = w3teams.createInvite(uA.id, e2.email);
     await within(Promise.resolve(w3teams.acceptInvite(inv.token, { sessionUserId: e2.id })), 5000, 'acceptInvite(E)');
     eq(w3teams.isSuspended(e2.id), false, 'E suspended immediately after joining');
@@ -958,7 +958,7 @@ async function main() {
 
   await t('wave3: one-team-per-user — accepting a 2nd team\'s invite is rejected, 1st membership untouched', async () => {
     needTeams();
-    const f2 = mkUser('w3-f@example.com', 'Frank F');
+    const f2 = await mkUser('w3-f@example.com', 'Frank F');
     const team2 = w3teams.createTeam(f2.id, 'Team Beta');
     ok(team2 && team2.teamId !== team1.teamId, 'team2 did not get its own teamId');
 
@@ -1009,13 +1009,13 @@ async function main() {
   // member row pointing at a user that no longer existed. leaveTeam() is the
   // operation that was missing.
 
-  await t('wave3: a member can leave, and the row actually goes', () => {
+  await t('wave3: a member can leave, and the row actually goes', async () => {
     needTeams();
-    const owner = mkUser('leave-owner@example.test', 'Leave Owner');
-    const leaver = mkUser('leave-member@example.test', 'Leaver');
+    const owner = await mkUser('leave-owner@example.test', 'Leave Owner');
+    const leaver = await mkUser('leave-member@example.test', 'Leaver');
     w3teams.createTeam(owner.id, 'Team Leave');
     const inv = w3teams.createInvite(owner.id, leaver.email);
-    w3teams.acceptInvite(inv.token, { sessionUserId: leaver.id });
+    await w3teams.acceptInvite(inv.token, { sessionUserId: leaver.id });
     eq(w3teams.getAccountRole(leaver.id), 'member', 'sanity: leaver joined');
 
     const out = w3teams.leaveTeam(leaver.id);
@@ -1026,13 +1026,13 @@ async function main() {
     eq(w3teams.accountUid(leaver.id), leaver.id, 'leaver accountUid did not revert to their own id');
   });
 
-  await t('wave3: an owner with other members cannot leave (must transfer first)', () => {
+  await t('wave3: an owner with other members cannot leave (must transfer first)', async () => {
     needTeams();
-    const owner = mkUser('stuck-owner@example.test', 'Stuck Owner');
-    const other = mkUser('stuck-member@example.test', 'Other');
+    const owner = await mkUser('stuck-owner@example.test', 'Stuck Owner');
+    const other = await mkUser('stuck-member@example.test', 'Other');
     w3teams.createTeam(owner.id, 'Team Stuck');
     const inv = w3teams.createInvite(owner.id, other.email);
-    w3teams.acceptInvite(inv.token, { sessionUserId: other.id });
+    await w3teams.acceptInvite(inv.token, { sessionUserId: other.id });
 
     let threw = null;
     try { w3teams.leaveTeam(owner.id); } catch (e) { threw = e; }
@@ -1041,22 +1041,22 @@ async function main() {
     eq(w3teams.getAccountRole(owner.id), 'owner', 'owner lost their role on a failed leave');
   });
 
-  await t('wave3: a sole owner leaving dissolves the team rather than trapping them', () => {
+  await t('wave3: a sole owner leaving dissolves the team rather than trapping them', async () => {
     needTeams();
-    const solo = mkUser('solo-owner@example.test', 'Solo');
+    const solo = await mkUser('solo-owner@example.test', 'Solo');
     w3teams.createTeam(solo.id, 'Team Solo');
     const out = w3teams.leaveTeam(solo.id);
     ok(out && out.dissolved, 'a sole owner leaving should dissolve the team');
     eq(w3teams.getTeamIdFor(solo.id), null, 'solo owner still on a team after dissolving it');
   });
 
-  await t('wave3: an active owner means the team cannot be taken over', () => {
+  await t('wave3: an active owner means the team cannot be taken over', async () => {
     needTeams();
-    const owner = mkUser('active-owner@example.test', 'Active Owner');
-    const member = mkUser('patient-member@example.test', 'Member');
+    const owner = await mkUser('active-owner@example.test', 'Active Owner');
+    const member = await mkUser('patient-member@example.test', 'Member');
     w3teams.createTeam(owner.id, 'Team Active');
     const inv = w3teams.createInvite(owner.id, member.email);
-    w3teams.acceptInvite(inv.token, { sessionUserId: member.id });
+    await w3teams.acceptInvite(inv.token, { sessionUserId: member.id });
 
     const st = w3teams.getRecoveryState(member.id);
     eq(st.claimable, false, 'a team with a fresh owner must not be claimable');
@@ -1067,13 +1067,13 @@ async function main() {
     eq(w3teams.getAccountRole(owner.id), 'owner', 'owner was displaced despite being active');
   });
 
-  await t('wave3: a suspended member can never claim the team', () => {
+  await t('wave3: a suspended member can never claim the team', async () => {
     needTeams();
-    const owner = mkUser('susp-owner@example.test', 'Owner');
-    const bad = mkUser('susp-member@example.test', 'Suspended');
+    const owner = await mkUser('susp-owner@example.test', 'Owner');
+    const bad = await mkUser('susp-member@example.test', 'Suspended');
     w3teams.createTeam(owner.id, 'Team Susp');
     const inv = w3teams.createInvite(owner.id, bad.email);
-    w3teams.acceptInvite(inv.token, { sessionUserId: bad.id });
+    await w3teams.acceptInvite(inv.token, { sessionUserId: bad.id });
     w3teams.setMemberSuspended(owner.id, bad.id, true);
 
     // Even with the owner erased -- the most claimable state there is.
@@ -1093,13 +1093,13 @@ async function main() {
     w3auth.initAuth(W3_DIR);
   });
 
-  await t('wave3: an orphaned team can be recovered by its remaining member', () => {
+  await t('wave3: an orphaned team can be recovered by its remaining member', async () => {
     needTeams();
-    const owner = mkUser('gone-owner@example.test', 'Gone');
-    const heir = mkUser('heir@example.test', 'Heir');
+    const owner = await mkUser('gone-owner@example.test', 'Gone');
+    const heir = await mkUser('heir@example.test', 'Heir');
     w3teams.createTeam(owner.id, 'Team Orphan');
     const inv = w3teams.createInvite(owner.id, heir.email);
-    w3teams.acceptInvite(inv.token, { sessionUserId: heir.id });
+    await w3teams.acceptInvite(inv.token, { sessionUserId: heir.id });
     const sharedUid = w3teams.accountUid(heir.id);
 
     // Delete the owner's USER record, leaving the team pointing at a ghost.
@@ -1140,8 +1140,8 @@ async function main() {
     // the LAST test in this file that mutates lib/teams.js state, because it
     // forces a full re-init (see below) whose blast radius we don't want to
     // reason about relative to team1/A/B/D's already-asserted state.
-    const owner = mkUser('w3-expowner@example.com', 'Owner Exp');
-    const invitee = mkUser('w3-expinvitee@example.com', 'Invitee Exp');
+    const owner = await mkUser('w3-expowner@example.com', 'Owner Exp');
+    const invitee = await mkUser('w3-expinvitee@example.com', 'Invitee Exp');
     w3teams.createTeam(owner.id, 'Team Expiry');
     const inv = w3teams.createInvite(owner.id, invitee.email);
     ok(w3teams.getInviteInfo(inv.token), 'sanity: fresh invite not visible via getInviteInfo before we expire it');

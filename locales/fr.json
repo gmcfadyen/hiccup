@@ -884,5 +884,11 @@
   "Could not take ownership of this team.": "Impossible de devenir propriétaire de cette équipe.",
   "You still own a team with other members. Transfer ownership to one of them first, then delete your account. Nothing has been deleted.": "Vous êtes encore propriétaire d'une équipe comptant d'autres membres. Transmettez d'abord la propriété à l'un d'eux, puis supprimez votre compte. Rien n'a été supprimé.",
   "Too many accounts created from here recently. Try again later.": "Trop de comptes ont été créés depuis cet endroit récemment. Réessayez plus tard.",
-  "Too many sign-in attempts. Wait a few minutes and try again.": "Trop de tentatives de connexion. Patientez quelques minutes puis réessayez."
+  "Too many sign-in attempts. Wait a few minutes and try again.": "Trop de tentatives de connexion. Patientez quelques minutes puis réessayez.",
+  "request failed": "échec de la requête",
+  "could not reach the server": "impossible de joindre le serveur",
+  "enter a valid email address": "saisissez une adresse e-mail valide",
+  "password must be at least 8 characters": "le mot de passe doit comporter au moins 8 caractères",
+  "enter your password": "saisissez votre mot de passe",
+  "google sign-in returned no credential": "la connexion Google n'a renvoyé aucune identification"
 }

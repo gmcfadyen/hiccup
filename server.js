@@ -2231,7 +2231,7 @@ async function handleTeamAccept(req, res) {
 
   let result;
   try {
-    result = teams.acceptInvite(token, {
+    result = await teams.acceptInvite(token, {
       sessionUserId: sessionUser ? sessionUser.id : null,
       password: typeof body.password === 'string' ? body.password : undefined,
       createAccount: typeof body.password === 'string'
@@ -3310,6 +3310,46 @@ async function handle(req, res) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Content-Security-Policy.
+ *
+ * script-src is 'self' with NO 'unsafe-inline', which is the whole point: a
+ * policy that keeps the escape hatch open stops the injected-<script> attack
+ * class it exists to stop, and is decoration. Reaching it meant lifting all 32
+ * inline blocks out of the 17 HTML pages into real files (boot-theme.js,
+ * boot-lang.js, index-auth.js, app-boot.js, admin-status.js, admin-feedback.js).
+ * There were no inline event handlers and no javascript: URLs to deal with,
+ * which is why 'self' was reachable at all.
+ *
+ * accounts.google.com is listed in script-src/frame-src/connect-src because
+ * the landing page loads Google Identity Services -- but only when a
+ * googleClientId is configured, so on a default install nothing is fetched
+ * from it. Naming it unconditionally keeps the header static and cacheable.
+ *
+ * style-src DOES keep 'unsafe-inline', deliberately and not by oversight: nine
+ * pages carry <style> blocks and the CSS-injection class is far weaker than
+ * script injection (no execution). Hashing them would not help either, since
+ * style-src hashes do not cover the one style= attribute without also adding
+ * 'unsafe-hashes'. Worth revisiting if those blocks ever move to files.
+ *
+ * ld+json is untouched by script-src in every current browser -- it is a data
+ * block, not executed -- so the structured data on the landing and /sip pages
+ * keeps working.
+ */
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' https://accounts.google.com",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data:",
+  "font-src 'self'",
+  "connect-src 'self' https://accounts.google.com",
+  "frame-src https://accounts.google.com",
+  "form-action 'self'",
+  "base-uri 'none'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+].join('; ');
+
+/**
  * Security headers, set once here rather than in each of sendJson/serveStatic/
  * servePublicFile so an error path or a future response helper cannot quietly
  * miss them.
@@ -3348,6 +3388,7 @@ function setSecurityHeaders(req, res) {
   }
   // A trace analyser has no business reading a camera or a location.
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()');
+  res.setHeader('Content-Security-Policy', CSP);
 }
 
 const server = http.createServer((req, res) => {
