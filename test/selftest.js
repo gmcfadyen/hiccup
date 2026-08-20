@@ -1190,6 +1190,29 @@ async function main() {
     w3auth.initAuth(W3_DIR);
   });
 
+
+  await t('wave3: a lapsed owner cannot keep inviting people', async () => {
+    needTeams();
+    const owner = await mkUser('lapse-owner@example.test', 'Lapsing');
+    w3teams.createTeam(owner.id, 'Team Lapse');
+    // Sanity: while paid, inviting works.
+    const ok1 = w3teams.createInvite(owner.id, 'first@example.test');
+    ok(ok1 && ok1.token, 'a paid owner should be able to invite');
+
+    // Now the subscription lapses, exactly as the Stripe webhook would do it.
+    w3auth.setUserPlan(owner.id, 'free');
+    let threw = null;
+    try { w3teams.createInvite(owner.id, 'second@example.test'); } catch (e) { threw = e; }
+    ok(threw, 'a lapsed owner was still able to invite members');
+    ok(/paid/i.test(threw.userMessage || ''), 'refusal should mention the paid account: ' + threw.userMessage);
+
+    // And the team no longer counts as paid-for.
+    const teamId = w3teams.getTeamIdFor(owner.id);
+    eq(w3teams.teamHasPaidMember(teamId), false, 'team should have no paying member after the lapse');
+    w3auth.setUserPlan(owner.id, 'paid');
+    eq(w3teams.teamHasPaidMember(teamId), true, 'team should count as paid again after renewal');
+  });
+
   // -------------------------------------------------------- invite token edges
 
   await t('wave3: getInviteInfo(garbage token) returns null, does not throw', () => {

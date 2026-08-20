@@ -87,6 +87,13 @@ $roboArgs = @(
   $Source, $latest,
   '/MIR',
   '/XD', (Join-Path $Source 'node_modules'),
+  # config.json can hold Stripe secrets. Excluded because /MIR plus 30 dated
+  # snapshots would otherwise put a live secret key in ~31 plaintext copies on
+  # the backup drive, and once it is in those snapshots the only remediation is
+  # rotating the key at Stripe. Prefer the service environment for the secrets
+  # (STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET); everything else in config.json
+  # is non-secret and cheap to re-enter.
+  '/XF', 'config.json',
   '/R:2', '/W:5',
   '/NP', '/NDL'
 )

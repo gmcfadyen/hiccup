@@ -2272,7 +2272,11 @@ async function handleBillingCheckout(req, res, user) {
 
   // Already paid: sending them to checkout would take a second subscription
   // for something they already have.
-  if (user.plan === 'paid') {
+  // Two guards, because user.plan alone is not enough: it only flips when the
+  // webhook lands, so it stays 'free' for the whole window a session is payable.
+  // Someone who clicks Subscribe, wanders off, comes back and clicks again could
+  // otherwise complete both and pay twice.
+  if (user.plan === 'paid' || auth.getUserSubscriptionId(user.id)) {
     sendJson(res, 409, { error: 'You are already on the paid plan.' });
     return;
   }
@@ -2284,6 +2288,9 @@ async function handleBillingCheckout(req, res, user) {
       email: user.email,
       plan: plan,
       baseUrl: config.baseUrl,
+      // Reuse the existing Stripe customer so a resubscriber does not end up
+      // as a second Customer that hiccup can never see or cancel.
+      customerId: auth.getUserStripeCustomer(user.id),
     });
   } catch (e) {
     console.error('hiccup: stripe checkout failed: ' + ((e && e.message) || e));
@@ -2299,10 +2306,20 @@ const _stripeSeen = new Map();   // event id -> epoch ms
 function _stripeAlreadyHandled(id) {
   const now = Date.now();
   for (const [k, t] of _stripeSeen) if (now - t > 24 * 3600 * 1000) _stripeSeen.delete(k);
-  if (_stripeSeen.has(id)) return true;
-  _stripeSeen.set(id, now);
-  return false;
+  return _stripeSeen.has(id);
 }
+
+/**
+ * Remember an event only once it has ACTUALLY been applied.
+ *
+ * Marking it on arrival looked tidier and was a money bug: applyStripeEvent
+ * ends in _saveUsers() -> store.saveJson, which genuinely throws on Windows
+ * when a rename loses to an open handle (lib/store.js documents this, and the
+ * nightly backup robocopies data/). The upgrade would be lost, the event
+ * recorded as done, and Stripe told 200 so it never retried -- a customer
+ * charged and left on the free plan with no path back.
+ */
+function _stripeMarkHandled(id) { _stripeSeen.set(id, Date.now()); }
 
 
 /**
@@ -2319,6 +2336,15 @@ function _stripeAlreadyHandled(id) {
 async function handleStripeWebhook(req, res) {
   let rawBody;
   try { rawBody = await readRawBody(req, JSON_BODY_LIMIT); } catch (e) { return sendBodyError(res, e); }
+
+  // Full config required. verifyWebhook needs only the signing secret, so a box
+  // with a leftover whsec and nothing else would otherwise still hand out paid
+  // plans -- which is exactly the state a half-finished setup leaves behind.
+  if (!stripe.isConfigured()) {
+    console.error('hiccup: stripe webhook received but Stripe is not fully configured - ignoring');
+    sendJson(res, 503, { error: 'stripe is not configured on this server' });
+    return;
+  }
 
   let event;
   try {
@@ -2338,9 +2364,14 @@ async function handleStripeWebhook(req, res) {
   try {
     await applyStripeEvent(event);
   } catch (e) {
-    console.error('hiccup: stripe event ' + event.id + ' (' + event.type + ') failed: ' +
-      ((e && e.message) || e));
+    // 500 on purpose: Stripe retries a non-2xx for three days, and the likely
+    // failure here is a transient disk write, which a retry DOES fix. The event
+    // is deliberately not marked handled, so the retry is allowed to work.
+    console.error('hiccup: stripe event ' + event.id + ' (' + event.type + ') FAILED, asking Stripe to retry: ' + ((e && e.message) || e));
+    sendJson(res, 500, { error: 'could not apply event' });
+    return;
   }
+  _stripeMarkHandled(event.id);
   sendJson(res, 200, { received: true });
 }
 
@@ -2360,7 +2391,23 @@ async function handleStripeWebhook(req, res) {
 async function applyStripeEvent(event) {
   const obj = (event && event.data && event.data.object) || {};
 
-  if (event.type === 'checkout.session.completed') {
+  // The event mode must match the configured key. Without this, the ordinary
+  // way anyone tries this out -- paste TEST keys, poke the real site -- means a
+  // visitor paying with 4242 4242 4242 4242 gets a genuine paid plan written
+  // into production, and every signal (log line, users.json, admin page) looks
+  // identical to a real sale.
+  if (typeof event.livemode === 'boolean' && event.livemode !== stripe.isLiveMode()) {
+    console.error('hiccup: REFUSING stripe event ' + event.id + ': livemode=' + event.livemode +
+      ' but the configured key is ' + (stripe.isLiveMode() ? 'live' : 'test'));
+    return;
+  }
+
+  // SEPA and other delayed-notification methods complete with payment_status
+  // 'unpaid' and settle minutes-to-days later. EUR prices on a France-run
+  // account make that a realistic default, and without this the customer is
+  // debited and never upgraded.
+  if (event.type === 'checkout.session.async_payment_succeeded' ||
+      event.type === 'checkout.session.completed') {
     // payment_status matters: a session can complete while payment is still
     // pending, and granting on that would hand out the plan for free.
     if (obj.payment_status && obj.payment_status !== 'paid' &&
@@ -2369,8 +2416,21 @@ async function applyStripeEvent(event) {
         obj.payment_status + ' - not upgrading');
       return;
     }
-    const userId = obj.client_reference_id ||
-      (obj.metadata && obj.metadata.hiccup_user_id) || null;
+    // A webhook endpoint receives events for the WHOLE account, not per product.
+    // Require the shape hiccup itself creates: a subscription-mode session that
+    // actually produced a subscription. Otherwise any future payable surface on
+    // this account -- a tip jar, a one-off invoice link -- becomes a way to be
+    // granted the paid plan.
+    if (obj.mode !== 'subscription' || !obj.subscription) {
+      console.log('hiccup: ignoring checkout ' + obj.id + ' (mode=' + obj.mode +
+        ', subscription=' + (obj.subscription || 'none') + ') - not a hiccup subscription');
+      return;
+    }
+    // metadata.hiccup_user_id FIRST: only hiccup writes it. client_reference_id
+    // is accepted as a fallback but is settable from outside on a Payment Link
+    // (?client_reference_id=...), so it must not be the preferred source.
+    const userId = (obj.metadata && obj.metadata.hiccup_user_id) ||
+      obj.client_reference_id || null;
     if (!userId) { console.error('hiccup: checkout ' + obj.id + ' has no client_reference_id'); return; }
     const u = auth.findUserById(userId);
     if (!u) { console.error('hiccup: checkout ' + obj.id + ' references unknown user ' + userId); return; }
@@ -2380,16 +2440,26 @@ async function applyStripeEvent(event) {
     return;
   }
 
-  if (event.type === 'customer.subscription.deleted' ||
-      (event.type === 'customer.subscription.updated' &&
-       (obj.status === 'canceled' || obj.status === 'unpaid'))) {
+  // Revoke on anything that means the money is gone or never arriving:
+  // cancellation, dunning giving up, a refund, or a chargeback. Without the
+  // refund/dispute half, a customer can take the money back and keep the plan.
+  const revokes = event.type === 'customer.subscription.deleted' ||
+    event.type === 'charge.refunded' ||
+    event.type === 'charge.dispute.created' ||
+    (event.type === 'customer.subscription.updated' &&
+     (obj.status === 'canceled' || obj.status === 'unpaid' ||
+      obj.status === 'past_due' || obj.status === 'incomplete_expired'));
+  if (revokes) {
     const userId = (obj.metadata && obj.metadata.hiccup_user_id) || null;
     const u = userId ? auth.findUserById(userId) : auth.findUserByStripeCustomer(obj.customer);
-    if (!u) { console.error('hiccup: subscription ' + obj.id + ' matches no account'); return; }
+    if (!u) { console.error('hiccup: ' + event.type + ' ' + obj.id + ' matches no account'); return; }
     // Ignore a stale event about a subscription this account has replaced,
-    // which would otherwise downgrade someone who just resubscribed.
+    // which would otherwise downgrade someone who just resubscribed. Only
+    // meaningful for subscription events -- a charge/dispute object's id is
+    // not a subscription id, so it must not be compared against one.
+    const isSubEvent = event.type.indexOf('customer.subscription.') === 0;
     const current = auth.getUserSubscriptionId(u.id);
-    if (current && obj.id && current !== obj.id) {
+    if (isSubEvent && current && obj.id && current !== obj.id) {
       console.log('hiccup: ignoring stale subscription event ' + obj.id + ' for ' + u.email);
       return;
     }

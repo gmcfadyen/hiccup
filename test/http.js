@@ -36,12 +36,29 @@ const PORT = 8400 + 90 + Math.floor(process.pid % 50);   // avoid a fixed-port c
 const HOST = '127.0.0.1';
 const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'hiccup-http-'));
 
-// Seed ONLY the webhook secret. isConfigured() needs all four Stripe values,
-// so checkout stays switched off (and never calls out to Stripe) while the
-// webhook path -- the one that can hand out paid plans -- is fully exercised.
+// All four Stripe values, because the webhook now REFUSES to act unless Stripe
+// is fully configured -- a box with a leftover signing secret and nothing else
+// must not hand out paid plans. The key is sk_test_, so isLiveMode() is false
+// and any event claiming livemode:true has to be refused.
+//
+// Nothing here reaches Stripe: the tests below exercise the webhook (inbound,
+// no network) and only ever hit checkout in states that short-circuit before
+// the API call.
 const WEBHOOK_SECRET = 'whsec_http_harness';
-fs.writeFileSync(path.join(DATA_DIR, 'config.json'),
-  JSON.stringify({ stripeWebhookSecret: WEBHOOK_SECRET }, null, 2));
+fs.writeFileSync(path.join(DATA_DIR, 'config.json'), JSON.stringify({
+  stripeWebhookSecret: WEBHOOK_SECRET,
+  stripeSecretKey: 'sk_test_harness_not_a_real_key',
+  stripePriceMonthly: 'price_harness_monthly',
+  stripePriceAnnual: 'price_harness_annual',
+}, null, 2));
+
+/** A signed Stripe-Signature header for a body, as Stripe would send it. */
+function stripeSig(rawBody, secret) {
+  const ts = Math.floor(Date.now() / 1000);
+  const mac = crypto.createHmac('sha256', secret || WEBHOOK_SECRET)
+    .update(ts + '.' + rawBody.toString('utf8'), 'utf8').digest('hex');
+  return 't=' + ts + ',v1=' + mac;
+}
 
 const results = [];
 let child = null;
@@ -307,29 +324,28 @@ async function main() {
     const event = {
       id: 'evt_http_' + Date.now(),
       type: 'checkout.session.completed',
+      livemode: false,
       data: { object: {
         id: 'cs_test_1',
+        mode: 'subscription',
         payment_status: 'paid',
         client_reference_id: userId,
+        metadata: { hiccup_user_id: userId },
         customer: 'cus_test_1',
         subscription: 'sub_test_1',
       } },
     };
     const raw = Buffer.from(JSON.stringify(event));
-    const ts = Math.floor(Date.now() / 1000);
-    const sig = crypto.createHmac('sha256', WEBHOOK_SECRET)
-      .update(ts + '.' + raw.toString('utf8'), 'utf8').digest('hex');
+    const sig = stripeSig(raw);
 
-    const r = await client('POST', '/api/stripe/webhook', event,
-      { 'Stripe-Signature': 't=' + ts + ',v1=' + sig });
+    const r = await client('POST', '/api/stripe/webhook', event, { 'Stripe-Signature': sig });
     eq(r.status, 200, 'a valid webhook should be accepted');
 
     const after = await client('GET', '/api/me');
     eq(after.json.user.plan, 'paid', 'the webhook did not upgrade the account');
 
     // Stripe retries on any non-2xx, so the same event id must be a no-op.
-    const again = await client('POST', '/api/stripe/webhook', event,
-      { 'Stripe-Signature': 't=' + ts + ',v1=' + sig });
+    const again = await client('POST', '/api/stripe/webhook', event, { 'Stripe-Signature': sig });
     eq(again.status, 200, 'a retried webhook should still be 200');
     ok(again.json && again.json.duplicate === true, 'a retried event was not detected as a duplicate');
   });
@@ -341,24 +357,70 @@ async function main() {
     const event = {
       id: 'evt_unpaid_' + Date.now(),
       type: 'checkout.session.completed',
-      data: { object: { id: 'cs_2', payment_status: 'unpaid', client_reference_id: who.json.user.id } },
+      livemode: false,
+      data: { object: { id: 'cs_2', mode: 'subscription', subscription: 'sub_2',
+        payment_status: 'unpaid', metadata: { hiccup_user_id: who.json.user.id } } },
     };
-    const raw = Buffer.from(JSON.stringify(event));
-    const ts = Math.floor(Date.now() / 1000);
-    const sig = crypto.createHmac('sha256', WEBHOOK_SECRET)
-      .update(ts + '.' + raw.toString('utf8'), 'utf8').digest('hex');
-    const r = await anon('POST', '/api/stripe/webhook', event, { 'Stripe-Signature': 't=' + ts + ',v1=' + sig });
+    const r = await anon('POST', '/api/stripe/webhook', event,
+      { 'Stripe-Signature': stripeSig(Buffer.from(JSON.stringify(event))) });
     eq(r.status, 200, 'webhook should still be accepted');
     const after = await anon('GET', '/api/me');
     eq(after.json.user.plan, 'free', 'an UNPAID session granted the paid plan');
   });
 
-  await t('checkout is refused while Stripe is not fully configured', async () => {
-    const r = await client('POST', '/api/billing/checkout', { plan: 'monthly' });
-    eq(r.status, 501, 'checkout should report not-configured');
+  await t('checkout requires sign-in, and refuses a second subscription', async () => {
     const anon = makeClient();
     const a = await anon('POST', '/api/billing/checkout', { plan: 'monthly' });
     eq(a.status, 401, 'checkout must require sign-in');
+
+    // This client is already paid from the webhook test above, so the guard
+    // short-circuits before any Stripe call -- no network in the test suite.
+    const r = await client('POST', '/api/billing/checkout', { plan: 'monthly' });
+    eq(r.status, 409, 'an already-subscribed user must not be sent to checkout again');
+
+    const bad = await client('POST', '/api/billing/checkout', { plan: 'price_evil' });
+    ok(bad.status >= 400, 'an arbitrary plan string must be refused');
+  });
+
+  // Pasting TEST keys and poking the real site is how anyone tries this out.
+  // Without a livemode check that hands a genuine paid plan to whoever pays
+  // with 4242 4242 4242 4242, and every signal looks like a real sale.
+  await t('a live-mode event is refused when the configured key is test-mode', async () => {
+    const anon = makeClient();
+    await anon('POST', '/api/auth/signup', { email: 'livemode-' + process.pid + '@example.test', password: 'correct-horse-8' });
+    const who = await anon('GET', '/api/me');
+    const event = {
+      id: 'evt_live_' + Date.now(),
+      type: 'checkout.session.completed',
+      livemode: true,
+      data: { object: { id: 'cs_live', mode: 'subscription', subscription: 'sub_live',
+        payment_status: 'paid', metadata: { hiccup_user_id: who.json.user.id } } },
+    };
+    const r = await anon('POST', '/api/stripe/webhook', event,
+      { 'Stripe-Signature': stripeSig(Buffer.from(JSON.stringify(event))) });
+    eq(r.status, 200, 'the event is validly signed, so it is accepted and ignored');
+    const after = await anon('GET', '/api/me');
+    eq(after.json.user.plan, 'free', 'a LIVE event granted a plan on a TEST-mode key');
+  });
+
+  // A webhook endpoint sees every event on the account. A one-off payment link
+  // or tip jar must not be able to buy a hiccup subscription.
+  await t('a non-subscription session does not grant the plan', async () => {
+    const anon = makeClient();
+    await anon('POST', '/api/auth/signup', { email: 'oneoff-' + process.pid + '@example.test', password: 'correct-horse-8' });
+    const who = await anon('GET', '/api/me');
+    const event = {
+      id: 'evt_oneoff_' + Date.now(),
+      type: 'checkout.session.completed',
+      livemode: false,
+      data: { object: { id: 'cs_oneoff', mode: 'payment', payment_status: 'paid',
+        client_reference_id: who.json.user.id } },
+    };
+    const r = await anon('POST', '/api/stripe/webhook', event,
+      { 'Stripe-Signature': stripeSig(Buffer.from(JSON.stringify(event))) });
+    eq(r.status, 200, 'accepted and ignored');
+    const after = await anon('GET', '/api/me');
+    eq(after.json.user.plan, 'free', 'a one-off payment session granted a subscription plan');
   });
 
   // ------------------------------------------------------------------ teams
