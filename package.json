@@ -1,6 +1,6 @@
 {
   "name": "hiccup",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "hiccup — SIP trace analysis that finds where the call went wrong",
   "main": "server.js",
   "scripts": {
