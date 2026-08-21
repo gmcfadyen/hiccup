@@ -13,6 +13,7 @@ const store = require('./lib/store');
 const auth = require('./lib/auth');
 const adminlist = require('./lib/adminlist');
 const stripe = require('./lib/stripe');
+const metrics = require('./lib/metrics');
 const llm = require('./lib/llm');
 
 // lib/analyze.js is the integrator's module. Require it gracefully so a partial
@@ -1811,6 +1812,44 @@ function handleAdminStatus(req, res, user) {
 
   const mail = getMail();
   out.mail = { configured: !!(mail && mail.isConfigured(DATA_DIR)) };
+
+  // Payment state was absent from this page entirely, which meant the one
+  // screen that answers "is the service healthy" said nothing about whether
+  // it could take money -- or, worse, whether it was live or in test mode.
+  out.stripe = {
+    configured: stripe.isConfigured(),
+    mode: stripe.isConfigured() ? (stripe.isLiveMode() ? 'live' : 'test') : null,
+    secrets: typeof stripe.configSource === 'function' ? stripe.configSource() : null,
+  };
+
+  // --- KPIs -------------------------------------------------------------
+  // Everything above this line is infrastructure: version, memory, disk. None
+  // of it answers the questions that decide whether hiccup is working -- is
+  // anyone arriving, do they sign up, do they ever upload anything, do any of
+  // them pay. lib/metrics.js computes those, and the CLI (npm run traffic)
+  // shares the same code so the two can never disagree.
+  try {
+    const teamsMod = initTeamsIfPossible();
+    let teamCount = null;
+    try {
+      teamCount = Object.keys(store.loadJson(path.join(DATA_DIR, 'teams.json'), {}) || {}).length;
+    } catch { teamCount = null; }
+    const product = metrics.productKpis({
+      dataDir: DATA_DIR,
+      users: auth.listUsers(),
+      accountUidFor: teamsMod ? ((id) => teamsMod.accountUid(id)) : null,
+      teamCount: teamCount,
+      days: 7,
+    });
+    const traffic = metrics.readAccessLogs(path.join(DATA_DIR, 'logs'), 7);
+    out.kpis = Object.assign({}, product, {
+      traffic: traffic,
+      signals: product.signals.concat(traffic.signals || []),
+    });
+  } catch (e) {
+    // A dashboard is not worth failing the health endpoint over.
+    out.kpis = { error: (e && e.message) || 'could not compute' };
+  }
 
   sendJson(res, 200, out);
 }

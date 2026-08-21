@@ -30,6 +30,58 @@
     margin-top: 16px;
   }
   .st-card { padding: 12px 14px; }
+
+  /* KPI strip. These sit above the process/LLM cards and are deliberately
+     louder than them: those answer "is it running", these answer "is it
+     working". The sub-line under each number carries the caveat, so a figure
+     is never shown without the thing that qualifies it. */
+  .st-kpi-head {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin: 22px 0 10px;
+  }
+  .st-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+  }
+  .st-kpi {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .st-kpi-n {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--text);
+  }
+  .st-kpi-l {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text);
+    margin-top: 4px;
+  }
+  .st-kpi-s {
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-top: 3px;
+    line-height: 1.35;
+  }
+  /* A number that needs reading with suspicion, not celebration. */
+  .st-kpi-warn { border-color: var(--warn); }
+  .st-kpi-warn .st-kpi-n { color: var(--warn); }
+  .st-kpi-signal {
+    margin: 10px 0 0;
+    padding: 8px 12px;
+    border-left: 3px solid var(--warn);
+    background: var(--tint-warn);
+    font-size: 13px;
+    color: var(--text);
+  }
   .st-card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 0 0 8px; }
   .st-row { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; font-size: 13px; }
   .st-row dt { color: var(--muted); }

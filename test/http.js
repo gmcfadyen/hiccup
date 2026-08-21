@@ -45,6 +45,10 @@ const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'hiccup-http-'));
 // no network) and only ever hit checkout in states that short-circuit before
 // the API call.
 const WEBHOOK_SECRET = 'whsec_http_harness';
+// The harness account, hoisted so the seeded config can grant it superuser.
+// adminEmails is authoritative when non-empty, so without this the suite
+// cannot reach /api/admin/* at all.
+const HARNESS_EMAIL = 'harness-' + process.pid + '@example.test';
 fs.writeFileSync(path.join(DATA_DIR, 'config.json'), JSON.stringify({
   stripeWebhookSecret: WEBHOOK_SECRET,
   stripeSecretKey: 'sk_test_harness_not_a_real_key',
@@ -54,6 +58,7 @@ fs.writeFileSync(path.join(DATA_DIR, 'config.json'), JSON.stringify({
   // the production default (5/hour) is meant to stop. Raised here rather than
   // weakened there.
   signupMaxPerHour: 100,
+  adminEmails: [HARNESS_EMAIL],
 }, null, 2));
 
 /** A signed Stripe-Signature header for a body, as Stripe would send it. */
@@ -241,7 +246,7 @@ async function main() {
     }
   });
   // ------------------------------------------------------------------- auth
-  const me = { email: 'harness-' + process.pid + '@example.test', password: 'correct-horse-8' };
+  const me = { email: HARNESS_EMAIL, password: 'correct-horse-8' };
 
   await t('signup -> /api/me round trip, and plan is on the wire', async () => {
     const r = await client('POST', '/api/auth/signup', me);
@@ -311,6 +316,29 @@ async function main() {
     ok(/^\d{4}-\d{2}-\d{2}T/.test(line), 'log line has no leading timestamp: ' + line);
   });
 
+
+
+  // KPIs are the only thing on /admin/status that answers "is this working"
+  // rather than "is this running", so assert the shape survives -- and that the
+  // corrective metric is present, since a page-view count without the CSS ratio
+  // beside it overstates traffic.
+  await t('admin status carries KPIs and the honesty metric', async () => {
+    const r = await client('GET', '/api/admin/status');
+    eq(r.status, 200, 'admin status needs a superuser session');
+    const k = r.json && r.json.kpis;
+    ok(k && !k.error, 'no kpis block: ' + JSON.stringify(k));
+    for (const key of ['users', 'activation', 'paid', 'captures', 'traffic']) {
+      ok(k[key], 'kpis missing ' + key);
+    }
+    ok(typeof k.users.total === 'number', 'users.total not a number');
+    // cssRatio must exist as a key even when null -- null means "cannot say",
+    // which the UI renders as a dash rather than a flattering zero.
+    ok('cssRatio' in k.traffic, 'traffic has no cssRatio');
+    ok('rate' in k.activation, 'activation has no rate');
+    // Payment state must be visible: a live-vs-test mix-up is invisible without it.
+    ok(r.json.stripe, 'no stripe block');
+    ok('configured' in r.json.stripe, 'stripe.configured missing');
+  });
 
   // ----------------------------------------------------------- billing
   // The webhook is the one unauthenticated route that can grant a paid plan.

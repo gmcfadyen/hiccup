@@ -34,6 +34,85 @@
     return m + 'm';
   }
 
+  /**
+   * Big-number tiles. KPIs get more weight than the process/LLM cards below
+   * because they answer a different question: those say "is it running", these
+   * say "is it working".
+   */
+  function kpiStrip(tiles) {
+    var wrap = el('div', 'st-kpis');
+    tiles.forEach(function (t) {
+      var tile = el('div', 'st-kpi' + (t.tone ? ' ' + t.tone : ''));
+      tile.appendChild(el('div', 'st-kpi-n', t.value == null ? '—' : String(t.value)));
+      tile.appendChild(el('div', 'st-kpi-l', t.label));
+      if (t.sub) tile.appendChild(el('div', 'st-kpi-s', t.sub));
+      wrap.appendChild(tile);
+    });
+    return wrap;
+  }
+
+  function renderKpis(host, k) {
+    if (!k) return;
+    if (k.error) {
+      host.appendChild(card('KPIs', [['error', k.error, 'st-bad']]));
+      return;
+    }
+    var tr = k.traffic || {};
+    var u = k.users || {}, act = k.activation || {}, paid = k.paid || {};
+
+    var head = el('h2', 'st-kpi-head', 'Last 7 days');
+    host.appendChild(head);
+
+    host.appendChild(kpiStrip([
+      { value: tr.human, label: 'human requests',
+        sub: tr.botShare == null ? null : tr.botShare + '% of all traffic was bots' },
+      { value: tr.pageViews, label: 'page views',
+        sub: tr.cssRatio == null ? 'no data' : tr.cssRatio + '% also fetched CSS',
+        tone: tr.cssRatio != null && tr.cssRatio < 40 ? 'st-kpi-warn' : null },
+      { value: tr.networks, label: 'distinct networks', sub: 'non-bot, /24 or /48' },
+      { value: u.signups7d, label: 'signups', sub: u.total + ' accounts in total' },
+      { value: act.rate == null ? null : act.rate + '%', label: 'activation',
+        sub: act.uploaded + ' of ' + u.total + ' ever uploaded a trace',
+        tone: act.rate != null && act.rate < 40 ? 'st-kpi-warn' : null },
+      { value: paid.accounts, label: 'paid accounts',
+        sub: paid.conversionRate == null ? null : paid.conversionRate + '% of signups' },
+    ]));
+
+    // The honest caveats, shown rather than buried.
+    (k.signals || []).forEach(function (msg) {
+      host.appendChild(el('p', 'st-kpi-signal', msg));
+    });
+
+    host.appendChild(card('Traffic (7 days)', [
+      ['requests', tr.requests],
+      ['human', tr.human],
+      ['automated', tr.bot == null ? null : tr.bot + (tr.botShare != null ? ' (' + tr.botShare + '%)' : '')],
+      ['vulnerability probes', tr.probes],
+      ['page views', tr.pageViews],
+      ['stylesheet fetches', tr.cssHits],
+      ['CSS ratio', tr.cssRatio == null ? null : tr.cssRatio + '%',
+        tr.cssRatio != null && tr.cssRatio < 40 ? 'st-bad' : 'st-ok'],
+      ['networks', tr.networks == null ? null : tr.networks + ' human / ' + tr.botNetworks + ' bot'],
+      ['pre-v0.3.2 lines skipped', tr.legacyLines || 0]
+    ]));
+
+    var top = (tr.topPaths || []).slice(0, 6).map(function (p) {
+      return [p.path, p.views];
+    });
+    if (top.length) host.appendChild(card('Most-viewed pages (non-bot)', top));
+
+    host.appendChild(card('Product', [
+      ['accounts', u.total],
+      ['signups, 7d', u.signups7d],
+      ['signups, 30d', u.signups30d],
+      ['signed in, 7d', u.activeLast7d],
+      ['uploaded a trace', act.uploaded == null ? null : act.uploaded + (act.rate != null ? ' (' + act.rate + '%)' : '')],
+      ['captures, 7d', k.captures && k.captures.last7d],
+      ['captures, total', k.captures && k.captures.total],
+      ['teams', k.teams && k.teams.total]
+    ]));
+  }
+
   function render(s) {
     var host = $('st-body');
     host.textContent = '';
@@ -41,6 +120,8 @@
     $('st-summary').textContent = 'hiccup v' + s.version + ' · up ' + dur(s.uptimeSeconds) +
       ' · signed in as ' + (s.you && s.you.email);
 
+    renderKpis(host, s.kpis);
+
     host.appendChild(card('Process', [
       ['version', s.version],
       ['node', s.node],
