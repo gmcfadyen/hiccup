@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIP 481 Call/Transaction Does Not Exist — hiccup</title>
+<meta name="description" content="The far end no longer knows your dialog: failover ate the state, tags do not match, or the Route set is wrong. Why BYEs and re-INVITEs draw a 481.">
+<link rel="canonical" href="https://hiccup.monster/sip/481-call-does-not-exist">
+<script src="/boot-theme.js"></script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="SIP 481 Call/Transaction Does Not Exist">
+<meta property="og:description" content="The far end no longer knows your dialog. Why failover, mismatched tags and broken Route sets make BYEs and re-INVITEs draw a 481.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/sip/481-call-does-not-exist">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "SIP 481 Call/Transaction Does Not Exist",
+  "description": "What a SIP 481 really means, why failover, mismatched tags and broken Route sets cause it, and what to look for in a packet capture.",
+  "url": "https://hiccup.monster/sip/481-call-does-not-exist",
+  "inLanguage": "en",
+  "datePublished": "2026-08-20",
+  "dateModified": "2026-08-20",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "Session Initiation Protocol" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/sip">SIP failure reference</a><span>/</span>481 Call/Transaction Does Not Exist
+  </nav>
+
+  <article class="ref">
+
+    <h1>SIP 481 Call/Transaction Does Not Exist</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> the box you sent that request to has no dialog
+      matching its Call-ID and tags. Either it genuinely forgot — a restart or a failover
+      ate the state — or your request carries identifiers, or took a route, that never
+      matched anything there. Work out which side forgot.</p>
+    </div>
+
+    <h2>What 481 actually means</h2>
+    <p>
+      An established dialog is identified by exactly three values: the Call-ID, the local
+      tag and the remote tag (RFC 3261, section 12). Every mid-dialog request — BYE,
+      re-INVITE, UPDATE, INFO, REFER, an in-dialog NOTIFY — carries all three, and the
+      receiving UAS looks them up in its dialog table. Section 12.2.2 covers the miss: a
+      request with a To tag whose dialog identifiers match nothing gets a 481. The response
+      never explains <em>why</em> the lookup failed; that part is your job.
+    </p>
+    <p>
+      481 is fatal in a way its neighbours are not. RFC 3261 section 12.2.1.2 tells a UAC
+      that receives a 481 to an in-dialog request to terminate the dialog — so where a
+      <a href="/sip/488-not-acceptable-here">488 to a re-INVITE</a> leaves the call running
+      on its old parameters, a 481 to the same re-INVITE ends it. One response code is a
+      declined renegotiation; the other is the far end telling you the call does not exist.
+    </p>
+    <p>
+      The matching is unforgiving. Call-IDs are case-sensitive and compared byte by byte
+      (RFC 3261, section 20.8), and a tag (section 19.3) that comes back different from the
+      one issued matches nothing. Anything in the path that rewrites, truncates or re-cases
+      those values produces 481s that look like amnesia but are actually mutation.
+    </p>
+
+    <h2>What actually causes it</h2>
+
+    <h3>Failover or a restart ate the state</h3>
+    <p>
+      The classic. A stateful proxy, SBC or PBX fails over to its standby — or simply
+      restarts — without replicating dialog state, and every established call is now unknown
+      to the box that inherited them. Media often keeps flowing, so nobody notices until the
+      next signalling event: a hold, a session-timer refresh, a hangup. The signature is a
+      cluster of 481s beginning at one timestamp and trickling on for half an hour as each
+      call hits that next event. A BYE drawing a 481 here is merely ugly — the call was
+      ending anyway. A re-INVITE drawing one drops a live call mid-sentence, because
+      section 12.2.1.2 tells the sender to tear the dialog down.
+    </p>
+
+    <h3>The tags do not match</h3>
+    <p>
+      A forked INVITE creates one early dialog per answering branch, each with its own To
+      tag. If a 183 comes from one branch and the 200 OK from another, a UAC that latched
+      onto the early dialog's tag will send its BYE or re-INVITE with a remote tag the
+      answering party never issued. B2BUAs keep separate identifiers per leg, and any device
+      that copies a Call-ID or tag across the wrong leg manufactures the same failure. A
+      quieter variant: a stack that regenerates its From tag when resubmitting a request
+      after a 401/407 challenge, splitting one dialog into two halves that can never find
+      each other.
+    </p>
+
+    <h3>The request went to the wrong box</h3>
+    <p>
+      Mid-dialog requests are routed on the Route set learned from Record-Route at setup,
+      plus the peer's Contact. Strip a Record-Route, ignore the Route set, or lose dialog
+      stickiness behind a load balancer, and the BYE lands on a node that never saw the
+      call. That node answers honestly: no such dialog. The tell is the source of the 481 —
+      an address that appears nowhere in the original INVITE transaction.
+    </p>
+
+    <h3>One side already hung up</h3>
+    <p>
+      Asymmetric teardown. Session timers (RFC 4028) exist to catch dead dialogs, but the
+      teardown is only clean if the BYE sent at expiry actually arrives. Lose that BYE — or
+      let a box purge idle state on a timer of its own without sending one — and one side is
+      down while the other still holds the call; hours later the survivor finally sends its
+      BYE and receives a 481 for a call it thinks is still up. A BYE and a re-INVITE
+      crossing in flight produce the same shape in miniature — harmless, since the call was
+      over either way.
+    </p>
+
+    <h2>The CANCEL race</h2>
+    <p>
+      CANCEL is matched against the INVITE transaction it is trying to stop, and RFC 3261
+      section 9.2 says a CANCEL that matches no transaction gets a 481. Usually the
+      transaction is already gone because a final response was sent: the caller hung up
+      just as the callee answered, and the 200 OK and the CANCEL crossed on the wire. The
+      CANCEL comes back 481, but the 200 stands, so the correct recovery is to ACK it and
+      immediately send a BYE. A
+      481-to-CANCEL followed by ACK and BYE is a <em>healthy</em> trace. The pathological
+      version is the UAC that stops after the 481: the callee is left connected to silence,
+      saying hello to a ghost.
+    </p>
+    <p>
+      When the CANCEL wins the race instead, the INVITE is answered with a
+      <a href="/sip/487-request-terminated">487 Request Terminated</a>. Two footnotes: CANCEL
+      is hop-by-hop, so the 481 describes only the next hop's state, not the far end's; and
+      over UDP a CANCEL can genuinely overtake its own INVITE in transit, drawing a 481 from
+      a box that will process the INVITE a few milliseconds later. That race is why
+      section 9.1 tells a UAC not to send a CANCEL until at least one provisional response
+      has arrived.
+    </p>
+
+    <h2>481 on NOTIFY and SUBSCRIBE</h2>
+    <p>
+      In the event framework (RFC 6665), NOTIFY lives inside a subscription dialog. A
+      subscriber that has no matching subscription answers 481 — and a notifier that
+      receives a 481 to a NOTIFY must consider the subscription terminated on the spot. One
+      481 kills it; there is no retry.
+    </p>
+    <p>
+      The field cases are symmetrical. A phone reboots and loses its subscriptions, so the
+      server's next NOTIFYs draw 481s until it purges them. A server restarts and loses the
+      subscriptions instead, so the phone's SUBSCRIBE <em>refresh</em> — which carries a To
+      tag — draws the 481; the right recovery is a fresh out-of-dialog SUBSCRIBE, and until
+      the phone sends one its BLF lamps stay dark, potentially for the full expiry interval.
+      Separately, many PBXes send unsolicited message-waiting NOTIFYs (the message-summary
+      package of RFC 3842) outside any subscription; a strict client answers those with 481
+      by the book. Interop noise, not a call-affecting fault.
+    </p>
+
+    <h2>What to check in the trace</h2>
+    <ol>
+      <li>Pull the Call-ID, From tag and To tag off the request that drew the 481 and diff
+      them byte for byte against the 200 OK that established the dialog — remembering that
+      From and To swap when the request travels callee-to-caller.</li>
+      <li>Look at who sent the 481. If it is not the address that handled the original
+      INVITE, you have a routing story, not a memory story.</li>
+      <li>Compare the Route headers on the failed request with the Record-Route set from
+      the INVITE and its 200. A missing or reordered entry points at whichever middlebox
+      touched it.</li>
+      <li>If the call forked, list every To tag seen in provisional and final responses,
+      and confirm the later in-dialog requests use the tag from the 200 that was ACKed.</li>
+      <li>For a 481 to a CANCEL, find the INVITE's final response. A 200 OK means the race —
+      then verify the ACK and an immediate BYE follow. No final response at all means the
+      CANCEL genuinely arrived first, and the transport is worth a look.</li>
+      <li>Check the clustering. Many unrelated dialogs failing from one moment onwards is a
+      state-loss event — go correlate with the failover logs. A single dialog failing is an
+      identifier or routing problem on that call.</li>
+      <li>If session timers were negotiated, read Session-Expires from the original
+      exchange. A 481 to the refresh re-INVITE around half that interval means the far side
+      dropped the dialog well inside the lifetime it agreed to.</li>
+    </ol>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> pairs every mid-dialog request with the dialog that created
+      it, flags Call-ID and tag mismatches byte by byte, and tells you whether the box that
+      answered 481 was ever part of the call — as findings, next to the ladder.
+      Self-hosted, free for individual users.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+    <nav class="ref-more" aria-label="related pages">
+      See also:
+      <ul>
+        <li><a href="/sip/487-request-terminated">487 Request Terminated</a> — what the INVITE gets when the CANCEL wins the race.</li>
+        <li><a href="/sip/sip-timers">SIP timers</a> — T1, T2 and the timers that decide when state is abandoned.</li>
+        <li><a href="/sip/retransmissions">Retransmissions and retransmission storms</a> — what the wire looks like while state disagrees.</li>
+        <li><a href="/sip">All SIP failure reference pages</a></li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

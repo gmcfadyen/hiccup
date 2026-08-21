@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIP 480 Temporarily Unavailable — what to check — hiccup</title>
+<meta name="description" content="480 means the user, not the machine: an expired registration, DND, a ring-no-answer timer, or Q.850 causes 19/20/31 off the PSTN. How to tell which from the trace.">
+<link rel="canonical" href="https://hiccup.monster/sip/480-temporarily-unavailable">
+<script src="/boot-theme.js"></script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="SIP 480 Temporarily Unavailable — what to check">
+<meta property="og:description" content="480 means the user, not the machine: no current registration, no answer before the timer, or DND. How to tell which from the trace.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/sip/480-temporarily-unavailable">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "SIP 480 Temporarily Unavailable — what to check",
+  "description": "What a SIP 480 Temporarily Unavailable really means, the registrations, timers and Q.850 causes that produce it, and what to look for in a packet capture.",
+  "url": "https://hiccup.monster/sip/480-temporarily-unavailable",
+  "inLanguage": "en",
+  "datePublished": "2026-08-20",
+  "dateModified": "2026-08-20",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "Session Initiation Protocol" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/sip">SIP failure reference</a><span>/</span>480 Temporarily Unavailable
+  </nav>
+
+  <article class="ref">
+
+    <h1>SIP 480 Temporarily Unavailable</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> 480 is a statement about the user, not the
+      machinery. The domain answered and the routing worked, but the callee could not be
+      offered the call right now — no live registration, no answer before a timer, or
+      do-not-disturb. The first thing to establish is whether the call <em>rang</em>
+      before it failed. That one fact cuts the cause list in half.</p>
+    </div>
+
+    <h2>What 480 actually means</h2>
+    <p>
+      RFC 3261 describes 480 as: the callee's end system was contacted successfully, but
+      the callee is currently unavailable — not logged in, logged in but in a state that
+      precludes taking the call, or with do-not-disturb active. The response MAY carry a
+      <code>Retry-After</code> header suggesting a better time to call, and the user may
+      well be reachable somewhere this particular server does not know about. Nothing
+      about it is definitive; it is the politest failure in the 4xx class.
+    </p>
+    <p>
+      There is a second, entirely separate producer of the same code. RFC 3261 §16.5
+      tells a proxy whose target set comes up <em>empty</em> — the location service holds
+      no binding for the address of record — to return an error, and recommends 480 for
+      the job. So the same three digits cover "the phone rang and nobody picked up" and
+      "there is no phone to ring". The trace distinguishes them by timing, as below.
+    </p>
+    <p>
+      One more thing the RFC says explicitly: the reason phrase SHOULD be settable by the
+      UA. "Temporarily Unavailable", "Temporarily not available", "No Answer" and
+      "Subscriber absent" are all the same status. Match on the code, never the phrase.
+    </p>
+
+    <h2>What actually causes it</h2>
+
+    <h3>The registration is gone</h3>
+    <p>
+      The most common cause on the enterprise side. The registrar was asked for bindings
+      and had none: the registration expired and the phone has not refreshed yet; the
+      phone dutifully re-registers to node A of a cluster while inbound calls land on
+      node B, which does not share the registration store; or the account on the phone
+      differs subtly from the AOR being called — extension number against user name —
+      so the binding exists but under a different key. Note that "the phone says
+      Registered" is a statement about the phone's memory of its last successful
+      REGISTER, not about what the registrar holds <em>now</em>. Trust the registrar's
+      table, at the timestamp of the failing call.
+    </p>
+
+    <h3>Nobody answered</h3>
+    <p>
+      The call was delivered, it rang, and a timer ran out. A PBX whose dial step has no
+      voicemail or failover destination has to tell the caller <em>something</em> when
+      the ring timer expires, and 480 is the conventional choice — Asterisk-family
+      systems answer this way for both "no registered contact" and "rang until the dial
+      timer lapsed", which is exactly why the same code confuses people. The tell is
+      unambiguous: a 180 Ringing first, then a 480 arriving a suspiciously round number
+      of seconds later, matching somebody's configured ring time.
+    </p>
+
+    <h3>Do-not-disturb</h3>
+    <p>
+      Many desk phones answer an incoming INVITE with 480 while DND is active; others
+      send 486, and server-side DND features vary again. A 480 that comes straight back
+      from the far UA within milliseconds, on an account whose registration is provably
+      healthy, is DND until shown otherwise.
+    </p>
+
+    <h3>A binding into a dead NAT pinhole</h3>
+    <p>
+      The registrar has a Contact, but it points at a NAT mapping that expired after the
+      last keepalive. The proxied INVITE disappears into it and nothing comes back; when
+      the transaction times out, some systems relay a 408 and plenty of B2BUAs report 480
+      instead. The shape to recognise is a <em>slow</em> 480 — tens of seconds — with no
+      ringing at all. The mechanics of the silent leg are the
+      <a href="/sip/408-request-timeout">408 page's</a> territory.
+    </p>
+
+    <h2>When it arrives from the PSTN</h2>
+    <p>
+      Off a gateway, 480 is usually a translated ISUP release. RFC 3398 maps Q.850 cause
+      19 (no answer from the user), cause 20 (subscriber absent — the mobile is switched
+      off, out of coverage, or detached from the network) and cause 31 (normal,
+      unspecified) all to 480. Cause 18 (no user responding) maps to 408 on paper, but in
+      the field plenty of gateways emit 480 for the whole ring-no-answer family, so do
+      not lean on the 408/480 distinction to tell 18 from 19. In the reverse direction, a
+      gateway handed a 480 from the SIP side releases the ISUP call with cause 18.
+    </p>
+    <p>
+      A well-behaved gateway attaches the original cause as a <code>Reason</code> header
+      (RFC 3326): <code>Reason: Q.850;cause=19</code>. When it is present, believe it
+      over the status code — the cause value is the more specific of the two. The full
+      table in both directions is on the
+      <a href="/sip/q850-cause-codes">Q.850 cause code page</a>.
+    </p>
+
+    <h2>480 vs 486 vs 404 vs 603</h2>
+    <p>
+      Four codes that all read as "call failed, user's fault" and mean four different
+      things:
+    </p>
+    <ul>
+      <li><a href="/sip/486-busy-here">486 Busy Here</a> — the call reached a device and
+      the device is busy, <em>at that device</em>. Forking may still find the user
+      elsewhere; 600 Busy Everywhere is the version that says stop looking.</li>
+      <li>404 Not Found — the user does not exist at this domain at all. Retrying later
+      changes nothing; check the Request-URI for a digit-manipulation mistake before
+      believing it.</li>
+      <li>603 Decline — a definitive refusal on behalf of the user everywhere. A 6xx ends
+      the search; typically a human pressed reject, or policy did it for them.</li>
+      <li>480 — the weakest claim of the four: not reachable <em>right now</em>, try
+      again later, possibly with a <code>Retry-After</code> hint.</li>
+    </ul>
+
+    <h2>What to check in the trace</h2>
+    <ol>
+      <li>Did a 180 Ringing (or a 183 carrying ringback) precede the 480? Ringing first
+      means the user side — no answer, DND-after-alert, or reject. No ringing means the
+      registration or routing side.</li>
+      <li>Clock the gap from INVITE to 480. Milliseconds is a local location-service
+      miss or DND. Fifteen, twenty or thirty seconds is somebody's ring timer. Thirty-two
+      seconds is a transaction timeout being translated — see the
+      <a href="/sip/408-request-timeout">408 page</a>.</li>
+      <li>Establish which element generated it. Did the INVITE leave the egress side of
+      your SBC or proxy at all? A 480 on the ingress leg with no matching egress INVITE
+      was minted locally, and your registrar — not the far end — is the story.</li>
+      <li>Read the <code>Reason</code> header if there is one. Q.850 cause 19 versus 20
+      is the difference between "rang, no answer" and "handset off or out of
+      coverage".</li>
+      <li>Ask the registrar what it held at that moment: which bindings, with what
+      expiry, on which node. Compare against the phone's re-REGISTER cadence in the same
+      capture — a binding that expires sixty seconds before each refresh is the whole
+      answer.</li>
+      <li>Check that the Request-URI actually matches the AOR the device registers.
+      User-versus-extension mismatches produce empty target sets that masquerade as
+      flaky registration.</li>
+    </ol>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> separates the two kinds of 480 for you — it shows
+      whether the call rang before it failed, clocks the INVITE-to-480 gap against ring
+      timers and transaction timeouts, and lifts <code>Reason</code> / Q.850 causes out
+      of the ladder as findings. Self-hosted, free for individual users.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+    <nav class="ref-more" aria-label="related pages">
+      See also:
+      <ul>
+        <li><a href="/sip/486-busy-here">486 Busy Here</a> — when the device was reached and said busy.</li>
+        <li><a href="/sip/503-service-unavailable">503 Service Unavailable</a> — when it is the machinery, not the user.</li>
+        <li><a href="/sip/q850-cause-codes">Q.850 cause codes</a> — the full ISUP-to-SIP mapping in both directions.</li>
+        <li><a href="/sip">All SIP failure reference pages</a></li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

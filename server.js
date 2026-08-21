@@ -660,6 +660,14 @@ const PUBLIC_PAGES = new Map([
   ['/sip/486-busy-here', 'sip/486-busy-here.html'],
   ['/sip/one-way-audio', 'sip/one-way-audio.html'],
   ['/sip/retransmissions', 'sip/retransmissions.html'],
+  ['/sip/503-service-unavailable', 'sip/503-service-unavailable.html'],
+  ['/sip/480-temporarily-unavailable', 'sip/480-temporarily-unavailable.html'],
+  ['/sip/403-forbidden', 'sip/403-forbidden.html'],
+  ['/sip/401-407-authentication', 'sip/401-407-authentication.html'],
+  ['/sip/487-request-terminated', 'sip/487-request-terminated.html'],
+  ['/sip/481-call-does-not-exist', 'sip/481-call-does-not-exist.html'],
+  ['/sip/q850-cause-codes', 'sip/q850-cause-codes.html'],
+  ['/sip/sip-timers', 'sip/sip-timers.html'],
 ]);
 
 /**
@@ -3293,6 +3301,33 @@ async function handle(req, res) {
   const qIdx = url.indexOf('?');
   const pathname = qIdx === -1 ? url : url.slice(0, qIdx);
   const method = req.method;
+  const query = qIdx === -1 ? '' : url.slice(qIdx);
+
+  // --- canonical-host and canonical-path redirects (SEO) ---
+  //
+  // www.hiccup.monster resolves through the same tunnel and used to serve the
+  // same 200s as the apex: two hostnames, one site, split link equity and a
+  // duplicate-content signal. Canonical tags mitigated it; a 301 settles it.
+  // Matched on the exact www host only, so localhost, LAN and tunnel
+  // healthcheck traffic (Host: 127.0.0.1:8400 etc.) is never redirected.
+  const host = String(req.headers.host || '').toLowerCase();
+  if (host === 'www.hiccup.monster') {
+    res.writeHead(301, { Location: 'https://hiccup.monster' + pathname + query });
+    res.end();
+    return;
+  }
+  // People and other sites link with trailing slashes; a 404 for /sip/ throws
+  // that link equity away. Only known clean-URL pages redirect -- everything
+  // else still 404s so junk paths are not laundered into 301s.
+  if (pathname.length > 1 && pathname.endsWith('/') && method === 'GET') {
+    let stripped = pathname;
+    while (stripped.length > 1 && stripped.endsWith('/')) stripped = stripped.slice(0, -1);
+    if (PUBLIC_PAGES.has(stripped)) {
+      res.writeHead(301, { Location: stripped + query });
+      res.end();
+      return;
+    }
+  }
 
   // --- public, no auth ---
   if (pathname === '/api/status' && method === 'GET') {

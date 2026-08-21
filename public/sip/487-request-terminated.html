@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIP 487 Request Terminated — when it matters — hiccup</title>
+<meta name="description" content="487 usually means the caller or a fork sent CANCEL. Not a fault by itself; when a pile of them means long PDD or a forking race, and how to read it in a trace.">
+<link rel="canonical" href="https://hiccup.monster/sip/487-request-terminated">
+<script src="/boot-theme.js"></script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="SIP 487 Request Terminated — when it matters">
+<meta property="og:description" content="487 is the receipt for a CANCEL, not a rejection. When a pile of them means long post-dial delay or a forking race, and how to read it in a trace.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/sip/487-request-terminated">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "SIP 487 Request Terminated — when it matters",
+  "description": "Why a SIP 487 is usually normal cancellation bookkeeping, the patterns that turn a pile of them into a symptom, and what to look for in a packet capture.",
+  "url": "https://hiccup.monster/sip/487-request-terminated",
+  "inLanguage": "en",
+  "datePublished": "2026-08-20",
+  "dateModified": "2026-08-20",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "Session Initiation Protocol" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/sip">SIP failure reference</a><span>/</span>487 Request Terminated
+  </nav>
+
+  <article class="ref">
+
+    <h1>SIP 487 Request Terminated</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> 487 is a receipt, not a rejection. It closes an
+      INVITE that the calling side itself withdrew with a CANCEL — a caller hanging up, a
+      timer giving up, or a forking proxy clearing the branches that lost the race. One 487
+      means nothing. The timing of the CANCEL behind it means everything.</p>
+    </div>
+
+    <h2>The sequence that produces a 487</h2>
+    <p>
+      The canonical exchange looks like this, read from the caller's side:
+    </p>
+    <pre><code>INVITE   --&gt;
+         &lt;--  100 Trying
+         &lt;--  180 Ringing
+CANCEL   --&gt;
+         &lt;--  200 OK                  (answers the CANCEL)
+         &lt;--  487 Request Terminated  (answers the INVITE)
+ACK      --&gt;</code></pre>
+    <p>
+      Two transactions are being closed at once, and that is the part that trips people up
+      when they read a trace. The CANCEL is its own hop-by-hop transaction: every proxy in
+      the path answers it with its own 200 OK and issues a fresh CANCEL downstream. That
+      200 OK says only "I heard you". The 487 is the final response to the original INVITE
+      — that is the "I did it" — and because it is a non-2xx final response, the ACK it
+      triggers is also generated hop by hop by the transaction layer, not end to end. Three
+      messages come back for one hang-up, and none of them is bad news.
+    </p>
+    <p>
+      RFC 3261 section 9 sets the rules: a client must not send CANCEL until at least a
+      provisional response has arrived (otherwise the CANCEL can race its own INVITE), and
+      a UAS that receives a CANCEL for an INVITE it has not yet answered should answer that
+      INVITE with 487. If the UAS had already sent its final response, the CANCEL changes
+      nothing — a case that matters below.
+    </p>
+
+    <h2>Who cancelled, and why</h2>
+
+    <h3>A human gave up</h3>
+    <p>
+      The bulk of all 487s. The phone was ringing, nobody picked up, the caller stopped
+      waiting — or realised they had dialled the wrong number. The tell is ragged timing:
+      CANCELs at 8, 14, 23 seconds after the INVITE, with a 180 in between. Humans are
+      irregular.
+    </p>
+
+    <h3>A timer fired</h3>
+    <p>
+      <code>Dial(PJSIP/100,20)</code> in Asterisk sends a CANCEL at exactly 20 seconds and
+      moves on to voicemail; the phone that was ringing returns 487 and the CDR reads
+      NO&nbsp;ANSWER. Every PBX, SBC and application server has an equivalent no-answer or
+      ring-timeout timer. Machines are exact: 487s landing at precisely 20.0 or 30.0
+      seconds after the INVITE, call after call, are a configured timer, not a person.
+    </p>
+
+    <h3>A fork was tidied up</h3>
+    <p>
+      Simultaneous ring, shared-line appearances, desk-phone-plus-mobile-app twinning — all
+      of it is parallel forking, and forking is a race with exactly one winner. The moment
+      one branch answers with a 200 OK, the proxy cancels every other branch, and each of
+      them dutifully returns 487. A polite implementation marks these CANCELs with
+      <code>Reason: SIP;cause=200;text="Call completed elsewhere"</code> (RFC 3326), which
+      many phones use to keep the abandoned branches out of the missed-calls list. A user with a
+      desk phone, a softclient and a mobile app generates two 487s for every call they
+      answer. Piles of these are health, not disease.
+    </p>
+
+    <h3>A transfer, pickup or dialer moved on</h3>
+    <p>
+      Directed call pickup grabs a ringing call and the original branch gets cancelled. A
+      queue ringing several agents cancels the losers when one accepts. An attended
+      transfer that completes cancels whatever was still ringing. Predictive dialers cancel
+      calls when no agent frees up in time — and a flood of INVITE→CANCEL pairs with
+      sub-10-second lifetimes is exactly the shape carriers' fraud and abuse systems watch
+      for.
+    </p>
+
+    <h2>When a 487 is a symptom</h2>
+    <p>
+      <strong>Abandonment caused by post-dial delay.</strong> If the CANCELs come four to
+      eight seconds after the INVITE and no 180 or 183 ever arrived in between, callers
+      were listening to dead air and gave up. The 487s are innocent; the missing ringback
+      is the finding. Measure INVITE-to-first-provisional per call across the trunk — a
+      pile of 487s is often a PDD complaint wearing a polite status code.
+    </p>
+    <p>
+      <strong>The answer race.</strong> Sometimes the 200 OK and the CANCEL cross on the
+      wire. Per RFC 3261, a CANCEL that arrives after the final response has no effect: the
+      call is answered whether the caller still wants it or not, and the caller's UA must
+      ACK the 200 and immediately send BYE. In the field this looks like zero-duration
+      answered calls in the CDR — which get billed, and disputed — or a callee who picks up
+      to dead air. Twinning to mobiles makes the race routine, because the mobile carrier's
+      voicemail "answers" the forked branch at almost the same moment the caller or the
+      proxy gives up on it.
+    </p>
+    <p>
+      <strong>Retransmitted 487s.</strong> The UAS retransmits its 487 until the hop-by-hop
+      ACK arrives, and gives up when Timer H (64&nbsp;×&nbsp;T1 = 32 seconds by default)
+      expires. A trace with the same 487 repeated every few hundred milliseconds is not a
+      cancellation problem at all — the ACK is being lost on the return path, which is a
+      NAT or routing finding. See the
+      <a href="/sip/retransmissions">retransmissions page</a> for the ladder itself.
+    </p>
+
+    <h2>487 vs 486 vs 480 vs 408</h2>
+    <p>
+      The four codes people conflate under "the call didn't happen" differ in <em>who made
+      the decision</em>:
+    </p>
+    <ul>
+      <li><a href="/sip/486-busy-here">486 Busy Here</a> — the callee's device decided. The
+      user was there and busy, or pressed decline.</li>
+      <li><a href="/sip/480-temporarily-unavailable">480 Temporarily Unavailable</a> — the
+      far end or its proxy decided the user cannot be offered the call right now:
+      unreachable, DND, no registered contacts.</li>
+      <li><a href="/sip/408-request-timeout">408 Request Timeout</a> — nobody decided
+      anything; a local timer (usually Timer B at 32 seconds) filled the silence.</li>
+      <li>487 — the <em>calling</em> side decided. The callee merely filed the
+      paperwork.</li>
+    </ul>
+    <p>
+      That direction matters when you are assigning blame from statistics. Most CDR tools
+      bucket 487 under NO&nbsp;ANSWER, which is fair for a ring-timeout cancel and wrong
+      for a fork tidy-up: count raw 487s as failures and your "failure rate" climbs with
+      every simultaneous-ring user you add, while the users themselves are perfectly happy.
+    </p>
+
+    <h2>What to check in the trace</h2>
+    <ol>
+      <li>Pair the 487 with its CANCEL, and establish who minted the CANCEL. On a
+      multi-vantage capture, the leg where it appears first is the author; a CANCEL on the
+      egress leg with no matching CANCEL on the ingress leg was created by the box in the
+      middle, and its timer is the story.</li>
+      <li>Measure INVITE-to-CANCEL, and note whether a 180/183 arrived in between. Ragged
+      intervals after ringing are humans. Identical intervals to the decimal are timers.
+      Short intervals with no provisional at all are post-dial delay.</li>
+      <li>Read the <code>Reason</code> header on the CANCEL. <code>SIP;cause=200</code>
+      with "Call completed elsewhere" is a healthy fork. A <code>Q.850</code> cause means a
+      gateway is relaying a PSTN-side release — the caller hung up on the other
+      network.</li>
+      <li>Look for a 200 OK to the INVITE near the CANCEL. If the answer won the race,
+      confirm the ACK and immediate BYE followed, and check whether a zero-duration
+      answered call reached billing.</li>
+      <li>Check whether the 487 is retransmitted. If it repeats, the ACK is not getting
+      back — chase the return path, not the cancellation.</li>
+      <li>In a forked call, count the branches. One 200 OK and N−1 487s is the healthy
+      shape. N 487s and no 200 anywhere means nobody answered, and the interesting
+      question becomes how long the caller was left ringing before something gave up.</li>
+    </ol>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> pairs every CANCEL with the INVITE it killed, measures
+      post-dial delay and ring time per call, and separates "caller gave up" from "fork
+      tidied up" from "timer fired" — as findings, next to the ladder. Self-hosted, free for individual users.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+    <nav class="ref-more" aria-label="related pages">
+      See also:
+      <ul>
+        <li><a href="/sip/486-busy-here">486 Busy Here</a> — when the callee's device said no.</li>
+        <li><a href="/sip/480-temporarily-unavailable">480 Temporarily Unavailable</a> — when the user could not be offered the call at all.</li>
+        <li><a href="/sip/408-request-timeout">408 Request Timeout</a> — when nothing came back and a timer decided.</li>
+        <li><a href="/sip">All SIP failure reference pages</a></li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

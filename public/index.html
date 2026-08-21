@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title data-i18n>hiccup — see where the call went wrong</title>
+<title data-i18n>SIP trace analyser — see where the call went wrong — hiccup</title>
 <meta name="description" content="hiccup — a self-hosted SIP / H.323 / Diameter trace analyser, free for individual users. automatic fault detection with RFC-cited findings, header-manipulation rules written from a plain-language description, and advice grounded in your own vendor config guides.">
 <link rel="canonical" href="https://hiccup.monster/">
 <script src="/boot-theme.js"></script>
@@ -13,7 +13,7 @@
 <link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
-<meta property="og:title" content="hiccup — see where the call went wrong">
+<meta property="og:title" content="SIP trace analyser — see where the call went wrong — hiccup">
 <meta property="og:description" content="a self-hosted SIP / H.323 / Diameter trace analyser, free for individual users. automatic fault detection, SBC rules written from a plain-language description, and advice grounded in your own vendor config guides.">
 <meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
 <meta property="og:url" content="https://hiccup.monster/">
@@ -526,10 +526,10 @@
     <ul>
       <li><a href="/sip/488-not-acceptable-here">488 Not Acceptable Here</a>
         <span data-i18n>— codec, payload-type or SRTP mismatch in the SDP</span></li>
-      <li><a href="/sip/408-request-timeout">408 Request Timeout</a>
-        <span data-i18n>— Timer B expired at 32 seconds and nothing ever came back</span></li>
-      <li><a href="/sip/486-busy-here">486 Busy Here</a>
-        <span data-i18n>— a busy phone, admission control, or Q.850 cause 17 from the PSTN</span></li>
+      <li><a href="/sip/503-service-unavailable">503 Service Unavailable</a>
+        <span data-i18n>— the trunk refused it: carrier congestion, a CPS cap, or a dead gateway</span></li>
+      <li><a href="/sip/q850-cause-codes">Q.850 cause codes</a>
+        <span data-i18n>— the full mapping table, for when the PSTN is hiding behind a SIP code</span></li>
       <li><a data-i18n href="/sip/one-way-audio">one-way audio</a>
         <span data-i18n>— the signalling worked and the RTP went somewhere else</span></li>
       <li><a data-i18n href="/sip/retransmissions">retransmissions and storms</a>

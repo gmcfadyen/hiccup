@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIP 401 vs 407 — how SIP authentication fails — hiccup</title>
+<meta name="description" content="401 comes from a registrar, 407 from a proxy, and one challenge is normal. Digest auth on the wire, and why a loop means more than just a wrong password.">
+<link rel="canonical" href="https://hiccup.monster/sip/401-407-authentication">
+<script src="/boot-theme.js"></script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="SIP 401 vs 407 — how SIP authentication fails">
+<meta property="og:description" content="Who is challenging you, what Digest looks like on the wire, and why an auth loop means more than a wrong password.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/sip/401-407-authentication">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "SIP 401 vs 407 — how SIP authentication fails",
+  "description": "Where SIP 401 and 407 challenges come from, how Digest authentication works on the wire, and what actually causes authentication loops in a packet capture.",
+  "url": "https://hiccup.monster/sip/401-407-authentication",
+  "inLanguage": "en",
+  "datePublished": "2026-08-20",
+  "dateModified": "2026-08-20",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "Session Initiation Protocol" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/sip">SIP failure reference</a><span>/</span>401 / 407 Authentication
+  </nav>
+
+  <article class="ref">
+
+    <h1>SIP 401 vs 407</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> one 401 or 407 followed by a credentialled retry
+      is not a failure — that is how SIP Digest authentication is supposed to look. The
+      failure mode is the <em>loop</em>: challenge, credentialled retry, challenge again.
+      And a loop has more causes than a wrong password.</p>
+    </div>
+
+    <h2>401 vs 407: who is challenging you</h2>
+    <p>
+      The two codes carry the same mechanism but name a different challenger. A
+      <strong>401 Unauthorized</strong> comes from the server that will consume the request
+      itself — a registrar answering your REGISTER, or a UAS answering your INVITE. It
+      carries <code>WWW-Authenticate</code> and expects the retry to carry
+      <code>Authorization</code>. A <strong>407 Proxy Authentication Required</strong> comes
+      from a proxy the request was passing through; it carries
+      <code>Proxy-Authenticate</code> and expects <code>Proxy-Authorization</code>. RFC 3261
+      reserves 401 for registrars and UASs and 407 for proxies — hence the shorthand,
+      right far more often than not: 401 means registration, 407 means a call.
+    </p>
+    <p>
+      Several proxies on the path may each challenge, so
+      <code>Proxy-Authorization</code> headers accumulate: each proxy takes the credentials
+      for its own realm and forwards the rest. Two requests are never challenged at all —
+      RFC 3261 section 22.1 rules out challenging a CANCEL (it cannot be resubmitted with
+      credentials), and an ACK cannot be answered, so it carries a copy of the INVITE's
+      credentials instead.
+    </p>
+
+    <h2>Digest auth on the wire</h2>
+    <p>
+      The challenge names a <code>realm</code>, supplies a server-chosen
+      <code>nonce</code>, and usually a <code>qop</code> and an <code>algorithm</code>.
+      The client never sends the password: it hashes
+      <code>username:realm:password</code> into one value, <code>method:uri</code> into
+      another, combines them with the nonce — plus, when the challenge names a
+      <code>qop</code>, a client nonce (<code>cnonce</code>) and a per-nonce request
+      counter (<code>nc</code>) — and returns the result in
+      <code>response=</code>. The server does the same arithmetic and compares. The scheme
+      is HTTP Digest — RFC 2617, revised by RFC 7616; RFC 8760 brought the SHA-256
+      variants to SIP, though in the field MD5 still dominates.
+    </p>
+    <p>
+      Two parameters do most of the diagnostic work. <code>stale=true</code> on a repeat
+      challenge means "your credentials were fine, but the nonce was not — take this fresh
+      one and retry without re-prompting for a password". And <code>nc</code> must
+      increment each time a nonce is reused — that is the replay check; a retransmission
+      keeps its <code>nc</code>, a new request must not.
+    </p>
+
+    <h2>One challenge is normal</h2>
+    <p>
+      Clients send the first request bare on purpose — they cannot compute a response
+      before they have seen a nonce. The healthy shapes:
+    </p>
+    <pre><code>REGISTER            →  401 (WWW-Authenticate: nonce N)
+REGISTER + Authorization (nonce N)   →  200 OK
+
+INVITE              →  407 (Proxy-Authenticate: nonce N)
+ACK                                      (ends that transaction)
+INVITE + Proxy-Authorization, CSeq+1  →  100 / 180 / 200</code></pre>
+    <p>
+      On the INVITE side the 407 is a final response, so it is ACKed, and the
+      credentialled INVITE is a <em>new</em> request — same Call-ID, CSeq incremented
+      by one. Dashboards that count raw 4xx report a "failure" on every
+      outbound call through a challenging proxy; filter these pairs out before believing
+      an error rate.
+    </p>
+
+    <h2>What actually causes auth loops</h2>
+
+    <h3>The credentials really are wrong — but check which username</h3>
+    <p>
+      Still the most common cause, with a twist: most gear separates the <em>auth
+      username</em> from the user part of the From and To URIs, and it is the auth username
+      the server checks. A PBX trunk with the account number in the From but the wrong
+      value in the auth-user field loops on 407 against a perfectly correct password.
+      Usernames are often case-sensitive, and passwords containing <code>&amp;</code> or
+      <code>%</code> get mangled by provisioning layers more often than anyone admits.
+    </p>
+
+    <h3>Stale nonces</h3>
+    <p>
+      Servers expire nonces — some after minutes, some after a single use. A client that
+      computes correctly but answers with a nonce the server no longer honours gets
+      challenged again, ideally with <code>stale=true</code>; a well-behaved client
+      silently retries with the new nonce and the loop converges. The pathological
+      version is a client replaying an old nonce on every new request, or a server
+      enforcing <code>nc</code> strictly against a client that always sends
+      <code>nc=00000001</code>. Either way, the tell is in the parameters, not the
+      password.
+    </p>
+
+    <h3>A cluster that does not share nonce state</h3>
+    <p>
+      Two registrars behind a round-robin load balancer, nonces held in local memory:
+      server A mints the challenge, server B receives the answer and has never seen that
+      nonce. Every response is rejected as stale no matter how correct it is. The
+      signature is unmistakable — an endless loop in which <em>every</em> challenge says
+      <code>stale=true</code> with a fresh nonce, while the client's responses are
+      properly formed.
+    </p>
+
+    <h3>Realm mismatch</h3>
+    <p>
+      The password hash is bound to the realm — <code>username:realm:password</code> — so
+      anything that changes the realm invalidates every stored hash. Servers that store
+      pre-computed hashes cannot simply rename their realm, and a failover server
+      presenting a different realm breaks clients that cached credentials against the
+      old one. If the realm in the challenge is not the
+      realm the client was provisioned with, no password will ever work.
+    </p>
+
+    <h3>Something rewrote the request in flight</h3>
+    <p>
+      The digest covers the request method and URI, and strict servers verify that the
+      <code>uri=</code> parameter in the credentials matches the Request-URI they actually
+      received. A SIP ALG on a router, or an SBC rewriting the Request-URI in transit,
+      silently breaks that comparison: the client signed one URI, the server received
+      another. Both ends are behaving correctly — the middlebox is the culprit.
+    </p>
+
+    <h3>Algorithm disagreement</h3>
+    <p>
+      Since RFC 8760 a server may offer several challenges, strongest first — SHA-256,
+      then MD5. An older client may ignore the unfamiliar challenge outright, or answer
+      it with MD5 arithmetic. Rare, but worth a glance at
+      <code>algorithm=</code> when everything else checks out.
+    </p>
+
+    <h2>Registration auth vs per-call auth</h2>
+    <p>
+      Registration authenticates one thing only: the binding between an address-of-record
+      and a contact. It does not pre-authorise anything that follows, so most deployments
+      challenge INVITEs separately — which is why a phone can register happily and still
+      hit a 407 on every call. Carrier trunks often skip Digest entirely and authenticate
+      by source IP address; there, a credential problem never appears as a 401/407 loop
+      but as a straight <a href="/sip/403-forbidden">403 Forbidden</a>. Many servers also
+      convert repeated Digest failure into a 403 after two or three attempts, so the end
+      of an auth loop and an outright ban look identical in the CDR.
+    </p>
+
+    <h2>What to check in the trace</h2>
+    <ol>
+      <li>Confirm the retry is real: same Call-ID, CSeq incremented, and an
+      <code>Authorization</code> or <code>Proxy-Authorization</code> header actually
+      present. A client repeating the identical bare request never understood the
+      challenge.</li>
+      <li>Compare the nonce in the credentials against the <em>most recent</em>
+      challenge. A client replaying an older nonce is a client problem; a server refusing
+      its own fresh nonce is a server problem.</li>
+      <li>Read <code>stale=</code> on the second challenge. <code>stale=true</code> means
+      the credentials were accepted and the nonce was not — stop investigating the
+      password. Every challenge stale with a fresh nonce, forever, points at a cluster
+      not sharing nonce state.</li>
+      <li>Match <code>realm=</code> in the credentials against <code>realm=</code> in the
+      challenge, character for character.</li>
+      <li>Match <code>uri=</code> against the Request-URI on the wire at the point of
+      capture. A mismatch means something in between rewrote the request — go find the
+      ALG or SBC.</li>
+      <li>Check <code>username=</code> against what the server keys accounts on — where
+      the auth-user-versus-From-user confusion becomes visible.</li>
+      <li>Watch how the loop ends. A 403 after a few rounds is the server giving up,
+      often with the real reason in the reason phrase. Sudden silence, retransmissions
+      and a <a href="/sip/408-request-timeout">local 408</a> mean a fail2ban-style
+      blocker is now dropping your packets — the auth loop was the trigger.</li>
+    </ol>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> pairs every challenge with its credentialled retry,
+      collapses the healthy 401/407 handshakes out of the failure count, and flags nonce
+      reuse, realm mismatches and stale loops as findings — next to the ladder.
+      Self-hosted, free for individual users.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+    <nav class="ref-more" aria-label="related pages">
+      See also:
+      <ul>
+        <li><a href="/sip/403-forbidden">403 Forbidden</a> — when the server stops asking and just says no.</li>
+        <li><a href="/sip/408-request-timeout">408 Request Timeout</a> — when the challenge, or anything else, never comes back.</li>
+        <li><a href="/sip/retransmissions">Retransmissions and retransmission storms</a> — the timers behind the retries.</li>
+        <li><a href="/sip">All SIP failure reference pages</a></li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

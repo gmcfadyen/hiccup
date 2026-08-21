@@ -151,18 +151,26 @@ async function main() {
   // ---------------------------------------------------------------- routing
   // The regression that motivated this file. Every page a user can be sent to
   // must resolve -- a 404 here means a link in the UI is dead in production.
-  await t('every public page route resolves', async () => {
-    const pages = ['/', '/subscribe', '/privacy', '/team', '/app', '/sip', '/settings'];
-    for (const p of pages) {
+  await t('every sitemap URL and app page resolves', async () => {
+    // Sitemap-driven, so a page added to PUBLIC_PAGES is covered by this test
+    // automatically. A hand-kept list here is exactly how /subscribe shipped
+    // in the sitemap while 404ing in production.
+    const sm = await client('GET', '/sitemap.xml');
+    eq(sm.status, 200, 'sitemap status');
+    ok(sm.text.includes('/subscribe'), 'sitemap does not list /subscribe');
+    const locs = (sm.text.match(new RegExp('<loc>[^<]+</loc>', 'g')) || [])
+      .map((l) => l.slice(5, -6))
+      .map((u) => u.replace(new RegExp('^https?://[^/]+'), '') || '/');
+    ok(locs.length >= 8, 'sitemap suspiciously small: ' + locs.length + ' URLs');
+    for (const p of locs.concat(['/team', '/app', '/settings'])) {
       const r = await client('GET', p);
       ok(r.status === 200, p + ' returned ' + r.status + ' (expected 200)');
     }
-  });
-
-  await t('sitemap lists /subscribe', async () => {
-    const r = await client('GET', '/sitemap.xml');
-    eq(r.status, 200, 'sitemap status');
-    ok(r.text.includes('/subscribe'), 'sitemap does not list /subscribe');
+    // and the canonical-path redirect: a trailing slash must 301 to the clean
+    // URL, not 404 -- inbound links arrive with slashes whether we like it or not.
+    const ts = await client('GET', '/sip/');
+    eq(ts.status, 301, '/sip/ should 301 to /sip');
+    eq(ts.headers.location, '/sip', '/sip/ Location header');
   });
 
   // A gated route must answer 401, NOT 404. A 404 means the route is missing

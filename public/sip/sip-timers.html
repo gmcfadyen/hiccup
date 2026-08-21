@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIP timers — what fires at 32 seconds and why — hiccup</title>
+<meta name="description" content="T1 to Timer K in one table: what fires, after how long, and what it kills. Where the 32-second wall comes from, and which timers stop mattering over TCP.">
+<link rel="canonical" href="https://hiccup.monster/sip/sip-timers">
+<script src="/boot-theme.js"></script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="SIP timers — what fires at 32 seconds and why">
+<meta property="og:description" content="T1 to Timer K in one table, where the 32-second wall comes from, and which timers stop mattering over TCP.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/sip/sip-timers">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "SIP timers — what fires at 32 seconds and why",
+  "description": "The RFC 3261 timer table with the arithmetic done, where the 32-second wall comes from, and what timer expiries look like in a packet capture.",
+  "url": "https://hiccup.monster/sip/sip-timers",
+  "inLanguage": "en",
+  "datePublished": "2026-08-20",
+  "dateModified": "2026-08-20",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "Session Initiation Protocol" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/sip">SIP failure reference</a><span>/</span>SIP timers
+  </nav>
+
+  <article class="ref">
+
+    <h1>SIP timers</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> nearly everything in SIP's transaction machinery
+      is a multiple of T1, a 500 ms guess at the round trip, and the wall calls hit is
+      64 × T1 = 32 seconds — called Timer B, F or H depending on what was being waited
+      for. These transaction timers are local, never negotiated: the timeout in your log
+      belongs to the box that logged it.</p>
+    </div>
+
+    <h2>The timer table</h2>
+    <p>
+      RFC 3261 defines two kinds of timer. The doubling ones (A, E, G) pace retransmissions
+      over UDP; the fixed ones either decide when to give up (B, F, H) or how long to hang
+      around absorbing stragglers (D, I, J, K). Appendix A collects them into one
+      table — here it is with the arithmetic done:
+    </p>
+    <div class="ref-table-wrap">
+      <table class="doc-table">
+        <thead>
+          <tr><th>Timer</th><th>Default</th><th>RFC 3261</th><th>What it does</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>T1</td><td>500 ms</td><td>§17.1.1.1</td><td>Round-trip estimate; almost everything below is a multiple of it</td></tr>
+          <tr><td>T2</td><td>4 s</td><td>§17.1.2.2</td><td>Cap on the retransmit interval for non-INVITE requests and INVITE responses</td></tr>
+          <tr><td>T4</td><td>5 s</td><td>§17.1.2.2</td><td>Longest a message is assumed to linger in the network</td></tr>
+          <tr><td>A</td><td>T1, doubling</td><td>§17.1.1.2</td><td>INVITE retransmit interval (UDP only)</td></tr>
+          <tr><td>B</td><td>64 × T1 = 32 s</td><td>§17.1.1.2</td><td>INVITE transaction timeout — the 32-second wall</td></tr>
+          <tr><td>C</td><td>&gt; 3 min</td><td>§16.6</td><td>Proxy timeout for an INVITE that got a provisional response</td></tr>
+          <tr><td>D</td><td>&gt; 32 s (0 s on TCP)</td><td>§17.1.1.2</td><td>Absorb retransmitted final responses after the first one</td></tr>
+          <tr><td>E</td><td>T1, doubling to T2</td><td>§17.1.2.2</td><td>Non-INVITE retransmit interval (UDP only)</td></tr>
+          <tr><td>F</td><td>64 × T1 = 32 s</td><td>§17.1.2.2</td><td>Non-INVITE transaction timeout</td></tr>
+          <tr><td>G</td><td>T1, doubling to T2</td><td>§17.2.1</td><td>Retransmit interval for a non-2xx final response to INVITE</td></tr>
+          <tr><td>H</td><td>64 × T1 = 32 s</td><td>§17.2.1</td><td>How long to wait for the ACK to a non-2xx final response</td></tr>
+          <tr><td>I</td><td>T4 (0 s on TCP)</td><td>§17.2.1</td><td>Absorb retransmitted ACKs after the first one</td></tr>
+          <tr><td>J</td><td>64 × T1 (0 s on TCP)</td><td>§17.2.2</td><td>Absorb retransmitted non-INVITE requests after answering</td></tr>
+          <tr><td>K</td><td>T4 (0 s on TCP)</td><td>§17.1.2.2</td><td>Absorb retransmitted responses after the non-INVITE transaction completes</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Two things to notice. Timer C is the odd one out — a proxy timer, not derived from
+      T1, and why a call can sit in limbo for three minutes rather than 32 seconds once a
+      100 Trying has been seen. And every "0 s on TCP" entry exists only to absorb UDP
+      retransmissions; a reliable transport produces none, so the state evaporates.
+      (RFC 6026 later added Timers L and M, both 64 × T1, to repair 2xx handling — you will
+      meet them in stack source, not traces.)
+    </p>
+
+    <h2>Where the 32 seconds comes from</h2>
+    <p>
+      An INVITE over UDP is retransmitted on a doubling ladder: 500 ms after the first copy,
+      then 1 s, 2 s, 4 s, 8 s, 16 s. After the seventh transmission the sender has waited
+      63 × T1; RFC 3261 rounds the give-up point to 64 × T1 and calls it Timer B.
+      Non-INVITE requests hit the same wall as Timer F. Either way the transaction layer
+      reports a timeout, and most stacks log it as a locally minted
+      <a href="/sip/408-request-timeout">408</a> — which is why the 408 page on this site is
+      mostly about missing packets.
+    </p>
+    <p>
+      The third 32 arrives after answer. A UAS retransmits its 200 OK — starting at T1,
+      doubling up to T2 — until the ACK arrives; if 64 × T1 passes without one,
+      RFC 3261 §13.3.1.4 has it keep the dialog but end the call with a BYE. Timer H
+      (§17.2.1) is the same rule for non-2xx final responses. Between them they produce the
+      signature complaint: "the call connects and drops after exactly 32 seconds." That is
+      not a media problem — it is an ACK that never made it, usually a NAT or a broken
+      Contact or Record-Route.
+    </p>
+    <p>
+      One saving grace: a provisional response stops the INVITE clock. Once a 100 Trying
+      arrives the client transaction leaves the Calling state, Timer B no longer applies,
+      and responsibility passes to the proxy's Timer C — required by §16.6 to exceed three
+      minutes. Dying after 32 seconds of silence and dying after three minutes of ringing
+      are failures of different timers, in different boxes.
+    </p>
+
+    <h2>INVITE vs non-INVITE transactions</h2>
+    <p>
+      The two state machines pace their retransmissions differently. The INVITE retransmit
+      timer (A) doubles without a cap — a human is being waited for, and hammering helps
+      nobody. The non-INVITE retransmit timer (E) doubles only until it reaches T2 = 4 s,
+      then repeats at that rate, so a dead peer receives eleven copies of your OPTIONS or
+      REGISTER rather than seven before Timer F fires at the same 32 s.
+    </p>
+    <p>
+      The difference that bites: a provisional response rescues an INVITE indefinitely but
+      rescues a non-INVITE not at all. A 100 Trying to a REGISTER merely slows the
+      retransmissions to one every T2 — Timer F keeps running regardless (§17.1.2.2). If
+      the final response takes longer than 32 seconds, the transaction fails however much
+      Trying was received; slow non-INVITE work — registration bursts, heavy NOTIFY
+      bodies, a sluggish registrar database — therefore fails in a way no provisional can
+      fix.
+    </p>
+
+    <h2>What changes over TCP</h2>
+    <p>
+      Less than people hope. The retransmit timers A and E never start — TCP redelivers on
+      its own — and the absorb-the-stragglers timers D, I, J and K drop to zero, because
+      there are no stragglers. But the give-up timers survive intact: B, F and H all still
+      fire at 64 × T1. TCP guarantees delivery to the next hop, not an answer from it; a
+      peer that accepts the connection and says nothing still costs you 32 seconds. And a
+      UAS retransmits its 200 OK even over TCP — that rule lives end-to-end at the UA core,
+      because the ACK must cross every hop and any hop may be UDP.
+    </p>
+
+    <h2>Session timers are a different thing</h2>
+    <p>
+      RFC 4028's session timers share the word and nothing else. They work in minutes, not
+      milliseconds: a <code>Session-Expires</code> header (commonly 1800 s) is negotiated
+      in the INVITE, one side is elected refresher, and it must re-INVITE or UPDATE before
+      the interval runs out — conventionally at the halfway mark — or the other side is
+      entitled to hang up. <code>Min-SE</code> sets the floor a UAS will accept (never
+      below 90 s), and 422 Session Interval Too Small is that negotiation visibly failing.
+      The diagnostic split is clean: death at 32 seconds is a transaction timer; death at
+      a suspiciously round wall-clock time — fifteen minutes, thirty — is a session timer,
+      almost always a refresh being lost or rejected.
+    </p>
+
+    <h2>Tuning, and why the defaults usually win</h2>
+    <p>
+      Most stacks expose T1 and Timer B under some name, and there is one genuinely good
+      reason to touch them: failover. Waiting the full 32 seconds before hunting to the
+      next trunk is an eternity, so a Timer B of four to six seconds toward a carrier you
+      already probe with OPTIONS is defensible.
+    </p>
+    <p>
+      Lowering T1 instead is the classic mistake. T1 scales everything — the retransmit
+      pacing, all three 64 × T1 walls, the absorb states — and a T1 shorter than the real
+      round trip to some peer means retransmitting INVITEs that were already going to be
+      answered; the copies are where duplicate calls and double billing come from. The
+      defaults are sized for the worst path you will ever cross, not the average; being
+      unilaterally faster than the network mostly manufactures duplicates. Change Timer B
+      where failover demands it; leave T1 alone unless every peer is on your own LAN.
+    </p>
+
+    <h2>What timer trouble looks like in a trace</h2>
+    <ol>
+      <li>The same request at 0.5 / 1 / 2 / 4 / 8 / 16 s gaps, then nothing — Timer A
+      pacing, Timer B expiry, seven copies. The
+      <a href="/sip/408-request-timeout">408 page</a> covers what makes the replies
+      vanish.</li>
+      <li>The same non-INVITE every 4 seconds — Timer E pinned at T2, roughly eleven copies
+      before Timer F. A trunk whose OPTIONS look like this is already down.</li>
+      <li>A 200 OK repeating with no ACK, then a BYE about 32 s after answer — the ACK path
+      is broken. Check Contact, Record-Route and the NAT between them.</li>
+      <li>A non-2xx final response repeating (Timer G) with no ACK — the same disease on
+      the failure path; Timer H ends it quietly.</li>
+      <li>A response arriving after the ladder stopped — a late answer to a transaction
+      that no longer exists. What happens next is usually a
+      <a href="/sip/481-call-does-not-exist">481</a>.</li>
+      <li>A CDR full of durations of exactly 32.0 s — the 64 × T1 signature. Round
+      wall-clock failures are session timers; 32-second failures are transaction
+      timers.</li>
+    </ol>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> measures every gap in a retransmission ladder against the
+      RFC 3261 schedule, names the timer that actually fired, and separates real responses
+      from locally minted ones — as findings, next to the ladder. Self-hosted, free for individual users.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+    <nav class="ref-more" aria-label="related pages">
+      See also:
+      <ul>
+        <li><a href="/sip/retransmissions">Retransmissions and retransmission storms</a> — the ladders in the wild, and what a storm looks like.</li>
+        <li><a href="/sip/408-request-timeout">408 Request Timeout</a> — the status code Timer B mints.</li>
+        <li><a href="/sip/481-call-does-not-exist">481 Call/Transaction Does Not Exist</a> — where late answers and lost ACKs end up.</li>
+        <li><a href="/sip">All SIP failure reference pages</a></li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

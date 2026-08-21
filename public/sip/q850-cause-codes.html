@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Q.850 cause codes — the full SIP mapping table — hiccup</title>
+<meta name="description" content="The full Q.850-to-SIP mapping table, the causes you actually meet in the field, and how to read the Reason header when the PSTN is hiding behind a SIP code.">
+<link rel="canonical" href="https://hiccup.monster/sip/q850-cause-codes">
+<script src="/boot-theme.js"></script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="Q.850 cause codes — the full SIP mapping table">
+<meta property="og:description" content="The full Q.850-to-SIP mapping per RFC 3398, both directions, plus field notes on the causes people actually meet and how to read the Reason header.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/sip/q850-cause-codes">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "Q.850 cause codes — the full SIP mapping table",
+  "description": "The full Q.850-to-SIP mapping table, the causes you actually meet in the field, and how to read the Reason header when the PSTN is hiding behind a SIP code.",
+  "url": "https://hiccup.monster/sip/q850-cause-codes",
+  "inLanguage": "en",
+  "datePublished": "2026-08-20",
+  "dateModified": "2026-08-20",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "Session Initiation Protocol" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/sip">SIP failure reference</a><span>/</span>Q.850 cause codes
+  </nav>
+
+  <article class="ref">
+
+    <h1>Q.850 cause codes</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> Q.850 is the PSTN's vocabulary for why a call
+      ended; SIP status codes are a lossy translation of it, made at the gateway by
+      RFC 3398's table. The original cause, if you are lucky, rides along in a
+      <code>Reason: Q.850;cause=…</code> header. The cause is the evidence; the status is
+      the paraphrase.</p>
+    </div>
+
+    <h2>Where Q.850 appears in SIP</h2>
+    <p>
+      ITU-T Q.850 defines the cause values carried in ISUP REL and Q.931 DISCONNECT
+      messages — the PSTN's entire language for "why this call is over". The two
+      vocabularies do not line up: Q.850 has over a hundred causes, SIP a few dozen
+      relevant statuses, so a gateway has to translate. RFC 3398 is the dictionary; the
+      tables below are its defaults.
+    </p>
+    <p>
+      Because the translation loses detail in both directions, SIP grew a way to carry
+      the original alongside it: the <code>Reason</code> header of RFC 3326, as in
+      <code>Reason: Q.850;cause=34;text="No circuit/channel available"</code>. You will
+      meet it on BYE and CANCEL requests, and — since RFC 6432 made it explicit — on final
+      responses too. One message may carry two Reason values, one <code>SIP</code> and one
+      <code>Q.850</code>: the same event described from both sides of a gateway.
+    </p>
+    <p>
+      This is why the Reason header outranks the status code. A bare 503 might be nothing
+      more than your own SBC's overload control; a 503 carrying
+      <code>Reason: Q.850;cause=34</code> was minted from a real ISUP release behind the
+      trunk, by the network that actually failed.
+    </p>
+
+    <h2>The full cause-to-SIP mapping table</h2>
+    <p>
+      This direction answers "the carrier released with cause N — what status will my SIP
+      leg see?". These are RFC 3398's defaults; almost every SBC and gateway exposes an
+      override table, so a trace that disagrees with this one is configured, not broken.
+    </p>
+    <div class="ref-table-wrap">
+      <table class="doc-table">
+        <thead>
+          <tr><th>Cause</th><th>Q.850 name</th><th>SIP response</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>Unallocated (unassigned) number</td><td>404 Not Found</td></tr>
+          <tr><td>2</td><td>No route to specified transit network</td><td>404 Not Found</td></tr>
+          <tr><td>3</td><td>No route to destination</td><td>404 Not Found</td></tr>
+          <tr><td>16</td><td>Normal call clearing</td><td>— (a BYE or CANCEL, not a status)</td></tr>
+          <tr><td>17</td><td>User busy</td><td>486 Busy Here</td></tr>
+          <tr><td>18</td><td>No user responding</td><td>408 Request Timeout</td></tr>
+          <tr><td>19</td><td>No answer from user (user alerted)</td><td>480 Temporarily Unavailable</td></tr>
+          <tr><td>20</td><td>Subscriber absent</td><td>480 Temporarily Unavailable</td></tr>
+          <tr><td>21</td><td>Call rejected</td><td>403 Forbidden (603 Decline when the user rejected)</td></tr>
+          <tr><td>22</td><td>Number changed</td><td>410 Gone (301 Moved Permanently when the new number is in the diagnostic)</td></tr>
+          <tr><td>23</td><td>Redirection to new destination</td><td>410 Gone</td></tr>
+          <tr><td>26</td><td>Non-selected user clearing</td><td>404 Not Found</td></tr>
+          <tr><td>27</td><td>Destination out of order</td><td>502 Bad Gateway</td></tr>
+          <tr><td>28</td><td>Invalid number format (address incomplete)</td><td>484 Address Incomplete</td></tr>
+          <tr><td>29</td><td>Facility rejected</td><td>501 Not Implemented</td></tr>
+          <tr><td>31</td><td>Normal, unspecified</td><td>480 Temporarily Unavailable</td></tr>
+          <tr><td>34</td><td>No circuit/channel available</td><td>503 Service Unavailable</td></tr>
+          <tr><td>38</td><td>Network out of order</td><td>503 Service Unavailable</td></tr>
+          <tr><td>41</td><td>Temporary failure</td><td>503 Service Unavailable</td></tr>
+          <tr><td>42</td><td>Switching equipment congestion</td><td>503 Service Unavailable</td></tr>
+          <tr><td>44</td><td>Requested circuit/channel not available</td><td>503 Service Unavailable (see note)</td></tr>
+          <tr><td>47</td><td>Resource unavailable, unspecified</td><td>503 Service Unavailable</td></tr>
+          <tr><td>55</td><td>Incoming calls barred within CUG</td><td>403 Forbidden</td></tr>
+          <tr><td>57</td><td>Bearer capability not authorized</td><td>403 Forbidden</td></tr>
+          <tr><td>58</td><td>Bearer capability not presently available</td><td>503 Service Unavailable</td></tr>
+          <tr><td>65</td><td>Bearer capability not implemented</td><td>488 Not Acceptable Here</td></tr>
+          <tr><td>70</td><td>Only restricted digital bearer capability available</td><td>488 Not Acceptable Here</td></tr>
+          <tr><td>79</td><td>Service or option not implemented, unspecified</td><td>501 Not Implemented</td></tr>
+          <tr><td>87</td><td>User not member of CUG</td><td>403 Forbidden</td></tr>
+          <tr><td>88</td><td>Incompatible destination</td><td>503 Service Unavailable</td></tr>
+          <tr><td>102</td><td>Recovery on timer expiry</td><td>504 Server Time-out</td></tr>
+          <tr><td>111</td><td>Protocol error, unspecified</td><td>500 Server Internal Error</td></tr>
+          <tr><td>127</td><td>Interworking, unspecified</td><td>500 Server Internal Error</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Cause 44 is the one entry above that RFC 3398 does not enumerate by name: gateways map
+      it, with the rest of the resource-unavailable class, to 503 — where the whole
+      congestion family ends up anyway.
+    </p>
+    <p>
+      The reverse direction — the cause a gateway writes into the ISUP REL when the SIP
+      leg says no — is also defined by RFC 3398:
+    </p>
+    <div class="ref-table-wrap">
+      <table class="doc-table">
+        <thead>
+          <tr><th>SIP response received</th><th>Q.850 cause in the REL</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>400 Bad Request</td><td>41 Temporary failure</td></tr>
+          <tr><td>401 Unauthorized</td><td>21 Call rejected (only after authentication actually failed)</td></tr>
+          <tr><td>402 Payment Required</td><td>21 Call rejected</td></tr>
+          <tr><td>403 Forbidden</td><td>21 Call rejected</td></tr>
+          <tr><td>404 Not Found</td><td>1 Unallocated number</td></tr>
+          <tr><td>405 Method Not Allowed</td><td>63 Service or option unavailable</td></tr>
+          <tr><td>406 Not Acceptable</td><td>79 Service or option not implemented</td></tr>
+          <tr><td>407 Proxy Authentication Required</td><td>21 Call rejected (only after authentication actually failed)</td></tr>
+          <tr><td>408 Request Timeout</td><td>102 Recovery on timer expiry</td></tr>
+          <tr><td>410 Gone</td><td>22 Number changed</td></tr>
+          <tr><td>413 Request Entity Too Large</td><td>127 Interworking, unspecified</td></tr>
+          <tr><td>414 Request-URI Too Long</td><td>127 Interworking, unspecified</td></tr>
+          <tr><td>415 Unsupported Media Type</td><td>79 Service or option not implemented</td></tr>
+          <tr><td>416 Unsupported URI Scheme</td><td>127 Interworking, unspecified</td></tr>
+          <tr><td>420 Bad Extension</td><td>127 Interworking, unspecified</td></tr>
+          <tr><td>421 Extension Required</td><td>127 Interworking, unspecified</td></tr>
+          <tr><td>423 Interval Too Brief</td><td>127 Interworking, unspecified</td></tr>
+          <tr><td>480 Temporarily Unavailable</td><td>18 No user responding</td></tr>
+          <tr><td>481 Call/Transaction Does Not Exist</td><td>41 Temporary failure</td></tr>
+          <tr><td>482 Loop Detected</td><td>25 Exchange routing error</td></tr>
+          <tr><td>483 Too Many Hops</td><td>25 Exchange routing error</td></tr>
+          <tr><td>484 Address Incomplete</td><td>28 Invalid number format</td></tr>
+          <tr><td>485 Ambiguous</td><td>1 Unallocated number</td></tr>
+          <tr><td>486 Busy Here</td><td>17 User busy</td></tr>
+          <tr><td>488 Not Acceptable Here</td><td>derived from the Warning header when present</td></tr>
+          <tr><td>500 Server Internal Error</td><td>41 Temporary failure</td></tr>
+          <tr><td>501 Not Implemented</td><td>79 Service or option not implemented</td></tr>
+          <tr><td>502 Bad Gateway</td><td>38 Network out of order</td></tr>
+          <tr><td>503 Service Unavailable</td><td>41 Temporary failure</td></tr>
+          <tr><td>504 Server Time-out</td><td>102 Recovery on timer expiry</td></tr>
+          <tr><td>505 Version Not Supported</td><td>127 Interworking, unspecified</td></tr>
+          <tr><td>513 Message Too Large</td><td>127 Interworking, unspecified</td></tr>
+          <tr><td>600 Busy Everywhere</td><td>17 User busy</td></tr>
+          <tr><td>603 Decline</td><td>21 Call rejected</td></tr>
+          <tr><td>604 Does Not Exist Anywhere</td><td>1 Unallocated number</td></tr>
+          <tr><td>606 Not Acceptable</td><td>derived from the Warning header when present</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Put the two tables side by side and you can watch information being destroyed.
+      Causes 34, 38, 41 and 42 all become 503, and a 503 crossing back into ISUP becomes
+      41 — so whichever member of the congestion family a cause started as, two gateways
+      later it is "temporary failure". Only the Reason header survives the round trip —
+      when the boxes in the middle are polite enough to copy it.
+    </p>
+
+    <h2>The causes you actually meet</h2>
+    <ul>
+      <li><strong>17 User busy</strong> — the genuine article: the far end is engaged.
+      Arrives as 486; nothing to fix on your side.</li>
+      <li><strong>18 No user responding</strong> versus <strong>19 No answer from
+      user</strong> — 18 means the destination never even alerted; 19 means it rang and
+      nobody answered before the network's answer timer gave up. 18 points at a dead or
+      misconfigured endpoint, 19 at an absent human.</li>
+      <li><strong>21 Call rejected</strong> — a deliberate refusal by the subscriber's
+      equipment or a screening service; the location field tells you which. RFC 3398
+      prefers 603 Decline over 403 when the user themselves said no.</li>
+      <li><strong>28 Invalid number format</strong> — too few digits or the wrong shape
+      of digits: a missing prefix, a national number where E.164 was expected, an
+      overlap-dial string cut short. Check the called number against the trunk's
+      numbering plan before blaming the carrier.</li>
+      <li><strong>31 Normal, unspecified</strong> — the carrier's shrug: the catch-all of
+      the normal-event class, carrying almost no diagnostic weight on its own.</li>
+      <li><strong>41 Temporary failure</strong> — transient trouble, worth a retry —
+      though a 41 that arrived over SIP may have been any 5xx once.</li>
+      <li><strong>102 Recovery on timer expiry</strong> — an ISUP or Q.931 procedure
+      timer expired: the PSTN's own request timeout. It maps to 504, and 408/504 map back
+      to it — one of the few round trips that survives intact.</li>
+      <li><strong>127 Interworking, unspecified</strong> — the failure happened in, or
+      crossed, a network that does not speak Q.850, so no truer cause exists. Most
+      SIP-side rejections pushed into ISUP land here, hence both common and
+      uninformative.</li>
+    </ul>
+
+    <h2>Cause 16 is not an error</h2>
+    <p>
+      Cause 16, normal call clearing, means exactly what it says: somebody hung up. On a
+      BYE it is routine teardown and belongs in no failure report — which does not stop a
+      remarkable number of CDR tools counting it as one. It is the most common cause
+      value in any healthy network.
+    </p>
+    <p>
+      The one place cause 16 deserves attention is on a call that was never answered.
+      Usually the release was still normal — the caller abandoned and a CANCEL became
+      that REL — but it can also be a far-end platform "politely" clearing a call it
+      never intended to complete. The
+      question is not "why cause 16?" but "who released, from which direction, how long
+      after the call started?". The cause is innocent; the timing sometimes is not.
+    </p>
+
+    <h2>The congestion family: 34, 38, 42, 44</h2>
+    <p>
+      Four causes, one SIP status, four different problems.
+      <strong>34 — no circuit/channel available</strong> means full: every trunk on some
+      segment of the route is in use. Capacity, transient, and an immediate retry —
+      especially one the carrier can route differently — often succeeds.
+      <strong>42 — switching equipment congestion</strong> means the switch itself is
+      overloaded: processing, not trunks. Same advice, but if it persists through quiet
+      hours something is genuinely sick.
+    </p>
+    <p>
+      <strong>38 — network out of order</strong> is the serious one: not full, broken.
+      Q.850 intends it for failures likely to last a while, so a burst of cause 38 is an
+      outage signal, not a load signal. Retrying into it achieves nothing.
+    </p>
+    <p>
+      <strong>44 — requested circuit/channel not available</strong> is the odd sibling: a
+      <em>specific</em> circuit was requested and refused. On ISUP that smells of a CIC
+      state mismatch or glare (both ends seizing the same circuit at once); on a PRI, a
+      channel-map disagreement. Unlike 34 it is usually configuration wearing a
+      congestion costume — a trunk group that throws 44 repeatedly needs an audit, not a
+      quieter hour.
+    </p>
+
+    <h2>What to check in the trace</h2>
+    <ol>
+      <li>Search the whole dialog for <code>Reason:</code> headers — on the BYE, the
+      CANCEL and the final response. A <code>Q.850;cause=</code> value beats any amount
+      of inference from the status code.</li>
+      <li>Note which direction the release travelled. Whoever sent the BYE, or the
+      response carrying the cause, owns the network that holds the answer.</li>
+      <li>Compare the status against the table above. A pair that breaks the RFC 3398
+      default — a 480 carrying cause 17, say — means a box in the path runs a custom
+      mapping, and its configuration is now part of the investigation.</li>
+      <li>A 503 with no Reason header may never have touched the PSTN: SBCs mint bare
+      503s for their own overload and licensing limits. Provenance first, meaning
+      second.</li>
+      <li>Watch for double translation. If the status arrived as 503 and the cause as 41,
+      the original may still have been 34, 38 or 42 one network away.</li>
+      <li>If you can see the ISUP or Q.931 side, read the cause's location field —
+      "user", "local network" or "transit network" narrows down who rejected the call
+      better than the cause value itself.</li>
+    </ol>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> pulls the Reason header out of every BYE, CANCEL and
+      final response, shows the Q.850 cause and its meaning next to the SIP status in the
+      ladder, and flags the calls where the two tell different stories.
+      Self-hosted, free for individual users.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+    <nav class="ref-more" aria-label="related pages">
+      See also:
+      <ul>
+        <li><a href="/sip/486-busy-here">486 Busy Here</a> — cause 17 in its native SIP form.</li>
+        <li><a href="/sip/503-service-unavailable">503 Service Unavailable</a> — where the whole congestion family lands.</li>
+        <li><a href="/sip/480-temporarily-unavailable">480 Temporarily Unavailable</a> — the default translation for the normal-event class.</li>
+        <li><a href="/sip/403-forbidden">403 Forbidden</a> — what cause 21 usually turns into.</li>
+        <li><a href="/sip">All SIP failure reference pages</a></li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIP 403 Forbidden — causes and what to check — hiccup</title>
+<meta name="description" content="A 403 is a policy refusal, not an auth failure: trunk ACLs, caller-ID screening, destination barring, an empty prepaid balance. Check these before passwords.">
+<link rel="canonical" href="https://hiccup.monster/sip/403-forbidden">
+<script src="/boot-theme.js"></script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="SIP 403 Forbidden — causes and what to check">
+<meta property="og:description" content="403 is a policy refusal, not an auth failure. Trunk ACLs, caller-ID screening, destination barring and balance — before you touch a password.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/sip/403-forbidden">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "SIP 403 Forbidden — causes and what to check",
+  "description": "Why a SIP 403 Forbidden is a policy refusal rather than an authentication failure, the causes that are common in the field, and what to look for in a packet capture.",
+  "url": "https://hiccup.monster/sip/403-forbidden",
+  "inLanguage": "en",
+  "datePublished": "2026-08-20",
+  "dateModified": "2026-08-20",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "Session Initiation Protocol" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/sip">SIP failure reference</a><span>/</span>403 Forbidden
+  </nav>
+
+  <article class="ref">
+
+    <h1>SIP 403 Forbidden</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> a 403 is a policy refusal, not an authentication
+      failure. The server understood exactly who you are and what you asked for, and said
+      no. Passwords are the <em>last</em> thing to check — the trunk ACL, the caller ID,
+      the destination class and the account balance come first.</p>
+    </div>
+
+    <h2>What 403 actually means</h2>
+    <p>
+      RFC 3261 section 21.4.4 is short and unusually final: the server understood the
+      request but is refusing to fulfil it, and the request should not be repeated. That
+      last clause is what separates 403 from almost every other 4xx. A 401 or 407 is an
+      invitation to try again with credentials; a 403 is a verdict. Retrying the same
+      request, with or without authentication, is expected to produce the same answer,
+      because the refusal is about <em>policy</em> — who is calling, from where, to where,
+      on whose account — not about anything you can fix inside the message.
+    </p>
+    <p>
+      One consequence worth internalising: when a carrier sends 403, somewhere a rule
+      matched. Your job in the trace is to work out which rule, and the response itself
+      rarely tells you directly. The reason phrase and any <code>Reason</code> header are
+      the closest thing to a confession you will get.
+    </p>
+
+    <h2>What actually causes it</h2>
+
+    <h3>The source IP is not on the trunk ACL</h3>
+    <p>
+      The most common cause on IP-authenticated trunks, by a distance. The carrier admits
+      signalling only from the addresses provisioned on the trunk, and your INVITE arrived
+      from somewhere else: a new SBC, a second WAN that took over after a failover, a NAT
+      whose public address changed overnight, or simply a second signalling interface
+      nobody registered with the carrier. Every call fails identically and instantly, which
+      is itself diagnostic — auth problems tend to be intermittent, ACL problems are total.
+    </p>
+
+    <h3>The caller ID was screened out</h3>
+    <p>
+      Carriers increasingly refuse calls whose calling number is not one they can attribute
+      to your account — anti-spoofing policy, and in some markets a regulatory obligation.
+      If the number in <code>From</code> or <code>P-Asserted-Identity</code> is not on the
+      trunk's authorised list, the INVITE bounces with 403 before routing is even
+      attempted. This is the classic "calls with our main number work, calls presenting the
+      customer's own number fail" pattern. RFC 8224 defines dedicated codes for
+      Identity-header failures (428, 436, 438), but plenty of carriers just send 403 for
+      anything CLI-related.
+    </p>
+
+    <h3>The destination is barred</h3>
+    <p>
+      International, premium-rate and satellite prefixes are blocked by default on many
+      trunks, either as a class-of-service setting or as a fraud lock that engaged after
+      unusual traffic. Cloud carriers formalise this: Twilio, for example, answers 403 when
+      the destination country is not enabled in the account's geographic permissions. If
+      national calls work and one prefix family fails, this is where to look — not at the
+      SIP at all.
+    </p>
+
+    <h3>The money ran out</h3>
+    <p>
+      RFC 3261 reserves 402 Payment Required for future use, so almost nobody sends it. The
+      field reality is that an empty prepaid balance, an expired card or a suspended
+      account surfaces as 403 on every outbound call. Sudden onset at an odd hour, all
+      destinations affected, inbound often still working — that shape is a billing event,
+      and no amount of packet analysis will fix it.
+    </p>
+
+    <h3>Failed authentication dressed up as 403</h3>
+    <p>
+      Some stacks answer a <em>wrong</em> digest response with 403 instead of issuing a
+      fresh challenge — Asterisk's old chan_sip famously replied "403 Forbidden (Bad
+      auth)". So a 403 that arrives immediately after your credentialed retry of a 401 is,
+      despite everything above, probably an auth failure after all. The sequence in the
+      trace tells you which world you are in.
+    </p>
+
+    <h2>403 with correct credentials</h2>
+    <p>
+      This is the ticket that keeps re-opening: registration succeeds, the password is
+      demonstrably right, and calls still get 403. It is not a contradiction. Registration
+      and call authorisation are separate decisions — the registrar confirmed who you are,
+      and the proxy then declined what you asked to do with that identity. Check whether
+      the account is allowed to call that destination class, whether the
+      <code>From</code> user is required to match the authenticated username (many
+      switches enforce this and 403 anything else), and whether the trunk is
+      IP-authenticated on top of digest, in which case the ACL section above applies even
+      though credentials exist. If the 403 follows a 401/407 challenge in the same
+      transaction, re-verify the boring things: auth username versus SIP username, the
+      realm, and a password that survived every provisioning system between you and the
+      device without a character being eaten.
+    </p>
+
+    <h2>403 vs 401/407 vs 603</h2>
+    <p>
+      A 401 Unauthorized or 407 Proxy Authentication Required carries a
+      <code>WWW-Authenticate</code> or <code>Proxy-Authenticate</code> challenge and
+      expects a retry — it is part of the normal call flow in most deployments, not a
+      failure. A 403 carries no challenge and expects silence. 603 Decline is different
+      again: it is a global-failure response meaning the <em>callee</em> — a human, or
+      policy acting for one — refused this particular call, whereas 403 is the network
+      refusing to carry it. The distinction blurs at PSTN gateways, because RFC 3398 maps
+      both 403 and 603 to Q.850 cause 21, "call rejected", in the SIP-to-ISUP direction;
+      coming back the other way, cause 21 becomes 403. If your 403 carries
+      <code>Reason: Q.850;cause=21</code>, the refusal happened somewhere in the telephone
+      network, not in anyone's SIP policy.
+    </p>
+
+    <h2>Carrier habits worth knowing</h2>
+    <p>
+      The reason phrase after "403" is free text and carriers use it: "Forbidden — Geo
+      blocked", "CLI not allowed", "Out of credit". None of it is standardised and all of
+      it is worth reading. Some carriers send 403 where you would expect 503 — channel
+      limit reached, trunk capacity exceeded — so a burst of 403s under load is not always
+      policy. Automated fraud engines produce 403s with a signature: they begin at a
+      precise moment, affect specific prefixes, and often lift after a phone call to the
+      carrier. And where a call crossed into the PSTN, expect the 403 to be an RFC 3398
+      translation of a Q.850 cause (21 call rejected, or 57 bearer capability not
+      authorized) rather than a decision any SIP element made.
+    </p>
+
+    <h2>What to check in the trace</h2>
+    <ol>
+      <li>Establish which element minted the 403. Compare the source address of the
+      response and its Via stack against the path — a 403 from your own proxy is a local
+      policy problem, not a carrier one.</li>
+      <li>Look for a 401/407 earlier in the same transaction. Challenge, credentialed
+      retry, then 403 means the credentials were rejected. A bare 403 with no challenge
+      means policy.</li>
+      <li>Read the reason phrase and any <code>Reason</code> header. A
+      <code>Q.850;cause=</code> value moves the investigation into the PSTN.</li>
+      <li>Check the numbers: what was in <code>From</code>,
+      <code>P-Asserted-Identity</code> and <code>Remote-Party-ID</code>, and is each one
+      provisioned on the trunk? Retest with the trunk's own main number as CLI.</li>
+      <li>Check the source IP the INVITE actually left from — after an SBC failover or on
+      a dual-WAN edge it is not always the one you think.</li>
+      <li>Test a boring destination: national, geographic, non-premium. If that works, you
+      are looking at destination barring, not a broken trunk.</li>
+      <li>Note the timing. A 403 in a few milliseconds is an edge rule (ACL, CLI screen);
+      one that takes a second or two suggests a downstream lookup — balance, routing, or a
+      refusal relayed from beyond the first hop.</li>
+    </ol>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> separates challenge–retry authentication flows from
+      terminal refusals, shows which hop in the path produced the 403, and surfaces reason
+      phrases and Q.850 causes as findings next to the ladder. Self-hosted, free for individual users.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+    <nav class="ref-more" aria-label="related pages">
+      See also:
+      <ul>
+        <li><a href="/sip/401-407-authentication">401 and 407 authentication</a> — the challenges that are supposed to happen.</li>
+        <li><a href="/sip/q850-cause-codes">Q.850 cause codes</a> — the full ISUP↔SIP mapping, including cause 21.</li>
+        <li><a href="/sip/503-service-unavailable">503 Service Unavailable</a> — when the refusal is about capacity, not policy.</li>
+        <li><a href="/sip">All SIP failure reference pages</a></li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIP 503 Service Unavailable — what to check — hiccup</title>
+<meta name="description" content="Carrier congestion, CPS caps, a dead gateway or an overloaded proxy: why SIP 503s happen, what Retry-After changes, and how failover should react to one.">
+<link rel="canonical" href="https://hiccup.monster/sip/503-service-unavailable">
+<script src="/boot-theme.js"></script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="SIP 503 Service Unavailable — what to check">
+<meta property="og:description" content="Why SIP 503s happen — CPS caps, dead gateways, overloaded proxies — what Retry-After changes, and how failover should react to one.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/sip/503-service-unavailable">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "SIP 503 Service Unavailable — what to check",
+  "description": "Why SIP 503s happen — carrier congestion, CPS caps, dead gateways, overloaded proxies — what Retry-After changes, and what to look for in a packet capture.",
+  "url": "https://hiccup.monster/sip/503-service-unavailable",
+  "inLanguage": "en",
+  "datePublished": "2026-08-20",
+  "dateModified": "2026-08-20",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "Session Initiation Protocol" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/sip">SIP failure reference</a><span>/</span>503 Service Unavailable
+  </nav>
+
+  <article class="ref">
+
+    <h1>SIP 503 Service Unavailable</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> a 503 means "not me, not now" — the element that
+      answered has no capacity or no service to offer, and is inviting you to try somewhere
+      else. It says nothing about the user you dialled. Job one is working out which box
+      generated it — a 503 is routinely minted by your own edge.</p>
+    </div>
+
+    <h2>What a 503 actually claims</h2>
+    <p>
+      RFC 3261 section 21.5.4 defines 503 as the server being temporarily unable to process
+      the request "due to a temporary overloading or maintenance of the server". Two
+      properties do the work: the condition is <em>temporary</em>, and it is
+      <em>server</em>-scoped, not user-scoped. The same section makes 503 as much a routing
+      instruction as an error: a client receiving one SHOULD attempt the request at an
+      alternate server, and SHOULD NOT send further requests to the server that refused for
+      the duration given in <code>Retry-After</code>, if present.
+    </p>
+    <p>
+      Two footnotes matter. RFC 3261 also permits an overloaded server to simply drop the
+      request, so the same fault often surfaces as a 408-shaped timeout instead. And a proxy
+      is told <em>not</em> to forward a 503 upstream unless it cannot service any request at
+      all — it should try elsewhere and, with every route exhausted, answer 500. Almost
+      everybody relays them anyway, which is why the 503 in your CDR may have been born
+      three hops away.
+    </p>
+
+    <h2>What actually causes it</h2>
+
+    <h3>Trunk capacity and rate caps</h3>
+    <p>
+      The most common source. SIP trunk providers enforce a concurrent channel
+      count and a calls-per-second cap, and either one trips as a 503. Diallers ramping up,
+      a queue overflowing to mobiles, the Monday 09:00 spike — anything bursty finds the CPS
+      limit first. The signature is intermittent: 503s clustered inside a second or two,
+      healthy calls in between, concentrated at busy hour.
+    </p>
+
+    <h3>Your own edge marking the carrier dead</h3>
+    <p>
+      SBCs and gateways keep peers alive with OPTIONS pings. When the pings fail, new calls
+      toward that trunk are refused <em>locally</em> with a 503 — Cisco CUBE busying out a
+      dial-peer on OPTIONS failure is the canonical example. That 503 arrives about as fast
+      as physics allows and never crossed the WAN; the real fault is whatever broke the
+      OPTIONS, minutes or hours earlier.
+    </p>
+
+    <h3>Session and resource limits on your own servers</h3>
+    <p>
+      FreeSWITCH answers 503 when <code>max_sessions</code> or its sessions-per-second
+      throttle trips, with a reason phrase that says so. Kamailio deployments commonly emit
+      503 from pike or ratelimit protections. Cisco CUBE ties 503 to its call-admission
+      thresholds — CPU, memory, total calls, call spike.
+    </p>
+
+    <h3>Maintenance and draining</h3>
+    <p>
+      Graceful-shutdown modes answer new INVITEs with 503 — often with a
+      <code>Retry-After</code> — while established dialogs finish. If the
+      503s begin at an exact minute and stop at another exact minute, someone was deploying.
+    </p>
+
+    <h3>Genuine downstream congestion, gatewayed</h3>
+    <p>
+      On PSTN interconnects the congestion family of Q.850 causes — 34 (no circuit
+      available), 38, 41, 42, 47 — maps to a 503 under RFC 3398, and the response often
+      carries <code>Reason: Q.850;cause=34</code> to prove it. Travelling the other way, a
+      SIP 503 becomes cause 41, temporary failure.
+    </p>
+
+    <h2>Which element sent it</h2>
+    <p>
+      A 503 does not name its author, so you infer. Latency is the strongest clue: a
+      millisecond or two after the INVITE means a local or first-hop verdict, while arriving
+      after a 100 Trying means it travelled. The <code>Server</code> header and the reason
+      phrase fingerprint many stacks — "Maximum Sessions Exceeded" is not a carrier talking.
+      A <code>Reason</code> header carrying a Q.850 cause means a PSTN gateway is in the
+      story. Best of all, capture both legs of your SBC: an ingress 503 with <em>no</em>
+      corresponding egress INVITE means your SBC refused the call itself, usually a peer it
+      has marked out of service; an egress INVITE answered 503 means it is relaying someone
+      else's verdict.
+    </p>
+
+    <h2>Retry-After, and who honours it</h2>
+    <p>
+      <code>Retry-After</code> (RFC 3261 section 20.33) on a 503 states how long the sender
+      expects to be out of service, and the receiver SHOULD NOT route new requests there for
+      that period. Without the header, RFC 3261 says to treat the response like a 500 — a
+      verdict on this transaction, no hold-down implied.
+    </p>
+    <p>
+      Real implementations are all over the map: some SBCs hold a peer down whether or not
+      the header is present, some honour it precisely, many endpoints ignore it entirely. A
+      single 503 carrying <code>Retry-After: 300</code> can quietly amputate a working trunk
+      for five minutes, while ignoring the header produces retry storms against a server
+      that told you it was drowning. When "one failed call" became a multi-minute outage,
+      the Retry-After value or your equipment's hold-down default is the amplifier. The
+      longer-term fix for overload is RFC 7339's Via-header overload control, for elements
+      that speak it.
+    </p>
+
+    <h2>What failover should do with a 503</h2>
+    <p>
+      RFC 3263 treats a 503 like a transport failure: the client SHOULD retry the request,
+      with a new branch, on the next target from the DNS/SRV list. A 503 from one host of a
+      properly published cluster should cost milliseconds, not the call. The same logic
+      applies at trunk level — treat the gateway as unreachable and route-advance.
+    </p>
+    <p>
+      Two cautions. Do not retry the <em>same</em> host — that is what Retry-After forbids
+      and hold-downs exist for. And cap the hunt: if the true cause is your own CPS breach,
+      machine-gunning the carrier's other POPs makes it worse. And a 503 to a mid-dialog
+      re-INVITE fails only that transaction — per RFC 5057, only a 481 or 408 implies the
+      dialog itself is dead; if the call dropped anyway, something chose to hang up.
+    </p>
+
+    <h2>503 vs 500 vs 480</h2>
+    <p>
+      500 Server Internal Error says something <em>broke</em> while processing this request —
+      an exception, a misbehaving script. It makes no claim about capacity, and a retry
+      against the same server may succeed. 503 says nothing broke: there is simply no
+      service to give right now, go elsewhere. 480 Temporarily Unavailable is about the
+      <em>user</em>, not the server — the server is fine, but the callee is unregistered, on
+      DND or otherwise unreachable, so failing over to another server buys nothing. The
+      boundaries blur: proxies convert 503 to 500 as RFC 3261 asks, and gateways
+      map cause codes coarsely — treat all three as claims to verify, not verdicts to
+      file.
+    </p>
+
+    <h2>What to check in the trace</h2>
+    <ol>
+      <li>How fast the 503 arrived, and whether a 100 Trying preceded it — milliseconds
+      with no provisional means a local verdict.</li>
+      <li>The <code>Server</code> header and the reason phrase — many stacks sign their
+      work.</li>
+      <li><code>Retry-After</code>: its value, and whether your side actually honoured it —
+      did the next call to that peer route elsewhere?</li>
+      <li>A <code>Reason</code> header with a Q.850 cause. 34 or 42 is real circuit
+      congestion beyond the gateway, not a SIP-layer problem.</li>
+      <li>The pattern in time: busy-hour clusters point at capacity, a hard start and stop
+      at maintenance or a peer marked down, sub-second bursts at a CPS cap.</li>
+      <li>OPTIONS to the same peer around the same timestamps — if the keepalives were
+      failing too, the call is a bystander.</li>
+      <li>Whether failover fired: was the next SRV target or trunk tried at all, and did
+      <em>every</em> target answer 503 (an account or capacity problem) or only one
+      host?</li>
+    </ol>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> tells you which leg a 503 appeared on, how fast it came
+      back, what the Retry-After asked for and whether failover actually stepped to the next
+      target — as findings, next to the ladder. Self-hosted, free for individual users.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+    <nav class="ref-more" aria-label="related pages">
+      See also:
+      <ul>
+        <li><a href="/sip/408-request-timeout">408 Request Timeout</a> — when the refusal never comes back at all.</li>
+        <li><a href="/sip/480-temporarily-unavailable">480 Temporarily Unavailable</a> — the user-shaped cousin: the server is fine, the callee is not there.</li>
+        <li><a href="/sip/q850-cause-codes">Q.850 cause codes</a> — how ISUP congestion causes become 503s, and vice versa.</li>
+        <li><a href="/sip">All SIP failure reference pages</a></li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

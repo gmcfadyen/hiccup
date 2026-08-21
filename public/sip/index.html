@@ -96,6 +96,62 @@
         200 OK retransmits are the most diagnostic pattern in SIP.</p>
       </a>
     </li>
+    <li>
+      <a class="card" href="/sip/503-service-unavailable">
+        <h2>503 Service Unavailable</h2>
+        <p>The trunk said no, not the callee. Carrier congestion, a CPS cap, a dead
+        gateway — and what <code>Retry-After</code> is meant to change.</p>
+      </a>
+    </li>
+    <li>
+      <a class="card" href="/sip/q850-cause-codes">
+        <h2>Q.850 cause codes</h2>
+        <p>The full Q.850-to-SIP mapping table in both directions, and how to read the
+        <code>Reason</code> header when the PSTN is hiding behind a SIP code.</p>
+      </a>
+    </li>
+    <li>
+      <a class="card" href="/sip/401-407-authentication">
+        <h2>401 and 407 authentication</h2>
+        <p>401 is a registrar, 407 is a proxy, and one challenge is normal. When a
+        challenge loop means something worse than a wrong password.</p>
+      </a>
+    </li>
+    <li>
+      <a class="card" href="/sip/403-forbidden">
+        <h2>403 Forbidden</h2>
+        <p>A policy refusal, not an auth failure. Trunk ACLs, caller-ID screening,
+        destination barring, an empty prepaid balance.</p>
+      </a>
+    </li>
+    <li>
+      <a class="card" href="/sip/480-temporarily-unavailable">
+        <h2>480 Temporarily Unavailable</h2>
+        <p>480 is about the user, not the machine: an expired registration, DND, a
+        ring-no-answer timer, or Q.850 causes 18-20 off the PSTN.</p>
+      </a>
+    </li>
+    <li>
+      <a class="card" href="/sip/sip-timers">
+        <h2>SIP timers</h2>
+        <p>T1 to Timer K in one table: what fires, after how long, what it kills, and
+        which timers stop mattering the moment you move to TCP.</p>
+      </a>
+    </li>
+    <li>
+      <a class="card" href="/sip/487-request-terminated">
+        <h2>487 Request Terminated</h2>
+        <p>Usually just a CANCEL doing its job. When a pile of them means long
+        post-dial delay or a forking race worth chasing.</p>
+      </a>
+    </li>
+    <li>
+      <a class="card" href="/sip/481-call-does-not-exist">
+        <h2>481 Call/Transaction Does Not Exist</h2>
+        <p>The far end no longer knows your dialog. Failover ate the state, the tags
+        do not match, or the Route set is wrong.</p>
+      </a>
+    </li>
   </ul>
 
   <article class="ref">
@@ -140,7 +196,7 @@
     <div class="ref-cta card">
       <p><strong>hiccup</strong> does this pass over a capture for you: it pairs the two legs
       across the B2BUA, collapses retransmissions into one row with a reason attached, and
-      names the box that made the decision. Self-hosted, free while in beta.</p>
+      names the box that made the decision. Self-hosted, free for individual users.</p>
       <a class="btn btn-primary" href="/">upload a trace</a>
     </div>
 
