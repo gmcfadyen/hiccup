@@ -60,6 +60,12 @@
   .period {
     display: flex; justify-content: center; gap: 3px;
     margin: 22px auto 0; width: max-content;
+    /* max-width + wrap are the safety net: width:max-content sizes to the
+       longest translation, and German ("Jahrlich - 2 Monate geschenkt")
+       measures 335px, which would push a 320px phone into horizontal scroll.
+       These two mean it can shrink instead of overflowing, whatever a future
+       translation does. */
+    max-width: 100%; flex-wrap: wrap;
     background: var(--panel2); border: 1px solid var(--line); border-radius: 999px; padding: 3px;
   }
   .period label {
@@ -70,13 +76,27 @@
   }
   #period-monthly:checked ~ .period label[for="period-monthly"],
   #period-annual:checked ~ .period label[for="period-annual"] {
-    background: var(--accent); color: #fff;
+    /* --btn-primary-text, not white: the accent is a light teal in dark mode,
+       so white-on-accent measures 2.1:1 -- below AA for any text size. This is
+       the same ink .btn-primary uses on the same background (8.1:1), and it
+       flips with the theme. */
+    background: var(--accent); color: var(--btn-primary-text);
   }
   #period-monthly:focus-visible ~ .period label[for="period-monthly"],
   #period-annual:focus-visible ~ .period label[for="period-annual"] {
     outline: 2px solid var(--accent); outline-offset: 2px;
   }
   .period-save { font-weight: 500; opacity: 0.85; }
+
+  /* On a phone the saving hint is what has to give: keeping it makes the
+     control wider than the screen in EN, FR and DE alike. The annual cards
+     still show the yearly price, so nothing is actually lost. Measured
+     across all four locales: 335px -> 157px worst case. */
+  @media (max-width: 460px) {
+    .period { width: auto; }
+    .period label { padding: 7px 12px; font-size: 12.5px; }
+    .period-save { display: none; }
+  }
 
   /* ---- tier cards ---- */
   .sub-grid {
@@ -99,7 +119,7 @@
   .sub-for { color: var(--muted); font-size: 12.5px; margin: 2px 0 0; }
   .sub-price { font-size: 34px; font-weight: 700; margin: 10px 0 2px; line-height: 1.1; }
   .sub-price span { font-size: 14px; font-weight: 600; color: var(--muted); }
-  .sub-note { color: var(--muted); font-size: 12.5px; margin: 0 0 14px; min-height: 2.6em; line-height: 1.45; }
+  .sub-note { color: var(--muted); font-size: 12.5px; margin: 0 0 14px; min-height: 2.9em; line-height: 1.45; }
   .sub-feat { list-style: none; margin: 0 0 18px; padding: 0; font-size: 13.5px; }
   .sub-feat li { margin: 0 0 7px; padding-left: 20px; position: relative; line-height: 1.5; }
   .sub-feat li::before {
@@ -113,9 +133,11 @@
   /* The monthly and annual figures both exist in the served HTML; the period
      switch only decides which is visible. With no JavaScript and no CSS the
      card still reads sensibly (both prices, labelled). */
-  .price-annual { display: none; }
-  #period-annual:checked ~ .sub-grid .price-annual { display: block; }
-  #period-annual:checked ~ .sub-grid .price-monthly { display: none; }
+  .price-annual, .note-annual { display: none; }
+  #period-annual:checked ~ .sub-grid .price-annual,
+  #period-annual:checked ~ .sub-grid .note-annual { display: block; }
+  #period-annual:checked ~ .sub-grid .price-monthly,
+  #period-annual:checked ~ .sub-grid .note-monthly { display: none; }
 
   .sub-steps, .sub-includes { margin-top: 30px; }
   .sub-steps h2, .sub-includes h2 { font-size: 16px; margin-bottom: 10px; }
@@ -199,8 +221,10 @@
       <p data-i18n class="sub-for">For the engineer who lives in traces</p>
       <p class="sub-price price-monthly">€10<span data-i18n> / month</span></p>
       <p class="sub-price price-annual">€100<span data-i18n> / year</span></p>
-      <p data-i18n class="sub-note">Introductory rate — heading for €20 a month once launch
-        pricing ends.</p>
+      <p data-i18n class="sub-note note-monthly">Introductory rate — heading for €20 a month
+        once launch pricing ends.</p>
+      <p data-i18n class="sub-note note-annual">Introductory rate — heading for €200 a year
+        once launch pricing ends.</p>
       <ul class="sub-feat">
         <li data-i18n>Everything in Free</li>
         <li data-i18n>Captures up to 250 MB — a full day of signalling, not a trimmed clip</li>
@@ -216,13 +240,15 @@
       <p data-i18n class="sub-for">For the people on the bridge call together</p>
       <p class="sub-price price-monthly">€20<span data-i18n> / month</span></p>
       <p class="sub-price price-annual">€200<span data-i18n> / year</span></p>
-      <p data-i18n class="sub-note">Introductory rate — heading for €40 a month once launch
-        pricing ends. One price for the whole team, not per seat.</p>
+      <p data-i18n class="sub-note note-monthly">Introductory rate — heading for €40 a month
+        once launch pricing ends.</p>
+      <p data-i18n class="sub-note note-annual">Introductory rate — heading for €400 a year
+        once launch pricing ends.</p>
       <ul class="sub-feat">
         <li data-i18n>Everything in Pro, for every member</li>
         <li data-i18n>A shared capture library — one upload, everyone sees the same diagnosis</li>
         <li data-i18n>Owner and admin roles: invite, promote, suspend, remove</li>
-        <li data-i18n>Up to 50 members at no extra cost</li>
+        <li data-i18n>One price for the whole team — up to 50 members, never per seat</li>
       </ul>
       <a data-i18n class="btn btn-primary" id="sub-team" href="https://buymeacoffee.com/mcfadyen" target="_blank" rel="noopener">Get Team →</a>
     </section>
