@@ -14,6 +14,7 @@ const auth = require('./lib/auth');
 const adminlist = require('./lib/adminlist');
 const stripe = require('./lib/stripe');
 const metrics = require('./lib/metrics');
+const plans = require('./lib/plans');
 const llm = require('./lib/llm');
 
 // lib/analyze.js is the integrator's module. Require it gracefully so a partial
@@ -99,8 +100,14 @@ const CONFIG_DEFAULTS = {
   // never in the repo.
   stripeSecretKey: '',
   stripeWebhookSecret: '',
+  // Team tier (the original two prices -- names kept so existing config and
+  // any live subscription keep working).
   stripePriceMonthly: '',
   stripePriceAnnual: '',
+  // Pro tier (individual). Optional: leave both blank and the tier simply
+  // does not appear for sale.
+  stripeProPriceMonthly: '',
+  stripeProPriceAnnual: '',
   // Wave 6: where the weekly feedback digest goes. Empty disables the digest
   // entirely (the feedback itself is still collected and readable at
   // /admin/feedback — only the email is skipped).
@@ -464,6 +471,17 @@ function requireAuth(req, res) {
  * @param {object} user the authenticated user
  * @returns {boolean}
  */
+/**
+ * Upload ceiling for this caller, in MB. The paid tiers buy a bigger one;
+ * config.maxUploadMb still moves the FREE limit for an operator who wants a
+ * smaller box, without silently shrinking what a customer was sold.
+ * @param {object} user
+ * @returns {number}
+ */
+function uploadLimitMbFor(user) {
+  return plans.uploadLimitMb(user && user.plan, config.maxUploadMb);
+}
+
 function teamWritesFrozen(user) {
   const teams = initTeamsIfPossible();
   if (!teams || typeof teams.teamHasPaidMember !== 'function') return false;
@@ -514,7 +532,7 @@ function sanitizeUser(u) {
     // reuses (this file gets `user` from auth.getSession(), already a public
     // view by the time it gets here). An absent plan must read as the
     // least-privileged one, never as an accidental grant.
-    plan: u.plan === 'paid' ? 'paid' : 'free',
+    plan: plans.normalise(u.plan),
     createdAt: u.createdAt,
     lastLoginAt: u.lastLoginAt != null ? u.lastLoginAt : null,
   };
@@ -834,14 +852,22 @@ async function handleUpload(req, res, user) {
     }
   }
 
-  const maxBytes = (Number(config.maxUploadMb) || CONFIG_DEFAULTS.maxUploadMb) * 1024 * 1024;
+  const limitMb = uploadLimitMbFor(user);
+  const maxBytes = limitMb * 1024 * 1024;
   let buf;
   try {
     buf = await readRawBody(req, maxBytes);
   } catch (e) {
     if (e && e.code === 'TOO_LARGE') {
       res.setHeader('Connection', 'close');
-      sendJson(res, 413, { error: 'upload exceeds the ' + config.maxUploadMb + ' MB limit' });
+      // Name the ceiling that actually applied, and say a bigger one exists
+      // only when it genuinely does -- never nag someone already paying.
+      sendJson(res, 413, {
+        error: 'upload exceeds the ' + limitMb + ' MB limit' +
+          (plans.isPaid(user && user.plan) ? '' : ' on the free plan'),
+        limitMb: limitMb,
+        upgrade: plans.isPaid(user && user.plan) ? null : '/subscribe',
+      });
     } else {
       sendJson(res, 400, { error: 'could not read upload' });
     }
@@ -1158,7 +1184,8 @@ async function handleKbAdd(req, res, user) {
     req.resume();
     return;
   }
-  const maxBytes = (Number(config.maxUploadMb) || CONFIG_DEFAULTS.maxUploadMb) * 1024 * 1024;
+  const limitMb = uploadLimitMbFor(user);
+  const maxBytes = limitMb * 1024 * 1024;
   let buf;
   try {
     buf = await readRawBody(req, maxBytes);
@@ -1166,7 +1193,10 @@ async function handleKbAdd(req, res, user) {
     if (e && e.code === 'TOO_LARGE') {
       res.setHeader('Connection', 'close');
       sendJson(res, 413, {
-        error: 'document exceeds the ' + config.maxUploadMb + ' MB limit',
+        error: 'document exceeds the ' + limitMb + ' MB limit' +
+          (plans.isPaid(user && user.plan) ? '' : ' on the free plan'),
+        limitMb: limitMb,
+        upgrade: plans.isPaid(user && user.plan) ? null : '/subscribe',
       });
     } else {
       sendJson(res, 400, { error: 'could not read upload' });
@@ -1873,7 +1903,7 @@ function handleAdminUsers(req, res, user) {
       email: u.email,
       name: u.name,
       role: u.role,
-      plan: u.plan === 'paid' ? 'paid' : 'free',
+      plan: plans.normalise(u.plan),
       createdAt: u.createdAt,
       lastLoginAt: u.lastLoginAt,
       isSuperuser: isSiteAdmin(u),
@@ -1935,9 +1965,9 @@ async function handleAdminUserSet(req, res, user, targetId) {
   }
 
   const hasSuperuser = typeof body.superuser === 'boolean';
-  const hasPlan = body.plan === 'free' || body.plan === 'paid';
+  const hasPlan = typeof body.plan === 'string' && plans.all().indexOf(body.plan) !== -1;
   if (!hasSuperuser && !hasPlan) {
-    sendJson(res, 400, { error: 'send {"superuser": true|false} and/or {"plan": "free"|"paid"}' });
+    sendJson(res, 400, { error: 'send {"superuser": true|false} and/or {"plan": "free"|"pro"|"team"}' });
     return;
   }
 
@@ -2357,9 +2387,19 @@ async function handleBillingCheckout(req, res, user) {
     sendJson(res, 501, { error: 'Card payment is not set up on this server yet.' });
     return;
   }
-  const plan = (body && body.plan === 'annual') ? 'annual'
-    : ((body && body.plan === 'monthly') ? 'monthly' : null);
-  if (!plan) { sendJson(res, 400, { error: 'Choose a monthly or annual plan.' }); return; }
+  // The browser names a TIER and an INTERVAL; the price id each maps to is
+  // server-side config.
+  const tier = (body && (body.tier === 'pro' || body.tier === 'team')) ? body.tier : null;
+  const interval = (body && (body.interval === 'monthly' || body.interval === 'annual'))
+    ? body.interval : null;
+  if (!tier || !interval) {
+    sendJson(res, 400, { error: 'Choose a plan and a billing period.' });
+    return;
+  }
+  if (tier === 'pro' && !stripe.hasProPricing()) {
+    sendJson(res, 501, { error: 'The Pro plan is not set up on this server yet.' });
+    return;
+  }
 
   // Already paid: sending them to checkout would take a second subscription
   // for something they already have.
@@ -2367,7 +2407,7 @@ async function handleBillingCheckout(req, res, user) {
   // webhook lands, so it stays 'free' for the whole window a session is payable.
   // Someone who clicks Subscribe, wanders off, comes back and clicks again could
   // otherwise complete both and pay twice.
-  if (user.plan === 'paid' || auth.getUserSubscriptionId(user.id)) {
+  if (plans.isPaid(user.plan) || auth.getUserSubscriptionId(user.id)) {
     sendJson(res, 409, { error: 'You are already on the paid plan.' });
     return;
   }
@@ -2377,7 +2417,8 @@ async function handleBillingCheckout(req, res, user) {
     out = await stripe.createCheckoutSession({
       userId: user.id,
       email: user.email,
-      plan: plan,
+      tier: tier,
+      interval: interval,
       baseUrl: config.baseUrl,
       // Reuse the existing Stripe customer so a resubscriber does not end up
       // as a second Customer that hiccup can never see or cancel.
@@ -2388,7 +2429,8 @@ async function handleBillingCheckout(req, res, user) {
     sendJson(res, 502, { error: (e && e.userMessage) || 'Could not start checkout.' });
     return;
   }
-  console.log('hiccup: checkout session ' + out.id + ' for ' + user.email + ' (' + plan + ')');
+  console.log('hiccup: checkout session ' + out.id + ' for ' + user.email +
+    ' (' + tier + '/' + interval + ')');
   sendJson(res, 200, { url: out.url });
 }
 
@@ -2525,9 +2567,16 @@ async function applyStripeEvent(event) {
     if (!userId) { console.error('hiccup: checkout ' + obj.id + ' has no client_reference_id'); return; }
     const u = auth.findUserById(userId);
     if (!u) { console.error('hiccup: checkout ' + obj.id + ' references unknown user ' + userId); return; }
+    // Grant the tier that was actually bought. metadata.hiccup_plan is set by
+    // createCheckoutSession; anything unexpected falls back to 'team', which is
+    // what a paid subscription meant before the tiers existed -- erring toward
+    // giving a paying customer MORE than they bought rather than less.
+    const boughtTier = (obj.metadata && obj.metadata.hiccup_plan) || null;
+    const grant = plans.all().indexOf(boughtTier) !== -1 && boughtTier !== 'free'
+      ? boughtTier : 'team';
     auth.setUserBilling(userId, { customerId: obj.customer, subscriptionId: obj.subscription || null });
-    auth.setUserPlan(userId, 'paid');
-    console.log('hiccup: PAID ' + u.email + ' via checkout ' + obj.id);
+    auth.setUserPlan(userId, grant);
+    console.log('hiccup: PAID ' + u.email + ' -> ' + grant + ' via checkout ' + obj.id);
     return;
   }
 
@@ -3392,6 +3441,10 @@ async function handle(req, res) {
       // instead of the manual Buy Me a Coffee flow. A boolean only -- no key,
       // no price id, nothing the browser has any business knowing.
       cardPayments: stripe.isConfigured(),
+      // Whether the Pro tier is actually sellable here. /subscribe hides the
+      // card when it is not: advertising a plan whose price is not configured
+      // would send someone to a 501 at the moment they decide to pay.
+      proPlan: stripe.hasProPricing(),
     });
     return;
   }

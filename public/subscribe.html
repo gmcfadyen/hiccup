@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title data-i18n>hiccup — subscribe</title>
-<meta name="description" content="Upgrade to a paid hiccup account to create or join a team — shared capture library, roles, and invites for your whole SBC/voice team.">
+<title data-i18n>hiccup — pricing</title>
+<meta name="description" content="hiccup pricing: the SIP analyser is free forever for individuals. Pro adds bigger captures and priority. Team adds a shared library, roles and invites. Launch pricing while hiccup is new.">
 <link rel="canonical" href="https://hiccup.monster/subscribe">
 <script src="/boot-theme.js"></script>
 <script src="/boot-lang.js"></script>
@@ -13,8 +13,8 @@
 <link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
-<meta property="og:title" content="hiccup — subscribe">
-<meta property="og:description" content="Upgrade to a paid hiccup account to create or join a team.">
+<meta property="og:title" content="hiccup — pricing">
+<meta property="og:description" content="Free forever for individuals. Launch pricing on Pro and Team while hiccup is new.">
 <meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
 <meta property="og:url" content="https://hiccup.monster/subscribe">
 <meta property="og:type" content="website">
@@ -29,7 +29,7 @@
 <link rel="stylesheet" href="/app.css">
 
 <style>
-  .page { max-width: 880px; margin: 0 auto; padding: 22px 20px 64px; }
+  .page { max-width: 1040px; margin: 0 auto; padding: 22px 20px 64px; }
   .page-head h1 { font-size: 24px; margin-bottom: 6px; }
   .page-lede { color: var(--muted); max-width: 70ch; }
 
@@ -37,42 +37,104 @@
   #sub-status.is-free { background: var(--panel2); color: var(--muted); }
   #sub-status.is-paid { background: var(--tint-info); color: var(--info); border: 1px solid var(--tint-info-strong); }
 
+  /* ---- launch banner ---- */
+  .launch-note {
+    margin: 18px 0 0; padding: 12px 16px; border-radius: 10px;
+    background: var(--accent-wash); border: 1px solid var(--accent);
+    font-size: 13.5px; line-height: 1.55;
+  }
+  .launch-note strong { color: var(--accent); }
+
+  /* ---- billing period switch ----
+     Two radios styled as a segmented control. Radios rather than buttons so the
+     control works with the keyboard and a screen reader for free, and so the
+     checked state can drive the price swap in CSS alone -- no JavaScript is
+     involved in showing the right number.
+     The inputs sit as direct children of .pricing, ahead of both the pill and
+     the card grid, because ~ only reaches LATER SIBLINGS. They are clipped
+     rather than display:none so they stay focusable. */
+  .pricing > input[name="period"] {
+    position: absolute; width: 1px; height: 1px; margin: -1px;
+    padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%);
+  }
+  .period {
+    display: flex; justify-content: center; gap: 3px;
+    margin: 22px auto 0; width: max-content;
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 999px; padding: 3px;
+  }
+  .period label {
+    cursor: pointer; padding: 7px 18px; border-radius: 999px;
+    font-size: 13.5px; font-weight: 600; color: var(--muted);
+    transition: background 0.12s, color 0.12s;
+    white-space: nowrap;
+  }
+  #period-monthly:checked ~ .period label[for="period-monthly"],
+  #period-annual:checked ~ .period label[for="period-annual"] {
+    background: var(--accent); color: #fff;
+  }
+  #period-monthly:focus-visible ~ .period label[for="period-monthly"],
+  #period-annual:focus-visible ~ .period label[for="period-annual"] {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  .period-save { font-weight: 500; opacity: 0.85; }
+
+  /* ---- tier cards ---- */
   .sub-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
     gap: 16px;
-    margin-top: 22px;
+    margin-top: 18px;
+    align-items: stretch;
   }
-  .sub-card { padding: 22px 22px 20px; display: flex; flex-direction: column; }
-  .sub-card.is-value { border-color: var(--accent); }
+  .sub-card { padding: 24px 22px 20px; display: flex; flex-direction: column; }
+  .sub-card.is-value { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
   .sub-badge {
     align-self: flex-start;
     font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
     color: var(--accent); background: var(--accent-wash); border-radius: 999px;
     padding: 3px 10px; margin-bottom: 10px;
   }
+  .sub-badge.is-quiet { color: var(--muted); background: var(--panel2); }
   .sub-plan-name { font-size: 15px; font-weight: 700; margin: 0; }
-  .sub-price { font-size: 34px; font-weight: 700; margin: 6px 0 2px; }
+  .sub-for { color: var(--muted); font-size: 12.5px; margin: 2px 0 0; }
+  .sub-price { font-size: 34px; font-weight: 700; margin: 10px 0 2px; line-height: 1.1; }
   .sub-price span { font-size: 14px; font-weight: 600; color: var(--muted); }
-  .sub-note { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
-  .sub-card .btn { margin-top: auto; }
+  .sub-note { color: var(--muted); font-size: 12.5px; margin: 0 0 14px; min-height: 2.6em; line-height: 1.45; }
+  .sub-feat { list-style: none; margin: 0 0 18px; padding: 0; font-size: 13.5px; }
+  .sub-feat li { margin: 0 0 7px; padding-left: 20px; position: relative; line-height: 1.5; }
+  .sub-feat li::before {
+    content: "✓"; position: absolute; left: 0; top: 0;
+    color: var(--accent); font-weight: 700;
+  }
+  .sub-feat li.is-muted { color: var(--muted); }
+  .sub-feat li.is-muted::before { content: "—"; color: var(--muted); font-weight: 400; }
+  .sub-card .btn { margin-top: auto; width: 100%; text-align: center; }
 
-  .sub-steps { margin-top: 30px; }
-  .sub-steps h2 { font-size: 16px; margin-bottom: 10px; }
-  .sub-steps ol { margin: 0; padding-left: 22px; }
-  .sub-steps li { margin: 0 0 8px; line-height: 1.55; }
-  .sub-steps code { font-size: 13px; }
+  /* The monthly and annual figures both exist in the served HTML; the period
+     switch only decides which is visible. With no JavaScript and no CSS the
+     card still reads sensibly (both prices, labelled). */
+  .price-annual { display: none; }
+  #period-annual:checked ~ .sub-grid .price-annual { display: block; }
+  #period-annual:checked ~ .sub-grid .price-monthly { display: none; }
 
-  .sub-includes { margin-top: 30px; }
-  .sub-includes h2 { font-size: 16px; margin-bottom: 10px; }
-  .sub-includes ul { margin: 0; padding-left: 22px; }
-  .sub-includes li { margin: 0 0 6px; line-height: 1.55; }
+  .sub-steps, .sub-includes { margin-top: 30px; }
+  .sub-steps h2, .sub-includes h2 { font-size: 16px; margin-bottom: 10px; }
+  .sub-steps ol, .sub-includes ul { margin: 0; padding-left: 22px; }
+  .sub-steps li, .sub-includes li { margin: 0 0 8px; line-height: 1.55; }
+
+  .sub-faq { margin-top: 30px; }
+  .sub-faq h2 { font-size: 16px; margin-bottom: 10px; }
+  .sub-faq dt { font-weight: 600; margin-top: 14px; font-size: 13.5px; }
+  .sub-faq dd { margin: 4px 0 0; color: var(--muted); font-size: 13.5px; line-height: 1.55; }
 
   /* subscribe.js sets data-pay="card" once /api/config/public says Stripe is
      configured. Doing the swap in CSS keeps both blocks in the served HTML,
      so the page still says something useful if the script never runs. */
   body[data-pay="card"] #sub-manual { display: none; }
   body[data-pay="card"] #sub-card-note { display: block !important; }
+  /* Hidden until the server confirms the Pro prices exist -- a tier nobody can
+     actually buy must not be advertised. */
+  body:not([data-pro="on"]) #tier-pro { display: none; }
 </style>
 </head>
 <body>
@@ -88,30 +150,85 @@
 <main class="page">
 
   <div class="page-head">
-    <h1 data-i18n>Subscribe</h1>
-    <p data-i18n class="page-lede">A paid account can create or join a team: a shared capture
-      library, roles for who can invite and manage members, and everyone working from the
-      same diagnosis instead of forwarding pcaps around.</p>
+    <h1 data-i18n>Pricing</h1>
+    <p data-i18n class="page-lede">The analyser itself is free, for anyone, for good — no card, no
+      trial clock, no feature held back to make you pay. The paid plans buy scale and
+      collaboration: bigger captures, a place at the front of the queue, and a shared
+      library for a whole team.</p>
   </div>
 
   <p id="sub-status" hidden></p>
 
+  <p class="launch-note">
+    <strong data-i18n>Launch pricing.</strong>
+    <span data-i18n>hiccup is new, so these are introductory rates — about half what they will
+      settle at. Whatever price you sign up on is the price you keep for as long as your
+      subscription runs, even after the rates go up.</span>
+  </p>
+
+  <div class="pricing">
+
+  <input type="radio" name="period" id="period-monthly" checked>
+  <input type="radio" name="period" id="period-annual">
+
+  <div data-i18n-attrs="aria-label" class="period" role="group" aria-label="Billing period">
+    <label data-i18n for="period-monthly">Monthly</label>
+    <label for="period-annual"><span data-i18n>Annual</span> <span data-i18n class="period-save">— 2 months free</span></label>
+  </div>
+
   <div class="sub-grid">
+
     <section class="card sub-card">
-      <p data-i18n class="sub-plan-name">Monthly</p>
-      <p class="sub-price">€20<span data-i18n> / month</span></p>
-      <p data-i18n class="sub-note">Cancel any time — no contract.</p>
-      <a data-i18n class="btn btn-primary" id="sub-monthly" href="https://buymeacoffee.com/mcfadyen" target="_blank" rel="noopener">Support monthly →</a>
+      <span data-i18n class="sub-badge is-quiet">Free forever</span>
+      <p data-i18n class="sub-plan-name">Free</p>
+      <p data-i18n class="sub-for">For anyone with a trace to read</p>
+      <p class="sub-price">€0</p>
+      <p data-i18n class="sub-note">No card, no trial period, no expiry.</p>
+      <ul class="sub-feat">
+        <li data-i18n>Every analysis feature — ladder, timeline, verdicts, Q.850 decoding</li>
+        <li data-i18n>Write HMR from a plain-language description</li>
+        <li data-i18n>Captures up to 50 MB</li>
+        <li data-i18n>Your own private capture library</li>
+      </ul>
+      <a data-i18n class="btn" href="/app">Open the workbench →</a>
     </section>
 
-    <section class="card sub-card is-value">
-      <span data-i18n class="sub-badge">Best value</span>
-      <p data-i18n class="sub-plan-name">Annual</p>
-      <p class="sub-price">€200<span data-i18n> / year</span></p>
-      <p data-i18n class="sub-note">Two months free compared to paying monthly.</p>
-      <a data-i18n class="btn btn-primary" id="sub-annual" href="https://buymeacoffee.com/mcfadyen" target="_blank" rel="noopener">Support annually →</a>
+    <section class="card sub-card is-value" id="tier-pro">
+      <span data-i18n class="sub-badge">Launch price</span>
+      <p data-i18n class="sub-plan-name">Pro</p>
+      <p data-i18n class="sub-for">For the engineer who lives in traces</p>
+      <p class="sub-price price-monthly">€10<span data-i18n> / month</span></p>
+      <p class="sub-price price-annual">€100<span data-i18n> / year</span></p>
+      <p data-i18n class="sub-note">Introductory rate — heading for €20 a month once launch
+        pricing ends.</p>
+      <ul class="sub-feat">
+        <li data-i18n>Everything in Free</li>
+        <li data-i18n>Captures up to 250 MB — a full day of signalling, not a trimmed clip</li>
+        <li data-i18n>Priority in the analysis queue when the server is busy</li>
+        <li data-i18n>Keeps hiccup independent and ad-free</li>
+      </ul>
+      <a data-i18n class="btn btn-primary" id="sub-pro" href="https://buymeacoffee.com/mcfadyen" target="_blank" rel="noopener">Go Pro →</a>
     </section>
-  </div>
+
+    <section class="card sub-card">
+      <span data-i18n class="sub-badge">Launch price</span>
+      <p data-i18n class="sub-plan-name">Team</p>
+      <p data-i18n class="sub-for">For the people on the bridge call together</p>
+      <p class="sub-price price-monthly">€20<span data-i18n> / month</span></p>
+      <p class="sub-price price-annual">€200<span data-i18n> / year</span></p>
+      <p data-i18n class="sub-note">Introductory rate — heading for €40 a month once launch
+        pricing ends. One price for the whole team, not per seat.</p>
+      <ul class="sub-feat">
+        <li data-i18n>Everything in Pro, for every member</li>
+        <li data-i18n>A shared capture library — one upload, everyone sees the same diagnosis</li>
+        <li data-i18n>Owner and admin roles: invite, promote, suspend, remove</li>
+        <li data-i18n>Up to 50 members at no extra cost</li>
+      </ul>
+      <a data-i18n class="btn btn-primary" id="sub-team" href="https://buymeacoffee.com/mcfadyen" target="_blank" rel="noopener">Get Team →</a>
+    </section>
+
+  </div><!-- /.sub-grid -->
+  </div><!-- /.pricing -->
 
   <p id="sub-error" class="form-error" role="alert"></p>
 
@@ -122,8 +239,8 @@
       than an instant checkout.</p>
     <ol>
       <li data-i18n>Click a plan above — it opens hiccup's Buy Me a Coffee page.</li>
-      <li data-i18n>Enter €20 and tick “Make this monthly” for the monthly plan, or €200 as a
-        one-time amount for the annual plan.</li>
+      <li data-i18n>Enter the monthly amount and tick “Make this monthly”, or the yearly
+        amount as a one-time payment.</li>
       <li data-i18n>In the message field, include the email address your hiccup account uses —
         that is how your payment gets matched to your account.</li>
       <li data-i18n>Your account is upgraded by hand, usually within a day. No need to wait
@@ -135,22 +252,38 @@
     <h2 data-i18n>How this works</h2>
     <p data-i18n class="sub-note">Payment is handled by Stripe on their own
       checkout page — your card details never reach hiccup. Your account switches
-      to the paid plan as soon as Stripe confirms the payment, usually instantly.</p>
+      over as soon as Stripe confirms the payment, usually instantly.</p>
     <p data-i18n class="sub-note">Cancel any time from the billing portal link
       Stripe emails you with your receipt.</p>
   </section>
 
-  <section class="card sub-includes">
-    <h2 data-i18n>What a paid account unlocks</h2>
-    <ul>
-      <li data-i18n>Create a team, or accept an invite to join one.</li>
-      <li data-i18n>A shared capture library — every team member sees the same uploads and
-        the same diagnosis.</li>
-      <li data-i18n>Owner and admin roles: invite, promote, suspend or remove members.</li>
-      <li data-i18n>Everything hiccup already does — analysis, HMR, config guides — stays
-        available on the free plan too. Paid is about working as a team, not a feature paywall
-        on the analyser itself.</li>
-    </ul>
+  <section class="card sub-faq">
+    <h2 data-i18n>Questions people actually ask</h2>
+    <dl>
+      <dt data-i18n>Is the free plan a trial?</dt>
+      <dd data-i18n>No. It does not expire and it is not crippled. Every diagnostic feature —
+        the ladder, the timeline, the verdicts, the HMR writer — works the same on a free
+        account as on a paid one. What you are buying above is scale and teamwork.</dd>
+
+      <dt data-i18n>What is the difference between Pro and Team?</dt>
+      <dd data-i18n>Pro is for one person: bigger captures and priority when the server is
+        busy. Team is that for everybody, plus a shared library so the whole group works from
+        one copy of the trace instead of forwarding pcaps around.</dd>
+
+      <dt data-i18n>Does the price go up on me later?</dt>
+      <dd data-i18n>No. These are introductory rates and they will rise for new subscribers,
+        but your own price is fixed at whatever you signed up on, for as long as you stay
+        subscribed.</dd>
+
+      <dt data-i18n>Can I cancel?</dt>
+      <dd data-i18n>Any time, from the billing portal link on your Stripe receipt. You keep
+        the paid features until the end of the period you have already paid for, and your
+        captures stay where they are — nothing is deleted for downgrading.</dd>
+
+      <dt data-i18n>Do my traces get used to train anything?</dt>
+      <dd data-i18n>No. Analysis runs on a self-hosted model on hiccup's own hardware in the
+        EU. Nothing you upload leaves the box, and nothing is sold or used as training data.</dd>
+    </dl>
   </section>
 
   <aside data-i18n-attrs="aria-label" class="promo-card" aria-label="also from the same workshop">

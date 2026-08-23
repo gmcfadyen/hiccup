@@ -565,11 +565,29 @@ async function main() {
     m.initStripe({ stripeSecretKey: 'sk_live_x', stripeWebhookSecret: 'whsec_x',
       stripePriceMonthly: 'price_m', stripePriceAnnual: 'price_a' });
     eq(m.isLiveMode(), true, 'a sk_live_ key must read as live');
-    // The client names a plan, never a price.
-    eq(m.priceIdFor('monthly'), 'price_m', 'priceIdFor(monthly)');
-    eq(m.priceIdFor('annual'), 'price_a', 'priceIdFor(annual)');
-    eq(m.priceIdFor('price_evil'), null, 'priceIdFor must not echo an arbitrary string');
-    eq(m.priceIdFor(''), null, 'priceIdFor("")');
+    // The client names a tier and an interval, never a price.
+    eq(m.priceIdFor('team', 'monthly'), 'price_m', 'priceIdFor(team, monthly)');
+    eq(m.priceIdFor('team', 'annual'), 'price_a', 'priceIdFor(team, annual)');
+    eq(m.priceIdFor('price_evil', 'monthly'), null, 'priceIdFor must not echo an arbitrary string');
+    eq(m.priceIdFor('team', ''), null, 'priceIdFor(team, "")');
+    // Pro is a separate pair of prices, and stays unsellable until BOTH are set:
+    // a half-configured tier must disappear from the pricing page, not 500 at
+    // the moment someone clicks buy.
+    eq(m.hasProPricing(), false, 'Pro is not sellable with no Pro prices');
+    eq(m.priceIdFor('pro', 'monthly'), null, 'no Pro price configured -> null');
+    m.initStripe({ stripeSecretKey: 'sk_live_x', stripeWebhookSecret: 'whsec_x',
+      stripePriceMonthly: 'price_m', stripePriceAnnual: 'price_a',
+      stripeProPriceMonthly: 'price_pm' });
+    eq(m.hasProPricing(), false, 'Pro is not sellable with only its monthly price');
+    m.initStripe({ stripeSecretKey: 'sk_live_x', stripeWebhookSecret: 'whsec_x',
+      stripePriceMonthly: 'price_m', stripePriceAnnual: 'price_a',
+      stripeProPriceMonthly: 'price_pm', stripeProPriceAnnual: 'price_pa' });
+    eq(m.hasProPricing(), true, 'Pro is sellable once both prices are set');
+    eq(m.priceIdFor('pro', 'monthly'), 'price_pm', 'priceIdFor(pro, monthly)');
+    eq(m.priceIdFor('pro', 'annual'), 'price_pa', 'priceIdFor(pro, annual)');
+    // The tiers must not cross-wire: Pro must never resolve to a Team price.
+    eq(m.priceIdFor('pro', 'annual') !== m.priceIdFor('team', 'annual'), true,
+      'Pro and Team resolve to different prices');
   });
 
   // --------------------------------------------------------------------- llm
@@ -821,6 +839,53 @@ async function main() {
     eq(w3teams.getAccountRole(free.id), 'member', 'role after the paid retry');
   });
 
+  await t('wave3 tier-gate: a PRO subscriber still cannot join a team — Pro is an individual plan', async () => {
+    needTeams();
+    // The whole point of the ladder: Pro is paid, but paying is not the gate.
+    // Team access is. If this ever passes for 'pro', a EUR10 individual plan
+    // silently buys the shared library that Team is sold on.
+    const pro = await w3auth.createUser({ email: 'w3-pro-accept@example.com', password: 'correct-horse-8', name: 'Pro' });
+    w3auth.setUserPlan(pro.id, 'pro');
+    const inv = w3teams.createInvite(uA.id, pro.email);
+
+    const e = await expectThrowsOrRejects(
+      () => w3teams.acceptInvite(inv.token, { sessionUserId: pro.id }),
+      'acceptInvite for a Pro account'
+    );
+    ok(/paid/i.test(errMsg(e)), 'rejection should explain the plan is wrong: ' + errMsg(e));
+    eq(w3teams.getTeamIdFor(pro.id), null, 'a Pro account must not be joined to a team');
+    ok(w3teams.getInviteInfo(inv.token), 'refusing a Pro account must not consume the invite');
+
+    // A Pro user cannot found one either.
+    const e2 = await expectThrowsOrRejects(
+      () => w3teams.createTeam(pro.id, 'Pro Team'),
+      'createTeam for a Pro account'
+    );
+    ok(/paid/i.test(errMsg(e2)), 'createTeam rejection should mention the plan: ' + errMsg(e2));
+
+    // Upgrading Pro -> Team opens the same token.
+    w3auth.setUserPlan(pro.id, 'team');
+    const res = await within(Promise.resolve(
+      await w3teams.acceptInvite(inv.token, { sessionUserId: pro.id })
+    ), 5000, 'acceptInvite retry on the team tier');
+    eq(res.userId, pro.id, 'the team-tier retry did not join the expected account');
+    eq(w3teams.getAccountRole(pro.id), 'member', 'role after upgrading to the team tier');
+  });
+
+  await t('wave3: the legacy "paid" plan keeps its team access (no silent downgrade)', async () => {
+    needTeams();
+    // Everyone who paid before the tiers existed is stored as 'paid'. That has
+    // to keep meaning Team, not Pro, or an existing customer loses their
+    // shared library the moment this ships.
+    const legacy = await w3auth.createUser({ email: 'w3-legacy-paid@example.com', password: 'correct-horse-8', name: 'Legacy' });
+    const pub = w3auth.setUserPlan(legacy.id, 'paid');
+    eq(pub.plan, 'team', "a stored 'paid' plan must read back as team");
+    const inv = w3teams.createInvite(uA.id, legacy.email);
+    const res = await within(Promise.resolve(
+      await w3teams.acceptInvite(inv.token, { sessionUserId: legacy.id })
+    ), 5000, 'acceptInvite for a legacy paid account');
+    eq(res.userId, legacy.id, 'a legacy paid account was locked out of its own team');
+  });
   await t('wave3: acceptInvite branch 2 — existing account, correct password, not pre-authenticated', async () => {
     needTeams();
     const email = 'w3-existing-ok@example.com';

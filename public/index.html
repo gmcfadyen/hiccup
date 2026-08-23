@@ -231,6 +231,10 @@
     border-left: 1px solid var(--border);
   }
 
+  .enterprise-kicker {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--accent); margin: 0 0 4px;
+  }
   .enterprise-price { font-size: 30px; font-weight: 700; margin: 0 0 2px; }
   .enterprise-price span { font-size: 13px; font-weight: 600; color: var(--muted); }
   .enterprise-cta .muted { font-size: 12.5px; margin: 0 0 14px; }
@@ -500,7 +504,7 @@
   <section class="card enterprise-card">
     <div class="enterprise-copy">
       <h2 data-i18n>for teams and enterprises</h2>
-      <p data-i18n>running an SBC estate with more than one engineer on call? a paid
+      <p data-i18n>running an SBC estate with more than one engineer on call? a Team
       account turns hiccup into a shared workbench instead of everyone forwarding
       pcaps around.</p>
       <ul>
@@ -508,13 +512,17 @@
         same diagnosis</li>
         <li data-i18n>owner and admin roles — invite, promote, suspend or remove
         teammates</li>
-        <li data-i18n>everything on the free plan stays free — paid is about working as
-        a team, not a feature paywall</li>
+        <li data-i18n>captures up to 250 MB and priority in the queue, for every
+        member</li>
+        <li data-i18n>everything on the free plan stays free — paying buys scale and
+        teamwork, never a feature paywall on the analyser</li>
       </ul>
     </div>
     <div class="enterprise-cta">
+      <p data-i18n class="enterprise-kicker">launch price</p>
       <p class="enterprise-price">€20<span data-i18n> / month</span></p>
-      <p data-i18n class="muted">or €200 / year — two months free</p>
+      <p data-i18n class="muted">for the whole team, not per seat — or €200 / year.
+      Working solo? Pro is €10 / month.</p>
       <a data-i18n class="btn btn-primary" href="/subscribe">See plans →</a>
     </div>
   </section>

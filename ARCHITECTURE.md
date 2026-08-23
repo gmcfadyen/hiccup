@@ -2759,3 +2759,110 @@ Two deliberate honesty properties:
 
 Existing logs predate the format, so the tool reports how many lines it skipped
 rather than presenting zeros as if they were the answer.
+
+# Wave 20 — v0.4.0: a three-tier ladder, so an individual can actually pay
+
+Wave 14 made teams the paid feature. That was the right first cut, but it left
+a structural hole: hiccup's most enthusiastic user is a lone voice engineer, and
+a lone voice engineer has **no way to give hiccup money**. The only paid product
+was one they had no use for. Revenue was capped by the product shape, not by
+marketing.
+
+So the ladder is now three rungs:
+
+| tier | who | upload cap | queue | teams |
+|------|-----|-----------|-------|-------|
+| `free` | anyone | 50 MB | normal | no |
+| `pro`  | one engineer | 250 MB | priority | **no** |
+| `team` | a group | 250 MB | priority | yes |
+
+## `lib/plans.js` — one table, because `=== 'paid'` was in eight places
+
+The plan was a bare string compared inline wherever it mattered: two upload
+limits, the team gate, the checkout guard, `_publicUser`, the admin PATCH
+validator, the admin listing. Adding a third value to eight independent
+comparisons is how a tier ends up meaning different things in different files.
+
+`lib/plans.js` is the only place that knows what a tier *is*. Everything else
+asks it a question — `canUseTeams`, `isPaid`, `uploadLimitMb`, `queuePriority`
+— rather than comparing strings.
+
+Two decisions worth keeping:
+
+- **`normalise('paid') === 'team'`.** Every account that paid before the tiers
+  existed is stored as `'paid'`. It maps to `team`, never `pro`, so nobody
+  wakes up to find the shared library they were paying for has become an
+  individual plan. `setUserPlan` still *accepts* `'paid'` and stores the
+  normalised value, so old callers and old data both keep working while the
+  stored form converges on the new ids.
+- **`uploadLimitMb` lets `config.maxUploadMb` lower the FREE limit only.** An
+  operator running a small box should be able to shrink what anonymous traffic
+  can push at it, without silently shrinking what a customer was sold.
+
+## Pro must not be a discount on Team
+
+`teams._isPaid` is the gate on creating or joining a team, and the tempting
+one-line change was "is this user paying?". That would have made a €10
+individual plan buy the shared library that Team is sold on. It asks
+`plans.canUseTeams` instead — the *team* tier specifically. Two selftests pin
+this down: a Pro subscriber is refused an invite (and the invite survives the
+refusal, so upgrading makes the same token work), and a legacy `'paid'` account
+still gets in.
+
+## The queue priority is real
+
+Selling "priority when the server is busy" and then serving FIFO would be a
+lie, so `lib/llm.js` inserts by priority instead of pushing. The insert is
+**stable within a priority**: a job only overtakes jobs of strictly lower
+priority. Free requests therefore keep their order among themselves and wait
+behind the paid jobs *already queued* rather than behind every future one —
+without that, a steady trickle of paid traffic would starve free users
+indefinitely, which is a much worse product than being a bit slower.
+
+## Checkout names a tier, not a price
+
+The browser sends `{tier, interval}`; `stripe.priceIdFor(tier, interval)` maps
+that to one of four configured price ids. A client that could name a price
+could name *its own* price. The chosen tier rides to Stripe in
+`subscription_data.metadata.hiccup_plan` and comes back on the webhook, so the
+grant matches what was bought without a second API call. An unrecognised value
+there falls back to `team` — erring toward giving a paying customer more than
+they bought rather than less.
+
+Pro's two prices are **optional config**. `hasProPricing()` is separate from
+`isConfigured()` so a deployment can run Team-only; when it is false the
+pricing page hides the Pro card *and* the endpoint answers 501. Advertising a
+plan whose price is missing would send someone to an error at the exact moment
+they decided to pay.
+
+## `bin/stripe-prices.js`
+
+Creates the Pro product and prices and records the ids in `data/config.json`.
+It reads `STRIPE_SECRET_KEY` from the environment and never writes it anywhere
+— price ids are public (they appear in checkout URLs), the key is not.
+
+It is safe to re-run, and that is not incidental: **Stripe prices are immutable
+and cannot be deleted**, only deactivated, so a tool that created a duplicate
+on a second run would leave permanent litter in a live account. Products are
+matched by metadata and prices by exact currency/amount/interval before
+anything is created; it also refuses to touch a config key that is already set,
+which is what keeps it away from the hand-made Team prices that have live
+subscriptions attached.
+
+## Launch pricing, and why there is no struck-through price
+
+The listed rates are half what they are intended to settle at. The page frames
+this **forward** ("heading for €20 once launch pricing ends") rather than
+backward ("was €20, now €10").
+
+That is a legal choice, not a stylistic one. Under the EU Omnibus Directive a
+displayed reference price must be the lowest price actually charged in the
+preceding 30 days. hiccup has never charged €20 for Pro, so a struck-through
+€20 would be a misleading price announcement from an EU seller. Saying where
+the price is *going* makes no claim about the past and carries the same
+urgency.
+
+The related promise — that a subscriber keeps their signup price when rates
+rise — is simply how Stripe subscriptions behave: they stay on the price they
+were created with until someone migrates them. It costs nothing to promise and
+is a real reason to buy now rather than later.

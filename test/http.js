@@ -370,7 +370,7 @@ async function main() {
         mode: 'subscription',
         payment_status: 'paid',
         client_reference_id: userId,
-        metadata: { hiccup_user_id: userId },
+        metadata: { hiccup_user_id: userId, hiccup_plan: 'team' },
         customer: 'cus_test_1',
         subscription: 'sub_test_1',
       } },
@@ -382,7 +382,7 @@ async function main() {
     eq(r.status, 200, 'a valid webhook should be accepted');
 
     const after = await client('GET', '/api/me');
-    eq(after.json.user.plan, 'paid', 'the webhook did not upgrade the account');
+    eq(after.json.user.plan, 'team', 'the webhook did not upgrade the account');
 
     // Stripe retries on any non-2xx, so the same event id must be a no-op.
     const again = await client('POST', '/api/stripe/webhook', event, { 'Stripe-Signature': sig });
@@ -410,16 +410,27 @@ async function main() {
 
   await t('checkout requires sign-in, and refuses a second subscription', async () => {
     const anon = makeClient();
-    const a = await anon('POST', '/api/billing/checkout', { plan: 'monthly' });
+    const a = await anon('POST', '/api/billing/checkout', { tier: 'team', interval: 'monthly' });
     eq(a.status, 401, 'checkout must require sign-in');
 
     // This client is already paid from the webhook test above, so the guard
     // short-circuits before any Stripe call -- no network in the test suite.
-    const r = await client('POST', '/api/billing/checkout', { plan: 'monthly' });
+    const r = await client('POST', '/api/billing/checkout', { tier: 'team', interval: 'monthly' });
     eq(r.status, 409, 'an already-subscribed user must not be sent to checkout again');
 
-    const bad = await client('POST', '/api/billing/checkout', { plan: 'price_evil' });
-    ok(bad.status >= 400, 'an arbitrary plan string must be refused');
+    // A price id is server-side config; naming one must not select it. Same for
+    // a tier that does not exist, and for a missing half of the pair.
+    for (const body of [
+      { tier: 'price_evil', interval: 'monthly' },
+      { tier: 'enterprise', interval: 'monthly' },
+      { tier: 'team', interval: 'forever' },
+      { tier: 'team' },
+      { interval: 'monthly' },
+      { tier: 'free', interval: 'monthly' },
+    ]) {
+      const bad = await client('POST', '/api/billing/checkout', body);
+      ok(bad.status >= 400, 'checkout accepted a bad body: ' + JSON.stringify(body));
+    }
   });
 
   // Pasting TEST keys and poking the real site is how anyone tries this out.
