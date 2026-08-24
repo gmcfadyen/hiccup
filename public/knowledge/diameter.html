@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diameter protocol explained: AVPs, applications, Cx, Rx, Gx, S6a — hiccup</title>
+<meta name="description" content="How Diameter works and why VoLTE depends on it: AVPs, applications and command codes, the interfaces that matter (Cx, Sh, Rx, Gx, S6a), routing by realm, and what Diameter failures look like from the SIP side.">
+<link rel="canonical" href="https://hiccup.monster/knowledge/diameter">
+<script src="/boot-theme.js"></script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="Diameter: the protocol that runs VoLTE's back office">
+<meta property="og:description" content="AVPs, applications, the interfaces that matter, and what Diameter failures look like from the SIP side of the network.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/knowledge/diameter">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "Diameter: the protocol that runs VoLTE's back office",
+  "description": "How Diameter works — AVPs, applications, realm routing — and why every VoLTE call depends on it before the first SIP message is sent.",
+  "url": "https://hiccup.monster/knowledge/diameter",
+  "inLanguage": "en",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "Diameter protocol" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/knowledge">protocol guides</a>
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/knowledge">Protocol guides</a><span>/</span>Diameter
+  </nav>
+
+  <article class="ref">
+
+    <h1>Diameter: the protocol that runs VoLTE's back office</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> SIP decides what a call wants; Diameter decides
+      whether the network will let it happen and who pays. Authentication, subscriber
+      lookup, policy, charging and the voice bearer itself all ride on Diameter — which is
+      why a VoLTE call can die without a single SIP message ever looking wrong.</p>
+    </div>
+
+    <h2>Where it came from</h2>
+    <p>
+      Diameter (RFC 6733, originally RFC 3588 — the name is a dry joke: twice RADIUS) was
+      built to replace RADIUS for authentication, authorisation and accounting. It fixed
+      the things that made RADIUS unfit for a carrier core: it runs over TCP or SCTP
+      (port 3868) instead of fire-and-forget UDP, every request gets an answer, peers
+      monitor each other with watchdogs, failover is defined rather than improvised, and
+      the message format extends cleanly. 3GPP then adopted it as the control-plane glue
+      of LTE and IMS, which is where nearly everyone meets it today.
+    </p>
+
+    <h2>The building blocks</h2>
+    <ul>
+      <li><strong>AVPs.</strong> Every message is a header plus a list of attribute-value
+      pairs — typed, numbered, nestable. Vendor-specific AVPs (3GPP's live under vendor id
+      10415) extend the protocol without breaking anyone who ignores them.</li>
+      <li><strong>Commands.</strong> Messages come in request/answer pairs sharing a
+      command code: CER/CEA to open a peering (capabilities exchange), DWR/DWA as the
+      watchdog heartbeat, and per-application codes like UAR/UAA or CCR/CCA.</li>
+      <li><strong>Applications.</strong> An application id names the dialect: Cx is one
+      application, Gx another, S6a another. Peers advertise at CER time which applications
+      they speak, and a message for an unsupported application is refused outright.</li>
+      <li><strong>Sessions.</strong> A <code>Session-Id</code> AVP correlates the messages
+      of one logical transaction — the equivalent of SIP's Call-ID, and the key you group
+      by when reading a capture.</li>
+      <li><strong>Routing.</strong> Requests carry Origin-Host/Origin-Realm and
+      Destination-Realm (sometimes Destination-Host). Diameter Routing Agents (DRAs) relay
+      on realm the way SIP proxies route on domain; the hop-by-hop id is rewritten per hop
+      while the end-to-end id survives, which is exactly how you match a request to its
+      answer across a relay.</li>
+    </ul>
+
+    <h2>The interfaces that matter for voice</h2>
+    <div class="ref-table-wrap">
+      <table>
+        <thead>
+          <tr><th>Interface</th><th>Between</th><th>What it decides</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>S6a</td><td>MME ↔ HSS</td><td>Can this device attach to LTE at all, and with what subscription data. Fails here and the phone has no data, never mind voice.</td></tr>
+          <tr><td>Cx / Dx</td><td>I/S-CSCF ↔ HSS (SLF)</td><td>IMS registration: does the user exist, which S-CSCF serves them, and the AKA vectors to authenticate them.</td></tr>
+          <tr><td>Sh</td><td>Application server ↔ HSS</td><td>Service data for supplementary services — where the TAS reads and writes forwarding rules and the like.</td></tr>
+          <tr><td>Rx</td><td>P-CSCF ↔ PCRF</td><td>The voice bearer trigger: the P-CSCF describes the media from the SDP, the policy function decides whether a dedicated bearer gets built.</td></tr>
+          <tr><td>Gx</td><td>PCRF ↔ PGW</td><td>The enforcement half of Rx: policy rules pushed down so the packet core actually installs the bearer and its QoS.</td></tr>
+          <tr><td>Ro / Rf (Gy)</td><td>Network ↔ charging</td><td>Online (credit-checked, can refuse mid-call) and offline (records after the fact) charging.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>Reading a Diameter capture</h2>
+    <p>
+      Diameter is binary, so you read it with a decoder rather than your eyes — but the
+      questions are always the same three. <em>Did the request reach the right place?</em>
+      Follow Destination-Realm and watch a DRA rewrite hop-by-hop ids.
+      <em>What did the answer say?</em> <code>Result-Code</code> 2001 is DIAMETER_SUCCESS;
+      3xxx codes are routing/protocol failures (3002 UNABLE_TO_DELIVER is the classic
+      "nobody peers with that realm"), 4xxx are transient, 5xxx are permanent refusals —
+      and 3GPP applications often put the truth in <code>Experimental-Result-Code</code>
+      instead, e.g. 5001 USER_UNKNOWN from an HSS. <em>Did it answer at all?</em> Watchdog
+      DWR/DWA pairs tell you whether the peering itself was alive.
+    </p>
+
+    <h2>What Diameter failure looks like from the SIP side</h2>
+    <ul>
+      <li>REGISTER answered <strong>504</strong> or hanging: Cx not answering — HSS or DRA
+      down, or realm routing broken.</li>
+      <li>REGISTER answered <strong>403/404</strong> for a subscriber who should exist:
+      Cx answered, but with USER_UNKNOWN or a profile mismatch — a provisioning fault
+      wearing a SIP costume.</li>
+      <li>Call signalling perfect, then the call drops at answer or has
+      <a href="/sip/one-way-audio">one-way audio</a>: Rx/Gx failed, the dedicated bearer
+      never got built, and the media had nothing to ride on.</li>
+      <li>Calls refused mid-dialog with policy-flavoured reasons: online charging (Ro)
+      said no — an empty prepaid balance shows up here, not in the HSS.</li>
+    </ul>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> decodes the Diameter it finds alongside your SIP —
+      Cx, Rx and friends — so "the SIP looks fine" and "the Result-Code was 5001" can sit
+      in the same timeline. Self-hosted, free for individual users.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+    <nav class="ref-more" aria-label="related pages">
+      See also:
+      <ul>
+        <li><a href="/knowledge/ims-architecture">IMS architecture</a> — the boxes these interfaces connect.</li>
+        <li><a href="/knowledge/volte-call-setup">A VoLTE call, step by step</a> — Rx and Gx doing their work mid-call.</li>
+        <li><a href="/knowledge/sip-h323-diameter">SIP, H.323 and Diameter</a> — the division of labour.</li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+  <p><a href="mailto:contact@hiccup.monster">contact@hiccup.monster</a></p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

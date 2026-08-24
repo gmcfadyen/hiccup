@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NAT traversal for VoIP: STUN, TURN and ICE explained — hiccup</title>
+<meta name="description" content="Why SIP breaks across NAT, what STUN, TURN and ICE each actually fix, symmetric RTP and SBC latching, rport — and why the SIP ALG in your router deserves its terrible reputation.">
+<link rel="canonical" href="https://hiccup.monster/knowledge/nat-traversal">
+<script src="/boot-theme.js"></script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="NAT traversal for voice: STUN, TURN and ICE">
+<meta property="og:description" content="Why SIP breaks across NAT, what each fix actually fixes, latching on the carrier side — and why the SIP ALG deserves its reputation.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/knowledge/nat-traversal">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "NAT traversal for voice: STUN, TURN and ICE",
+  "description": "Why SIP and RTP break across NAT and what each traversal mechanism actually contributes, including SBC latching and the SIP ALG problem.",
+  "url": "https://hiccup.monster/knowledge/nat-traversal",
+  "inLanguage": "en",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "NAT traversal" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/knowledge">protocol guides</a>
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/knowledge">Protocol guides</a><span>/</span>NAT traversal
+  </nav>
+
+  <article class="ref">
+
+    <h1>NAT traversal for voice: STUN, TURN and ICE</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> SIP breaks across NAT because it writes IP
+      addresses <em>inside</em> the messages, and NAT only rewrites the ones on the
+      outside. Every traversal mechanism is a different way of getting a usable address
+      into the SDP — ask the network (STUN), rent a relay (TURN), try everything and keep
+      what works (ICE), or let the carrier's SBC ignore the SDP entirely (latching).</p>
+    </div>
+
+    <h2>The problem, precisely</h2>
+    <p>
+      A phone on 192.168.1.20 puts that address in its <code>Via</code>, its
+      <code>Contact</code>, and — fatally — in the SDP <code>c=</code> line that tells the
+      far end where to send audio. The NAT rewrites the IP header on the way out; the SIP
+      body sails through untouched. The far end then obediently sends RTP to
+      192.168.1.20, which from the internet is nowhere. Result: the most common media
+      failure in existence — signalling fine, audio missing in one direction, covered
+      from the symptom side in <a href="/sip/one-way-audio">one-way audio</a>.
+    </p>
+    <p>
+      Two protocol-level patches help the signalling itself: <code>rport</code>
+      (RFC 3581) makes responses return to the source port the request actually came
+      from, and <em>symmetric</em> behaviour (sending and receiving on the same port)
+      keeps the NAT mapping alive and predictable. But something still has to fix the
+      addresses in the SDP.
+    </p>
+
+    <h2>The mechanisms, and what each one actually contributes</h2>
+    <div class="ref-table-wrap">
+      <table>
+        <thead>
+          <tr><th>Mechanism</th><th>What it does</th><th>Where it falls short</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>STUN</td><td>A server on the internet tells you what your address looks like from outside ("server-reflexive" address). Cheap, stateless.</td><td>Useless alone behind NATs whose mapping depends on the destination (the behaviour loosely called symmetric NAT): the address STUN discovered is only valid towards the STUN server.</td></tr>
+          <tr><td>TURN</td><td>Rents you a relay address on a server; all media flows through it. Works behind anything.</td><td>Cost and latency — every packet takes the detour, and someone pays for the relay's bandwidth. The fallback, not the plan.</td></tr>
+          <tr><td>ICE</td><td>The system that uses both: gather every candidate address (local, STUN-derived, TURN relay), exchange them in SDP, connectivity-check all pairs with STUN packets, pick the best that works.</td><td>Complexity and setup time — a full check round takes hundreds of milliseconds, and both ends must speak it. Universal in WebRTC; still patchy in desk-phone SIP.</td></tr>
+          <tr><td>SBC latching</td><td>The carrier-side answer: the <a href="/knowledge/session-border-controller">SBC</a> ignores the SDP address and locks onto wherever the endpoint's RTP actually arrives from, then sends its own media back to that observed source.</td><td>Requires the endpoint to send first, and to send symmetrically. Which is why "no audio until the callee speaks" is the classic latching-adjacent symptom.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>ICE in ninety seconds</h2>
+    <p>
+      Each side gathers candidates — <strong>host</strong> (its own interfaces),
+      <strong>srflx</strong> (what STUN saw), <strong>relay</strong> (what TURN rented) —
+      and ships them as <code>a=candidate</code> lines with priorities: host preferred,
+      relay last. Both sides then pair their candidates with the peer's and send STUN
+      binding requests over every pair, in priority order. The pairs that produce answers
+      are usable; the controlling side nominates one, and media settles onto it.
+      Meanwhile — and this is the detail that saves real calls — media can start flowing
+      on the first working pair before checking finishes. In a capture, a working ICE
+      call shows a burst of STUN on the media ports before and during early RTP; a
+      failing one shows checks in one direction only, which localises the broken NAT
+      instantly.
+    </p>
+
+    <h2>The SIP ALG, and why the advice is always "turn it off"</h2>
+    <p>
+      Consumer routers ship an application-layer gateway that tries to fix SIP by
+      rewriting the addresses inside the messages as they pass. The idea is sound; the
+      implementations are, almost universally, not. Real ALGs rewrite the Via but not the
+      SDP, or the SDP but not the Contact; they mangle one message in a dialog and miss
+      its retransmission; they fight with the phone's own STUN or the carrier's latching,
+      each undoing the other's correction; and they rewrite REGISTER Contacts so
+      registrations point at addresses that stop existing when the mapping expires. The
+      resulting faults are gloriously inconsistent — calls that work until they re-INVITE,
+      audio that dies after exactly the NAT's UDP timeout, registrations that flap. It is
+      the first thing to disable on any site with inexplicable VoIP behaviour, and the
+      trace fingerprint is an address in SIP that <em>neither</em> endpoint claims to have
+      written.</p>
+
+    <h2>Reading a NAT problem in a trace</h2>
+    <ol>
+      <li>Compare the SDP <code>c=</code> address with the actual source of the RTP. A
+      mismatch is not automatically a fault (latching tolerates it), but it names the
+      mechanism in play.</li>
+      <li>Private addresses (RFC 1918) in <code>c=</code> or Contact on a public-facing
+      leg mean no traversal mechanism ran — or an ALG stripped its work.</li>
+      <li>Look for the STUN checks of ICE (<code>a=candidate</code> in SDP, STUN on the
+      media ports). Checks in one direction only point at the side whose NAT is
+      eating inbound packets.</li>
+      <li>Audio that dies mid-call after a suspiciously round number of seconds is a
+      NAT mapping expiring: look for missing keepalives (empty RTP, STUN, or RTCP) during
+      silence.</li>
+      <li>Mangled-but-almost-right addresses — right subnet, wrong port; rewritten Via
+      with untouched SDP — are the ALG's signature.</li>
+    </ol>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> decodes the STUN/ICE traffic in your capture alongside
+      SIP and RTP, flags private addresses in public SDP, and tells you whether media
+      actually followed the addresses the signalling promised. Self-hosted, free for
+      individual users.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+    <nav class="ref-more" aria-label="related pages">
+      See also:
+      <ul>
+        <li><a href="/sip/one-way-audio">One-way audio</a> — the symptom this page explains the causes of.</li>
+        <li><a href="/knowledge/session-border-controller">Session border controllers</a> — latching's home.</li>
+        <li><a href="/knowledge/rtp-rtcp">RTP and RTCP</a> — the traffic being steered.</li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+  <p><a href="mailto:contact@hiccup.monster">contact@hiccup.monster</a></p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

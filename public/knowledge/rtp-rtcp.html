@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RTP and RTCP explained: reading call quality from a capture — hiccup</title>
+<meta name="description" content="How RTP actually carries voice: the header fields that matter, what jitter really is, what RTCP sender and receiver reports tell you, and how to read loss, jitter and MOS out of a packet capture.">
+<link rel="canonical" href="https://hiccup.monster/knowledge/rtp-rtcp">
+<script src="/boot-theme.js"></script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="RTP and RTCP: how the audio actually gets there">
+<meta property="og:description" content="The header fields that matter, what the receiver reports tell you, and reading call quality out of a capture.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/knowledge/rtp-rtcp">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "RTP and RTCP: how the audio actually gets there",
+  "description": "RTP header fields, jitter and the jitter buffer, RTCP sender/receiver reports, and reading call quality from a capture.",
+  "url": "https://hiccup.monster/knowledge/rtp-rtcp",
+  "inLanguage": "en",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "Real-time Transport Protocol" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/knowledge">protocol guides</a>
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/knowledge">Protocol guides</a><span>/</span>RTP and RTCP
+  </nav>
+
+  <article class="ref">
+
+    <h1>RTP and RTCP: how the audio actually gets there</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> RTP puts a sequence number and a media clock on
+      every packet so the receiver can rebuild timing that the network destroyed. RTCP is
+      the receiver telling the sender how badly that went. Between the two of them, a
+      capture contains everything needed to say <em>how a call sounded</em> — no listening
+      required.</p>
+    </div>
+
+    <h2>The RTP header: five fields do all the work</h2>
+    <div class="ref-table-wrap">
+      <table>
+        <thead>
+          <tr><th>Field</th><th>What it is</th><th>What you use it for</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>SSRC</td><td>Random 32-bit stream id</td><td>Defines the stream. One SSRC = one sender; it changes on restart, and a mid-call SSRC change explains many "audio came back different" reports.</td></tr>
+          <tr><td>Sequence number</td><td>16-bit, +1 per packet, random start</td><td>Loss (gaps), reordering (backwards steps), duplication. Wraps every 65 536 packets — about 22 minutes at 20 ms — so tools track cycles.</td></tr>
+          <tr><td>Timestamp</td><td>Media clock, not wall clock — 8000 Hz for narrowband, so +160 per 20 ms packet</td><td>Jitter calculation, silence-suppression gaps (timestamp jumps while sequence stays contiguous), and clock-rate mismatches (chipmunk audio).</td></tr>
+          <tr><td>Payload type</td><td>7-bit codec label; static below 96, dynamic 96–127 mapped by SDP <code>a=rtpmap</code></td><td>What the packet claims to contain. PT changing mid-stream without a re-INVITE is a bug worth chasing; a separate PT (often 101) is <a href="/knowledge/codecs-transcoding">DTMF events</a>.</td></tr>
+          <tr><td>Marker bit</td><td>1 bit, codec-specific meaning</td><td>For voice: first packet after silence — talkspurt boundaries, useful when reading comfort-noise behaviour.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>Jitter, precisely</h2>
+    <p>
+      Jitter is not "variance in ping". RFC 3550 defines it exactly: for each pair of
+      packets, compare the spacing at which they arrived with the spacing at which the
+      timestamps say they were sent; the jitter value is a running smoothed average of
+      that difference (in timestamp units — divide by 8 for milliseconds on an 8 kHz
+      codec). The receiver hides jitter with a buffer that trades delay for smoothness:
+      an adaptive buffer grows during bad spells, and every time a packet arrives later
+      than the buffer's current depth, it is <em>late loss</em> — discarded as
+      uselessly late even though it arrived. This is why "the capture shows only 0.4%
+      loss but the call sounded terrible" is not a contradiction: the network delivered
+      the packets, the deadline did not.
+    </p>
+
+    <h2>RTCP: the feedback channel</h2>
+    <p>
+      RTCP runs beside RTP (traditionally on the next odd port, or muxed on the same one
+      with <code>a=rtcp-mux</code>), throttled to a few percent of the media bandwidth.
+      Two packet types matter daily:
+    </p>
+    <ul>
+      <li><strong>Sender Report (SR):</strong> "I have sent N packets, M octets, and my
+      RTP timestamp T corresponds to this NTP wall-clock time." That last pairing is the
+      bridge between media time and real time — it is how receivers lip-sync audio to
+      video, and how tools convert timestamps to seconds.</li>
+      <li><strong>Receiver Report (RR):</strong> the far end's experience, per SSRC:
+      fraction lost since the last report, cumulative packets lost, highest sequence
+      received, current interarrival jitter, and two fields (LSR/DLSR) that let the
+      original sender compute round-trip time without any clock agreement.</li>
+    </ul>
+    <p>
+      Read RRs as a time series, not a single sample: fraction-lost spiking in one report
+      then recovering is a burst event; cumulative loss climbing steadily is sustained
+      congestion; jitter trending up ahead of loss is a queue filling somewhere. And the
+      absence of RTCP is itself a finding — plenty of middleboxes forward RTP but drop
+      RTCP, blinding both ends' adaptive machinery.
+    </p>
+
+    <h2>From counters to "how it sounded"</h2>
+    <p>
+      The E-model (ITU-T G.107) turns delay, loss and codec into a single R score, which
+      maps to the familiar MOS scale. The useful engineering intuitions: a narrowband
+      call starts from a ceiling around MOS 4.4 before the network takes anything;
+      one-way delay starts to hurt conversation quality past roughly 150 ms and becomes
+      obvious past 250 ms; random 1% loss is audible on G.711 and worse on compressed
+      codecs, while <em>bursty</em> loss at the same average is far more damaging than
+      the average suggests. Any tool's MOS from a capture — hiccup's included — is an
+      estimate of network-inflicted damage, not a measurement at the ear: it cannot see
+      the microphone, the acoustics, or an analogue leg beyond the last RTP hop.</p>
+
+    <h2>Reading a media capture</h2>
+    <ol>
+      <li>Group by SSRC and direction first. Two streams means two verdicts; averaging
+      them hides the fault. (A missing direction entirely is
+      <a href="/sip/one-way-audio">one-way audio</a>, a different investigation.)</li>
+      <li>Walk the sequence numbers: gaps, reorder distance, duplicates. Then walk
+      timestamps against arrival times for jitter and for silence-suppression gaps.</li>
+      <li>Line the RTCP RRs up against the RTP: does the far end's reported loss match
+      what you can see leaving? Loss reported that you did not see departing means the
+      damage is downstream of your capture point — that single comparison localises the
+      fault to a half of the path.</li>
+      <li>Check the first and last packet times against the SIP ladder: media that
+      starts 3 seconds after the 200 OK, or stops before the BYE, tells its own
+      story.</li>
+    </ol>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> does this pass automatically: per-stream loss, jitter,
+      late-loss estimates and an honest quality verdict, lined up against the SIP
+      timeline of the same capture. Self-hosted, free for individual users.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+    <nav class="ref-more" aria-label="related pages">
+      See also:
+      <ul>
+        <li><a href="/knowledge/codecs-transcoding">Codecs and transcoding</a> — what is inside the payload.</li>
+        <li><a href="/knowledge/nat-traversal">NAT traversal</a> — why the stream flowed to the wrong place.</li>
+        <li><a href="/sip/one-way-audio">One-way audio</a> — when one SSRC never shows up at all.</li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+  <p><a href="mailto:contact@hiccup.monster">contact@hiccup.monster</a></p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

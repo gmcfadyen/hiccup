@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SS7 and ISUP explained: the phone network before SIP — hiccup</title>
+<meta name="description" content="How SS7 actually works — MTP, point codes, SCCP, TCAP — and the ISUP call flow (IAM, ACM, ANM, REL) mapped message by message onto its SIP equivalents, including SIP-I encapsulation.">
+<link rel="canonical" href="https://hiccup.monster/knowledge/ss7-isup">
+<script src="/boot-theme.js"></script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="SS7 and ISUP: the phone network SIP had to interwork with">
+<meta property="og:description" content="MTP, point codes, TCAP — and the ISUP call flow mapped message by message onto its SIP equivalents.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/knowledge/ss7-isup">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "SS7 and ISUP: the phone network SIP had to interwork with",
+  "description": "The SS7 stack and the ISUP call flow, mapped onto SIP — and where an engineer still meets both today.",
+  "url": "https://hiccup.monster/knowledge/ss7-isup",
+  "inLanguage": "en",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "Signalling System No. 7" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/knowledge">protocol guides</a>
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/knowledge">Protocol guides</a><span>/</span>SS7 and ISUP
+  </nav>
+
+  <article class="ref">
+
+    <h1>SS7 and ISUP: the phone network SIP had to interwork with</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> SS7 is a closed packet network that carries the
+      control plane of classical telephony; ISUP is its call-control protocol, and it
+      maps onto SIP almost message for message. You still care because the PSTN edge of
+      every SIP network speaks it, its cause codes surface inside your SIP as
+      <a href="/sip/q850-cause-codes">Q.850</a>, and SIP-I traces carry raw ISUP in the
+      message bodies.</p>
+    </div>
+
+    <h2>The stack, briefly</h2>
+    <p>
+      SS7 separated signalling from voice: the talk path lives on 64 kbit/s trunk
+      circuits, while call control travels a parallel data network of its own.
+      <strong>MTP</strong> levels 1–3 are that network — links, reliability, and routing
+      between nodes named by <em>point codes</em>. On top:
+      <strong>ISUP</strong> for trunk call control, and <strong>SCCP</strong> +
+      <strong>TCAP</strong> for transaction services — number translation, and the
+      dialogues that mobile networks (MAP: location updates, SMS, roaming) and
+      intelligent-network services (INAP/CAP: prepaid, freephone) run on. The nodes:
+      <strong>SSPs</strong> (exchanges), <strong>STPs</strong> (signalling routers),
+      <strong>SCPs</strong> (service databases). When SS7 is carried over IP rather than
+      TDM links, the SIGTRAN family (M3UA over SCTP) replaces the lower layers and
+      everything above continues unchanged.
+    </p>
+
+    <h2>An ISUP call, against its SIP twin</h2>
+    <p>
+      ISUP controls <em>circuits</em>: each trunk between two exchanges is a numbered CIC
+      (circuit identification code), and the messages seize, ring, answer and release
+      that circuit.
+    </p>
+    <div class="ref-table-wrap">
+      <table>
+        <thead>
+          <tr><th>ISUP</th><th>Meaning</th><th>SIP equivalent</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>IAM — Initial Address Message</td><td>Seize a circuit; carries called/calling number, nature of address, charge indicators</td><td>INVITE</td></tr>
+          <tr><td>ACM — Address Complete</td><td>Far end has the full number and is proceeding; often "subscriber free" = ringing</td><td>180 Ringing (or 183, when ACM says in-band info follows)</td></tr>
+          <tr><td>CPG — Call Progress</td><td>Mid-setup progress events (forwarding, queueing)</td><td>Additional 18x provisionals</td></tr>
+          <tr><td>ANM — Answer</td><td>Answered; billing starts</td><td>200 OK</td></tr>
+          <tr><td>REL — Release</td><td>Tear the call down, with a Q.850 cause value</td><td>BYE (or a 4xx/5xx, if before answer)</td></tr>
+          <tr><td>RLC — Release Complete</td><td>Circuit is free again</td><td>200 to the BYE</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      The asymmetries are where interworking gets interesting. ISUP has no ACK — answer
+      is one message, not three. Early media is implicit (the voice circuit exists from
+      seizure, so ringback simply plays down it) where SIP needs 183-with-SDP and
+      <code>P-Early-Media</code> to say the same thing. A REL always carries a numeric
+      cause; a SIP failure sometimes has to invent one, which is exactly what the
+      <code>Reason:</code> header carries back. And ISUP worries about things SIP never
+      had to: continuity tests on the voice path (COT), and <em>glare</em> — both ends
+      seizing the same circuit at once, resolved by point-code arithmetic rather than
+      luck.</p>
+
+    <h2>SIP-I: ISUP riding inside SIP</h2>
+    <p>
+      When two TDM islands connect across a SIP core, the border gateways use
+      <strong>SIP-I</strong> (ITU-T Q.1912.5; SIP-T is the IETF's earlier take): the SIP
+      messages carry a multipart body with the original ISUP message embedded,
+      <code>Content-Type: application/ISUP</code>. SIP does the routing; the far gateway
+      re-emits the ISUP so nothing telco-specific is lost in translation. For the trace
+      reader this is a gift — the INVITE contains the actual IAM, so the calling-party
+      category, charge indicators and original cause values are right there if your tool
+      decodes them. hiccup does.</p>
+
+    <h2>Where you still meet all this</h2>
+    <ul>
+      <li><strong>Every PSTN breakout:</strong> the media gateway at the edge of an IMS
+      or enterprise network turns SIP into ISUP. Its failures arrive in your SIP as
+      status codes with <code>Reason: Q.850;cause=…</code> attached.</li>
+      <li><strong>National interconnects and number ranges</strong> that remain
+      TDM-signalled long after the transport went IP (SIGTRAN, not SIP).</li>
+      <li><strong>Mobile roaming and SMS:</strong> MAP over TCAP is still the machinery
+      under 2G/3G roaming, and its security problems (location tracking, SMS interception
+      via rogue SS7 access) are why SS7 keeps making the news — a closed network's trust
+      model, opened by decades of interconnect.</li>
+      <li><strong>SIP-I trunks between carriers</strong>, especially where one side is an
+      incumbent that never quite finished its migration.</li>
+    </ul>
+
+    <h2>Reading it in a trace</h2>
+    <ol>
+      <li>On a SIP-I trunk, open the multipart body: compare the ISUP IAM's called
+      number with the SIP Request-URI — mismatches (prefix handling, nature-of-address
+      confusion) are the number-format ticket generator.</li>
+      <li>On teardown, trust the ISUP cause over the SIP status when both are present:
+      the cause travelled from the far exchange; the status may have been improvised at
+      the border. The mapping table lives on the
+      <a href="/sip/q850-cause-codes">Q.850 page</a>.</li>
+      <li>A gateway answering everything with 503 while its peers are fine is often a
+      circuit-group problem underneath (blocked CICs, a failed COT), invisible unless
+      you can see the ISUP side.</li>
+    </ol>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> decodes SIP-I: the ISUP messages inside your SIP bodies
+      are parsed and lined up with the SIP ladder, causes and all. Self-hosted, free for
+      individual users.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+    <nav class="ref-more" aria-label="related pages">
+      See also:
+      <ul>
+        <li><a href="/sip/q850-cause-codes">Q.850 cause codes</a> — the shared failure vocabulary, fully mapped.</li>
+        <li><a href="/knowledge/e164-sip-uris">E.164, SIP URIs and ENUM</a> — the numbering plan both worlds share.</li>
+        <li><a href="/knowledge/sip-h323-diameter">SIP, H.323 and Diameter</a> — the other interworking story.</li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+  <p><a href="mailto:contact@hiccup.monster">contact@hiccup.monster</a></p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

@@ -2866,3 +2866,37 @@ The related promise — that a subscriber keeps their signup price when rates
 rise — is simply how Stripe subscriptions behave: they stay on the price they
 were created with until someone migrates them. It costs nothing to promise and
 is a real reason to buy now rather than later.
+
+# Wave 21 — /knowledge: the protocol guides
+
+Twelve original articles plus an index at `public/knowledge/`, following the
+/sip reference's template exactly (same head block, topbar, verdict box,
+tables, CTA, related-links nav, footer). The /sip pages catch "why did my
+call fail" searches; these catch "how does X work": IMS architecture,
+Diameter, VoLTE call setup, SBCs, SIP/H.323/Diameter, lawful intercept
+(architecture + VoIP practice), RTP/RTCP, NAT traversal, codecs/transcoding,
+SS7/ISUP, and E.164/ENUM/STIR-SHAKEN.
+
+Decisions worth recording:
+
+- **All original writing, deliberately.** The request was "can we copy
+  existing content (legally) somewhere and rebrand it?" and the answer was
+  no: vendor docs and 3GPP specs are copyrighted, Wikipedia is CC BY-SA
+  (attribution + share-alike — "rebrand" breaks the licence), and RFCs allow
+  quoting, not republishing. Facts are not copyrightable, so original
+  explanations are the clean path — and the better SEO path, since near-
+  duplicate content is suppressed anyway.
+- **The lawful-intercept pages are architecture education, not tradecraft**:
+  the standardised ETSI/3GPP warrant model (ADMF, X1/X2/X3, mediation,
+  HI1-3), which is public-spec material every telecom engineer is expected
+  to know. Both pages state the legal line explicitly.
+- Routes live in PUBLIC_PAGES (13 new entries), so router + sitemap moved in
+  one edit as designed; robots.txt comment updated. Every /sip page's topnav
+  gained a "protocol guides" link (14-file batch edit, node script) and the
+  landing page's reference teaser links the hub.
+- Reference pages stay untranslated (no data-i18n), same as /sip — one new
+  landing-page string translated in fr/es/de (940/940).
+
+Verified against a live instance: 13/13 routes 200, 13/13 in sitemap (30
+URLs total), 32/32 internal links resolve, index + article rendered in both
+themes in a real browser. 117/117 selftests, 22/22 HTTP.

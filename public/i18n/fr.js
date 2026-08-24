@@ -894,6 +894,7 @@ window.HICCUP_I18N = {
   "f9e556fba30862ca": "Traduire vers",
   "f9ee06b5ff26c62b": "Qui d'autre peut voir vos captures",
   "fa23d9ef19afc32c": "équipe",
+  "fa63191b3d7d6f2c": "guides protocoles : IMS, Diameter, SS7, interception légale →",
   "fa8b38bae20b22d7": "Demandez à votre collègue de vous envoyer un nouveau lien d'invitation.",
   "fab8e68a14401c3b": "Fermer la palette ou cette boîte de dialogue · sinon effacer et quitter la recherche · sinon fermer le panneau de chat lorsqu'il recouvre les volets sur un écran étroit.",
   "fb43be2359ccab14": "Créer le projet",

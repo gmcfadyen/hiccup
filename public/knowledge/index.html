@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voice protocol guides — IMS, Diameter, SS7, RTP, lawful intercept — hiccup</title>
+<meta name="description" content="Plain-language engineering guides to how voice networks actually work: IMS architecture, Diameter, VoLTE call setup, SBCs, lawful intercept, RTP/RTCP, NAT traversal, codecs, SS7/ISUP and number routing.">
+<link rel="canonical" href="https://hiccup.monster/knowledge">
+<script src="/boot-theme.js"></script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="Voice protocol guides — how the protocols actually work">
+<meta property="og:description" content="IMS, Diameter, VoLTE, SBCs, lawful intercept, RTP, NAT traversal, codecs, SS7 and number routing — explained the way an engineer on call needs them.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/knowledge">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Voice protocol guides",
+  "url": "https://hiccup.monster/knowledge",
+  "inLanguage": "en",
+  "description": "Engineering guides to the protocols behind voice networks: IMS, Diameter, VoLTE, session border controllers, lawful intercept, RTP/RTCP, NAT traversal, codecs, SS7/ISUP and E.164 routing.",
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link is-current" href="/knowledge" aria-current="page">protocol guides</a>
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span>Protocol guides
+  </nav>
+
+  <div class="page-head">
+    <h1>Voice protocol guides</h1>
+    <p class="page-lede">
+      How the machinery behind a phone call actually works — written for the engineer who
+      has to make it work, not for a certification exam. Each guide explains the mechanism,
+      names the interfaces and the messages, and ends with what the thing looks like in a
+      real trace. The companion <a href="/sip">SIP failure reference</a> covers the specific
+      error codes; these pages cover the systems those errors come from.
+    </p>
+  </div>
+
+  <ul class="ref-index">
+    <li>
+      <a class="card" href="/knowledge/ims-architecture">
+        <h2>IMS architecture</h2>
+        <p>P-CSCF, I-CSCF, S-CSCF and the HSS: what each box decides, how a registration
+        actually flows, and which headers betray each one in a trace.</p>
+      </a>
+    </li>
+    <li>
+      <a class="card" href="/knowledge/diameter">
+        <h2>Diameter</h2>
+        <p>The protocol that runs VoLTE's back office: AVPs, applications, the interfaces
+        that matter (Cx, Rx, Gx, S6a), and how a request finds its way home.</p>
+      </a>
+    </li>
+    <li>
+      <a class="card" href="/knowledge/volte-call-setup">
+        <h2>A VoLTE call, step by step</h2>
+        <p>From attach to answer: the two bearers, the precondition dance, the Rx trigger
+        that builds the voice bearer, and the failures each stage produces.</p>
+      </a>
+    </li>
+    <li>
+      <a class="card" href="/knowledge/session-border-controller">
+        <h2>What an SBC actually does</h2>
+        <p>Topology hiding, latching, header repair, admission control, the encryption
+        boundary — and why a B2BUA gives every call two Call-IDs.</p>
+      </a>
+    </li>
+    <li>
+      <a class="card" href="/knowledge/sip-h323-diameter">
+        <h2>SIP, H.323 and Diameter</h2>
+        <p>Three protocols, three different jobs. What each one carries, where they meet,
+        and how an interworking function maps one onto another.</p>
+      </a>
+    </li>
+    <li>
+      <a class="card" href="/knowledge/lawful-intercept">
+        <h2>Lawful intercept architecture</h2>
+        <p>The ETSI/3GPP model: warrants, the ADMF, X1/X2/X3, mediation and handover to
+        the agency — the standardised system, not the mythology.</p>
+      </a>
+    </li>
+    <li>
+      <a class="card" href="/knowledge/lawful-intercept-voip">
+        <h2>Lawful intercept in a VoIP network</h2>
+        <p>Where the taps really sit in an IMS or SIP network, what encryption changes,
+        and why the intercept is never the reason your call broke.</p>
+      </a>
+    </li>
+    <li>
+      <a class="card" href="/knowledge/rtp-rtcp">
+        <h2>RTP and RTCP</h2>
+        <p>How the audio actually gets there: the header fields that matter, what the
+        receiver reports tell you, and reading call quality out of a capture.</p>
+      </a>
+    </li>
+    <li>
+      <a class="card" href="/knowledge/nat-traversal">
+        <h2>NAT traversal: STUN, TURN and ICE</h2>
+        <p>Why SIP breaks across NAT, what each fix actually fixes, latching on the
+        carrier side — and why the SIP ALG in the router deserves its reputation.</p>
+      </a>
+    </li>
+    <li>
+      <a class="card" href="/knowledge/codecs-transcoding">
+        <h2>Codecs and transcoding</h2>
+        <p>Bitrates, MOS ceilings and packetisation overhead — plus what transcoding
+        really costs, and how it quietly breaks DTMF and fax.</p>
+      </a>
+    </li>
+    <li>
+      <a class="card" href="/knowledge/ss7-isup">
+        <h2>SS7 and ISUP</h2>
+        <p>The signalling network SIP had to interwork with: MTP, ISUP call flow against
+        its SIP equivalents, and where you still meet it today.</p>
+      </a>
+    </li>
+    <li>
+      <a class="card" href="/knowledge/e164-sip-uris">
+        <h2>E.164, SIP URIs and ENUM</h2>
+        <p>How a dialled number becomes a route: tel: vs sip:, RFC 3263 resolution,
+        number portability, and what STIR/SHAKEN adds on top.</p>
+      </a>
+    </li>
+  </ul>
+
+  <article class="ref">
+
+    <h2>How to read these guides</h2>
+
+    <p>
+      Every page follows the same shape. First the mechanism — what problem the protocol
+      exists to solve and how it solves it, because the message flows only make sense once
+      you know what question each message is answering. Then the concrete details: the
+      interfaces, the tables, the timer values, the header names. Last, and deliberately
+      last, what the thing looks like in a capture, because that is where theory either
+      survives contact with the network or does not.
+    </p>
+    <p>
+      Nothing here is copied from a specification or a vendor manual. Where a standard
+      matters it is named — RFC and 3GPP numbers are the coordinates the industry navigates
+      by — but the text is written from the trace-reader's side of the desk: what you can
+      observe, what you can infer, and which of the moving parts is usually the one lying
+      to you.
+    </p>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> is the working end of these pages: a self-hosted analyser
+      that reads pcaps and SBC logs, pairs the legs across a B2BUA, decodes SIP, RTP, SDP,
+      Diameter, H.323 and SIP-I/ISUP, and tells you where the call went wrong. Free for
+      individual users.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+  <p><a href="mailto:contact@hiccup.monster">contact@hiccup.monster</a></p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

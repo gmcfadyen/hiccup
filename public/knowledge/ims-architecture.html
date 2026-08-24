@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IMS architecture explained: P-CSCF, I-CSCF, S-CSCF and the HSS — hiccup</title>
+<meta name="description" content="What each IMS node actually decides: P-CSCF as the edge, I-CSCF as the doorman, S-CSCF as the brain, HSS as the database. The registration flow step by step, and the headers that betray each box in a trace.">
+<link rel="canonical" href="https://hiccup.monster/knowledge/ims-architecture">
+<script src="/boot-theme.js"></script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="IMS architecture explained: P-CSCF, I-CSCF, S-CSCF and the HSS">
+<meta property="og:description" content="What each IMS node actually decides, how a registration flows through them, and which headers betray each box in a trace.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/knowledge/ims-architecture">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "IMS architecture explained: P-CSCF, I-CSCF, S-CSCF and the HSS",
+  "description": "What each IMS core node decides, how registration and calls flow through them, and how to recognise each one's work in a SIP trace.",
+  "url": "https://hiccup.monster/knowledge/ims-architecture",
+  "inLanguage": "en",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "IP Multimedia Subsystem" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/knowledge">protocol guides</a>
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/knowledge">Protocol guides</a><span>/</span>IMS architecture
+  </nav>
+
+  <article class="ref">
+
+    <h1>IMS architecture explained: P-CSCF, I-CSCF, S-CSCF and the HSS</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> IMS is a SIP network with the roles pulled apart.
+      The P-CSCF is the edge you talk to, the I-CSCF is the doorman who looks you up, the
+      S-CSCF is the brain that registers you and routes your calls, and the HSS is the
+      database all of them consult. Once you can name which box made a given decision, an
+      IMS trace stops being intimidating.</p>
+    </div>
+
+    <h2>Why the roles are split at all</h2>
+    <p>
+      A plain SIP deployment can put registrar, proxy and application logic on one box. IMS
+      — the 3GPP's IP Multimedia Subsystem, the architecture behind VoLTE and VoWiFi —
+      splits them because a mobile operator has problems a PBX does not: subscribers who
+      roam into other networks, a subscriber database that must survive any single node,
+      services that must be applied consistently no matter where the user attaches, and a
+      regulatory duty to control the edge. Each of those problems got its own function, and
+      the functions talk standard SIP (with 3GPP extensions) on interfaces with two-letter
+      names.
+    </p>
+
+    <h2>The cast</h2>
+    <div class="ref-table-wrap">
+      <table>
+        <thead>
+          <tr><th>Node</th><th>Stands for</th><th>What it actually decides</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>P-CSCF</td><td>Proxy Call Session Control Function</td><td>The first SIP hop for the phone, always. Sets up the IPsec or TLS security association, polices what the device may send, compresses signalling on radio links, and asks the policy function (PCRF/PCF, over Rx) to build the voice bearer when SDP is agreed. Functionally the operator's access SBC.</td></tr>
+          <tr><td>I-CSCF</td><td>Interrogating CSCF</td><td>The entry point into a home network. Asks the HSS (over Cx) "which S-CSCF serves this user?" and forwards accordingly. Stateless, replaceable, deliberately boring.</td></tr>
+          <tr><td>S-CSCF</td><td>Serving CSCF</td><td>The registrar and the routing brain. Authenticates the user against HSS-supplied vectors, holds the registration, evaluates the initial filter criteria, and detours requests to application servers. Every call to or from the user passes through it.</td></tr>
+          <tr><td>HSS</td><td>Home Subscriber Server</td><td>The subscriber database: identities, credentials, service profiles, and which S-CSCF currently serves each user. Speaks Diameter (Cx/Sh), not SIP. In 5G core the role continues as the UDM.</td></tr>
+          <tr><td>AS / TAS</td><td>(Telephony) Application Server</td><td>Where supplementary services live — forwarding, barring, conferencing, voicemail. Reached from the S-CSCF over the ISC interface, which is ordinary SIP.</td></tr>
+          <tr><td>MGCF + IMS-MGW</td><td>Media Gateway Control Function</td><td>The PSTN border: converts SIP to ISUP/BICC and RTP to TDM. The BGCF picks which breakout gateway a PSTN-bound call should use.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      The interfaces worth memorising: <strong>Gm</strong> (phone to P-CSCF),
+      <strong>Mw</strong> (CSCF to CSCF), <strong>Cx</strong> (I/S-CSCF to HSS, Diameter),
+      <strong>ISC</strong> (S-CSCF to application server, SIP), <strong>Rx</strong>
+      (P-CSCF to policy, Diameter). Most IMS trace questions are answered by knowing which
+      interface you are looking at.
+    </p>
+
+    <h2>Registration, step by step</h2>
+    <ol>
+      <li>The phone sends <code>REGISTER</code> to the P-CSCF it discovered during attach.
+      The request carries the private identity (IMPI) and public identity (IMPU), and a
+      <code>Security-Client</code> header offering IPsec parameters.</li>
+      <li>The P-CSCF forwards it, adding a <code>Path</code> header — its own address —
+      so the S-CSCF will later know to route everything for this user back through it.</li>
+      <li>The I-CSCF asks the HSS (Cx: <code>UAR/UAA</code>) whether the user exists and
+      which S-CSCF should serve them, then forwards the REGISTER there.</li>
+      <li>The S-CSCF fetches authentication vectors from the HSS (Cx: <code>MAR/MAA</code>)
+      and answers <strong>401 Unauthorized</strong> with an AKA challenge — the
+      <code>WWW-Authenticate</code> header carries RAND and AUTN. This first 401 is not a
+      failure; it is the protocol working.</li>
+      <li>The SIM computes the response; the phone re-REGISTERs with it, now inside the
+      negotiated IPsec associations. The S-CSCF verifies, stores the registration
+      (Cx: <code>SAR/SAA</code>), downloads the user's service profile, and answers
+      <strong>200 OK</strong> carrying a <code>Service-Route</code> header — the route the
+      phone must use for everything it sends from now on.</li>
+      <li>The S-CSCF then performs <em>third-party registration</em>: it sends its own
+      REGISTER to each application server the filter criteria name, so the TAS knows the
+      user is reachable.</li>
+    </ol>
+
+    <h2>How a call finds its services</h2>
+    <p>
+      The service profile downloaded at registration contains <em>initial filter criteria</em>
+      (iFC): ordered rules that say "if a request matches this pattern, detour it to that
+      application server first". When the user places a call, the S-CSCF walks the iFC list
+      and chains the INVITE through each matching AS over ISC before routing it onward. This
+      is why a single INVITE inside an operator core can appear four or five times in one
+      capture with slightly different <code>Route</code> stacks — it is the same call being
+      threaded through its service chain, not a loop. For the terminating side the same
+      happens in reverse on the callee's S-CSCF.
+    </p>
+
+    <h2>What each box looks like in a trace</h2>
+    <ul>
+      <li><strong>P-CSCF fingerprints:</strong> <code>Path</code> on REGISTER,
+      <code>P-Asserted-Identity</code> inserted after authentication,
+      <code>Security-Server</code> in the 401, and the far side of the trace going quiet —
+      beyond it everything is IPsec.</li>
+      <li><strong>S-CSCF fingerprints:</strong> <code>Service-Route</code> in the 200 OK to
+      REGISTER, <code>P-Charging-Vector</code> with an <code>icid-value</code> that stays
+      constant across the whole call — the single best correlation key in IMS, and
+      <code>Record-Route</code> entries with its name.</li>
+      <li><strong>iFC at work:</strong> the same Call-ID reappearing with a growing
+      <code>Route</code> set naming <code>...@tas...</code> or similar — a service chain,
+      not a retransmission (the CSeq and branch will differ; compare with
+      <a href="/sip/retransmissions">real retransmissions</a>).</li>
+      <li><strong>HSS trouble:</strong> invisible in SIP except as its consequences —
+      REGISTER answered 403/404 for a valid user, or 504 when Cx times out. If you also
+      have the Diameter capture, the <code>Result-Code</code> AVP in the UAA/MAA tells the
+      real story.</li>
+    </ul>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> recognises the IMS headers — Path, Service-Route,
+      P-Asserted-Identity, P-Charging-Vector — and uses the icid to stitch one call's
+      appearances together across the core, alongside the Diameter it finds in the same
+      capture. Self-hosted, free for individual users.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+    <nav class="ref-more" aria-label="related pages">
+      See also:
+      <ul>
+        <li><a href="/knowledge/diameter">Diameter</a> — the protocol Cx, Sh and Rx run on.</li>
+        <li><a href="/knowledge/volte-call-setup">A VoLTE call, step by step</a> — this architecture in motion.</li>
+        <li><a href="/sip/401-407-authentication">401 and 407 authentication</a> — when the challenge loop is a fault.</li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+  <p><a href="mailto:contact@hiccup.monster">contact@hiccup.monster</a></p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

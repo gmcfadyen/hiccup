@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What a session border controller actually does — SBC explained — hiccup</title>
+<meta name="description" content="The SBC's real jobs: topology hiding, media latching, header repair, admission control, the encryption boundary, transcoding and lawful intercept hooks — and why a B2BUA gives every call two Call-IDs.">
+<link rel="canonical" href="https://hiccup.monster/knowledge/session-border-controller">
+<script src="/boot-theme.js"></script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="What a session border controller actually does">
+<meta property="og:description" content="Topology hiding, latching, header repair, admission control, encryption boundary — and why a B2BUA gives every call two Call-IDs.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/knowledge/session-border-controller">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "What a session border controller actually does",
+  "description": "The SBC's real jobs and how each of them changes what you see in a trace: topology hiding, latching, header manipulation, admission control, encryption and transcoding.",
+  "url": "https://hiccup.monster/knowledge/session-border-controller",
+  "inLanguage": "en",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "Session border controller" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/knowledge">protocol guides</a>
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/knowledge">Protocol guides</a><span>/</span>Session border controller
+  </nav>
+
+  <article class="ref">
+
+    <h1>What a session border controller actually does</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> an SBC is a B2BUA that sits where trust changes —
+      between your network and a carrier, or between the internet and your core. It
+      terminates every call on one side and re-originates it on the other, which is why
+      one call becomes two legs with two Call-IDs, and why half of all trace-reading is
+      pairing those legs back together.</p>
+    </div>
+
+    <h2>Proxy versus B2BUA — the distinction everything else hangs on</h2>
+    <p>
+      A SIP proxy forwards requests: it may add a Via and a Record-Route, but the dialog —
+      Call-ID, tags, CSeq — passes through intact, and the two ends genuinely talk to each
+      other. A back-to-back user agent does something more drastic: it answers the caller
+      as if it were the callee, then places a brand-new call to the real callee as if it
+      were the caller. Two dialogs, two Call-IDs, two independent CSeq spaces, joined only
+      by the SBC's internal state. Every serious SBC is a B2BUA, because only a B2BUA can
+      lie about topology, rewrite what it likes, and drop either leg independently. That
+      freedom is the product.
+    </p>
+
+    <h2>The jobs, one by one</h2>
+    <div class="ref-table-wrap">
+      <table>
+        <thead>
+          <tr><th>Job</th><th>What it means</th><th>Trace fingerprint</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Topology hiding</td><td>Inside addresses never appear outside. Via stacks are collapsed, Contact rewritten, Record-Route replaced with the SBC's own.</td><td>Every header on the egress leg names the SBC; the ingress network is invisible.</td></tr>
+          <tr><td>NAT traversal / latching</td><td>For endpoints behind NAT, the SBC ignores the addresses in SDP and locks onto wherever media actually arrives from.</td><td>SDP says one address, RTP flows to/from another, and it works anyway. See <a href="/knowledge/nat-traversal">NAT traversal</a>.</td></tr>
+          <tr><td>Protocol repair / manipulation</td><td>Header manipulation rules (HMR) that fix one vendor's quirks before they reach another: strip a header, rewrite a URI, normalise numbers.</td><td>A header present on one leg and absent — or subtly different — on the other. The diff between legs IS the configuration.</td></tr>
+          <tr><td>Admission control</td><td>Caps on sessions and call attempts per second, per peer. The overload valve for the whole interconnect.</td><td>Bursts of <a href="/sip/503-service-unavailable">503</a> local to the SBC, arriving in milliseconds, with no far-end fingerprints.</td></tr>
+          <tr><td>Encryption boundary</td><td>TLS and SRTP on the untrusted side, plain SIP/RTP inside. The SBC holds the keys.</td><td>A capture inside shows everything; a capture outside shows TLS on 5061 and SRTP you cannot read.</td></tr>
+          <tr><td>Codec policing / transcoding</td><td>Strips codecs a peer must not use; transcodes when the two sides truly share nothing.</td><td>The SDP offer shrinks between legs; or both legs answer different codecs and the SBC bridges them. See <a href="/knowledge/codecs-transcoding">codecs</a>.</td></tr>
+          <tr><td>Accounting and intercept</td><td>CDRs for billing; the media anchor point where <a href="/knowledge/lawful-intercept-voip">lawful intercept</a> can copy content when required.</td><td>None, by design.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>Access SBC versus interconnect SBC</h2>
+    <p>
+      The same machine plays two roles. At the <em>access</em> edge it faces thousands of
+      untrusted endpoints: its work is registration handling, NAT latching, protecting the
+      registrar from floods, and being the far end of the customer's encryption. At the
+      <em>interconnect</em> edge it faces a handful of carriers: its work is codec policy,
+      number normalisation, CPS caps and making sure carrier A never learns your topology
+      or carrier B's existence. In IMS the access role is largely what the
+      <a href="/knowledge/ims-architecture">P-CSCF</a> is, with the IMS-AGW as its media
+      half.
+    </p>
+
+    <h2>Reading an SBC trace</h2>
+    <ol>
+      <li><strong>Pair the legs first.</strong> Nothing else makes sense until ingress and
+      egress are side by side. Call-ID will not match — use time, the To/From users, and
+      SDP contents. (This pairing is exactly what hiccup automates, with a confidence
+      score and an honest AMBIGUOUS state.)</li>
+      <li><strong>Diff the two legs.</strong> Whatever the SBC changed, it changed on
+      purpose: a stripped <code>P-Asserted-Identity</code>, a rewritten Contact, a codec
+      list cut down. Most "the carrier rejects our calls" tickets are one diff line.</li>
+      <li><strong>Attribute the failure to a side.</strong> A 4xx generated by the SBC
+      itself arrives in milliseconds and names no far-end Via; a relayed one took a round
+      trip and carries the peer's fingerprints. The same three digits, two entirely
+      different investigations.</li>
+      <li><strong>Remember media walks its own path.</strong> The SBC may anchor media or
+      release it; if it anchored, the RTP addresses in SDP are the SBC's own on both
+      sides, and the "far end" in the media capture is always the SBC.</li>
+    </ol>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> was built around exactly this: it pairs ingress and
+      egress legs across a B2BUA and emits a structured delta — headers added or stripped,
+      codec lists narrowed, identity fields changed — so the SBC's work is visible instead
+      of inferred. Self-hosted, free for individual users.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+    <nav class="ref-more" aria-label="related pages">
+      See also:
+      <ul>
+        <li><a href="/knowledge/nat-traversal">NAT traversal</a> — latching, and what the SBC saves endpoints from.</li>
+        <li><a href="/knowledge/codecs-transcoding">Codecs and transcoding</a> — the media side of SBC policy.</li>
+        <li><a href="/sip/503-service-unavailable">503 Service Unavailable</a> — admission control from the receiving end.</li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+  <p><a href="mailto:contact@hiccup.monster">contact@hiccup.monster</a></p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

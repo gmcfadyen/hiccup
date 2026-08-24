@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VoLTE call setup step by step: bearers, preconditions, Rx — hiccup</title>
+<meta name="description" content="A VoLTE call from attach to answer: the QCI-5 signalling bearer, IMS registration with AKA, the SDP precondition dance, the Rx trigger that builds the QCI-1 voice bearer, and the failure each stage produces.">
+<link rel="canonical" href="https://hiccup.monster/knowledge/volte-call-setup">
+<script src="/boot-theme.js"></script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="A VoLTE call, step by step">
+<meta property="og:description" content="From attach to answer: the two bearers, the precondition dance, the Rx trigger, and the failures each stage produces.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/knowledge/volte-call-setup">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "A VoLTE call, step by step",
+  "description": "The full life of a VoLTE call: bearers, IMS registration, SDP preconditions, the Rx/Gx bearer build, and what each stage's failure looks like.",
+  "url": "https://hiccup.monster/knowledge/volte-call-setup",
+  "inLanguage": "en",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "Voice over LTE" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/knowledge">protocol guides</a>
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/knowledge">Protocol guides</a><span>/</span>VoLTE call setup
+  </nav>
+
+  <article class="ref">
+
+    <h1>A VoLTE call, step by step</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> a VoLTE call is two networks agreeing twice. SIP
+      agrees what the call is; Diameter builds the radio bearer that carries it. The
+      precondition machinery exists to stop the phone ringing before the second agreement
+      is done — and most VoLTE-specific failures are one of those two agreements finishing
+      without the other.</p>
+    </div>
+
+    <h2>Before any call: two things must already be true</h2>
+    <p>
+      First, the phone attached to LTE and got a <em>default bearer</em> to the IMS APN —
+      QCI 5, the signalling class. That bearer exists purely to carry SIP. Second, the
+      phone registered with the IMS core over it: REGISTER, an AKA challenge in a 401,
+      IPsec associations, 200 OK — the flow covered in
+      <a href="/knowledge/ims-architecture">IMS architecture</a>. A phone that shows VoLTE
+      switched on has done both. A phone that silently falls back to circuit-switched
+      calling usually failed the second, and the evidence is in the registration, not in
+      any call.
+    </p>
+
+    <h2>The call itself</h2>
+    <ol>
+      <li><strong>INVITE with an offer, and a confession.</strong> The phone sends INVITE
+      over the QCI-5 bearer. The SDP offers AMR/AMR-WB (or EVS) — and carries precondition
+      attributes: <code>a=curr:qos local none</code>, <code>a=des:qos mandatory local
+      sendrecv</code>. Translation: "I want this level of network quality, and I do not
+      have it yet." <code>100rel</code> is in <code>Require</code>/<code>Supported</code>,
+      because everything that follows depends on reliable provisionals.</li>
+      <li><strong>183 Session Progress with the answer.</strong> The far side answers the
+      SDP in a 183 — codec chosen, its own preconditions declared — sent reliably, so the
+      caller PRACKs it and the PRACK gets its own 200. No ringing yet, deliberately.</li>
+      <li><strong>The network builds the voice bearer.</strong> This is the invisible
+      step. Each P-CSCF, having now seen offer and answer, sends an AAR over
+      <a href="/knowledge/diameter">Rx</a> to the policy function describing the media:
+      codec, bandwidth, the RTP addresses and ports. The PCRF turns that into Gx rules for
+      the packet gateway, which builds a <em>dedicated bearer</em> — QCI 1, guaranteed bit
+      rate, one on each side. Radio-level messages (E-RAB setup) do the last hop to the
+      handset.</li>
+      <li><strong>UPDATE: preconditions met.</strong> When the phone sees its bearer, it
+      sends UPDATE with <code>a=curr:qos local sendrecv</code> — "I now have what I asked
+      for." The far end confirms in the 200 to the UPDATE.</li>
+      <li><strong>Now it may ring.</strong> Only after preconditions are satisfied does
+      the callee's phone alert and send 180 Ringing. Answer is the ordinary 200
+      OK / ACK, and voice flows on the QCI-1 bearers — never on the signalling
+      bearer.</li>
+    </ol>
+
+    <h2>The bearers at a glance</h2>
+    <div class="ref-table-wrap">
+      <table>
+        <thead>
+          <tr><th>Bearer</th><th>QCI</th><th>Carries</th><th>Built</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Default, IMS APN</td><td>5</td><td>SIP signalling only</td><td>At attach, lives as long as the registration</td></tr>
+          <tr><td>Dedicated</td><td>1</td><td>Voice RTP (guaranteed bit rate)</td><td>Per call, by Rx→Gx, torn down at BYE</td></tr>
+          <tr><td>Dedicated</td><td>2</td><td>Video RTP, if the call has it</td><td>Per call, same mechanism</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>Where it breaks, stage by stage</h2>
+    <ul>
+      <li><strong>Bearer build fails →</strong> the callers hear nothing or the call dies
+      at the precondition stage: a <strong>580 Precondition Failure</strong>, a CANCEL
+      after a long silence, or — if the network is sloppy and lets the call proceed —
+      a perfect SIP ladder with <a href="/sip/one-way-audio">one-way or no audio</a>,
+      because voice packets are falling onto a default bearer never sized for them.</li>
+      <li><strong>Precondition mismatch →</strong> one side speaks RFC 3312 and the other
+      does not, or a mid-path B2BUA strips the attributes. Look for the
+      <code>precondition</code> option-tag disagreeing between <code>Require</code> and
+      <code>Supported</code>, and for 421 Extension Required or 580.</li>
+      <li><strong>PRACK trouble →</strong> 183s retransmitting with no PRACK arriving is
+      the reliable-provisional machinery failing — same shape as any
+      <a href="/sip/retransmissions">retransmission ladder</a>, and often an SBC that
+      quietly does not do 100rel.</li>
+      <li><strong>Ring-time drop on movement →</strong> the phone left LTE coverage
+      mid-setup and SRVCC handed the call to 2G/3G — or tried to. A call that dies exactly
+      when the user walks to the lift is a handover story, and the SIP trace will simply
+      stop.</li>
+    </ul>
+
+    <h2>Reading a VoLTE trace</h2>
+    <p>
+      Take the timeline in pairs: offer/answer first (did both sides agree on AMR and on
+      preconditions?), then UPDATE/200 (did both sides declare qos met?), and only then ask
+      media questions. If you also captured Diameter, line the Rx AAR/AAA up against the
+      183 — a missing or refused AAA at that moment explains almost every "signalling
+      perfect, no audio" VoLTE ticket. And distrust ptime arithmetic done by hand: AMR's
+      payload format has more sharp edges than any other mainstream codec.
+    </p>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> reads the precondition attributes, checks the
+      offer/answer against what the media actually did, and flags an IMS call whose
+      signalling and bearers disagree. Self-hosted, free for individual users.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+    <nav class="ref-more" aria-label="related pages">
+      See also:
+      <ul>
+        <li><a href="/knowledge/ims-architecture">IMS architecture</a> — the boxes this flow passes through.</li>
+        <li><a href="/knowledge/diameter">Diameter</a> — Rx and Gx in detail.</li>
+        <li><a href="/knowledge/rtp-rtcp">RTP and RTCP</a> — what rides the QCI-1 bearer.</li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+  <p><a href="mailto:contact@hiccup.monster">contact@hiccup.monster</a></p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

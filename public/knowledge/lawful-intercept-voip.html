@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lawful intercept in a VoIP network: where the taps really sit — hiccup</title>
+<meta name="description" content="How lawful intercept coexists with SIP without breaking it: where IRI and CC are really taken in an IMS or SIP network, what direct media and SRTP change, correlation of X2 and X3, and why the intercept is never why your call broke.">
+<link rel="canonical" href="https://hiccup.monster/knowledge/lawful-intercept-voip">
+<script src="/boot-theme.js"></script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="Lawful intercept in a VoIP network: where the taps really sit">
+<meta property="og:description" content="Where IRI and CC are actually taken, what encryption changes, and why the intercept is never the reason your call broke.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/knowledge/lawful-intercept-voip">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "Lawful intercept in a VoIP network: where the taps really sit",
+  "description": "The practical side of LI in SIP and IMS networks: interception points, media anchoring, encryption boundaries and correlation.",
+  "url": "https://hiccup.monster/knowledge/lawful-intercept-voip",
+  "inLanguage": "en",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "Lawful interception" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/knowledge">protocol guides</a>
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/knowledge">Protocol guides</a><span>/</span>Lawful intercept in VoIP
+  </nav>
+
+  <article class="ref">
+
+    <h1>Lawful intercept in a VoIP network: where the taps really sit</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> in a packet voice network, signalling and media
+      take different paths — so interception has to catch them in different places and
+      then prove they belong together. Signalling is easy: it always crosses the core.
+      Media is the hard part, because it only passes a tappable point if the network
+      <em>makes</em> it do so. That single fact drives most of the engineering.</p>
+    </div>
+
+    <h2>The two products come from two different places</h2>
+    <p>
+      IRI — the who-called-whom record — falls out of signalling, and every SIP message
+      for a subscriber passes their <a href="/knowledge/ims-architecture">S-CSCF</a> (or,
+      in a plainer SIP network, the proxy/registrar). So the IRI point of interception is
+      simply the box already reading the signalling, emitting an event per REGISTER,
+      INVITE, answer and release on <strong>X2</strong>.
+    </p>
+    <p>
+      Content is different. RTP flows wherever SDP pointed it, and a network that allows
+      <em>direct media</em> — endpoint to endpoint, the ideal for latency — has nothing in
+      the media path to copy packets from. Content interception therefore depends on a
+      media-plane node the call can be held at: the
+      <a href="/knowledge/session-border-controller">SBC</a> or IMS access gateway at the
+      edge, the transition gateway at an interconnect, or the media gateway at PSTN
+      breakout. For a warranted target the network quietly ensures media anchors at such
+      a node, which then mirrors the streams onto <strong>X3</strong>. Done correctly
+      this is indistinguishable from ordinary anchoring — operators anchor media all the
+      time for NAT and topology reasons anyway.</p>
+
+    <h2>What encryption changes — and what it does not</h2>
+    <ul>
+      <li><strong>Access encryption (TLS + SRTP to the SBC):</strong> changes nothing.
+      The operator's edge terminates it; inside the border the signalling and media the
+      POIs see are clear. The encryption protected the radio/internet leg, which was its
+      job.</li>
+      <li><strong>Interconnect encryption:</strong> same story at the transition
+      gateway.</li>
+      <li><strong>True end-to-end encryption (the OTT messenger model):</strong> changes
+      everything. If the operator never holds keys, X3 can only deliver ciphertext, and
+      the standards say exactly that — deliver what you have. This is the technical core
+      of every "crypto wars" policy argument, and it is why those arguments are about
+      apps, not about carrier voice: VoLTE and carrier SIP are operator-terminated by
+      construction.</li>
+    </ul>
+
+    <h2>Correlation: proving the streams belong to the warrant</h2>
+    <p>
+      A delivered call is only evidence if the pieces bind together. Each IRI event and
+      each CC stream carries the warrant's LIID plus a correlation identifier generated at
+      interception time; the mediation layer uses them to present "this audio goes with
+      this call record". Inside IMS, the network's own correlation key — the
+      <code>icid-value</code> in <code>P-Charging-Vector</code> — often seeds that
+      binding, which is a nice reminder that LI mostly reuses the machinery the network
+      already has for billing.
+    </p>
+
+    <h2>Coexisting with SIP without breaking it</h2>
+    <p>
+      The undetectability requirement has a practical engineering translation: the tap
+      must be a <em>copy</em>, never an inline hop. No extra Via, no Record-Route entry,
+      no added latency a target could measure, no different behaviour when the X3 link is
+      down (delivery buffers or fails silently — the call must proceed regardless). The
+      POI mirrors packets and emits events; the call's own state machine never learns
+      about it. In IMS the intercept logic is embedded in nodes that were already in the
+      path, so nothing about the path changes at all.
+    </p>
+
+    <h2>What this means for the engineer reading traces</h2>
+    <ul>
+      <li><strong>You will never see it.</strong> A correctly built intercept leaves no
+      fingerprint in SIP or RTP. If a capture seems to show one, what it is actually
+      showing is ordinary media anchoring or port mirroring for operations.</li>
+      <li><strong>"Could the intercept have broken the call?"</strong> — the answer the
+      architecture is built to guarantee is <em>no</em>. Faults travel the other
+      direction: network problems break interception, not vice versa. Debug the call as
+      a call.</li>
+      <li><strong>Your own monitoring is the same physics.</strong> Port mirroring, SBC
+      "record this call" features, SIPREC recording — operationally these are the same
+      copy-the-stream problem, with the same failure mode: the copy silently missing
+      media the original happily carried. If your recording platform has gaps, ask where
+      media <em>actually</em> flowed — the answer is usually "not through the box doing
+      the copying".</li>
+      <li><strong>Legal line worth respecting:</strong> everything above is the
+      standardised, warrant-driven system. Capturing traffic you operate, for
+      troubleshooting, is normal engineering. Intercepting other people's communications
+      without authority is a crime more or less everywhere. The tooling on this site is
+      for the first thing.</li>
+    </ul>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> analyses the captures you take on your own network —
+      pairs legs, reads SDP against the media that actually flowed, and finds where the
+      audio went missing. Self-hosted, free for individual users.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+    <nav class="ref-more" aria-label="related pages">
+      See also:
+      <ul>
+        <li><a href="/knowledge/lawful-intercept">Lawful intercept architecture</a> — the model this page assumes.</li>
+        <li><a href="/knowledge/rtp-rtcp">RTP and RTCP</a> — the streams being copied.</li>
+        <li><a href="/sip/one-way-audio">One-way audio</a> — the everyday version of "media did not go where you thought".</li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+  <p><a href="mailto:contact@hiccup.monster">contact@hiccup.monster</a></p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

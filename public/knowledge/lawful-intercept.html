@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lawful intercept architecture: X1, X2, X3 and mediation explained — hiccup</title>
+<meta name="description" content="The standardised ETSI/3GPP lawful intercept model: warrants, the ADMF, the X1/X2/X3 internal interfaces, IRI versus CC, mediation and the HI1/HI2/HI3 handover to the agency — how the system is actually built.">
+<link rel="canonical" href="https://hiccup.monster/knowledge/lawful-intercept">
+<script src="/boot-theme.js"></script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="Lawful intercept architecture: X1, X2, X3 and mediation">
+<meta property="og:description" content="The ETSI/3GPP model: warrants, the ADMF, X1/X2/X3, mediation and handover to the agency — the standardised system, not the mythology.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/knowledge/lawful-intercept">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "Lawful intercept architecture: X1, X2, X3 and mediation",
+  "description": "How the standardised lawful intercept system is built: administration, points of interception, the X interfaces, mediation and handover.",
+  "url": "https://hiccup.monster/knowledge/lawful-intercept",
+  "inLanguage": "en",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "Lawful interception" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/knowledge">protocol guides</a>
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/knowledge">Protocol guides</a><span>/</span>Lawful intercept architecture
+  </nav>
+
+  <article class="ref">
+
+    <h1>Lawful intercept architecture: X1, X2, X3 and mediation</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> lawful intercept is a standardised, audited
+      subsystem that every licensed operator is legally required to build. A warrant goes
+      in at one end; two separated products come out the other — <em>who communicated
+      with whom</em> (IRI) and <em>what was said</em> (CC) — delivered to the authority
+      over defined handover interfaces. The engineering is public: ETSI and 3GPP publish
+      the whole model.</p>
+    </div>
+
+    <h2>Why it exists, and why it is standardised</h2>
+    <p>
+      Nearly every jurisdiction obliges telecoms operators to be able to execute a
+      court-ordered interception. Before standardisation, each agency and each vendor
+      improvised — expensive, unauditable, and easy to get wrong in both directions
+      (missing lawful targets, or over-collecting). The ETSI model (TS 101 331 for the
+      requirements, TS 102 232 for delivery, TS 103 221 for the modern internal
+      interfaces) and its 3GPP counterparts (TS 33.126/127/128) exist so that the
+      capability is <em>bounded</em>: per-warrant, logged, minimised, and invisible to
+      everyone who has no need to know — including the target and nearly all operator
+      staff.
+    </p>
+
+    <h2>The functional model</h2>
+    <p>
+      Three planes, deliberately separated:
+    </p>
+    <ol>
+      <li><strong>Administration.</strong> The law-enforcement agency delivers a warrant
+      over <strong>HI1</strong> — historically paper, increasingly an electronic
+      interface. The operator's <strong>ADMF</strong> (administration function) validates
+      it and provisions the network: over <strong>X1</strong> it tells specific network
+      functions "intercept this identifier, for this period, deliver to there". The
+      identifier is a network identity — an IMSI, MSISDN, IMPU or SIP URI — never a name;
+      mapping a person to identifiers is the agency's job, not the network's.</li>
+      <li><strong>Collection.</strong> The provisioned functions become <strong>points of
+      interception</strong> (POIs). They produce two distinct streams:
+      <strong>X2</strong> carries <em>intercept-related information</em> (IRI) — signalling
+      events: registrations, call attempts, answer, release, location where mandated.
+      <strong>X3</strong> carries <em>content of communication</em> (CC) — the media
+      itself. The split matters legally: many warrants authorise IRI only, and the
+      architecture must be able to deliver one without the other.</li>
+      <li><strong>Mediation and handover.</strong> Raw internal formats go to
+      <strong>mediation functions</strong> (MDF2 for IRI, MDF3 for CC), which normalise
+      them into the standardised delivery format and hand them to the agency's
+      <strong>LEMF</strong> over <strong>HI2</strong> and <strong>HI3</strong>. Every
+      product is tagged with a lawful intercept identifier (LIID) naming the warrant and a
+      correlation number binding each CC stream to its IRI events — an audit trail from
+      court order to delivered packet.</li>
+    </ol>
+
+    <div class="ref-table-wrap">
+      <table>
+        <thead>
+          <tr><th>Interface</th><th>Between</th><th>Carries</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>HI1</td><td>Agency ↔ operator administration</td><td>The warrant: target identifier, scope, duration</td></tr>
+          <tr><td>X1</td><td>ADMF → network functions</td><td>Provisioning: activate, modify, deactivate a tap</td></tr>
+          <tr><td>X2</td><td>POI → mediation (MDF2)</td><td>IRI — signalling events, timestamped and correlated</td></tr>
+          <tr><td>X3</td><td>POI → mediation (MDF3)</td><td>CC — the communication content itself</td></tr>
+          <tr><td>HI2 / HI3</td><td>Mediation → agency (LEMF)</td><td>IRI / CC in the standardised handover format</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>The properties the design must guarantee</h2>
+    <ul>
+      <li><strong>Undetectability.</strong> Interception must cause no observable change
+      for the target — no added delay, no altered headers, no different failure
+      behaviour. This is a hard requirement, and it is why intercept functions are copies
+      taken off the media/signalling path rather than devices inserted into it.</li>
+      <li><strong>Minimisation.</strong> Only the warranted target's traffic, only for
+      the warranted period. The X1 provisioning model — explicit activation with explicit
+      identifiers and expiry — is the enforcement mechanism.</li>
+      <li><strong>Separation of knowledge.</strong> The engineer who operates the SBC does
+      not see the tap list; LI administration is a separate role, separately logged. In a
+      well-run operator, "is this number being intercepted?" is a question almost nobody
+      can answer, by design.</li>
+      <li><strong>Auditability.</strong> Every activation, delivery and failure is logged
+      against the LIID, because the output has to survive scrutiny in court.</li>
+    </ul>
+
+    <h2>Where the taps physically sit</h2>
+    <p>
+      In an IMS/VoLTE network the natural POIs follow the architecture: signalling IRI is
+      generated where the signalling already is — at the
+      <a href="/knowledge/ims-architecture">CSCFs</a> — while content comes from the nodes
+      that touch media: the IMS access gateway, the transition gateway at interconnects,
+      or the <a href="/knowledge/session-border-controller">SBC</a> anchoring the call. In
+      the packet core, the S-GW/P-GW (or UPF in 5G) play the same role for data sessions.
+      The follow-up page, <a href="/knowledge/lawful-intercept-voip">lawful intercept in a
+      VoIP network</a>, looks at what this means in practice — including what encryption
+      does and does not change.
+    </p>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> has nothing to do with interception — it analyses the
+      traces <em>you</em> capture on <em>your own</em> equipment. But engineers who work
+      near these systems read a lot of SIP, and that part we can help with. Self-hosted,
+      free for individual users.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+    <nav class="ref-more" aria-label="related pages">
+      See also:
+      <ul>
+        <li><a href="/knowledge/lawful-intercept-voip">Lawful intercept in a VoIP network</a> — the practice.</li>
+        <li><a href="/knowledge/ims-architecture">IMS architecture</a> — the network the POIs live in.</li>
+        <li><a href="/knowledge/session-border-controller">Session border controllers</a> — the usual media anchor.</li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+  <p><a href="mailto:contact@hiccup.monster">contact@hiccup.monster</a></p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

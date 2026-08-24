@@ -691,6 +691,22 @@ const PUBLIC_PAGES = new Map([
   ['/sip/481-call-does-not-exist', 'sip/481-call-does-not-exist.html'],
   ['/sip/q850-cause-codes', 'sip/q850-cause-codes.html'],
   ['/sip/sip-timers', 'sip/sip-timers.html'],
+  // The protocol knowledge base: how the systems behind the failures work.
+  // Written original for SEO — the /sip pages catch "why did my call fail",
+  // these catch "how does X work".
+  ['/knowledge', 'knowledge/index.html'],
+  ['/knowledge/ims-architecture', 'knowledge/ims-architecture.html'],
+  ['/knowledge/diameter', 'knowledge/diameter.html'],
+  ['/knowledge/volte-call-setup', 'knowledge/volte-call-setup.html'],
+  ['/knowledge/session-border-controller', 'knowledge/session-border-controller.html'],
+  ['/knowledge/sip-h323-diameter', 'knowledge/sip-h323-diameter.html'],
+  ['/knowledge/lawful-intercept', 'knowledge/lawful-intercept.html'],
+  ['/knowledge/lawful-intercept-voip', 'knowledge/lawful-intercept-voip.html'],
+  ['/knowledge/rtp-rtcp', 'knowledge/rtp-rtcp.html'],
+  ['/knowledge/nat-traversal', 'knowledge/nat-traversal.html'],
+  ['/knowledge/codecs-transcoding', 'knowledge/codecs-transcoding.html'],
+  ['/knowledge/ss7-isup', 'knowledge/ss7-isup.html'],
+  ['/knowledge/e164-sip-uris', 'knowledge/e164-sip-uris.html'],
 ]);
 
 /**
@@ -731,8 +747,8 @@ function xmlEscape(s) {
  */
 function handleRobots(res) {
   const body = [
-    '# hiccup — the analyser needs a session. Only the landing page and the',
-    '# /sip reference are worth crawling.',
+    '# hiccup — the analyser needs a session. Only the landing page, the /sip',
+    '# reference and the /knowledge guides are worth crawling.',
     'User-agent: *',
     'Disallow: /api/',
     'Disallow: /admin/',

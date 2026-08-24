@@ -914,6 +914,7 @@ window.HICCUP_I18N = {
   "f9e556fba30862ca": "Übersetzen nach",
   "f9ee06b5ff26c62b": "Wer sonst Ihre Captures sehen kann",
   "fa23d9ef19afc32c": "Team",
+  "fa63191b3d7d6f2c": "Protokoll-Leitfäden: IMS, Diameter, SS7, rechtmäßige Überwachung →",
   "fa8b38bae20b22d7": "Bitten Sie Ihre Kollegin oder Ihren Kollegen um einen neuen Einladungslink.",
   "fab8e68a14401c3b": "Palette oder Dialog schließen · sonst Suche leeren und verlassen · sonst die Chatleiste schließen, wenn sie auf schmalen Bildschirmen die Bereiche verdeckt.",
   "fb43be2359ccab14": "Projekt anlegen",

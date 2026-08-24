@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voice codecs and transcoding: bitrates, MOS, overhead, DTMF and fax — hiccup</title>
+<meta name="description" content="G.711, G.729, G.722, AMR, Opus and EVS compared honestly: real bandwidth on the wire, quality ceilings, what transcoding costs, and how it quietly breaks DTMF and fax.">
+<link rel="canonical" href="https://hiccup.monster/knowledge/codecs-transcoding">
+<script src="/boot-theme.js"></script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="Codecs and transcoding: why calls sound the way they do">
+<meta property="og:description" content="Bitrates, MOS ceilings and packetisation overhead — plus what transcoding really costs, and how it quietly breaks DTMF and fax.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/knowledge/codecs-transcoding">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "Codecs and transcoding: why calls sound the way they do",
+  "description": "Voice codec bitrates and quality ceilings, packetisation overhead arithmetic, the true cost of transcoding, and its side effects on DTMF and fax.",
+  "url": "https://hiccup.monster/knowledge/codecs-transcoding",
+  "inLanguage": "en",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "Audio codecs" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/knowledge">protocol guides</a>
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/knowledge">Protocol guides</a><span>/</span>Codecs and transcoding
+  </nav>
+
+  <article class="ref">
+
+    <h1>Codecs and transcoding: why calls sound the way they do</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> the codec sets the ceiling on how good a call can
+      sound; the network decides how far below that ceiling it lands. Transcoding —
+      decoding one codec and re-encoding into another — always spends latency, CPU and
+      quality to buy interoperability, and its most expensive victims are the
+      non-speech things riding the voice channel: DTMF and fax.</p>
+    </div>
+
+    <h2>The codecs you actually meet</h2>
+    <div class="ref-table-wrap">
+      <table>
+        <thead>
+          <tr><th>Codec</th><th>Payload bitrate</th><th>On the wire*</th><th>Character</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>G.711 (PCMU/PCMA)</td><td>64 kbit/s</td><td>~80 kbit/s</td><td>The 1972 baseline. Narrowband ceiling (~MOS 4.4), trivially cheap to process, degrades gracefully, passes modem/fax tones. When bandwidth is not scarce, hard to beat.</td></tr>
+          <tr><td>G.729</td><td>8 kbit/s</td><td>~24 kbit/s</td><td>The classic low-bandwidth choice (~MOS 3.9 ceiling). Notice the wire numbers: it is a third of G.711's total, not an eighth — the headers do not shrink.</td></tr>
+          <tr><td>G.722</td><td>64 kbit/s</td><td>~80 kbit/s</td><td>Wideband (7 kHz) at G.711's bitrate — the easy "HD voice" upgrade on desk phones. Quirk: its RTP clock is stated as 8000 even though it samples at 16 kHz, a spec accident tools must special-case.</td></tr>
+          <tr><td>AMR / AMR-WB</td><td>4.75–12.2 / 6.6–23.85 kbit/s</td><td>varies</td><td>The mobile family; AMR-WB is what "HD Voice" on <a href="/knowledge/volte-call-setup">VoLTE</a> means. Rate-adaptive under radio pressure, with a payload format (octet-aligned vs bandwidth-efficient) that causes real interop faults.</td></tr>
+          <tr><td>Opus</td><td>6–510 kbit/s</td><td>varies</td><td>The internet's codec (WebRTC default): fullband, loss-concealing, in-band FEC, rate-adaptive. Where both ends are software, the argument is usually over.</td></tr>
+          <tr><td>EVS</td><td>5.9–128 kbit/s</td><td>varies</td><td>3GPP's successor to AMR-WB: super-wideband quality at AMR bitrates, with channel-aware modes. Spreading with newer IMS deployments.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      *The wire column is the part people forget. At the standard 20 ms packet time a
+      stream is 50 packets per second, and each packet carries 40 bytes of IP+UDP+RTP
+      headers before any voice — 16 kbit/s of pure overhead (more on the LAN with
+      Ethernet framing, more again inside any tunnel). Halving <code>ptime</code> doubles
+      that overhead tax; doubling ptime halves it but adds packetisation delay and makes
+      each lost packet twice as loud. That trade — overhead versus loss-resilience versus
+      delay — is the whole ptime decision.</p>
+
+    <h2>What transcoding really costs</h2>
+    <ul>
+      <li><strong>Quality, permanently.</strong> Each lossy encode discards information;
+      decode-and-re-encode discards more. One transcode from a healthy codec is usually
+      tolerable; two in tandem (G.729 → G.711 → AMR across two borders) lands audibly
+      below either codec's own ceiling. The E-model literature calls this equipment
+      impairment, and it stacks.</li>
+      <li><strong>Latency.</strong> A transcode point must collect a full frame, decode,
+      re-encode, re-packetise: one-way delay grows by tens of milliseconds per hop, and
+      <a href="/knowledge/rtp-rtcp">conversational quality</a> pays for it.</li>
+      <li><strong>Capacity.</strong> Transcoding is the most CPU-expensive thing an
+      <a href="/knowledge/session-border-controller">SBC</a> does — sessions-per-box
+      figures routinely drop by an order of magnitude when transcoding is on. That is
+      why codec <em>policy</em> (forcing both sides onto one codec at offer time) is
+      always preferred to codec <em>conversion</em>.</li>
+    </ul>
+
+    <h2>The quiet victims: DTMF and fax</h2>
+    <p>
+      <strong>DTMF.</strong> Low-bitrate speech codecs are built to encode voices, and
+      DTMF tones are not voices — G.729 mangles them badly enough that in-band digits
+      become unreliable. The fix is RFC 4733 (née 2833): digits travel as named
+      <em>events</em> on their own payload type, negotiated as
+      <code>telephone-event</code> in SDP. The classic fault is a transcoding or
+      interworking point that converts audio but forgets the event stream — or sends
+      digits <em>both</em> in-band and as events, so the far IVR hears "5 5". When an IVR
+      misbehaves, the first question is always: which of the three DTMF transports
+      (in-band, RFC 4733, SIP INFO) did each leg think it agreed?
+    </p>
+    <p>
+      <strong>Fax.</strong> A fax machine's modem tones survive G.711 and nothing lossier.
+      The choices are pass-through (force G.711, disable VAD, pray the clocks are clean)
+      or T.38, which demodulates the fax and sends its data as its own protocol,
+      renegotiated mid-call via re-INVITE when the tone is detected. That re-INVITE is
+      fragile at borders — a peer that refuses it with
+      <a href="/sip/488-not-acceptable-here">488</a> and no G.711 fallback is the anatomy
+      of most "fax broke after the migration" tickets.</p>
+
+    <h2>Reading codec trouble in a trace</h2>
+    <ol>
+      <li>Read the offer/answer honestly: what was offered, what was answered, per leg.
+      An SBC narrowing the codec list between legs is policy at work — see whether the
+      surviving codec is one both ends genuinely do well.</li>
+      <li>Confirm the RTP payload type actually matches the answered codec, both
+      directions. Asymmetric codecs (G.711 one way, G.729 the other) are legal but a
+      classic source of one-sided complaints.</li>
+      <li>Check <code>telephone-event</code> made it into <em>both</em> legs' answers
+      when DTMF matters, and watch the PT 101 packets to see what was really sent.</li>
+      <li>ptime: offered vs answered vs the spacing the packets actually arrive at.
+      Mismatched ptime forces repacketisation — cheap transcoding with the same failure
+      modes.</li>
+    </ol>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> diffs the SDP across legs, flags narrowed codec lists,
+      DTMF payload-type mismatches and ptime disagreements, and reads the RTP to confirm
+      what was actually sent. Self-hosted, free for individual users.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+    <nav class="ref-more" aria-label="related pages">
+      See also:
+      <ul>
+        <li><a href="/sip/488-not-acceptable-here">488 Not Acceptable Here</a> — codec negotiation failing outright.</li>
+        <li><a href="/knowledge/rtp-rtcp">RTP and RTCP</a> — the transport underneath.</li>
+        <li><a href="/knowledge/session-border-controller">Session border controllers</a> — where codec policy lives.</li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+  <p><a href="mailto:contact@hiccup.monster">contact@hiccup.monster</a></p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

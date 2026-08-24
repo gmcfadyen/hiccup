@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIP vs H.323 vs Diameter: three protocols, three jobs — hiccup</title>
+<meta name="description" content="What SIP, H.323 and Diameter each actually do, where they meet in a real network, the SIP-to-H.323 concept mapping table, and how an interworking function stitches a call across both worlds.">
+<link rel="canonical" href="https://hiccup.monster/knowledge/sip-h323-diameter">
+<script src="/boot-theme.js"></script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="SIP, H.323 and Diameter: three protocols, three jobs">
+<meta property="og:description" content="What each protocol carries, where they meet, and how an interworking function maps one onto another.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/knowledge/sip-h323-diameter">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "SIP, H.323 and Diameter: three protocols, three jobs",
+  "description": "The division of labour between session signalling, legacy multimedia signalling and AAA/policy — and how interworking maps SIP onto H.323.",
+  "url": "https://hiccup.monster/knowledge/sip-h323-diameter",
+  "inLanguage": "en",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "VoIP signalling protocols" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/knowledge">protocol guides</a>
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/knowledge">Protocol guides</a><span>/</span>SIP, H.323 and Diameter
+  </nav>
+
+  <article class="ref">
+
+    <h1>SIP, H.323 and Diameter: three protocols, three jobs</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> SIP and H.323 compete for the same job —
+      setting up calls — and SIP won everywhere except pockets of installed video and
+      some stubborn interconnects. Diameter was never in that fight: it carries the
+      decisions <em>about</em> calls (who you are, what you may do, who pays), and a
+      modern network runs SIP and Diameter side by side.</p>
+    </div>
+
+    <h2>The division of labour</h2>
+    <div class="ref-table-wrap">
+      <table>
+        <thead>
+          <tr><th></th><th>SIP</th><th>H.323</th><th>Diameter</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Job</td><td>Session signalling</td><td>Session signalling (the 1996 answer)</td><td>AAA and policy</td></tr>
+          <tr><td>Lineage</td><td>IETF — looks like HTTP/email, text</td><td>ITU-T — looks like ISDN, binary ASN.1</td><td>IETF — RADIUS's successor, binary AVPs</td></tr>
+          <tr><td>Talks between</td><td>Phones, proxies, SBCs, app servers</td><td>Endpoints, gatekeepers, gateways, MCUs</td><td>Core nodes: HSS, MME, CSCFs, PCRF, charging</td></tr>
+          <tr><td>Media description</td><td>SDP in the body</td><td>H.245 negotiation (or fast-start terminals)</td><td>None — but Rx carries SDP-derived facts to policy</td></tr>
+          <tr><td>Typical transport</td><td>UDP/TCP/TLS 5060–5061</td><td>TCP 1720 (+ RAS on UDP 1719)</td><td>TCP/SCTP 3868</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>H.323 in one page, honestly</h2>
+    <p>
+      H.323 is an umbrella over several sub-protocols. <strong>RAS</strong> (H.225.0) is
+      the endpoint-to-gatekeeper channel: register (RRQ/RCF), ask permission to call
+      (ARQ/ACF), bandwidth requests. <strong>Call signalling</strong> (also H.225.0) is
+      Q.931 dressed for IP: SETUP, CALL PROCEEDING, ALERTING, CONNECT — genuinely the same
+      message names ISDN uses, which is no accident and why telco people found it
+      comfortable. <strong>H.245</strong> then negotiates media in exhausting detail:
+      capability sets, master/slave determination, opening logical channels one direction
+      at a time. Classic H.323 needed all of that before audio flowed, which is why
+      <em>fast connect</em> (offering channels inside SETUP) and H.245 tunnelling exist —
+      they are the protocol admitting SDP had the right idea.
+    </p>
+    <p>
+      A <strong>gatekeeper</strong> is registrar, admission controller and address
+      resolver in one — roughly what a SIP registrar-plus-proxy does, with the notable
+      difference that endpoints can also call each other directly with no gatekeeper at
+      all. Where you still meet H.323: boardroom video estates that predate their SIP
+      migration, some national carriers' legacy interconnects, and air-traffic and defence
+      systems with twenty-year procurement cycles.
+    </p>
+
+    <h2>The mapping an IWF has to perform</h2>
+    <div class="ref-table-wrap">
+      <table>
+        <thead>
+          <tr><th>Concept</th><th>SIP</th><th>H.323</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Start a call</td><td>INVITE</td><td>SETUP</td></tr>
+          <tr><td>"Working on it"</td><td>100 Trying</td><td>CALL PROCEEDING</td></tr>
+          <tr><td>Ringing</td><td>180 Ringing</td><td>ALERTING</td></tr>
+          <tr><td>Answer</td><td>200 OK + ACK</td><td>CONNECT</td></tr>
+          <tr><td>Hang up</td><td>BYE</td><td>RELEASE COMPLETE</td></tr>
+          <tr><td>Media agreement</td><td>SDP offer/answer</td><td>H.245 capability exchange + OLC, or fast connect</td></tr>
+          <tr><td>Failure detail</td><td>Status code + <a href="/sip/q850-cause-codes">Reason: Q.850</a></td><td>ReleaseCompleteReason / Q.931 cause</td></tr>
+          <tr><td>Call identity</td><td>Call-ID + tags</td><td>Call Reference Value + Conference ID / Call ID GUID</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      The hard parts of interworking are never the happy path in that table. They are the
+      mismatched state machines around early media (SIP's 183-with-SDP has no clean H.323
+      twin), mid-call renegotiation (re-INVITE versus new logical channels), and failure
+      semantics — a Q.931 cause has to become a SIP status and something is always lost in
+      translation. An IWF trace therefore deserves suspicion precisely at ring time,
+      answer time and teardown time.
+    </p>
+
+    <h2>And Diameter stays out of the argument</h2>
+    <p>
+      Neither SIP nor H.323 carries authentication vectors, subscriber profiles, charging
+      or QoS authorisation. In any carrier-grade network those ride
+      <a href="/knowledge/diameter">Diameter</a>: the phone's identity is checked against
+      the HSS, the call's bearer is authorised over Rx/Gx, the money is counted over
+      Ro/Rf — all invisible to the SIP ladder, all capable of killing the call anyway.
+      When a trace shows flawless signalling and a broken call, the third protocol is
+      usually where the answer lives.
+    </p>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> decodes Q.931/H.225 alongside SIP and stitches
+      interworked calls into a single flow with a confidence score — and an honest
+      AMBIGUOUS verdict instead of a silent wrong guess. Self-hosted, free for individual
+      users.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+    <nav class="ref-more" aria-label="related pages">
+      See also:
+      <ul>
+        <li><a href="/knowledge/diameter">Diameter</a> — the third protocol in full.</li>
+        <li><a href="/knowledge/ss7-isup">SS7 and ISUP</a> — the generation before both.</li>
+        <li><a href="/sip/q850-cause-codes">Q.850 cause codes</a> — the shared failure vocabulary.</li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+  <p><a href="mailto:contact@hiccup.monster">contact@hiccup.monster</a></p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

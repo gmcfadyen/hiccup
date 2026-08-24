@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E.164, SIP URIs and ENUM: how a dialled number becomes a route — hiccup</title>
+<meta name="description" content="How number routing really works: E.164 structure, tel: vs sip: URIs, RFC 3263 resolution (NAPTR, SRV, A), ENUM's rise and fall, number portability, and what STIR/SHAKEN adds for caller identity.">
+<link rel="canonical" href="https://hiccup.monster/knowledge/e164-sip-uris">
+<script src="/boot-theme.js"></script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="E.164, SIP URIs and ENUM: how calls find their destination">
+<meta property="og:description" content="tel: vs sip:, RFC 3263 resolution, number portability, and what STIR/SHAKEN adds on top.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/knowledge/e164-sip-uris">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "E.164, SIP URIs and ENUM: how calls find their destination",
+  "description": "Number structure, URI forms, DNS-based SIP routing, portability and STIR/SHAKEN — the addressing layer of voice networks.",
+  "url": "https://hiccup.monster/knowledge/e164-sip-uris",
+  "inLanguage": "en",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "E.164 numbering" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/knowledge">protocol guides</a>
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/knowledge">Protocol guides</a><span>/</span>E.164 and SIP URIs
+  </nav>
+
+  <article class="ref">
+
+    <h1>E.164, SIP URIs and ENUM: how a dialled number becomes a route</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> a phone number is a name, not an address. Every
+      call spends its first milliseconds having that name translated — normalised to
+      E.164, maybe looked up in ENUM or a portability database, wrapped in a URI, and
+      resolved through DNS to an actual host. Most "wrong number" faults are one of those
+      translations going quietly wrong, and the evidence is the Request-URI mutating hop
+      by hop.</p>
+    </div>
+
+    <h2>E.164: the global numbering plan</h2>
+    <p>
+      ITU-T E.164 defines the shape: at most 15 digits — a country code (1–3 digits),
+      then a national destination code and subscriber number whose split each country
+      chooses. <code>+33 6 12 34 56 78</code> is a French mobile; the <code>+</code>
+      means "fully qualified, no dialling prefixes". The trouble is that users do not
+      dial E.164 — they dial <code>0612345678</code>, or an extension, or with a trunk
+      access <code>9</code> in front. Somewhere, every network runs normalisation rules
+      turning dialled strings into canonical <code>+</code> numbers, and those rules —
+      usually regex on an <a href="/knowledge/session-border-controller">SBC</a> or PBX —
+      are the most-edited, most-breakable config in voice. A number that works dialled
+      one way and fails another is a normalisation bug, essentially always.</p>
+
+    <h2>Two URI shapes for the same number</h2>
+    <p>
+      <code>tel:+33612345678</code> (RFC 3966) names the number itself, no host —
+      "someone will have to route this". <code>sip:+33612345678@carrier.example;user=phone</code>
+      names the number <em>at a domain</em>: the <code>user=phone</code> parameter is the
+      flag that says "the user part is a telephone number, not an account name". Networks
+      flip between the two constantly, and the choice matters at borders: a
+      <code>tel:</code> URI forces the next hop to make a routing decision, while a
+      <code>sip:</code> URI has already made one. Alongside them travels identity:
+      <code>From</code> is what the caller <em>claimed</em>;
+      <code>P-Asserted-Identity</code> is what the network <em>verified</em> — which is
+      why call screening and CLI features trust the latter.</p>
+
+    <h2>How a SIP URI's domain becomes a host: RFC 3263</h2>
+    <div class="ref-table-wrap">
+      <table>
+        <thead>
+          <tr><th>Step</th><th>Lookup</th><th>Decides</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>NAPTR for the domain</td><td>Which transports the domain offers and in what order of preference (SIP+D2T → TCP, SIP+D2U → UDP, SIPS+D2T → TLS), and the SRV name to use next.</td></tr>
+          <tr><td>2</td><td>SRV (<code>_sip._tcp.domain</code> etc.)</td><td>Which hosts serve that transport, with priorities and weights — this is where failover and load-sharing live.</td></tr>
+          <tr><td>3</td><td>A/AAAA</td><td>The actual addresses.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Two field notes. First, failover behaviour "not working" between SIP peers is very
+      often just a client that skips NAPTR/SRV and does a bare A lookup — perfectly
+      legal, silently different. Second, when a trace shows a request going to a host no
+      configuration mentions, run the RFC 3263 ladder by hand before blaming routing:
+      SRV weights may be doing exactly what they were told.</p>
+
+    <h2>ENUM: the beautiful idea that half-survived</h2>
+    <p>
+      ENUM (RFC 6116) mapped E.164 into DNS: reverse the digits, dot-separate, append
+      <code>e164.arpa</code> — <code>8.7.6.5.4.3.2.1.6.3.3.e164.arpa</code> — and publish
+      NAPTR records saying "this number is reachable at
+      <code>sip:user@example.com</code>". Public ENUM assumed subscribers would want
+      their numbers globally mapped to internet endpoints; regulators, carriers and spam
+      reality disagreed, and the public tree is essentially empty. But the
+      <em>mechanism</em> thrives privately: carrier-internal and consortium ENUM roots
+      are how large operators decide "is this number on-net, and where?", and an
+      infrastructure ENUM dip is the first step of many interconnect routing engines.
+      When an on-net call inexplicably breaks out to the PSTN and back, a stale private
+      ENUM zone is a leading suspect.</p>
+
+    <h2>Number portability: the database in the middle</h2>
+    <p>
+      Porting broke "the prefix tells you the operator" forever. Someone in the call path
+      must dip a portability database and learn the <em>routing number</em> of the
+      current operator; in SIP the result rides tel-URI parameters from RFC 4694 —
+      <code>rn=</code> (route to this network) and <code>npdi</code> (the dip was done,
+      do not dip again). A missing <code>npdi</code> causes double dips and
+      double-charging arguments; a wrong <code>rn</code> sends the call to the donor
+      network, which may loop it, reject it, or — worst — complete it with wrong billing.
+      If a ported number misbehaves, find who did the dip and what <code>rn</code> they
+      attached: it is right there in the Request-URI.</p>
+
+    <h2>STIR/SHAKEN: signing the caller identity</h2>
+    <p>
+      Because <code>From</code> was always forgeable, RFC 8224 adds an
+      <code>Identity</code> header: the originating operator signs the calling and called
+      numbers (a PASSporT — a JWT with a certificate chain rooted in the numbering
+      authority) with an attestation level: <strong>A</strong> "this is my subscriber and
+      their number", <strong>B</strong> "my subscriber, can't vouch for the number",
+      <strong>C</strong> "it merely transited me". Terminating networks verify and feed
+      the result into spam scoring and the little "verified caller" checkmarks.
+      Deployment reality: strong in North America by mandate, patchy elsewhere, and
+      broken signatures at interconnects (a B2BUA that touched a signed field) are a
+      brand-new failure class riding old plumbing.</p>
+
+    <h2>Reading a numbering fault in a trace</h2>
+    <ol>
+      <li>Follow the Request-URI hop by hop: dialled string → normalised E.164 →
+      <code>rn</code>-decorated → final. The hop where it goes wrong names the guilty
+      box.</li>
+      <li>Compare <code>From</code>, <code>P-Asserted-Identity</code> and any
+      <code>Identity</code> header — three versions of "who is calling", and the
+      disagreements are informative.</li>
+      <li>404/484 from a proxy that should know the number: check digits and
+      <code>user=phone</code> first, portability second, stale ENUM third.</li>
+    </ol>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> shows the Request-URI's evolution across every hop and
+      leg in one ladder, so the exact box that mangled the number is a glance away.
+      Self-hosted, free for individual users.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+    <nav class="ref-more" aria-label="related pages">
+      See also:
+      <ul>
+        <li><a href="/knowledge/ss7-isup">SS7 and ISUP</a> — where these numbers came from.</li>
+        <li><a href="/sip/403-forbidden">403 Forbidden</a> — when the number was fine and policy said no.</li>
+        <li><a href="/knowledge/ims-architecture">IMS architecture</a> — identity handling inside an operator core.</li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+  <p><a href="mailto:contact@hiccup.monster">contact@hiccup.monster</a></p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>
