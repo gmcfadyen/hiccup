@@ -305,6 +305,11 @@
 
   #google-error { text-align: center; }
 
+  #sso-wrap .btn { display: block; width: 100%; }
+  #sso-row { margin-top: 10px; }
+  #sso-row .input { margin-bottom: 10px; }
+  #sso-error { text-align: center; }
+
   #open-app {
     text-align: center;
     padding: 24px 0 8px;
@@ -492,6 +497,17 @@
         <div class="or-divider"><span data-i18n>or</span></div>
         <div id="google-btn"></div>
         <p class="form-error" id="google-error" role="alert"></p>
+      </div>
+
+      <div id="sso-wrap" hidden>
+        <div class="or-divider"><span data-i18n>or</span></div>
+        <button data-i18n class="btn" type="button" id="sso-reveal-btn">Continue with SSO</button>
+        <div id="sso-row" hidden>
+          <input data-i18n-attrs="placeholder" class="input" id="sso-email" type="email"
+                 autocomplete="email" placeholder="you@company.com">
+          <button data-i18n class="btn btn-primary" type="button" id="sso-continue-btn">Continue with your company sign-in →</button>
+        </div>
+        <p class="form-error" id="sso-error" role="alert"></p>
       </div>
     </div>
 

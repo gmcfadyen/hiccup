@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Set up single sign-on — hiccup</title>
+<meta name="description" content="How to connect your company's identity provider to hiccup: the fields hiccup needs, the fixed redirect URI, notes for Microsoft Entra ID, Okta and Google Workspace, and what every sign-in error message means.">
+<link rel="canonical" href="https://hiccup.monster/sso-setup">
+<script src="/boot-theme.js"></script>
+<script src="/boot-lang.js"></script>
+<script src="/i18n.js"></script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="Set up single sign-on — hiccup">
+<meta property="og:description" content="Connect Microsoft Entra ID, Okta, Google Workspace or any OpenID Connect identity provider to hiccup.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/sso-setup">
+<meta property="og:type" content="article">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+</head>
+<!--
+  Same reasoning as privacy.html for staying English-only: this names real
+  configuration fields, real header names and real error strings the code
+  actually produces. A translation with no reviewer risks drifting from what
+  the software does, which is exactly the failure mode worth avoiding here.
+-->
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <span class="topbar-spacer"></span>
+  <a data-i18n class="topnav-link" href="/knowledge">protocol guides</a>
+  <a data-i18n class="topnav-link" href="/sip">SIP reference</a>
+  <span data-lang-switcher></span>
+  <button data-i18n-attrs="aria-label" class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+</header>
+
+<main class="doc">
+  <p class="doc-kicker">Team plan</p>
+  <h1>Set up single sign-on</h1>
+  <p class="doc-lede">
+    hiccup speaks OpenID Connect, so it connects to Microsoft Entra ID, Okta, Google
+    Workspace, Keycloak, or any other IdP that offers an OIDC application type. Once it is
+    on, colleagues on your claimed email domains sign in with "Continue with SSO" and join
+    your team automatically — no invite link needed. Configuration lives on your
+    <a href="/team">team page</a>, visible only to the team owner.
+  </p>
+
+  <h2>What hiccup needs from your IdP</h2>
+  <p>Three values, all pasted into the SSO card on your team page:</p>
+  <table class="doc-table">
+    <thead><tr><th>Field</th><th>Where it comes from</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Issuer URL</td>
+        <td>Your IdP's OIDC issuer — must serve a discovery document at
+          <code>&lt;issuer&gt;/.well-known/openid-configuration</code> over https. hiccup fetches
+          this itself to find your IdP's real sign-in and token endpoints, and refuses
+          anything that is not a public https address.</td>
+      </tr>
+      <tr>
+        <td>Client ID</td>
+        <td>Issued when you register hiccup as an application in your IdP.</td>
+      </tr>
+      <tr>
+        <td>Client secret</td>
+        <td>Issued alongside the client ID. Stored server-side, write-only — hiccup never
+          displays it back, not even to you. Leaving it blank on a later save keeps
+          whatever is already stored.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="doc-note">
+    <strong>Redirect URI.</strong> One fixed value, the same for every team:
+    <code>https://hiccup.monster/api/auth/sso/callback</code> (a self-hosted instance uses
+    its own domain instead — the exact value for yours is shown, ready to copy, on the SSO
+    card itself). Register this as the app's redirect/callback URI in your IdP.
+  </div>
+
+  <h2>Setup, step by step</h2>
+  <ol class="doc-list">
+    <li>In your IdP's admin console, register a new application: type <strong>OpenID
+      Connect</strong> / <strong>Web application</strong>, grant type <strong>Authorization
+      Code</strong>.</li>
+    <li>Set its redirect URI to the value in the box above.</li>
+    <li>Copy the issuer URL, client ID and client secret it gives you.</li>
+    <li>On hiccup, open <a href="/team">your team page</a> → <strong>Single sign-on</strong>,
+      and paste the three values in.</li>
+    <li>List the email domains this IdP is authoritative for (up to 10) — e.g.
+      <code>acme.com</code>. A domain can only be claimed by one team; consumer providers
+      (Gmail, Outlook.com and similar) can never be claimed by any team.</li>
+    <li>Click <strong>Test connection</strong> — hiccup fetches your discovery document and
+      confirms it can find real authorization and token endpoints, before you save
+      anything.</li>
+    <li>Save. Sign-in is live immediately; enforcing it for everyone else is a separate
+      step below.</li>
+  </ol>
+
+  <h2>Notes for specific providers</h2>
+
+  <p><strong>Microsoft Entra ID (Azure AD).</strong> Use your tenant-specific issuer —
+  <code>https://login.microsoftonline.com/&lt;tenant-id&gt;/v2.0</code> — not
+  <code>/common</code> or <code>/organizations</code>; either of those fails issuer
+  validation, since hiccup checks the discovery document's own <code>issuer</code> field
+  against exactly what you configured. When creating the client secret, copy the
+  <strong>Value</strong> column, not the Secret ID.</p>
+
+  <p><strong>Okta.</strong> Create an OIDC <strong>Web Application</strong> with the
+  Authorization Code grant. The issuer is your org URL
+  (<code>https://&lt;org&gt;.okta.com</code>), or a custom authorization server's URL if
+  you use one. Okta enforces its own app-assignment rules before a sign-in attempt ever
+  reaches hiccup — an unassigned user sees an Okta error page, not one of hiccup's.</p>
+
+  <p><strong>Google Workspace.</strong> The issuer is always
+  <code>https://accounts.google.com</code>. Set the OAuth consent screen to
+  <strong>Internal</strong> so it is limited to your Workspace organisation. This is a
+  separate application registration from hiccup's own "Continue with Google" button —
+  that one links one person's individual account; this one routes your whole domain.</p>
+
+  <h2>Who can sign in</h2>
+  <p>Three cases, in order:</p>
+  <ul class="doc-list">
+    <li><strong>Already on your team, email on a claimed domain:</strong> their first SSO
+      sign-in links their identity provider to their existing account. Nothing else about
+      the account changes — a password they already had keeps working too.</li>
+    <li><strong>Nobody on hiccup has that email yet:</strong> an account is created
+      automatically on first sign-in and added to your team, exactly as if you had sent
+      them an invite link.</li>
+    <li><strong>The email belongs to an account that already exists, but not on your
+      team:</strong> refused, always. Your identity provider is never allowed to pull
+      someone else's existing hiccup account into your team — invite them properly
+      instead, or ask them to sign in with their own credentials.</li>
+  </ul>
+
+  <h2>Requiring SSO</h2>
+  <p>
+    "Require SSO for members" turns off password and Google sign-in for everyone except
+    you, the team owner. You always keep password access — a misconfigured or temporarily
+    broken IdP must never be able to lock you out of your own team. If hiccup's operator
+    ever needs to disable single sign-on platform-wide, enforcement switches off
+    automatically everywhere at the same moment, so nobody is stranded while it is fixed.
+  </p>
+
+  <h2>What each sign-in error means</h2>
+  <table class="doc-table">
+    <thead><tr><th>Message</th><th>What happened</th></tr></thead>
+    <tbody>
+      <tr><td>Enter a valid work email address.</td><td>The address typed on the sign-in page was not a usable email shape.</td></tr>
+      <tr><td>Single sign-on is not configured for this email domain.</td><td>No team has claimed that email's domain — or hiccup deliberately gives this exact message whether no team claimed it, or a team's config is switched off, so nobody can use it to probe which companies use hiccup.</td></tr>
+      <tr><td>Your organisation's sign-in service is not responding. Contact your administrator.</td><td>hiccup could not fetch or validate your IdP's discovery document. Check the issuer URL, and that it is reachable from the public internet — hiccup refuses to call anything on a private network.</td></tr>
+      <tr><td>Sign-in session expired — please try again.</td><td>More than 10 minutes passed between starting sign-in and the identity provider redirecting back, or the link was already used once.</td></tr>
+      <tr><td>Sign-in token validation failed.</td><td>The identity token from your IdP failed a required check (issuer, audience, timing, or the one-time nonce). Usually a clock skew beyond two minutes, or a misconfigured client ID.</td></tr>
+      <tr><td>Your identity provider did not supply an email address.</td><td>Neither the identity token nor a userinfo lookup returned an email claim — check the app registration requests the <code>email</code> scope.</td></tr>
+      <tr><td>Your identity provider reports this email as unverified.</td><td>The IdP explicitly marked the address unverified. hiccup will not sign someone in on an address their own provider will not vouch for.</td></tr>
+      <tr><td>An account already exists for this email. Ask your team owner to invite it, or sign in with your existing credentials.</td><td>The "who can sign in" refusal above, case three — working as designed, not a bug.</td></tr>
+      <tr><td>Your email is outside this workspace's SSO domains. Sign in with your password instead.</td><td>An existing team member's email is not on any domain the team has claimed for SSO.</td></tr>
+      <tr><td>Your account is no longer on this team. Contact your administrator.</td><td>This identity signed in before, but the person was since removed from the team.</td></tr>
+      <tr><td>Your team requires single sign-on. Use "Continue with SSO" on the sign-in page.</td><td>Enforcement is on for your team and this account is not the owner — password sign-in is deliberately blocked.</td></tr>
+      <tr><td>This team already has the maximum of 50 members.</td><td>A brand-new sign-in would need a new seat, and the team is full.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>What isn't supported yet</h2>
+  <p>
+    hiccup speaks OIDC only today, not SAML, and there is no SCIM de-provisioning feed —
+    removing someone from your directory does not yet automatically remove them from
+    hiccup. If either of those is a hard requirement for you, say so at
+    <a href="mailto:contact@hiccup.monster">contact@hiccup.monster</a>.
+  </p>
+
+  <div class="doc-foot">
+    <p><a href="/team">← back to your team page</a></p>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+  <p><a href="mailto:contact@hiccup.monster">contact@hiccup.monster</a></p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

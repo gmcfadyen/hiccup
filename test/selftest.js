@@ -1484,6 +1484,221 @@ async function main() {
     if (problems.length) throw new Error(problems.join('; '));
   });
 
+  // ------------------------------------------------------------- wave-sso
+  // Enterprise SSO (OIDC). lib/oidc.js is pure (no fs, no network) by design
+  // — see its own header — so every assertion below runs with no server and
+  // no real identity provider. The ONE thing deliberately NOT covered here is
+  // an actual outbound HTTPS call to a real IdP's discovery endpoint: that
+  // was verified by hand against a real provider during development (this
+  // file's own header rules out network beyond 127.0.0.1, the same
+  // constraint that already keeps a live Stripe call out of the stripe
+  // section above).
+
+  await t('sso: lib/oidc.js loads with the documented exports', () => {
+    const r = tryRequire(path.join('lib', 'oidc.js'));
+    if (r.err) throw new Error(r.err);
+    const need = ['normalizeIssuer', 'wellKnownUrl', 'validateDiscovery', 'pkceChallenge',
+      'makePkce', 'buildAuthUrl', 'tokenAuth', 'decodeJwtPayload', 'validateIdTokenClaims',
+      'emailDomain', 'isPublicEmailDomain', 'isValidDomainName', 'SAFE_NEXT_RE'];
+    const missing = need.filter((k) => typeof r.mod[k] !== 'function' && !(k === 'SAFE_NEXT_RE'));
+    ok(missing.length === 0, 'lib/oidc.js missing export(s): ' + missing.join(', '));
+    ok(r.mod.SAFE_NEXT_RE instanceof RegExp, 'SAFE_NEXT_RE is not a RegExp');
+  });
+
+  await t('sso: PKCE matches the RFC 7636 Appendix B test vector', () => {
+    const oidc = require(path.join(ROOT, 'lib', 'oidc.js'));
+    eq(oidc.pkceChallenge('dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'),
+      'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM', 'RFC 7636 vector');
+    const p = oidc.makePkce();
+    ok(p.verifier.length >= 43 && p.verifier.length <= 128, 'verifier length outside RFC range');
+    eq(oidc.pkceChallenge(p.verifier), p.challenge, 'challenge does not match its own verifier');
+  });
+
+  await t('sso: discovery validation rejects a mismatched or insecure issuer', () => {
+    const oidc = require(path.join(ROOT, 'lib', 'oidc.js'));
+    const good = { issuer: 'https://idp.example.com', authorization_endpoint: 'https://idp.example.com/auth', token_endpoint: 'https://idp.example.com/token' };
+    ok(oidc.validateDiscovery(good, 'https://idp.example.com').ok === true, 'happy path should pass');
+    ok(oidc.validateDiscovery(good, 'https://idp.example.com/').ok === true, 'trailing-slash issuer should still match');
+    ok(oidc.validateDiscovery(good, 'https://evil.example.com').ok === false,
+      'a discovery doc for the WRONG issuer must be refused — this is what stops a redirected/poisoned discovery fetch from being trusted');
+    ok(oidc.validateDiscovery(Object.assign({}, good, { token_endpoint: 'http://idp.example.com/token' }), good.issuer).ok === false,
+      'a non-https token_endpoint must be refused');
+    ok(oidc.validateDiscovery('not an object', good.issuer).ok === false, 'non-object input must be refused');
+  });
+
+  await t('sso: id-token claims validation fails closed on every required field', () => {
+    const oidc = require(path.join(ROOT, 'lib', 'oidc.js'));
+    const NOW = 1754000000000;
+    const base = { iss: 'https://idp.example.com', aud: 'client1', sub: 'u1', exp: NOW / 1000 + 300, iat: NOW / 1000 - 10, nonce: 'n1' };
+    const V = (claims, extra) => oidc.validateIdTokenClaims(claims,
+      Object.assign({ issuer: 'https://idp.example.com', clientId: 'client1', nonce: 'n1', nowMs: NOW }, extra || {}));
+    ok(V(base).ok === true, 'happy path should pass');
+    ok(V(Object.assign({}, base, { iss: 'https://evil.com' })).ok === false, 'wrong iss must be refused');
+    ok(V(Object.assign({}, base, { aud: 'other-client' })).ok === false, 'wrong aud must be refused');
+    ok(V(Object.assign({}, base, { exp: NOW / 1000 - 300 })).ok === false, 'expired beyond skew must be refused');
+    ok(V(Object.assign({}, base, { nonce: undefined })).ok === false, 'a token with no nonce at all must be refused');
+    // The one easy to get backwards: an EMPTY expected nonce must fail
+    // closed, not be read as "nonce checking is off". Getting this the other
+    // way round would silently disable replay protection.
+    ok(V(base, { nonce: '' }).ok === false, 'an empty EXPECTED nonce must fail closed, not skip the check');
+    ok(oidc.validateIdTokenClaims(null, { issuer: 'x', clientId: 'y', nonce: 'n', nowMs: NOW }).ok === false, 'null claims must be refused');
+  });
+
+  await t('sso: emailDomain and the public-provider denylist', () => {
+    const oidc = require(path.join(ROOT, 'lib', 'oidc.js'));
+    eq(oidc.emailDomain('User@B@Corp.COM'), 'corp.com', 'splits on the LAST @, lowercased');
+    eq(oidc.emailDomain('a@localhost'), null, 'a dotless domain is not a valid claim target');
+    ok(oidc.isPublicEmailDomain('GMAIL.com') === true,
+      'gmail.com must always be denylisted — a claimable public domain would let one team\'s IdP assert ANY Gmail user\'s identity');
+    ok(oidc.isPublicEmailDomain('acme-corp.example') === false, 'a real-looking corporate domain must not be denylisted');
+    ok(oidc.isValidDomainName('acme') === false, 'a bare label with no dot must be rejected');
+  });
+
+  await t('sso: SAFE_NEXT_RE blocks every open-redirect shape', () => {
+    const oidc = require(path.join(ROOT, 'lib', 'oidc.js'));
+    ok(oidc.SAFE_NEXT_RE.test('/team') === true, '/team should be allowed');
+    ok(oidc.SAFE_NEXT_RE.test('/team?x=1&y=2') === true, 'a query string should be allowed');
+    ok(oidc.SAFE_NEXT_RE.test('//evil.com') === false, 'protocol-relative // must be refused');
+    ok(oidc.SAFE_NEXT_RE.test('https://evil.com') === false, 'an absolute URL must be refused');
+    ok(oidc.SAFE_NEXT_RE.test('javascript:alert(1)') === false, 'a javascript: scheme must be refused');
+  });
+
+  await t('sso: the SSRF guard refuses every private/reserved IP range, both families', () => {
+    const r = tryRequire(path.join('lib', 'sso.js'));
+    if (r.err) throw new Error(r.err);
+    const isP = r.mod._isPrivateIp;
+    const cases = [
+      ['127.0.0.1', 'IPv4', true, 'loopback'],
+      ['169.254.169.254', 'IPv4', true, 'the cloud-metadata address — the single highest-value SSRF target'],
+      ['10.0.0.1', 'IPv4', true, '10.0.0.0/8'],
+      ['192.168.1.1', 'IPv4', true, '192.168.0.0/16'],
+      ['172.16.0.1', 'IPv4', true, '172.16.0.0/12'],
+      ['8.8.8.8', 'IPv4', false, 'a real public address must NOT be blocked'],
+      ['::1', 'IPv6', true, 'IPv6 loopback'],
+      ['fe80::1', 'IPv6', true, 'IPv6 link-local'],
+      ['::ffff:169.254.169.254', 'IPv6', true,
+        'an IPv4-mapped IPv6 address must be unwrapped and checked against the IPv4 rules — the classic way an IPv4-only blocklist gets bypassed'],
+      ['2001:4860:4860::8888', 'IPv6', false, 'a real public IPv6 address must NOT be blocked'],
+    ];
+    for (const [ip, fam, want, why] of cases) {
+      eq(isP(ip, fam), want, ip + ' (' + fam + ', ' + why + ')');
+    }
+  });
+
+  await t('sso: setTeamSso end to end — validation, masking, write-only secret, cross-team domain uniqueness', async () => {
+    needTeams();
+    const sOwner = await mkUser('sso-owner@acme.example', 'SSO Owner');
+    const team = w3teams.createTeam(sOwner.id, 'SSO Acme');
+
+    const badCases = [
+      [{ issuer: 'http://idp.acme.example', clientId: 'c', clientSecret: 's', domains: 'acme.example' }, 'http issuer'],
+      [{ issuer: 'https://idp.acme.example?x=1', clientId: 'c', clientSecret: 's', domains: 'acme.example' }, 'issuer with a query string'],
+      [{ issuer: 'https://10.0.0.1/', clientId: 'c', clientSecret: 's', domains: 'acme.example' }, 'IP-literal issuer'],
+      [{ issuer: 'https://idp.acme.example', clientId: 'c', clientSecret: 's', domains: 'gmail.com' }, 'a public email provider as the domain'],
+      [{ issuer: 'https://idp.acme.example', clientId: 'c', clientSecret: '', domains: 'acme.example' }, 'no client secret'],
+    ];
+    for (const [body, label] of badCases) {
+      await expectThrowsOrRejects(() => w3teams.setTeamSso(team.teamId, body, sOwner.id), 'setTeamSso should reject: ' + label);
+    }
+
+    const saved = w3teams.setTeamSso(team.teamId, {
+      issuer: 'https://idp.acme.example/', clientId: 'client-1', clientSecret: 'super-secret',
+      domains: 'Acme.example, ACME.CO.example', enabled: true, enforced: false,
+    }, sOwner.id);
+    ok(saved.clientSecret === undefined, 'the saved response must never echo the secret back');
+    ok(saved.clientSecretSet === true, 'clientSecretSet should be true once a secret is stored');
+    eq(JSON.stringify(saved.domains), JSON.stringify(['acme.example', 'acme.co.example']), 'domains should be lowercased and deduplicated');
+
+    // Blank secret on a resave keeps the one already stored, rather than
+    // clearing it -- the field is write-only, not "empty means delete".
+    w3teams.setTeamSso(team.teamId, {
+      issuer: 'https://idp.acme.example/', clientId: 'client-1', clientSecret: '',
+      domains: 'acme.example', enabled: true, enforced: true,
+    }, sOwner.id);
+    eq(w3teams.getTeamSso(team.teamId).clientSecret, 'super-secret', 'a blank secret on resave must not erase the stored one');
+
+    const found = w3teams.findTeamSsoByDomain('acme.example');
+    ok(found && found.teamId === team.teamId, 'findTeamSsoByDomain should find the config by its claimed domain');
+
+    const owner2 = await mkUser('sso-owner2@beta.example', 'SSO Owner 2');
+    const team2 = w3teams.createTeam(owner2.id, 'SSO Beta');
+    const e = await expectThrowsOrRejects(
+      () => w3teams.setTeamSso(team2.teamId, { issuer: 'https://idp.beta.example', clientId: 'c2', clientSecret: 's2', domains: 'acme.example' }, owner2.id),
+      'a domain already claimed by another team must be refused'
+    );
+    ok(/already claimed/.test(errMsg(e)), 'the refusal should name the reason: ' + errMsg(e));
+
+    w3teams.deleteTeamSso(team.teamId);
+    w3teams.deleteTeamSso(team2.teamId);
+  });
+
+  await t('sso: the account-linking policy — JIT, known-identity, invitation-anchored link, and the critical cross-team refusal', async () => {
+    needTeams();
+    const r = tryRequire(path.join('lib', 'sso.js'));
+    if (r.err) throw new Error(r.err);
+    const sso = r.mod;
+    // lib/sso.js requires ./auth and ./teams internally via the SAME module
+    // path this file used above, so Node's require cache means it already
+    // shares w3auth/w3teams's state -- initSso just needs to point its own
+    // (tiny) settings file at the same directory.
+    sso.initSso(W3_DIR);
+
+    const owner = await mkUser('link-owner@acme2.example', 'Link Owner');
+    const team = w3teams.createTeam(owner.id, 'Link Acme');
+    const cfg = w3teams.setTeamSso(team.teamId, {
+      issuer: 'https://idp.acme2.example', clientId: 'c1', clientSecret: 's1', domains: 'acme2.example',
+    }, owner.id);
+    const rawCfg = w3teams.getTeamSso(team.teamId);
+
+    // (d) brand-new email, domain claimed -> JIT provision
+    const r1 = await sso.resolveSignIn(rawCfg, { sub: 'sub-alice', iss: rawCfg.issuer, email: 'alice@acme2.example', name: 'Alice' });
+    ok(!r1.error, 'JIT provisioning should not error: ' + (r1.error || ''));
+    eq(r1.jit, true, 'a brand-new email should be flagged as JIT-provisioned');
+    eq(w3teams.getAccountRole(r1.user.id), 'member', 'a JIT-provisioned user should join as a plain member');
+
+    // (a) the same sub signs in again -> known identity, not a second JIT
+    const r2 = await sso.resolveSignIn(rawCfg, { sub: 'sub-alice', iss: rawCfg.issuer, email: 'alice@acme2.example', name: 'Alice' });
+    eq(r2.jit, false, 'a returning identity must not be treated as a new JIT provision');
+    eq(r2.user.id, r1.user.id, 'a returning identity must resolve to the SAME account');
+
+    // (d) domain not claimed -> refused, and nothing was created
+    const r3 = await sso.resolveSignIn(rawCfg, { sub: 'sub-x', iss: rawCfg.issuer, email: 'x@not-claimed.example', name: 'X' });
+    ok(!!r3.error, 'an unclaimed domain must be refused');
+
+    // (b) an existing member of THIS team, first SSO login -> LINK (password kept)
+    const bob = await mkUser('bob@acme2.example', 'Bob'); // mkUser only creates the account; not yet on any team
+    w3teams.addMemberForSso(bob.id, team.teamId); // seat him normally, as if invited
+    const r4 = await sso.resolveSignIn(rawCfg, { sub: 'sub-bob', iss: rawCfg.issuer, email: 'bob@acme2.example', name: 'Bob' });
+    ok(!r4.error, 'linking an existing team member should not error: ' + (r4.error || ''));
+    eq(r4.jit, false, 'linking an existing member is not a JIT provision');
+    eq(r4.user.id, bob.id, 'the link must resolve to bob\'s existing account');
+
+    // (c) THE CRITICAL CASE: an existing account NOT on this team must NEVER be linked
+    const carol = await w3auth.createUser({ email: 'carol@external.example', password: 'correct-horse-8', name: 'Carol' });
+    const owner3 = await mkUser('link-owner3@beta2.example', 'Link Owner 3');
+    const team3 = w3teams.createTeam(owner3.id, 'Link Beta');
+    w3teams.setTeamSso(team3.teamId, { issuer: 'https://idp.beta2.example', clientId: 'c3', clientSecret: 's3', domains: 'external.example' }, owner3.id);
+    const cfg3 = w3teams.getTeamSso(team3.teamId);
+    const r5 = await sso.resolveSignIn(cfg3, { sub: 'attacker-controlled-sub', iss: cfg3.issuer, email: 'carol@external.example', name: 'Carol' });
+    ok(!!r5.error,
+      'CRITICAL: an IdP asserting an email that belongs to an account OUTSIDE its team must be refused, never linked — ' +
+      'this is the property the whole account-linking design exists to guarantee');
+    ok(w3teams.getTeamIdFor(carol.id) === null, 'carol must still not be on any team after the refused attempt');
+
+    // ssoLoginBlocked: enforcement, and both break-glass exceptions
+    w3teams.setTeamSso(team.teamId, { issuer: rawCfg.issuer, clientId: 'c1', clientSecret: '', domains: 'acme2.example', enabled: true, enforced: true }, owner.id);
+    ok(sso.ssoLoginBlocked(owner.id, false) === null, 'the team owner must always keep password access, even when SSO is enforced');
+    ok(typeof sso.ssoLoginBlocked(r1.user.id, false) === 'string', 'an ordinary member must be blocked once SSO is enforced');
+    ok(sso.ssoLoginBlocked(r1.user.id, true) === null, 'a hiccup site admin must always keep password access (the other break-glass exception)');
+    sso.setSsoGloballyEnabled(false, owner.id);
+    ok(sso.ssoLoginBlocked(r1.user.id, false) === null,
+      'the platform kill switch must suspend EVERY team\'s enforcement at once, so an incident response cannot strand anyone');
+    sso.setSsoGloballyEnabled(true, owner.id);
+
+    w3teams.deleteTeamSso(team.teamId);
+    w3teams.deleteTeamSso(team3.teamId);
+  });
+
   // ---------------------------------------------------------------- wave 6
   // The privacy boundary from ARCHITECTURE.md "Wave 6". These are the tests
   // that matter most in this file: sanitizeContext() is the single thing

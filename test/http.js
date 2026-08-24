@@ -554,6 +554,126 @@ async function main() {
     ok(r.json && r.json.error, 'no error message returned');
   });
 
+  // --------------------------------------------------------------- sso
+  // Deliberately no test here reaches a real external IdP -- discovery
+  // validation itself is covered by lib/oidc.js's pure-function tests in
+  // test/selftest.js, and an actual outbound HTTPS call would break this
+  // file's own "no network beyond the child process" model (the same reason
+  // the webhook tests above never call the real Stripe API). Everything
+  // reachable without leaving the box is exercised here for real, through
+  // the actual routes.
+
+  await t('sso: available answers true by default, with no auth required', async () => {
+    const anon = makeClient();
+    const r = await anon('GET', '/api/auth/sso/available');
+    eq(r.status, 200, 'available status');
+    eq(r.json.enabled, true, 'sso should be enabled by default');
+  });
+
+  await t('sso: start refuses a bad email and an unclaimed domain with the SAME generic message', async () => {
+    const anon = makeClient();
+    const badEmail = await anon('GET', '/api/auth/sso/start?email=not-an-email');
+    eq(badEmail.status, 302, 'bad email should redirect, not error out to the browser');
+    ok(/sso_error=/.test(badEmail.headers.location || ''), 'bad email redirect should carry sso_error');
+
+    const unclaimed = await anon('GET', '/api/auth/sso/start?email=' +
+      encodeURIComponent('nobody@definitely-unclaimed-' + process.pid + '.example'));
+    eq(unclaimed.status, 302, 'an unclaimed domain should redirect, not error out to the browser');
+    ok(/sso_error=/.test(unclaimed.headers.location || ''), 'unclaimed domain redirect should carry sso_error');
+  });
+
+  await t('sso: callback refuses missing code, unknown state, and an IdP error param, without ever reaching the network', async () => {
+    const anon = makeClient();
+    const noCode = await anon('GET', '/api/auth/sso/callback?state=x');
+    eq(noCode.status, 302, 'missing code should redirect');
+    ok(/sso_error=/.test(noCode.headers.location || ''), 'missing code redirect should carry sso_error');
+
+    const unknownState = await anon('GET', '/api/auth/sso/callback?code=abc&state=not-a-real-state-token');
+    eq(unknownState.status, 302, 'unknown state should redirect');
+    ok(/sso_error=/.test(unknownState.headers.location || ''), 'unknown state redirect should carry sso_error');
+
+    const idpError = await anon('GET', '/api/auth/sso/callback?error=access_denied&state=x');
+    eq(idpError.status, 302, 'an IdP-reported error should redirect');
+    ok(/sso_error=/.test(idpError.headers.location || ''), 'IdP error redirect should carry sso_error');
+  });
+
+  await t('sso: team config is owner-only, Team-plan-only, and the secret is never echoed back', async () => {
+    const owner = makeClient();
+    const su = await owner('POST', '/api/auth/signup', { email: 'sso-http-owner-' + process.pid + '@example.test', password: 'correct-horse-8' });
+    eq(su.status, 200, 'owner signup status');
+    const uid = su.json.user.id;
+
+    // No team yet at all.
+    const noTeam = await owner('GET', '/api/team/sso');
+    eq(noTeam.status, 400, 'GET /api/team/sso with no team should 400');
+
+    // Free plan cannot even create a team.
+    const teamFree = await owner('POST', '/api/team', { name: 'SSO HTTP Test' });
+    eq(teamFree.status, 400, 'creating a team on the free plan should be refused');
+
+    // The top-level `client` has stayed signed in as the harness/site-admin
+    // account since the auth section above -- reuse it rather than logging
+    // in again, which would spend budget from the SAME per-IP bucket the
+    // rate-limiting tests above deliberately exhausted (every client in this
+    // file shares one source IP: 127.0.0.1).
+    const admin = client;
+    const patch = await admin('PATCH', '/api/admin/users/' + uid, { plan: 'team' });
+    eq(patch.status, 200, 'admin plan patch status');
+
+    const team = await owner('POST', '/api/team', { name: 'SSO HTTP Test' });
+    eq(team.status, 200, 'team creation should now succeed');
+
+    const domain = 'sso-http-test-' + process.pid + '.example';
+    const save = await owner('PUT', '/api/team/sso', {
+      issuer: 'https://idp.' + domain, clientId: 'test-client', clientSecret: 'test-secret', domains: domain,
+    });
+    eq(save.status, 200, 'PUT /api/team/sso should succeed for the owner');
+    eq(save.json.config.clientSecret, undefined, 'the response must never include the raw secret');
+    eq(save.json.config.clientSecretSet, true, 'clientSecretSet should be true once a secret is stored');
+
+    // A non-owner member must be refused, even though they are on the team.
+    const member = makeClient();
+    const memberSu = await member('POST', '/api/auth/signup', { email: 'sso-http-member-' + process.pid + '@example.test', password: 'correct-horse-8' });
+    await admin('PATCH', '/api/admin/users/' + memberSu.json.user.id, { plan: 'team' });
+    const inv = await owner('POST', '/api/team/invite', { email: memberSu.json.user.email });
+    eq(inv.status, 200, 'invite creation status');
+    const accept = await member('POST', '/api/team/accept', { token: inv.json.token });
+    eq(accept.status, 200, 'member accept status');
+    const memberTry = await member('GET', '/api/team/sso');
+    eq(memberTry.status, 403, 'a non-owner member must be refused SSO management');
+
+    // Bad issuer shapes are refused with 400s, not silently accepted.
+    const badIssuer = await owner('PUT', '/api/team/sso', {
+      issuer: 'http://idp.' + domain, clientId: 'c', clientSecret: 's', domains: domain,
+    });
+    eq(badIssuer.status, 400, 'an http (non-https) issuer must be refused');
+
+    // ---- enforcement + the platform kill switch, through the real login route ----
+    await owner('PUT', '/api/team/sso', {
+      issuer: 'https://idp.' + domain, clientId: 'test-client', clientSecret: '', domains: domain, enforced: true,
+    });
+    const memberLoginBlocked = await makeClient()('POST', '/api/auth/login', { email: memberSu.json.user.email, password: 'correct-horse-8' });
+    eq(memberLoginBlocked.status, 403, 'password login must be refused for a member once SSO is enforced');
+    const ownerLoginStillWorks = await makeClient()('POST', '/api/auth/login', { email: su.json.user.email, password: 'correct-horse-8' });
+    eq(ownerLoginStillWorks.status, 200, 'the owner must keep password access even with SSO enforced (break-glass)');
+
+    const killOff = await admin('POST', '/api/admin/sso-settings', { enabled: false });
+    eq(killOff.status, 200, 'admin kill switch status');
+    eq(killOff.json.enabled, false, 'kill switch should report disabled');
+    const memberDuringOutage = await makeClient()('POST', '/api/auth/login', { email: memberSu.json.user.email, password: 'correct-horse-8' });
+    eq(memberDuringOutage.status, 200, 'the platform kill switch must release enforcement for every team at once');
+    await admin('POST', '/api/admin/sso-settings', { enabled: true });
+
+    const memberKillAttempt = await member('POST', '/api/admin/sso-settings', { enabled: false });
+    eq(memberKillAttempt.status, 403, 'only a site admin may touch the platform kill switch');
+
+    // ---- delete, and confirm the member is not orphaned ----
+    const del = await owner('DELETE', '/api/team/sso');
+    eq(del.status, 200, 'DELETE /api/team/sso status');
+    const memberAfterDelete = await makeClient()('POST', '/api/auth/login', { email: memberSu.json.user.email, password: 'correct-horse-8' });
+    eq(memberAfterDelete.status, 200, 'the member must be able to sign in normally once SSO is removed');
+  });
+
   // --------------------------------------------------------------- teardown
   const failed = results.filter((r) => !r.ok);
   console.log('\nHTTP: ' + (results.length - failed.length) + '/' + results.length + ' passed');

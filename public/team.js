@@ -124,6 +124,14 @@
     });
     $('team-leave-btn').addEventListener('click', function () { leaveTeam(); });
     $('team-claim-btn').addEventListener('click', function () { claimOwnership(); });
+
+    $('team-sso-form').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      saveSso();
+    });
+    $('team-sso-copy-redirect').addEventListener('click', function () { copySsoRedirect(); });
+    $('team-sso-test-btn').addEventListener('click', function () { testSso(); });
+    $('team-sso-remove-btn').addEventListener('click', function () { removeSso(); });
   }
 
   // -------------------------------------------------------------- top state
@@ -207,6 +215,10 @@
     renderMembers();
     renderExitControls();
     loadRecovery();
+    // Owner-only, and its own independent endpoint (not bundled into
+    // GET /api/team) -- only fetched at all when the client already knows
+    // it would be shown, so a plain member's browser never even asks.
+    if (state.myRole === 'owner') loadSsoCard(); else $('team-sso-card').hidden = true;
   }
 
   // ------------------------------------------------- leaving / handing over
@@ -674,6 +686,182 @@
     }
     setMembersMsg(successMsg || _t('Updated.'));
     await loadTeam();
+  }
+
+  // ------------------------------------------------------------------- SSO
+
+  function setSsoError(msg) { $('team-sso-error').textContent = msg || ''; }
+  function setSsoMsg(msg) { $('team-sso-msg').textContent = msg || ''; }
+
+  async function loadSsoCard() {
+    var res = null, payload = null;
+    try {
+      res = await fetch('/api/team/sso');
+      if (res.status === 401) { location.href = '/'; return; }
+      try { payload = await res.json(); } catch (e) { payload = null; }
+    } catch (e) {
+      // The rest of the page already loaded fine -- fail this one card
+      // quietly rather than blocking the whole view on it.
+      return;
+    }
+    var card = $('team-sso-card');
+    card.hidden = false;
+    if (res.status === 402) {
+      $('team-sso-upsell').hidden = false;
+      $('team-sso-off-notice').hidden = true;
+      $('team-sso-form').hidden = true;
+      return;
+    }
+    if (!res.ok) { card.hidden = true; return; }
+
+    $('team-sso-upsell').hidden = true;
+    $('team-sso-off-notice').hidden = payload.ssoGloballyEnabled !== false;
+    $('team-sso-form').hidden = false;
+    $('team-sso-redirect').value = payload.redirectUri || '';
+
+    var c = payload.config;
+    if (c) {
+      $('team-sso-issuer').value = c.issuer || '';
+      $('team-sso-client-id').value = c.clientId || '';
+      $('team-sso-client-secret').value = '';
+      $('team-sso-client-secret').placeholder = c.clientSecretSet
+        ? _t('•••••••• (saved — leave blank to keep)') : _t('Client secret');
+      $('team-sso-domains').value = (c.domains || []).join(', ');
+      $('team-sso-enabled').checked = c.enabled !== false;
+      $('team-sso-enforced').checked = c.enforced === true;
+      $('team-sso-remove-btn').hidden = false;
+    } else {
+      $('team-sso-client-secret').placeholder = _t('Client secret');
+      $('team-sso-remove-btn').hidden = true;
+    }
+  }
+
+  function copySsoRedirect() {
+    var input = $('team-sso-redirect');
+    input.select();
+    var btn = $('team-sso-copy-redirect');
+    var restore = btn.textContent;
+    var copied = false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(input.value);
+        copied = true;
+      } else {
+        copied = document.execCommand('copy');
+      }
+    } catch (e) { copied = false; }
+    if (copied) {
+      btn.textContent = _t('Copied');
+      btn.classList.add('is-copied');
+      setTimeout(function () { btn.textContent = restore; btn.classList.remove('is-copied'); }, 1500);
+    }
+  }
+
+  async function saveSso() {
+    setSsoError('');
+    setSsoMsg('');
+    var enforced = $('team-sso-enforced').checked;
+    // Turning ON enforcement is the one action here that can lock someone
+    // else out of their own account if the IdP is misconfigured -- worth an
+    // explicit confirmation, matching how removeMember() and leaveTeam()
+    // already gate their own irreversible-feeling actions.
+    if (enforced && !confirm(_t('Members will only be able to sign in through your identity ' +
+      'provider — not with a password or Google. You will always keep password access. Continue?'))) {
+      return;
+    }
+    var body = {
+      issuer: ($('team-sso-issuer').value || '').trim(),
+      clientId: ($('team-sso-client-id').value || '').trim(),
+      clientSecret: $('team-sso-client-secret').value || '',
+      domains: ($('team-sso-domains').value || '').trim(),
+      enabled: $('team-sso-enabled').checked,
+      enforced: enforced,
+    };
+    var btn = $('team-sso-save-btn');
+    btn.disabled = true;
+    btn.textContent = _t('Saving…');
+    var res = null, payload = null;
+    try {
+      res = await fetch('/api/team/sso', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (res.status === 401) { location.href = '/'; return; }
+      try { payload = await res.json(); } catch (e) { payload = null; }
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = _t('Save SSO settings');
+      setSsoError(_t('Could not reach the server.'));
+      return;
+    }
+    btn.disabled = false;
+    btn.textContent = _t('Save SSO settings');
+    if (!res.ok) {
+      setSsoError(errMsg(payload, _t('Could not save single sign-on settings (status ') + res.status + ').'));
+      return;
+    }
+    // The secret field is write-only server-side too -- clearing it here
+    // keeps the two in sync (a blank field always means "unchanged" next
+    // time, never "someone typed nothing on purpose").
+    $('team-sso-client-secret').value = '';
+    setSsoMsg(_t('Saved.'));
+    await loadSsoCard();
+  }
+
+  async function testSso() {
+    setSsoError('');
+    var btn = $('team-sso-test-btn');
+    btn.disabled = true;
+    var was = btn.textContent;
+    btn.textContent = _t('Testing…');
+    var res = null, payload = null;
+    try {
+      res = await fetch('/api/team/sso/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ issuer: ($('team-sso-issuer').value || '').trim() })
+      });
+      if (res.status === 401) { location.href = '/'; return; }
+      try { payload = await res.json(); } catch (e) { payload = null; }
+    } catch (e) {
+      setSsoError(_t('Could not reach the server.'));
+      btn.disabled = false;
+      btn.textContent = was;
+      return;
+    }
+    btn.disabled = false;
+    btn.textContent = was;
+    if (!res.ok || !payload || payload.ok !== true) {
+      setSsoError(errMsg(payload, _t('Could not verify the issuer.')));
+      return;
+    }
+    setSsoMsg(_t('Looks good — found the authorization and token endpoints.'));
+  }
+
+  async function removeSso() {
+    if (!confirm(_t('Remove single sign-on for this team? Members who only ever signed in ' +
+      'through it will need to use "Forgot password" to get back in.'))) return;
+    setSsoError('');
+    var btn = $('team-sso-remove-btn');
+    btn.disabled = true;
+    var res = null, payload = null;
+    try {
+      res = await fetch('/api/team/sso', { method: 'DELETE' });
+      if (res.status === 401) { location.href = '/'; return; }
+      try { payload = await res.json(); } catch (e) { payload = null; }
+    } catch (e) {
+      btn.disabled = false;
+      setSsoError(_t('Could not reach the server.'));
+      return;
+    }
+    btn.disabled = false;
+    if (!res.ok) {
+      setSsoError(errMsg(payload, _t('Could not remove single sign-on (status ') + res.status + ').'));
+      return;
+    }
+    setSsoMsg(_t('Removed.'));
+    await loadSsoCard();
   }
 
   async function removeMember(userId, name) {

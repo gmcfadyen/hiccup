@@ -95,6 +95,43 @@
     document.head.appendChild(s);
   }
 
+  /** The SSO reveal/submit pair — same shape as the Google button's reveal,
+   * but the destination is a top-level navigation, not a fetch. See
+   * ssoContinue()'s own comment for why that matters. Idempotent: a failed
+   * round trip and a successful availability check can each call this, and
+   * binding the same listeners twice would double-fire every click. */
+  var _ssoInited = false;
+  function initSso() {
+    if (_ssoInited) { $('sso-wrap').hidden = false; return; }
+    _ssoInited = true;
+    $('sso-wrap').hidden = false;
+    $('sso-reveal-btn').addEventListener('click', function () {
+      var row = $('sso-row');
+      row.hidden = !row.hidden;
+      if (!row.hidden) $('sso-email').focus();
+    });
+    $('sso-continue-btn').addEventListener('click', ssoContinue);
+    $('sso-email').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); ssoContinue(); }
+    });
+  }
+
+  function ssoContinue() {
+    var errEl = $('sso-error');
+    var email = $('sso-email').value.trim();
+    if (!validEmail(email)) { setError(errEl, _t('enter a valid email address')); return; }
+    setError(errEl, '');
+    var btn = $('sso-continue-btn');
+    btn.disabled = true;
+    // A plain top-level navigation, not fetch() — the IdP round trip (an
+    // external https:// redirect and a 300ms+ round trip at their login
+    // page) never has to touch this page's fetch/CSP at all this way, and
+    // the browser handles third-party cookies/storage exactly as it would
+    // for any other cross-site login redirect.
+    location.href = '/api/auth/sso/start?email=' + encodeURIComponent(email) +
+      '&next=' + encodeURIComponent('/team');
+  }
+
   (async function boot() {
     // Already signed in? Swap the auth forms for an "Open app" button.
     var signedIn = false;
@@ -107,6 +144,17 @@
       $('open-app').hidden = false;
       return;
     }
+    // An SSO round trip that failed bounces back here with ?sso_error=...
+    // rather than a JSON response, because /api/auth/sso/start and
+    // /callback are top-level navigations, not fetch calls (see
+    // ssoContinue()). Surface it in the same error slot a JS-driven
+    // attempt would have used.
+    var params = new URLSearchParams(location.search);
+    if (params.has('sso_error')) {
+      initSso();
+      $('sso-row').hidden = false;
+      setError($('sso-error'), params.get('sso_error'));
+    }
     // Google sign-in, only when the server has a client id configured.
     try {
       var r = await fetch('/api/config/public');
@@ -115,5 +163,15 @@
         if (cfg && cfg.googleClientId) initGoogle(cfg.googleClientId);
       }
     } catch (e) { /* no config → no Google button; forms still work */ }
+    // SSO, only when at least one team has it turned on somewhere on this
+    // server. Reveals nothing about which team or which domains — see
+    // GET /api/auth/sso/available's own comment.
+    try {
+      var r2 = await fetch('/api/auth/sso/available');
+      if (r2.ok) {
+        var d = await r2.json();
+        if (d && d.enabled) initSso();
+      }
+    } catch (e) { /* no SSO button; forms still work */ }
   })();
 })();

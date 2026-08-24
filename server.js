@@ -181,8 +181,10 @@ function initKbIfPossible() {
 // require treatment as lib/kb.js above.
 let teamsInitialised = false;
 let projectsInitialised = false;
+let ssoInitialised = false;
 initTeamsIfPossible();
 initProjectsIfPossible();
+initSsoIfPossible();
 
 /**
  * Load lib/teams.js (if present) and run initTeams(DATA_DIR) exactly once.
@@ -199,6 +201,27 @@ function initTeamsIfPossible() {
   } catch (e) {
     console.warn('hiccup: initTeams failed (' + (e && e.message) +
       ') — /api/team/* will answer 501 and every account behaves teamless');
+    return null;
+  }
+}
+
+/**
+ * Load lib/sso.js (if present) and run initSso(DATA_DIR) exactly once.
+ * lib/sso.js itself requires lib/teams.js, so this only matters when teams
+ * loaded successfully too -- same graceful-optional treatment.
+ * @returns {object|null} the sso module when it is usable, else null
+ */
+function initSsoIfPossible() {
+  const sso = optionalModule('./lib/sso');
+  if (!sso) return null;
+  if (ssoInitialised) return sso;
+  try {
+    if (typeof sso.initSso === 'function') sso.initSso(DATA_DIR);
+    ssoInitialised = true;
+    return sso;
+  } catch (e) {
+    console.warn('hiccup: initSso failed (' + (e && e.message) +
+      ') — /api/auth/sso/* and /api/team/sso will answer 501');
     return null;
   }
 }
@@ -677,6 +700,7 @@ const PUBLIC_PAGES = new Map([
   ['/', 'index.html'],
   ['/privacy', 'privacy.html'],
   ['/subscribe', 'subscribe.html'],
+  ['/sso-setup', 'sso-setup.html'],
   ['/sip', 'sip/index.html'],
   ['/sip/488-not-acceptable-here', 'sip/488-not-acceptable-here.html'],
   ['/sip/408-request-timeout', 'sip/408-request-timeout.html'],
@@ -1456,11 +1480,31 @@ const _loginByEmail = new Map();
 const _loginByIp = new Map();
 const _signupByIp = new Map();
 
+// SSO gets its own limiter set: /start and /callback are unauthenticated
+// browser navigations (the whole point of the flow), so they need the same
+// protection login/signup already have. /config and /test are owner-only
+// but still worth capping -- a compromised owner session should not be able
+// to hammer an arbitrary IdP's discovery endpoint through hiccup.
+const SSO_START_MAX_PER_IP = 10;
+const SSO_START_WINDOW_MS = 60 * 1000;
+const SSO_CALLBACK_MAX_PER_IP = 10;
+const SSO_CALLBACK_WINDOW_MS = 60 * 1000;
+const SSO_CONFIG_MAX_PER_IP = 10;
+const SSO_CONFIG_WINDOW_MS = 60 * 1000;
+const SSO_TEST_MAX_PER_IP = 6;
+const SSO_TEST_WINDOW_MS = 60 * 1000;
+const _ssoStartByIp = new Map();
+const _ssoCallbackByIp = new Map();
+const _ssoConfigByIp = new Map();
+const _ssoTestByIp = new Map();
+
 /** Prune the auth maps so a long-running process cannot grow them without bound. */
 function _sweepAuthLimiters() {
   const now = Date.now();
   for (const [map, win] of [[_loginByEmail, LOGIN_WINDOW_MS], [_loginByIp, LOGIN_WINDOW_MS],
-    [_signupByIp, SIGNUP_WINDOW_MS]]) {
+    [_signupByIp, SIGNUP_WINDOW_MS], [_ssoStartByIp, SSO_START_WINDOW_MS],
+    [_ssoCallbackByIp, SSO_CALLBACK_WINDOW_MS], [_ssoConfigByIp, SSO_CONFIG_WINDOW_MS],
+    [_ssoTestByIp, SSO_TEST_WINDOW_MS]]) {
     for (const [k, arr] of map) {
       const live = arr.filter((t) => t > now - win);
       if (live.length) map.set(k, live); else map.delete(k);
@@ -2335,6 +2379,282 @@ async function handleTeamCreate(req, res, user) {
     return;
   }
   sendJson(res, 200, { team });
+}
+
+// ── enterprise SSO (per-team, bring-your-own OIDC IdP) ───────────────────────
+// Six routes. Three are public browser navigations (available/start/callback
+// -- SSO has to work before the visitor has a session, that is the point).
+// Three are owner-only team configuration. One more, separately, is the
+// site-admin kill switch (near the other /api/admin/* routes).
+
+/** GET /api/auth/sso/available -> {enabled}. No domain/team info -- a
+ * prospective attacker learns only "does this server support SSO at all",
+ * never which companies use it. */
+function handleSsoAvailable(req, res) {
+  const sso = initSsoIfPossible();
+  sendJson(res, 200, { enabled: !!(sso && sso.isSsoGloballyEnabled()) });
+}
+
+/**
+ * GET /api/auth/sso/start?email=&next=
+ *
+ * Every failure here is a redirect back to the landing page with an error
+ * message in the query string, not a JSON error -- this is a top-level
+ * browser navigation (the button does `location.href =`, not `fetch`),
+ * exactly so the IdP round trip never has to touch fetch/CSP. See
+ * public/index-auth.js's ssoStart().
+ */
+async function handleSsoStart(req, res, query) {
+  const params = new URLSearchParams(query);
+  const bounce = (msg) => {
+    res.writeHead(302, { Location: '/?sso_error=' + encodeURIComponent(msg) });
+    res.end();
+  };
+  const ip = clientIp(req);
+  if (_slidingLimited(_ssoStartByIp, ip, SSO_START_MAX_PER_IP, SSO_START_WINDOW_MS, false)) {
+    return bounce('Too many sign-in attempts. Wait a minute and try again.');
+  }
+  const sso = initSsoIfPossible();
+  const teamsMod = initTeamsIfPossible();
+  if (!sso || !teamsMod || !sso.isSsoGloballyEnabled()) {
+    return bounce('Single sign-on is temporarily unavailable.');
+  }
+  const email = String(params.get('email') || '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return bounce('Enter a valid work email address.');
+  }
+  const oidc = require('./lib/oidc');
+  const domain = oidc.emailDomain(email);
+  const cfg = domain && teamsMod.findTeamSsoByDomain(domain);
+  // One generic message whether the domain has no team at all, or a
+  // disabled one -- distinguishing them would let anyone probe which
+  // companies have hiccup accounts.
+  if (!cfg) return bounce('Single sign-on is not configured for this email domain.');
+
+  const nextRaw = params.get('next') || '';
+  const next = oidc.SAFE_NEXT_RE.test(nextRaw) ? nextRaw : '/team';
+
+  let doc;
+  try {
+    doc = await sso.discover(cfg.issuer);
+  } catch (e) {
+    console.warn('hiccup: SSO discovery failed team=' + cfg.teamId + ' ' + (e && e.message));
+    return bounce("Your organisation's sign-in service is not responding. Contact your administrator.");
+  }
+  const { state, nonce, challenge } = sso.beginState({ teamId: cfg.teamId, next });
+  const redirectUri = ssoRedirectUri();
+  const authUrl = oidc.buildAuthUrl(doc.authorization_endpoint, {
+    clientId: cfg.clientId, redirectUri, state, nonce, challenge, loginHint: email,
+  });
+  res.writeHead(302, { Location: authUrl });
+  res.end();
+}
+
+/** The single, fixed redirect URI every team registers in their own IdP. */
+function ssoRedirectUri() {
+  return String(config.baseUrl || '').replace(/\/+$/, '') + '/api/auth/sso/callback';
+}
+
+/**
+ * GET /api/auth/sso/callback?code=&state=
+ *
+ * Mirrors handleSsoStart's bounce-on-failure convention -- see its comment.
+ */
+async function handleSsoCallback(req, res, query) {
+  const params = new URLSearchParams(query);
+  const bounce = (msg) => {
+    res.writeHead(302, { Location: '/?sso_error=' + encodeURIComponent(msg) });
+    res.end();
+  };
+  const ip = clientIp(req);
+  if (_slidingLimited(_ssoCallbackByIp, ip, SSO_CALLBACK_MAX_PER_IP, SSO_CALLBACK_WINDOW_MS, false)) {
+    return bounce('Too many sign-in attempts. Wait a minute and try again.');
+  }
+  const sso = initSsoIfPossible();
+  const teamsMod = initTeamsIfPossible();
+  if (!sso || !teamsMod || !sso.isSsoGloballyEnabled()) {
+    return bounce('Single sign-on is temporarily unavailable.');
+  }
+  if (params.get('error')) return bounce('Sign-in cancelled.');
+  const code = params.get('code');
+  const state = params.get('state');
+  // Consumed here, before anything else -- a replayed callback URL (the same
+  // code+state submitted twice) can never complete a second time.
+  const st = state && sso.consumeState(state);
+  if (!code || !st) return bounce('Sign-in session expired — please try again.');
+
+  const cfg = teamsMod.getTeamSso(st.teamId);
+  if (!cfg || cfg.enabled === false) {
+    return bounce('Single sign-on is not configured for this email domain.');
+  }
+  const oidc = require('./lib/oidc');
+  try {
+    const doc = await sso.discover(cfg.issuer);
+    const td = await sso.exchangeCode(doc, {
+      clientId: cfg.clientId, clientSecret: cfg.clientSecret,
+      code, redirectUri: ssoRedirectUri(), codeVerifier: st.pkceVerifier,
+    });
+    const claims = oidc.decodeJwtPayload(td.id_token);
+    const v = oidc.validateIdTokenClaims(claims, {
+      issuer: cfg.issuer, clientId: cfg.clientId, nonce: st.nonce, nowMs: Date.now(),
+    });
+    if (!v.ok) {
+      console.warn('hiccup: SSO claims validation failed team=' + st.teamId + ' ' + v.error);
+      return bounce('Sign-in token validation failed.');
+    }
+    let email = claims.email;
+    let emailVerified = claims.email_verified;
+    if (!email) {
+      const ui = await sso.fetchUserinfo(doc, td.access_token, claims.sub);
+      if (ui) { email = ui.email; emailVerified = ui.email_verified; }
+    }
+    if (!email) return bounce('Your identity provider did not supply an email address.');
+    if (emailVerified === false) return bounce('Your identity provider reports this email as unverified.');
+
+    const result = await sso.resolveSignIn(cfg, {
+      sub: claims.sub, iss: claims.iss, email, name: claims.name || claims.given_name || '',
+    });
+    if (result.error) {
+      console.warn('hiccup: SSO sign-in refused team=' + st.teamId + ' ' + result.error);
+      return bounce(result.error);
+    }
+    const sess = auth.createSession(result.user.id);
+    setSessionCookie(res, sess.token, sess.expiresAt);
+    res.writeHead(302, { Location: st.next || '/team' });
+    res.end();
+  } catch (e) {
+    // The IdP's own error text is deliberately never reflected to the
+    // browser here -- it can echo attacker-influenced strings. Log only.
+    console.warn('hiccup: SSO callback failed team=' + st.teamId + ' ' + (e && e.message));
+    return bounce((e && e.userMessage) || 'Sign-in failed.');
+  }
+}
+
+/**
+ * Owner-only, Team-tier-only guard shared by every /api/team/sso* route.
+ * Sends the appropriate error response itself on failure.
+ * @returns {{teams:object, sso:object, teamId:string, cfg:(object|null)}|null}
+ */
+function _requireSsoTeamOwner(req, res, user) {
+  const teamsMod = initTeamsIfPossible();
+  const sso = initSsoIfPossible();
+  if (!teamsMod || !sso) {
+    sendJson(res, 501, { error: 'the sso module is not deployed on this server yet' });
+    return null;
+  }
+  const teamId = teamsMod.getTeamIdFor(user.id);
+  if (!teamId) {
+    sendJson(res, 400, { error: 'Create a team first.' });
+    return null;
+  }
+  if (teamsMod.getAccountRole(user.id) !== 'owner') {
+    // Deliberately stricter than the usual owner-or-admin "canManage" bar:
+    // SSO changes who is even ABLE to sign in, which carries the same
+    // authority as transferring ownership itself.
+    sendJson(res, 403, { error: 'Only the team owner can manage single sign-on.' });
+    return null;
+  }
+  if (!teamsMod.teamHasPaidMember(teamId)) {
+    sendJson(res, 402, { error: 'Single sign-on needs the Team plan.' });
+    return null;
+  }
+  return { teams: teamsMod, sso, teamId, cfg: teamsMod.getTeamSso(teamId) };
+}
+
+/** A user-safe view of the SSO card's data — never the secret itself. */
+function _ssoCardPayload(ctx) {
+  const masked = ctx.cfg ? {
+    issuer: ctx.cfg.issuer, clientId: ctx.cfg.clientId, clientSecretSet: !!ctx.cfg.clientSecret,
+    domains: ctx.cfg.domains || [], enabled: ctx.cfg.enabled !== false, enforced: !!ctx.cfg.enforced,
+    updatedAt: ctx.cfg.updatedAt || null,
+  } : null;
+  return { config: masked, redirectUri: ssoRedirectUri(), ssoGloballyEnabled: ctx.sso.isSsoGloballyEnabled() };
+}
+
+/** GET /api/team/sso -> {config, redirectUri, ssoGloballyEnabled} */
+function handleTeamSsoGet(req, res, user) {
+  const ctx = _requireSsoTeamOwner(req, res, user);
+  if (!ctx) return;
+  sendJson(res, 200, _ssoCardPayload(ctx));
+}
+
+/** PUT /api/team/sso {issuer, clientId, clientSecret, domains, enabled?, enforced?} */
+async function handleTeamSsoPut(req, res, user) {
+  if (_slidingLimited(_ssoConfigByIp, clientIp(req), SSO_CONFIG_MAX_PER_IP, SSO_CONFIG_WINDOW_MS, false)) {
+    sendJson(res, 429, { error: 'Too many changes. Wait a minute and try again.' });
+    req.resume();
+    return;
+  }
+  let body;
+  try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
+  const ctx = _requireSsoTeamOwner(req, res, user);
+  if (!ctx) return;
+  let saved;
+  try {
+    saved = ctx.teams.setTeamSso(ctx.teamId, body, user.id);
+  } catch (e) {
+    sendJson(res, 400, { error: (e && e.userMessage) || 'could not save single sign-on settings' });
+    return;
+  }
+  console.log('hiccup: SSO config saved by ' + user.email + ' team=' + ctx.teamId +
+    ' domains=' + (saved.domains || []).join('+') + ' enforced=' + saved.enforced);
+  sendJson(res, 200, {
+    config: saved, redirectUri: ssoRedirectUri(), ssoGloballyEnabled: ctx.sso.isSsoGloballyEnabled(),
+  });
+}
+
+/** DELETE /api/team/sso */
+function handleTeamSsoDelete(req, res, user) {
+  const ctx = _requireSsoTeamOwner(req, res, user);
+  if (!ctx) return;
+  ctx.teams.deleteTeamSso(ctx.teamId);
+  console.log('hiccup: SSO config deleted by ' + user.email + ' team=' + ctx.teamId);
+  sendJson(res, 200, { ok: true });
+}
+
+/** POST /api/team/sso/test {issuer?} -> {ok, ...discovery} | {ok:false, error} */
+async function handleTeamSsoTest(req, res, user) {
+  if (_slidingLimited(_ssoTestByIp, clientIp(req), SSO_TEST_MAX_PER_IP, SSO_TEST_WINDOW_MS, false)) {
+    sendJson(res, 429, { error: 'Too many tests. Wait a minute and try again.' });
+    req.resume();
+    return;
+  }
+  let body;
+  try { body = await readJsonBody(req); } catch { body = {}; }
+  const ctx = _requireSsoTeamOwner(req, res, user);
+  if (!ctx) return;
+  const issuer = String((body && body.issuer) || (ctx.cfg && ctx.cfg.issuer) || '').trim();
+  if (!issuer) { sendJson(res, 200, { ok: false, error: 'No issuer configured yet.' }); return; }
+  try {
+    const doc = await ctx.sso.discover(issuer);
+    sendJson(res, 200, {
+      ok: true, issuer: doc.issuer, authorization_endpoint: doc.authorization_endpoint,
+      token_endpoint: doc.token_endpoint, userinfo_endpoint: doc.userinfo_endpoint,
+      tokenAuthMethod: (Array.isArray(doc.tokenAuthMethods) && doc.tokenAuthMethods.includes('client_secret_post'))
+        ? 'client_secret_post' : 'client_secret_basic',
+    });
+  } catch (e) {
+    // Always 200 with ok:false -- this endpoint exists so the admin UI can
+    // show a specific reason without treating "misconfigured" as a server error.
+    sendJson(res, 200, { ok: false, error: (e && e.userMessage) || 'Could not verify the issuer.' });
+  }
+}
+
+/** GET/POST /api/admin/sso-settings — the platform-wide kill switch. Site-admin only. */
+async function handleAdminSsoSettings(req, res) {
+  const user = requireSiteAdmin(req, res);
+  if (!user) { req.resume(); return; }
+  const sso = initSsoIfPossible();
+  if (!sso) { sendJson(res, 501, { error: 'the sso module is not deployed on this server yet' }); return; }
+  if (req.method === 'GET') {
+    sendJson(res, 200, { enabled: sso.isSsoGloballyEnabled() });
+    return;
+  }
+  let body;
+  try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
+  const s = sso.setSsoGloballyEnabled(body.enabled !== false, user.id);
+  console.log('hiccup: SSO ' + (s.enabled ? 'ENABLED' : 'DISABLED') + ' platform-wide by ' + user.email);
+  sendJson(res, 200, { enabled: s.enabled });
 }
 
 /** GET /api/team -> {team, members, pendingInvites, myRole, myCanManage} */
@@ -3346,7 +3666,20 @@ async function handleLogin(req, res) {
     sendJson(res, 401, { error: 'wrong email or password' });
     return;
   }
+  // Checked only AFTER the password verified -- so a wrong-password attempt
+  // against an SSO-enforced account still gets the ordinary "wrong email or
+  // password" above, not a tell that reveals SSO enforcement to someone who
+  // has not proven they own the account.
+  const ssoBlock = _ssoLoginBlockedFor(user);
+  if (ssoBlock) { sendJson(res, 403, { error: ssoBlock }); return; }
   respondSignedIn(res, user);
+}
+
+/** Shared by password and Google login: null to allow, or a refusal message. */
+function _ssoLoginBlockedFor(user) {
+  const sso = initSsoIfPossible();
+  if (!sso) return null;
+  try { return sso.ssoLoginBlocked(user.id, isSiteAdmin(user)); } catch { return null; }
 }
 
 /** POST /api/auth/google */
@@ -3381,6 +3714,11 @@ async function handleGoogleAuth(req, res) {
       }
     }
   }
+  // Same enforcement as password login -- see _ssoLoginBlockedFor's comment
+  // at the login route for why this only runs after Google's own token
+  // verification has already confirmed who this is.
+  const ssoBlock = _ssoLoginBlockedFor(user);
+  if (ssoBlock) { sendJson(res, 403, { error: ssoBlock }); return; }
   respondSignedIn(res, user);
 }
 
@@ -3515,6 +3853,19 @@ async function handle(req, res) {
     return handleStripeWebhook(req, res);
   }
 
+  // --- enterprise SSO --- three public routes (a signed-in-elsewhere visitor
+  // reaches these before hiccup has any session for them), then three
+  // owner-only config routes below with the rest of /api/team/*.
+  if (pathname === '/api/auth/sso/available' && method === 'GET') {
+    return handleSsoAvailable(req, res);
+  }
+  if (pathname === '/api/auth/sso/start' && method === 'GET') {
+    return handleSsoStart(req, res, query);
+  }
+  if (pathname === '/api/auth/sso/callback' && method === 'GET') {
+    return handleSsoCallback(req, res, query);
+  }
+
   if (pathname === '/api/team/accept' && method === 'POST') {
     return handleTeamAccept(req, res);
   }
@@ -3556,6 +3907,20 @@ async function handle(req, res) {
     const user = requireAuth(req, res);
     if (!user) { req.resume(); return; }
     return handleTeamClaim(req, res, user);
+  }
+  if (pathname === '/api/team/sso') {
+    const user = requireAuth(req, res);
+    if (!user) { req.resume(); return; }
+    if (method === 'GET') return handleTeamSsoGet(req, res, user);
+    if (method === 'PUT') return handleTeamSsoPut(req, res, user);
+    if (method === 'DELETE') return handleTeamSsoDelete(req, res, user);
+    sendJson(res, 404, { error: 'not found' });
+    return;
+  }
+  if (pathname === '/api/team/sso/test' && method === 'POST') {
+    const user = requireAuth(req, res);
+    if (!user) { req.resume(); return; }
+    return handleTeamSsoTest(req, res, user);
   }
   const teamMemberMatch = pathname.match(/^\/api\/team\/members\/([A-Za-z0-9_-]{1,64})$/);
   if (teamMemberMatch) {
@@ -3732,6 +4097,14 @@ async function handle(req, res) {
     const user = requireSiteAdmin(req, res);
     if (!user) { req.resume(); return; }
     return handleServerControl(req, res, user);
+  }
+
+  // The platform-wide SSO kill switch. Site-admin only -- requireSiteAdmin
+  // runs inside the handler itself, matching handleAdminSsoSettings's own
+  // shape (it needs the user object for both GET and POST, unlike the single
+  // guard-then-dispatch used elsewhere).
+  if (pathname === '/api/admin/sso-settings' && (method === 'GET' || method === 'POST')) {
+    return handleAdminSsoSettings(req, res);
   }
 
   if (pathname === '/api/admin/feedback' && method === 'GET') {

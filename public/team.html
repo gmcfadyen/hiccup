@@ -102,6 +102,18 @@
   .team-members-msg.err { color: var(--crit); }
 
   .team-empty { color: var(--muted); }
+
+  #team-sso-card form label { display: block; margin: 14px 0 4px; font-size: 13px; font-weight: 600; }
+  #team-sso-card form label:first-of-type { margin-top: 4px; }
+  .team-sso-checkbox {
+    display: flex !important; align-items: center; gap: 8px;
+    font-weight: 400 !important; cursor: pointer;
+  }
+  .team-sso-checkbox input { margin: 0; }
+  .team-sso-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .btn-danger { border-color: var(--crit); color: var(--crit); }
+  .btn-danger:hover { background: var(--crit); color: #fff; }
+
   .promo-card { margin-top: 28px; }
 </style>
 </head>
@@ -206,6 +218,62 @@
       <h2 data-i18n>Members</h2>
       <div id="team-members" class="team-table-wrap"></div>
       <p id="team-members-msg" class="team-members-msg" role="status" aria-live="polite"></p>
+    </section>
+
+    <!-- Owner-only. Also needs the Team plan specifically -- a 402 from
+         GET /api/team/sso renders the upsell state below instead of the form,
+         rather than duplicating plan-tier logic client-side. -->
+    <section id="team-sso-card" class="card team-card" hidden>
+      <h2 data-i18n>Single sign-on</h2>
+      <p data-i18n class="muted">Connect your company's identity provider (Microsoft Entra ID, Okta,
+        Google Workspace, or any OpenID Connect IdP). Members use "Continue with SSO" on the sign-in
+        page with their work email; colleagues on your claimed domains join automatically.
+        <a data-i18n href="/sso-setup" target="_blank">Setup guide →</a></p>
+
+      <div id="team-sso-upsell" hidden>
+        <p data-i18n class="muted">Single sign-on needs the Team plan.
+          <a data-i18n href="/subscribe">See plans →</a></p>
+      </div>
+
+      <p id="team-sso-off-notice" data-i18n class="muted" hidden>Single sign-on is temporarily disabled platform-wide by the operator.</p>
+
+      <form id="team-sso-form" hidden novalidate>
+        <label data-i18n for="team-sso-redirect">Redirect URI — paste into your IdP's app registration</label>
+        <div class="team-invite-copy-row">
+          <input id="team-sso-redirect" class="input mono" type="text" readonly>
+          <button data-i18n id="team-sso-copy-redirect" class="btn" type="button">Copy</button>
+        </div>
+
+        <label data-i18n for="team-sso-issuer">Issuer URL</label>
+        <input data-i18n-attrs="placeholder" id="team-sso-issuer" class="input" type="url" autocomplete="off"
+          placeholder="https://login.microsoftonline.com/<tenant-id>/v2.0">
+
+        <label data-i18n for="team-sso-client-id">Client ID</label>
+        <input id="team-sso-client-id" class="input" type="text" autocomplete="off">
+
+        <label data-i18n for="team-sso-client-secret">Client secret</label>
+        <input data-i18n-attrs="placeholder" id="team-sso-client-secret" class="input" type="password"
+          autocomplete="new-password" placeholder="Client secret">
+
+        <label data-i18n for="team-sso-domains">Email domains (comma-separated)</label>
+        <input data-i18n-attrs="placeholder" id="team-sso-domains" class="input" type="text" autocomplete="off"
+          placeholder="acme.com, acme.co.uk">
+
+        <label class="team-sso-checkbox"><input type="checkbox" id="team-sso-enabled" checked>
+          <span data-i18n>Single sign-on enabled</span></label>
+        <label data-i18n-attrs="title" class="team-sso-checkbox" title="Members must sign in through your identity provider. You, the owner, always keep password access as a fallback.">
+          <input type="checkbox" id="team-sso-enforced">
+          <span data-i18n>Require SSO for members (you keep password access)</span></label>
+
+        <p id="team-sso-error" class="form-error" role="alert"></p>
+        <p id="team-sso-msg" class="team-copy-msg" role="status" aria-live="polite"></p>
+
+        <div class="team-sso-actions">
+          <button data-i18n class="btn btn-primary" type="submit" id="team-sso-save-btn">Save SSO settings</button>
+          <button data-i18n class="btn" type="button" id="team-sso-test-btn">Test connection</button>
+          <button data-i18n class="btn btn-danger" type="button" id="team-sso-remove-btn" hidden>Remove</button>
+        </div>
+      </form>
     </section>
 
     <!-- Ownership handover and leaving. The transfer API has existed since

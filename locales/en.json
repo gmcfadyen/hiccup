@@ -39,7 +39,7 @@
     "cat": "html",
     "where": [
       "public/accept-invite.html:73",
-      "public/team.html:145"
+      "public/team.html:157"
     ]
   },
   "6409fab9e8bec6cb": {
@@ -112,7 +112,7 @@
       "public/admin-status.html:134",
       "public/app.html:110",
       "public/hmr.html:183",
-      "public/index.html:376",
+      "public/index.html:381",
       "public/kb.html:161"
     ]
   },
@@ -176,7 +176,7 @@
       "public/app.html:111",
       "public/hmr.html:184",
       "public/kb.html:162",
-      "public/team.html:122"
+      "public/team.html:134"
     ]
   },
   "fbe431bed6ae75a3": {
@@ -205,7 +205,7 @@
     "cat": "html",
     "where": [
       "public/admin-status.html:140",
-      "public/team.js:569"
+      "public/team.js:581"
     ]
   },
   "586d6bd2eca2da93": {
@@ -244,7 +244,7 @@
       "public/hmr.html:179",
       "public/kb.html:157",
       "public/settings.html:75",
-      "public/team.html:117"
+      "public/team.html:129"
     ]
   },
   "bdf783d621a56d89": {
@@ -282,7 +282,7 @@
       "public/app.html:111",
       "public/hmr.html:184",
       "public/kb.html:162",
-      "public/team.html:122",
+      "public/team.html:134",
       "public/feedback.js:294"
     ]
   },
@@ -293,7 +293,7 @@
       "public/app.html:114",
       "public/hmr.html:187",
       "public/kb.html:165",
-      "public/team.html:125",
+      "public/team.html:137",
       "public/app.js:4890"
     ]
   },
@@ -445,8 +445,8 @@
       "public/app.html:172",
       "public/hmr.html:248",
       "public/hmr.html:249",
-      "public/index.html:557",
-      "public/index.html:558"
+      "public/index.html:573",
+      "public/index.html:574"
     ]
   },
   "c8444bcade4335ca": {
@@ -455,10 +455,10 @@
     "where": [
       "public/app.html:174",
       "public/hmr.html:251",
-      "public/index.html:560",
+      "public/index.html:576",
       "public/kb.html:234",
-      "public/subscribe.html:328",
-      "public/team.html:243"
+      "public/subscribe.html:331",
+      "public/team.html:311"
     ]
   },
   "cb5f17fdfee392d7": {
@@ -1142,7 +1142,7 @@
     "text": "see where the call went wrong",
     "cat": "html",
     "where": [
-      "public/index.html:386",
+      "public/index.html:391",
       "public/app.js:2400"
     ]
   },
@@ -1150,207 +1150,207 @@
     "text": "a big friendly monster lives at hiccup.monster — its whole job is fixing yours.",
     "cat": "html",
     "where": [
-      "public/index.html:387"
+      "public/index.html:392"
     ]
   },
   "b897c33a90df5f73": {
     "text": "a self-hosted SIP, H.323 and Diameter trace analyser for the SBC-curious. upload a pcap or paste an SBC log — get the ladder, the deltas, and a ranked, automatic diagnosis instead of two 200-line INVITEs to eyeball. nothing leaves this box.",
     "cat": "html",
     "where": [
-      "public/index.html:388"
+      "public/index.html:393"
     ]
   },
   "bc7871b7c9c8cba3": {
     "text": "free for individual users",
     "cat": "html",
     "where": [
-      "public/index.html:392"
+      "public/index.html:397"
     ]
   },
   "1468a82f94607d69": {
     "text": "every analysis feature, no card, no time limit. paid plans exist only for teams who want a shared library and roles.",
     "cat": "html",
     "where": [
-      "public/index.html:393"
+      "public/index.html:398"
     ]
   },
   "be45a3a6ee3c626a": {
     "text": "features",
     "cat": "html",
     "where": [
-      "public/index.html:399"
+      "public/index.html:404"
     ]
   },
   "204ac44286ceac03": {
     "text": "automatic fault detection",
     "cat": "html",
     "where": [
-      "public/index.html:401"
+      "public/index.html:406"
     ]
   },
   "a5cebf748ef4cac5": {
     "text": "every capture runs through a rule engine that surfaces what is actually wrong, ranked by severity — each finding cited to an RFC section instead of a hunch.",
     "cat": "html",
     "where": [
-      "public/index.html:402"
+      "public/index.html:407"
     ]
   },
   "07e26b41c2b19f55": {
     "text": "multi-protocol correlation",
     "cat": "html",
     "where": [
-      "public/index.html:407"
+      "public/index.html:412"
     ]
   },
   "5fd31e21a4e4a24c": {
     "text": "decodes H.323 (Q.931/H.225) and Diameter (Rx/Gx/Cx/Sh) alongside SIP, stitching IWF calls and IMS charging events into one flow with a confidence score — and an honest AMBIGUOUS state instead of a silent wrong guess.",
     "cat": "html",
     "where": [
-      "public/index.html:408"
+      "public/index.html:413"
     ]
   },
   "7735e9b639e73075": {
     "text": "header-rule explainer",
     "cat": "html",
     "where": [
-      "public/index.html:413"
+      "public/index.html:418"
     ]
   },
   "42073c95556cbcfd": {
     "text": "paste your SBC's manipulation rules — Oracle/Acme, AudioCodes, Ribbon — and get the plain-English intent, a correctness check against the protocol, and which rule explains what the capture actually shows.",
     "cat": "html",
     "where": [
-      "public/index.html:414"
+      "public/index.html:419"
     ]
   },
   "eb4ef92d3b1847b6": {
     "text": "describe it, get the config",
     "cat": "html",
     "where": [
-      "public/index.html:419"
+      "public/index.html:424"
     ]
   },
   "8b3a378284acab1c": {
     "text": "describe the change in plain English — “strip P-Asserted-Identity on requests to the carrier” — and get a draft rule in Oracle/Acme, AudioCodes or Ribbon syntax, with hiccup's reading of it shown beside it. ambiguous wording gets a question, never a confident guess.",
     "cat": "html",
     "where": [
-      "public/index.html:420"
+      "public/index.html:425"
     ]
   },
   "0b7eb914fea41e75": {
     "text": "your own config guides",
     "cat": "html",
     "where": [
-      "public/index.html:426"
+      "public/index.html:431"
     ]
   },
   "1d12b107d71afd53": {
     "text": "upload the vendor guide for your box — AudioCodes, Ribbon, Oracle/Acme SBC docs, release notes, PDFs — and hiccup grounds its advice in the exact passage, cited back to you.",
     "cat": "html",
     "where": [
-      "public/index.html:427"
+      "public/index.html:432"
     ]
   },
   "a183f4359a1bb370": {
     "text": "how it works",
     "cat": "html",
     "where": [
-      "public/index.html:433",
-      "public/index.html:434"
+      "public/index.html:438",
+      "public/index.html:439"
     ]
   },
   "5225bd77a61f971c": {
     "text": "upload",
     "cat": "html",
     "where": [
-      "public/index.html:438"
+      "public/index.html:443"
     ]
   },
   "0d132f8f1fade63d": {
     "text": "a pcap or pcapng, a pasted SBC text log, a header-manipulation rule set, or a vendor config guide.",
     "cat": "html",
     "where": [
-      "public/index.html:439"
+      "public/index.html:444"
     ]
   },
   "3af6a7a476ec0859": {
     "text": "get a diagnosis",
     "cat": "html",
     "where": [
-      "public/index.html:444"
+      "public/index.html:449"
     ]
   },
   "dfe6b6f7d4a1d27f": {
     "text": "a ladder diagram, a two-leg diff, and a ranked list of findings — each one cited to an RFC section or to your own documentation.",
     "cat": "html",
     "where": [
-      "public/index.html:445"
+      "public/index.html:450"
     ]
   },
   "68edf4408f47230f": {
     "text": "fix it, or hand it off",
     "cat": "html",
     "where": [
-      "public/index.html:450"
+      "public/index.html:455"
     ]
   },
   "1a7299f9d5d14774": {
     "text": "fix it yourself, or bring the diagnosis to your team — a shared library and roles are one plan away.",
     "cat": "html",
     "where": [
-      "public/index.html:451"
+      "public/index.html:456"
     ]
   },
   "80acb9f47238932e": {
     "text": "get started",
     "cat": "html",
     "where": [
-      "public/index.html:460"
+      "public/index.html:465"
     ]
   },
   "01e544babcc5402c": {
     "text": "free for individuals",
     "cat": "html",
     "where": [
-      "public/index.html:461"
+      "public/index.html:466"
     ]
   },
   "7749728bbcc6de13": {
     "text": "create an account",
     "cat": "html",
     "where": [
-      "public/index.html:466"
+      "public/index.html:471"
     ]
   },
   "123467b419acbc07": {
     "text": "email",
     "cat": "html",
     "where": [
-      "public/index.html:467",
-      "public/index.html:480"
+      "public/index.html:472",
+      "public/index.html:485"
     ]
   },
   "24ea3f43230aae41": {
     "text": "you@example.com",
     "cat": "html",
     "where": [
-      "public/index.html:468",
-      "public/index.html:481"
+      "public/index.html:473",
+      "public/index.html:486"
     ]
   },
   "4b1a493507b3a318": {
     "text": "password",
     "cat": "html",
     "where": [
-      "public/index.html:470",
-      "public/index.html:483"
+      "public/index.html:475",
+      "public/index.html:488"
     ]
   },
   "c83cb3057ed6fbbb": {
     "text": "at least 8 characters",
     "cat": "html",
     "where": [
-      "public/index.html:471",
+      "public/index.html:476",
       "public/accept-invite.js:241"
     ]
   },
@@ -1358,22 +1358,22 @@
     "text": "sign up",
     "cat": "html",
     "where": [
-      "public/index.html:475"
+      "public/index.html:480"
     ]
   },
   "3c09a8ce5e850b03": {
     "text": "sign in",
     "cat": "html",
     "where": [
-      "public/index.html:479",
-      "public/index.html:487"
+      "public/index.html:484",
+      "public/index.html:492"
     ]
   },
   "a7d87b64dc113843": {
     "text": "your password",
     "cat": "html",
     "where": [
-      "public/index.html:484",
+      "public/index.html:489",
       "public/accept-invite.js:196"
     ]
   },
@@ -1381,77 +1381,99 @@
     "text": "or",
     "cat": "html",
     "where": [
-      "public/index.html:492"
+      "public/index.html:497",
+      "public/index.html:503"
+    ]
+  },
+  "ab8893bee8c2f0cf": {
+    "text": "Continue with SSO",
+    "cat": "html",
+    "where": [
+      "public/index.html:504"
+    ]
+  },
+  "ea8263e174b97164": {
+    "text": "you@company.com",
+    "cat": "html",
+    "where": [
+      "public/index.html:506"
+    ]
+  },
+  "3904c8d794b49571": {
+    "text": "Continue with your company sign-in →",
+    "cat": "html",
+    "where": [
+      "public/index.html:508"
     ]
   },
   "af3b5fce2fbc7c63": {
     "text": "you're already signed in.",
     "cat": "html",
     "where": [
-      "public/index.html:499"
+      "public/index.html:515"
     ]
   },
   "b7e7c1321e842c0e": {
     "text": "Open app",
     "cat": "html",
     "where": [
-      "public/index.html:500"
+      "public/index.html:516"
     ]
   },
   "af00a32f7b00fccf": {
     "text": "for teams and enterprises",
     "cat": "html",
     "where": [
-      "public/index.html:506"
+      "public/index.html:522"
     ]
   },
   "e236046ea3d89b2b": {
     "text": "running an SBC estate with more than one engineer on call? a Team account turns hiccup into a shared workbench instead of everyone forwarding pcaps around.",
     "cat": "html",
     "where": [
-      "public/index.html:507"
+      "public/index.html:523"
     ]
   },
   "908dfcfe8a57f457": {
     "text": "a shared capture library — everyone sees the same uploads and the same diagnosis",
     "cat": "html",
     "where": [
-      "public/index.html:511"
+      "public/index.html:527"
     ]
   },
   "3ff5fc885b0df004": {
     "text": "owner and admin roles — invite, promote, suspend or remove teammates",
     "cat": "html",
     "where": [
-      "public/index.html:513"
+      "public/index.html:529"
     ]
   },
   "a21179b532225ed2": {
     "text": "captures up to 250 MB and priority in the queue, for every member",
     "cat": "html",
     "where": [
-      "public/index.html:515"
+      "public/index.html:531"
     ]
   },
   "d653f688b8925eb1": {
     "text": "everything on the free plan stays free — paying buys scale and teamwork, never a feature paywall on the analyser",
     "cat": "html",
     "where": [
-      "public/index.html:517"
+      "public/index.html:533"
     ]
   },
   "acfce08efc600cf3": {
     "text": "launch price",
     "cat": "html",
     "where": [
-      "public/index.html:522"
+      "public/index.html:538"
     ]
   },
   "6c6559110431703c": {
     "text": "/ month",
     "cat": "html",
     "where": [
-      "public/index.html:523",
+      "public/index.html:539",
       "public/subscribe.html:222",
       "public/subscribe.html:241"
     ]
@@ -1460,107 +1482,108 @@
     "text": "for the whole team, not per seat — or €200 / year. Working solo? Pro is €10 / month.",
     "cat": "html",
     "where": [
-      "public/index.html:524"
+      "public/index.html:540"
     ]
   },
   "302851c586974df6": {
     "text": "See plans →",
     "cat": "html",
     "where": [
-      "public/index.html:526",
-      "public/team.html:163"
+      "public/index.html:542",
+      "public/team.html:175",
+      "public/team.html:235"
     ]
   },
   "c14eb09dbd62d084": {
     "text": "SIP failure reference",
     "cat": "html",
     "where": [
-      "public/index.html:530",
-      "public/index.html:531"
+      "public/index.html:546",
+      "public/index.html:547"
     ]
   },
   "72b75f6e2765d68f": {
     "text": "no account needed — short pages on the failures that send people looking for a trace in the first place. what the thing you are staring at means, and what to check.",
     "cat": "html",
     "where": [
-      "public/index.html:532"
+      "public/index.html:548"
     ]
   },
   "2c0e10c6af0f76b9": {
     "text": "— codec, payload-type or SRTP mismatch in the SDP",
     "cat": "html",
     "where": [
-      "public/index.html:536"
+      "public/index.html:552"
     ]
   },
   "8cffbb465c1c6a9f": {
     "text": "— the trunk refused it: carrier congestion, a CPS cap, or a dead gateway",
     "cat": "html",
     "where": [
-      "public/index.html:538"
+      "public/index.html:554"
     ]
   },
   "380bb8a70db3f109": {
     "text": "— the full mapping table, for when the PSTN is hiding behind a SIP code",
     "cat": "html",
     "where": [
-      "public/index.html:540"
+      "public/index.html:556"
     ]
   },
   "abcf3d1b765ed7a3": {
     "text": "one-way audio",
     "cat": "html",
     "where": [
-      "public/index.html:541"
+      "public/index.html:557"
     ]
   },
   "be2a6b4e618b3c14": {
     "text": "— the signalling worked and the RTP went somewhere else",
     "cat": "html",
     "where": [
-      "public/index.html:542"
+      "public/index.html:558"
     ]
   },
   "662c8219d6a2150e": {
     "text": "retransmissions and storms",
     "cat": "html",
     "where": [
-      "public/index.html:543"
+      "public/index.html:559"
     ]
   },
   "58e1d5db27a987a9": {
     "text": "— reading the ladder, and why 200 OK retransmits matter most",
     "cat": "html",
     "where": [
-      "public/index.html:544"
+      "public/index.html:560"
     ]
   },
   "ee2074488cbb8817": {
     "text": "all reference pages →",
     "cat": "html",
     "where": [
-      "public/index.html:546"
+      "public/index.html:562"
     ]
   },
   "fa63191b3d7d6f2c": {
     "text": "protocol guides: IMS, Diameter, SS7, lawful intercept →",
     "cat": "html",
     "where": [
-      "public/index.html:547"
+      "public/index.html:563"
     ]
   },
   "c56e382dd98062e7": {
     "text": "privacy",
     "cat": "html",
     "where": [
-      "public/index.html:554"
+      "public/index.html:570"
     ]
   },
   "d486e88b5301428b": {
     "text": "self-hosted · your traces never leave this box",
     "cat": "html",
     "where": [
-      "public/index.html:556"
+      "public/index.html:572"
     ]
   },
   "5a29a54158399ac4": {
@@ -1686,7 +1709,8 @@
     "text": "SIP reference",
     "cat": "html",
     "where": [
-      "public/privacy.html:29"
+      "public/privacy.html:29",
+      "public/sso-setup.html:36"
     ]
   },
   "eb881f610517141d": {
@@ -1936,6 +1960,13 @@
       "public/settings.html:184"
     ]
   },
+  "bde3eb3f3d10fffa": {
+    "text": "protocol guides",
+    "cat": "html",
+    "where": [
+      "public/sso-setup.html:35"
+    ]
+  },
   "28779391b9f1c599": {
     "text": "hiccup — pricing",
     "cat": "html",
@@ -2146,7 +2177,7 @@
     "cat": "html",
     "where": [
       "public/subscribe.html:239",
-      "public/team.html:131"
+      "public/team.html:143"
     ]
   },
   "ecd538cf902f5ab3": {
@@ -2202,154 +2233,154 @@
     "text": "Get Team →",
     "cat": "html",
     "where": [
-      "public/subscribe.html:253"
+      "public/subscribe.html:256"
     ]
   },
   "43f8157d090a9820": {
     "text": "How this works, for now",
     "cat": "html",
     "where": [
-      "public/subscribe.html:262"
+      "public/subscribe.html:265"
     ]
   },
   "22a803812ddc28ed": {
     "text": "hiccup is a solo-built, self-hosted tool — there is no payment processor wired into the app yet, so upgrading is a short manual step rather than an instant checkout.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:263"
+      "public/subscribe.html:266"
     ]
   },
   "3373c93116973142": {
     "text": "Click a plan above — it opens hiccup's Buy Me a Coffee page.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:267"
+      "public/subscribe.html:270"
     ]
   },
   "135eb6e9de10fbb4": {
     "text": "Enter the monthly amount and tick “Make this monthly”, or the yearly amount as a one-time payment.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:268"
+      "public/subscribe.html:271"
     ]
   },
   "b745e50fdfbd6137": {
     "text": "In the message field, include the email address your hiccup account uses — that is how your payment gets matched to your account.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:270"
+      "public/subscribe.html:273"
     ]
   },
   "62534b90cb936f84": {
     "text": "Your account is upgraded by hand, usually within a day. No need to wait around — you will be able to create or join a team as soon as it is done.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:272"
+      "public/subscribe.html:275"
     ]
   },
   "47158c05bd31ba99": {
     "text": "How this works",
     "cat": "html",
     "where": [
-      "public/subscribe.html:278"
+      "public/subscribe.html:281"
     ]
   },
   "c947cf524c7703a8": {
     "text": "Payment is handled by Stripe on their own checkout page — your card details never reach hiccup. Your account switches over as soon as Stripe confirms the payment, usually instantly.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:279"
+      "public/subscribe.html:282"
     ]
   },
   "fd418bdc121da438": {
     "text": "Cancel any time from the billing portal link Stripe emails you with your receipt.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:282"
+      "public/subscribe.html:285"
     ]
   },
   "1fa04bb12212f00f": {
     "text": "Questions people actually ask",
     "cat": "html",
     "where": [
-      "public/subscribe.html:287"
+      "public/subscribe.html:290"
     ]
   },
   "93ed02e66cf32695": {
     "text": "Is the free plan a trial?",
     "cat": "html",
     "where": [
-      "public/subscribe.html:289"
+      "public/subscribe.html:292"
     ]
   },
   "4dfe96fede78ca42": {
     "text": "No. It does not expire and it is not crippled. Every diagnostic feature — the ladder, the timeline, the verdicts, the HMR writer — works the same on a free account as on a paid one. What you are buying above is scale and teamwork.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:290"
+      "public/subscribe.html:293"
     ]
   },
   "d4255c082a16ec59": {
     "text": "What is the difference between Pro and Team?",
     "cat": "html",
     "where": [
-      "public/subscribe.html:294"
+      "public/subscribe.html:297"
     ]
   },
   "69f5c785ceedea4b": {
     "text": "Pro is for one person: bigger captures and priority when the server is busy. Team is that for everybody, plus a shared library so the whole group works from one copy of the trace instead of forwarding pcaps around.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:295"
+      "public/subscribe.html:298"
     ]
   },
   "f8e89e3a7e3c6193": {
     "text": "Does the price go up on me later?",
     "cat": "html",
     "where": [
-      "public/subscribe.html:299"
+      "public/subscribe.html:302"
     ]
   },
   "cc66da4290c58490": {
     "text": "No. These are introductory rates and they will rise for new subscribers, but your own price is fixed at whatever you signed up on, for as long as you stay subscribed.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:300"
+      "public/subscribe.html:303"
     ]
   },
   "f3d197ba99e853d9": {
     "text": "Can I cancel?",
     "cat": "html",
     "where": [
-      "public/subscribe.html:304"
+      "public/subscribe.html:307"
     ]
   },
   "78befdd5514c5732": {
     "text": "Any time, from the billing portal link on your Stripe receipt. You keep the paid features until the end of the period you have already paid for, and your captures stay where they are — nothing is deleted for downgrading.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:305"
+      "public/subscribe.html:308"
     ]
   },
   "e186be61d8be776b": {
     "text": "Do my traces get used to train anything?",
     "cat": "html",
     "where": [
-      "public/subscribe.html:309"
+      "public/subscribe.html:312"
     ]
   },
   "9beda55b6d9d5065": {
     "text": "No. Analysis runs on a self-hosted model on hiccup's own hardware in the EU. Nothing you upload leaves the box, and nothing is sold or used as training data.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:310"
+      "public/subscribe.html:313"
     ]
   },
   "54a6c56b18ff7889": {
     "text": "A payment didn't go through, or your receipt looks wrong — what now?",
     "cat": "html",
     "where": [
-      "public/subscribe.html:313"
+      "public/subscribe.html:316"
     ]
   },
   "20d2719255c74e18": {
@@ -2363,183 +2394,311 @@
     "text": "A team shares every capture and guide with all of its members equally — there is no per-project permission to configure. Invite a colleague and you will both see the same library.",
     "cat": "html",
     "where": [
-      "public/team.html:132"
+      "public/team.html:144"
     ]
   },
   "238faafc43142fb1": {
     "text": "Loading your team…",
     "cat": "html",
     "where": [
-      "public/team.html:140"
+      "public/team.html:152"
     ]
   },
   "9f5c475fc7d6614d": {
     "text": "Create your team",
     "cat": "html",
     "where": [
-      "public/team.html:150"
+      "public/team.html:162"
     ]
   },
   "8c359b69c2dfb726": {
     "text": "Create a team and every capture and guide already in your library becomes shared with whoever you invite — nothing to migrate, nothing to configure per file.",
     "cat": "html",
     "where": [
-      "public/team.html:151"
+      "public/team.html:163"
     ]
   },
   "4e6bac96fe4475bf": {
     "text": "Team name",
     "cat": "html",
     "where": [
-      "public/team.html:156"
+      "public/team.html:168"
     ]
   },
   "3a4272d5c2aff670": {
     "text": "e.g. Acme NetOps",
     "cat": "html",
     "where": [
-      "public/team.html:157"
+      "public/team.html:169"
     ]
   },
   "ccdc445505b97876": {
     "text": "Create team",
     "cat": "html",
     "where": [
-      "public/team.html:160",
-      "public/team.js:187",
-      "public/team.js:192"
+      "public/team.html:172",
+      "public/team.js:195",
+      "public/team.js:200"
     ]
   },
   "abcb7358664e843a": {
     "text": "Creating a team needs a Team account — the Pro plan is for working solo.",
     "cat": "html",
     "where": [
-      "public/team.html:162"
+      "public/team.html:174"
     ]
   },
   "3a85be90c011b81a": {
     "text": "This team has no active owner",
     "cat": "html",
     "where": [
-      "public/team.html:175"
+      "public/team.html:187"
     ]
   },
   "71e6300a835a6d55": {
     "text": "Take ownership of this team",
     "cat": "html",
     "where": [
-      "public/team.html:178"
+      "public/team.html:190"
     ]
   },
   "edfd3b1ef4c879e8": {
     "text": "Invite a colleague",
     "cat": "html",
     "where": [
-      "public/team.html:182"
+      "public/team.html:194"
     ]
   },
   "4c228342c58c38d6": {
     "text": "hiccup does not send email — you copy the link and share it yourself.",
     "cat": "html",
     "where": [
-      "public/team.html:183"
+      "public/team.html:195"
     ]
   },
   "d1f44f1a8bc20e67": {
     "text": "Email",
     "cat": "html",
     "where": [
-      "public/team.html:185",
-      "public/team.js:569"
+      "public/team.html:197",
+      "public/team.js:581"
     ]
   },
   "1bf586d4e16bfb89": {
     "text": "colleague@example.com",
     "cat": "html",
     "where": [
-      "public/team.html:186"
+      "public/team.html:198"
     ]
   },
   "f4f6ec349795904e": {
     "text": "Create invite link",
     "cat": "html",
     "where": [
-      "public/team.html:189",
-      "public/team.js:412",
-      "public/team.js:417"
+      "public/team.html:201",
+      "public/team.js:424",
+      "public/team.js:429"
     ]
   },
   "3fbbdd951b460b4f": {
     "text": "Invite link for",
     "cat": "html",
     "where": [
-      "public/team.html:193"
+      "public/team.html:205"
     ]
   },
   "3687049d1af562c4": {
     "text": "Copy",
     "cat": "html",
     "where": [
-      "public/team.html:196",
+      "public/team.html:208",
+      "public/team.html:244",
       "public/hmr.js:872",
       "public/hmr.js:881",
-      "public/team.js:473"
+      "public/team.js:485"
     ]
   },
   "3bc8830b974426c7": {
     "text": "No email is sent — copy this link and send it to your colleague yourself.",
     "cat": "html",
     "where": [
-      "public/team.html:198"
+      "public/team.html:210"
     ]
   },
   "9f5a5f23312798f0": {
     "text": "Members",
     "cat": "html",
     "where": [
-      "public/team.html:206"
+      "public/team.html:218"
+    ]
+  },
+  "d83c09031a298b6c": {
+    "text": "Single sign-on",
+    "cat": "html",
+    "where": [
+      "public/team.html:227"
+    ]
+  },
+  "92d550d341585e09": {
+    "text": "Connect your company's identity provider (Microsoft Entra ID, Okta, Google Workspace, or any OpenID Connect IdP). Members use \"Continue with SSO\" on the sign-in page with their work email; colleagues on your claimed domains join automatically.",
+    "cat": "html",
+    "where": [
+      "public/team.html:228"
+    ]
+  },
+  "5d9739ed6eb74c94": {
+    "text": "Setup guide →",
+    "cat": "html",
+    "where": [
+      "public/team.html:231"
+    ]
+  },
+  "67fa87ad7956c1f8": {
+    "text": "Single sign-on needs the Team plan.",
+    "cat": "html",
+    "where": [
+      "public/team.html:234",
+      "server.js:2558"
+    ]
+  },
+  "7616d7621ffd4767": {
+    "text": "Single sign-on is temporarily disabled platform-wide by the operator.",
+    "cat": "html",
+    "where": [
+      "public/team.html:238"
+    ]
+  },
+  "68a3ec9439b479de": {
+    "text": "Redirect URI — paste into your IdP's app registration",
+    "cat": "html",
+    "where": [
+      "public/team.html:241"
+    ]
+  },
+  "374644612690fd4b": {
+    "text": "Issuer URL",
+    "cat": "html",
+    "where": [
+      "public/team.html:247"
+    ]
+  },
+  "4d00e5de1c8213b7": {
+    "text": "Client ID",
+    "cat": "html",
+    "where": [
+      "public/team.html:251"
+    ]
+  },
+  "c8746c934398646a": {
+    "text": "Client secret",
+    "cat": "html",
+    "where": [
+      "public/team.html:254",
+      "public/team.html:255",
+      "public/team.js:728",
+      "public/team.js:734"
+    ]
+  },
+  "92d9320c13536f7e": {
+    "text": "Email domains (comma-separated)",
+    "cat": "html",
+    "where": [
+      "public/team.html:258"
+    ]
+  },
+  "de465f23004b5dac": {
+    "text": "acme.com, acme.co.uk",
+    "cat": "html",
+    "where": [
+      "public/team.html:259"
+    ]
+  },
+  "96fce300d8996465": {
+    "text": "Single sign-on enabled",
+    "cat": "html",
+    "where": [
+      "public/team.html:263"
+    ]
+  },
+  "d9e134e1c33a4939": {
+    "text": "Members must sign in through your identity provider. You, the owner, always keep password access as a fallback.",
+    "cat": "html",
+    "where": [
+      "public/team.html:264"
+    ]
+  },
+  "e2d49bc3cc3e537d": {
+    "text": "Require SSO for members (you keep password access)",
+    "cat": "html",
+    "where": [
+      "public/team.html:266"
+    ]
+  },
+  "2834f4f3b0f0ba7c": {
+    "text": "Save SSO settings",
+    "cat": "html",
+    "where": [
+      "public/team.html:272",
+      "public/team.js:794",
+      "public/team.js:799"
+    ]
+  },
+  "cd292a7dac55e777": {
+    "text": "Test connection",
+    "cat": "html",
+    "where": [
+      "public/team.html:273"
+    ]
+  },
+  "ea4f08110bb8f15d": {
+    "text": "Remove",
+    "cat": "html",
+    "where": [
+      "public/team.html:274",
+      "public/team.js:642",
+      "public/team.js:869"
     ]
   },
   "4a6b60c560092f6e": {
     "text": "Leaving this team",
     "cat": "html",
     "where": [
-      "public/team.html:216"
+      "public/team.html:284"
     ]
   },
   "528cf0029897392b": {
     "text": "You own this team. To leave it, or to delete your account, hand ownership to another member first — the team keeps every capture and guide, and you stay on as an admin.",
     "cat": "html",
     "where": [
-      "public/team.html:219"
+      "public/team.html:287"
     ]
   },
   "c18e7750364b1976": {
     "text": "New owner",
     "cat": "html",
     "where": [
-      "public/team.html:223"
+      "public/team.html:291"
     ]
   },
   "3df0bc21c11764a7": {
     "text": "Transfer ownership",
     "cat": "html",
     "where": [
-      "public/team.html:226"
+      "public/team.html:294"
     ]
   },
   "476efaa8f5584146": {
     "text": "You keep your account. The team's shared captures and guides stay with the team.",
     "cat": "html",
     "where": [
-      "public/team.html:231"
+      "public/team.html:299"
     ]
   },
   "8a61911c187e89ad": {
     "text": "Leave this team",
     "cat": "html",
     "where": [
-      "public/team.html:234"
+      "public/team.html:302"
     ]
   },
   "ad65264d44677cf0": {
@@ -2547,7 +2706,7 @@
     "cat": "js",
     "where": [
       "public/accept-invite.js:72",
-      "public/team.js:137"
+      "public/team.js:145"
     ]
   },
   "7c386a66376e3268": {
@@ -2982,8 +3141,8 @@
     "cat": "js",
     "where": [
       "public/app.js:883",
-      "public/team.js:175",
-      "public/team.js:400"
+      "public/team.js:183",
+      "public/team.js:412"
     ]
   },
   "ca3a1b6fa9671d70": {
@@ -3016,7 +3175,8 @@
     "text": "Saving…",
     "cat": "js",
     "where": [
-      "public/app.js:917"
+      "public/app.js:917",
+      "public/team.js:782"
     ]
   },
   "b26795f2be45df57": {
@@ -3030,7 +3190,8 @@
     "text": "Saved.",
     "cat": "js",
     "where": [
-      "public/app.js:942"
+      "public/app.js:942",
+      "public/team.js:808"
     ]
   },
   "8735197baf1f305d": {
@@ -4910,10 +5071,10 @@
     "where": [
       "public/hmr.js:282",
       "public/hmr.js:352",
-      "public/team.js:149",
-      "public/team.js:267",
-      "public/team.js:293",
-      "public/team.js:354"
+      "public/team.js:157",
+      "public/team.js:279",
+      "public/team.js:305",
+      "public/team.js:366"
     ]
   },
   "b21da1f1e0b54220": {
@@ -5259,7 +5420,8 @@
     "cat": "js",
     "where": [
       "public/hmr.js:878",
-      "public/team.js:469"
+      "public/team.js:481",
+      "public/team.js:754"
     ]
   },
   "fdac821ad17ac772": {
@@ -5338,7 +5500,8 @@
     "cat": "js",
     "where": [
       "public/index-auth.js:46",
-      "public/index-auth.js:56"
+      "public/index-auth.js:56",
+      "public/index-auth.js:122"
     ]
   },
   "56e342337738e25e": {
@@ -5517,7 +5680,7 @@
     "cat": "js",
     "where": [
       "public/kb.js:310",
-      "public/team.js:705"
+      "public/team.js:893"
     ]
   },
   "99034d67cbe5d3a3": {
@@ -5841,7 +6004,7 @@
     "where": [
       "public/settings.js:154",
       "public/subscribe.js:52",
-      "public/team.js:372"
+      "public/team.js:384"
     ]
   },
   "01da8beea2de4826": {
@@ -5961,15 +6124,15 @@
     "text": "Could not start checkout.",
     "cat": "js",
     "where": [
-      "public/subscribe.js:116",
-      "public/subscribe.js:121"
+      "public/subscribe.js:102",
+      "public/subscribe.js:107"
     ]
   },
   "6034fd9b3a51f25d": {
     "text": "Checkout cancelled — nothing has been charged.",
     "cat": "js",
     "where": [
-      "public/subscribe.js:161"
+      "public/subscribe.js:147"
     ]
   },
   "a2d5a2aea70e11b4": {
@@ -5990,274 +6153,329 @@
     "text": "Could not load your team (status",
     "cat": "js",
     "where": [
-      "public/team.js:153"
+      "public/team.js:161"
     ]
   },
   "b2dee5b2f51c7f99": {
     "text": "Could not create the team (status",
     "cat": "js",
     "where": [
-      "public/team.js:194"
+      "public/team.js:202"
     ]
   },
   "e5cde7fdda328454": {
     "text": "admin",
     "cat": "js",
     "where": [
-      "public/team.js:241"
+      "public/team.js:253"
     ]
   },
   "4851fe12383b2a5e": {
     "text": "Make this person the owner of the team? You will become an admin.",
     "cat": "js",
     "where": [
-      "public/team.js:248"
+      "public/team.js:260"
     ]
   },
   "e4387bb4426f378b": {
     "text": "Could not transfer ownership.",
     "cat": "js",
     "where": [
-      "public/team.js:262"
+      "public/team.js:274"
     ]
   },
   "6b61ca78da78d5be": {
     "text": "Leave this team? You keep your account, but you lose access to the team's shared captures and guides.",
     "cat": "js",
     "where": [
-      "public/team.js:274"
+      "public/team.js:286"
     ]
   },
   "d8111d74de37b64a": {
     "text": "Could not leave the team.",
     "cat": "js",
     "where": [
-      "public/team.js:288"
+      "public/team.js:300"
     ]
   },
   "4039af07b52f2808": {
     "text": "The account that owned this team no longer exists, so nobody can manage members. You can take ownership.",
     "cat": "js",
     "where": [
-      "public/team.js:319"
+      "public/team.js:331"
     ]
   },
   "b7557d6db6e7a8ad": {
     "text": "The owner ({owner}) has not signed in for {days} days. You can take ownership so the team can be managed again.",
     "cat": "js",
     "where": [
-      "public/team.js:325"
+      "public/team.js:337"
     ]
   },
   "498865c7bd1f3959": {
     "text": "unknown",
     "cat": "js",
     "where": [
-      "public/team.js:326"
+      "public/team.js:338"
     ]
   },
   "d12d5c1fe5cedc5d": {
     "text": "Take ownership of this team? The current owner, if their account still exists, becomes an admin.",
     "cat": "js",
     "where": [
-      "public/team.js:335"
+      "public/team.js:347"
     ]
   },
   "05130ff346223741": {
     "text": "Could not take ownership of this team.",
     "cat": "js",
     "where": [
-      "public/team.js:349"
+      "public/team.js:361"
     ]
   },
   "70b2a928d2cc5f17": {
     "text": "Your team",
     "cat": "js",
     "where": [
-      "public/team.js:366"
+      "public/team.js:378"
     ]
   },
   "0518900372e0ea0c": {
     "text": ". Every member sees every capture and guide — there is",
     "cat": "js",
     "where": [
-      "public/team.js:372"
+      "public/team.js:384"
     ]
   },
   "1e94e27c870cd8ea": {
     "text": "no per-project permission.",
     "cat": "js",
     "where": [
-      "public/team.js:373"
+      "public/team.js:385"
     ]
   },
   "4647d5733475ee5f": {
     "text": "Could not create an invite (status",
     "cat": "js",
     "where": [
-      "public/team.js:419"
+      "public/team.js:431"
     ]
   },
   "1b2cf687b759bbba": {
     "text": "Pending invites",
     "cat": "js",
     "where": [
-      "public/team.js:450"
+      "public/team.js:462"
     ]
   },
   "b1b241f06bb1cf03": {
     "text": "expires",
     "cat": "js",
     "where": [
-      "public/team.js:456"
+      "public/team.js:468"
     ]
   },
   "8fa24daae78dead9": {
     "text": "Copy blocked by the browser — the link is selected, press Ctrl/Cmd+C.",
     "cat": "js",
     "where": [
-      "public/team.js:477"
+      "public/team.js:489"
     ]
   },
   "339cc6ad232433e3": {
     "text": "No members yet.",
     "cat": "js",
     "where": [
-      "public/team.js:561"
+      "public/team.js:573"
     ]
   },
   "ca7fed2bef53cb99": {
     "text": "Role",
     "cat": "js",
     "where": [
-      "public/team.js:569"
+      "public/team.js:581"
     ]
   },
   "8af61807443f32a4": {
     "text": "Actions",
     "cat": "js",
     "where": [
-      "public/team.js:569"
+      "public/team.js:581"
     ]
   },
   "a61c2eb0c12377d5": {
     "text": "(you)",
     "cat": "js",
     "where": [
-      "public/team.js:586"
+      "public/team.js:598"
     ]
   },
   "702dc3661c2fb511": {
     "text": "this member",
     "cat": "js",
     "where": [
-      "public/team.js:605"
+      "public/team.js:617"
     ]
   },
   "bcf612e1db77bcec": {
     "text": "Make admin",
     "cat": "js",
     "where": [
-      "public/team.js:609"
+      "public/team.js:621"
     ]
   },
   "0139bbfdf9b1a4a8": {
     "text": "Revoke admin",
     "cat": "js",
     "where": [
-      "public/team.js:609"
+      "public/team.js:621"
     ]
   },
   "10d2dbc4613397f0": {
     "text": "Updated",
     "cat": "js",
     "where": [
-      "public/team.js:613"
+      "public/team.js:625"
     ]
   },
   "3906cd4a102867a3": {
     "text": "Suspend",
     "cat": "js",
     "where": [
-      "public/team.js:619"
+      "public/team.js:631"
     ]
   },
   "26f91b6796e33111": {
     "text": "Restore",
     "cat": "js",
     "where": [
-      "public/team.js:619"
+      "public/team.js:631"
     ]
   },
   "155e35813a089462": {
     "text": "Suspended",
     "cat": "js",
     "where": [
-      "public/team.js:624"
+      "public/team.js:636"
     ]
   },
   "1c7b0605640d09cf": {
     "text": "Restored",
     "cat": "js",
     "where": [
-      "public/team.js:624"
-    ]
-  },
-  "ea4f08110bb8f15d": {
-    "text": "Remove",
-    "cat": "js",
-    "where": [
-      "public/team.js:630",
-      "public/team.js:681"
+      "public/team.js:636"
     ]
   },
   "963cace19c8b2f91": {
     "text": "Updating…",
     "cat": "js",
     "where": [
-      "public/team.js:651"
+      "public/team.js:663"
     ]
   },
   "ce26c5bf45dd2b75": {
     "text": "That action failed (status",
     "cat": "js",
     "where": [
-      "public/team.js:671"
+      "public/team.js:683"
     ]
   },
   "c9e34cb12aab0e3a": {
     "text": "Updated.",
     "cat": "js",
     "where": [
-      "public/team.js:675"
+      "public/team.js:687"
+    ]
+  },
+  "17a0ca02009c2e94": {
+    "text": "•••••••• (saved — leave blank to keep)",
+    "cat": "js",
+    "where": [
+      "public/team.js:728"
+    ]
+  },
+  "bd11c46599547bfc": {
+    "text": "Members will only be able to sign in through your identity",
+    "cat": "js",
+    "where": [
+      "public/team.js:768"
+    ]
+  },
+  "6d97e7b43c3a71d0": {
+    "text": "Could not save single sign-on settings (status",
+    "cat": "js",
+    "where": [
+      "public/team.js:801"
+    ]
+  },
+  "bf005315e8088c25": {
+    "text": "Testing…",
+    "cat": "js",
+    "where": [
+      "public/team.js:817"
+    ]
+  },
+  "a20dd1566fe28540": {
+    "text": "Could not verify the issuer.",
+    "cat": "js",
+    "where": [
+      "public/team.js:836"
+    ]
+  },
+  "3fc8805de638ef90": {
+    "text": "Looks good — found the authorization and token endpoints.",
+    "cat": "js",
+    "where": [
+      "public/team.js:839"
+    ]
+  },
+  "b9987b66b1a7299f": {
+    "text": "Remove single sign-on for this team? Members who only ever signed in",
+    "cat": "js",
+    "where": [
+      "public/team.js:843"
+    ]
+  },
+  "5eb2e78a900cf6d8": {
+    "text": "Could not remove single sign-on (status",
+    "cat": "js",
+    "where": [
+      "public/team.js:860"
+    ]
+  },
+  "2eb94f91c0f6594f": {
+    "text": "Removed.",
+    "cat": "js",
+    "where": [
+      "public/team.js:863"
     ]
   },
   "ae99f2707eb88943": {
     "text": "from the team? They will lose access to every",
     "cat": "js",
     "where": [
-      "public/team.js:681"
+      "public/team.js:869"
     ]
   },
   "9fa8561e836cb7b3": {
     "text": "shared capture and guide.",
     "cat": "js",
     "where": [
-      "public/team.js:682"
+      "public/team.js:870"
     ]
   },
   "bfd448043b93b6d6": {
     "text": "Removing…",
     "cat": "js",
     "where": [
-      "public/team.js:685"
+      "public/team.js:873"
     ]
   },
   "e21b89185b6c5e84": {
     "text": "Remove failed (status",
     "cat": "js",
     "where": [
-      "public/team.js:701"
+      "public/team.js:889"
     ]
   },
   "6ce0fded45fae733": {
@@ -6280,514 +6498,558 @@
     "text": "request body too large",
     "cat": "server",
     "where": [
-      "server.js:318"
+      "server.js:341"
     ]
   },
   "1627440cbbf9267a": {
     "text": "invalid JSON body",
     "cat": "server",
     "where": [
-      "server.js:320"
+      "server.js:343"
     ]
   },
   "e54edbad841de52c": {
     "text": "could not read request body",
     "cat": "server",
     "where": [
-      "server.js:322"
+      "server.js:345"
     ]
   },
   "92131c3083744724": {
     "text": "sign in required",
     "cat": "server",
     "where": [
-      "server.js:427",
-      "server.js:441"
+      "server.js:450",
+      "server.js:464"
     ]
   },
   "4ae2dd1e9559b20e": {
     "text": "The subscription for this team has lapsed, so it is read-only. Your captures and guides are all still here - renew to add new ones.",
     "cat": "server",
     "where": [
-      "server.js:505"
+      "server.js:528"
     ]
   },
   "dd20e2a9d82b5bd7": {
     "text": "hiccup: public/",
     "cat": "server",
     "where": [
-      "server.js:612"
+      "server.js:635"
     ]
   },
   "5ecbec6cbb901e2c": {
     "text": "analysis engine not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:856"
+      "server.js:880"
     ]
   },
   "6a2b7043de978ef9": {
     "text": "that project was not found",
     "cat": "server",
     "where": [
-      "server.js:870"
+      "server.js:894"
     ]
   },
   "a80b26feac395b9e": {
     "text": "upload exceeds the",
     "cat": "server",
     "where": [
-      "server.js:886"
+      "server.js:910"
     ]
   },
   "54c6c9cc108f2242": {
     "text": "could not read upload",
     "cat": "server",
     "where": [
-      "server.js:892",
-      "server.js:1222"
+      "server.js:916",
+      "server.js:1246"
     ]
   },
   "0801d0a52741c7bf": {
     "text": "empty upload",
     "cat": "server",
     "where": [
-      "server.js:897",
-      "server.js:1227"
+      "server.js:921",
+      "server.js:1251"
     ]
   },
   "01a383ac2116bf20": {
     "text": "capture not found",
     "cat": "server",
     "where": [
-      "server.js:975",
-      "server.js:1113",
-      "server.js:3238",
-      "server.js:3628",
-      "server.js:3643"
+      "server.js:999",
+      "server.js:1137",
+      "server.js:3558",
+      "server.js:3993",
+      "server.js:4008"
     ]
   },
   "f79423093897467e": {
     "text": "the rule generator is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:1021"
+      "server.js:1045"
     ]
   },
   "090e1a119d8daa21": {
     "text": "description (what the rule should do, in English) is required",
     "cat": "server",
     "where": [
-      "server.js:1027"
+      "server.js:1051"
     ]
   },
   "d7b4031340d3e796": {
     "text": "vendors must be a subset of",
     "cat": "server",
     "where": [
-      "server.js:1035"
+      "server.js:1059"
     ]
   },
   "620fd49ea6d862c9": {
     "text": "could not process that description",
     "cat": "server",
     "where": [
-      "server.js:1048"
+      "server.js:1072"
     ]
   },
   "e29465da56a30135": {
     "text": "the config-manipulation engine is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:1071"
+      "server.js:1095"
     ]
   },
   "020034a3e7c22a8c": {
     "text": "text (an SBC config excerpt) is required",
     "cat": "server",
     "where": [
-      "server.js:1077"
+      "server.js:1101"
     ]
   },
   "546478ca51bb0dbb": {
     "text": "the config-guide library is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:1152"
+      "server.js:1176"
     ]
   },
   "540a07c7e762b016": {
     "text": "this build of lib/kb.js cannot add documents",
     "cat": "server",
     "where": [
-      "server.js:1203"
+      "server.js:1227"
     ]
   },
   "e27a75ef46fcc316": {
     "text": "document exceeds the",
     "cat": "server",
     "where": [
-      "server.js:1216"
+      "server.js:1240"
     ]
   },
   "402ff74fd64be7f1": {
     "text": "this build of lib/kb.js cannot add links",
     "cat": "server",
     "where": [
-      "server.js:1259"
+      "server.js:1283"
     ]
   },
   "2a59e817abd5fd84": {
     "text": "this build of lib/kb.js cannot delete documents",
     "cat": "server",
     "where": [
-      "server.js:1299"
+      "server.js:1323"
     ]
   },
   "f9cb3b7e6e30bdb9": {
     "text": "document not found",
     "cat": "server",
     "where": [
-      "server.js:1310"
+      "server.js:1334"
     ]
   },
   "3f951aec7bc91ff5": {
     "text": "this build has no feedback module",
     "cat": "server",
     "where": [
-      "server.js:1330"
+      "server.js:1354"
     ]
   },
   "c63c0aa33a970b76": {
     "text": "admin only",
     "cat": "server",
     "where": [
-      "server.js:1374"
+      "server.js:1398"
     ]
   },
   "766bccfadc60d6b3": {
     "text": "comment is required",
     "cat": "server",
     "where": [
-      "server.js:1494"
+      "server.js:1538"
     ]
   },
   "f08c15b90c9cd570": {
     "text": "too many submissions — try again later",
     "cat": "server",
     "where": [
-      "server.js:1498"
+      "server.js:1542"
     ]
   },
   "8433e48ee25ebe05": {
     "text": "send {\"confirm\":\"DELETE\"} to confirm this irreversible deletion",
     "cat": "server",
     "where": [
-      "server.js:1596"
+      "server.js:1640"
     ]
   },
   "ce52b93db38ac16b": {
     "text": "You still own a team with other members. Transfer ownership to one of them first, then delete your account. Nothing has been deleted.",
     "cat": "server",
     "where": [
-      "server.js:1623"
+      "server.js:1667"
     ]
   },
   "750fa3e5656e2d66": {
     "text": "send {\"confirm\":\"ERASE\"} to confirm erasing your data",
     "cat": "server",
     "where": [
-      "server.js:1735"
+      "server.js:1779"
     ]
   },
   "b107b578f662fb05": {
     "text": "cross-origin request refused",
     "cat": "server",
     "where": [
-      "server.js:1982",
-      "server.js:2084"
+      "server.js:2026",
+      "server.js:2128"
     ]
   },
   "2e962d10a2a3218e": {
     "text": "send {\"superuser\": true|false} and/or {\"plan\": \"free\"|\"pro\"|\"team\"}",
     "cat": "server",
     "where": [
-      "server.js:1990"
+      "server.js:2034"
     ]
   },
   "114895a695d6cf0c": {
     "text": "no such user",
     "cat": "server",
     "where": [
-      "server.js:1996",
-      "server.js:2039"
+      "server.js:2040",
+      "server.js:2083"
     ]
   },
   "f69098f93dd285bb": {
     "text": "could not save the updated admin list to disk",
     "cat": "server",
     "where": [
-      "server.js:2020"
+      "server.js:2064"
     ]
   },
   "e8d4274657ed2599": {
     "text": "action must be 'status' or 'restart'",
     "cat": "server",
     "where": [
-      "server.js:2091"
+      "server.js:2135"
     ]
   },
   "c9025488a137cf6c": {
     "text": "Not supervised by the hiccup service (state:",
     "cat": "server",
     "where": [
-      "server.js:2121"
+      "server.js:2165"
     ]
   },
   "3fb3204d07f649c4": {
     "text": "no such feedback",
     "cat": "server",
     "where": [
-      "server.js:2204"
+      "server.js:2248"
     ]
   },
   "2668e3335367971b": {
     "text": "no feedback module",
     "cat": "server",
     "where": [
-      "server.js:2227"
+      "server.js:2271"
     ]
   },
   "b5872077e7138177": {
     "text": "no digestRecipient configured",
     "cat": "server",
     "where": [
-      "server.js:2241"
+      "server.js:2285"
     ]
   },
   "3e230b47bf9bb8d3": {
     "text": "no mail module",
     "cat": "server",
     "where": [
-      "server.js:2245"
+      "server.js:2289"
     ]
   },
   "d1638c2147bb7e7d": {
     "text": "this build of lib/kb.js cannot search",
     "cat": "server",
     "where": [
-      "server.js:2272"
+      "server.js:2316"
     ]
   },
   "5337ea8f8150b659": {
     "text": "q (a search query) is required",
     "cat": "server",
     "where": [
-      "server.js:2277"
+      "server.js:2321"
     ]
   },
   "d53aa13ba29ffd09": {
     "text": "the teams module is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:2327",
-      "server.js:2344",
-      "server.js:2356",
-      "server.js:2377",
-      "server.js:2641",
-      "server.js:2691"
+      "server.js:2371",
+      "server.js:2664",
+      "server.js:2676",
+      "server.js:2697",
+      "server.js:2961",
+      "server.js:3011"
+    ]
+  },
+  "782715c4b601e788": {
+    "text": "the sso module is not deployed on this server yet",
+    "cat": "server",
+    "where": [
+      "server.js:2542",
+      "server.js:2648"
+    ]
+  },
+  "eca7437ca69b34e5": {
+    "text": "Create a team first.",
+    "cat": "server",
+    "where": [
+      "server.js:2547"
+    ]
+  },
+  "41781f2557282402": {
+    "text": "Only the team owner can manage single sign-on.",
+    "cat": "server",
+    "where": [
+      "server.js:2554"
+    ]
+  },
+  "89cd945318c06367": {
+    "text": "Too many changes. Wait a minute and try again.",
+    "cat": "server",
+    "where": [
+      "server.js:2584"
+    ]
+  },
+  "2caa2a67e67befdb": {
+    "text": "Too many tests. Wait a minute and try again.",
+    "cat": "server",
+    "where": [
+      "server.js:2618"
+    ]
+  },
+  "0a826825b6606449": {
+    "text": "No issuer configured yet.",
+    "cat": "server",
+    "where": [
+      "server.js:2627"
     ]
   },
   "b4557baf45c6a947": {
     "text": "this invite link is invalid or has expired",
     "cat": "server",
     "where": [
-      "server.js:2382",
-      "server.js:2651"
+      "server.js:2702",
+      "server.js:2971"
     ]
   },
   "3f36b069bc670ec9": {
     "text": "Card payment is not set up on this server yet.",
     "cat": "server",
     "where": [
-      "server.js:2407"
+      "server.js:2727"
     ]
   },
   "5a7f4408f7db2802": {
     "text": "Choose a plan and a billing period.",
     "cat": "server",
     "where": [
-      "server.js:2416"
+      "server.js:2736"
     ]
   },
   "84307029bc061442": {
     "text": "The Pro plan is not set up on this server yet.",
     "cat": "server",
     "where": [
-      "server.js:2420"
+      "server.js:2740"
     ]
   },
   "114536ca7c2810d5": {
     "text": "You are already on the paid plan.",
     "cat": "server",
     "where": [
-      "server.js:2431"
+      "server.js:2751"
     ]
   },
   "bb9c45b8ad22bb47": {
     "text": "stripe is not configured on this server",
     "cat": "server",
     "where": [
-      "server.js:2498"
+      "server.js:2818"
     ]
   },
   "39f86b43347c4755": {
     "text": "signature verification failed",
     "cat": "server",
     "where": [
-      "server.js:2507"
+      "server.js:2827"
     ]
   },
   "9c156729d644795b": {
     "text": "could not apply event",
     "cat": "server",
     "where": [
-      "server.js:2524"
+      "server.js:2844"
     ]
   },
   "d7bf7c6c99ed4407": {
     "text": "token is required",
     "cat": "server",
     "where": [
-      "server.js:2646"
+      "server.js:2966"
     ]
   },
   "baa0a3344e8c0331": {
     "text": "joined the team, but could not load the account",
     "cat": "server",
     "where": [
-      "server.js:2679"
+      "server.js:2999"
     ]
   },
   "3696efafd4e94786": {
     "text": "role or suspended is required",
     "cat": "server",
     "where": [
-      "server.js:2699"
+      "server.js:3019"
     ]
   },
   "8085f74c9d35d6d7": {
     "text": "Only the team owner can change member roles.",
     "cat": "server",
     "where": [
-      "server.js:2705"
+      "server.js:3025"
     ]
   },
   "0136bec8180be8a5": {
     "text": "Only a team owner or admin can suspend members.",
     "cat": "server",
     "where": [
-      "server.js:2717"
+      "server.js:3037"
     ]
   },
   "00adf0d1bc93484d": {
     "text": "Only a team owner or admin can remove members.",
     "cat": "server",
     "where": [
-      "server.js:2738"
+      "server.js:3058"
     ]
   },
   "408635fc82cc11a8": {
     "text": "Only the team owner can transfer ownership.",
     "cat": "server",
     "where": [
-      "server.js:2821"
+      "server.js:3141"
     ]
   },
   "4bf96ced8828fabd": {
     "text": "the projects module is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:2837",
-      "server.js:2850",
-      "server.js:2873",
-      "server.js:2899"
+      "server.js:3157",
+      "server.js:3170",
+      "server.js:3193",
+      "server.js:3219"
     ]
   },
   "0d9aceb8b8384b7f": {
     "text": "project not found",
     "cat": "server",
     "where": [
-      "server.js:2879",
-      "server.js:2905",
-      "server.js:2910"
+      "server.js:3199",
+      "server.js:3225",
+      "server.js:3230"
     ]
   },
   "8c827ee96db5d1cd": {
     "text": "messages array is required",
     "cat": "server",
     "where": [
-      "server.js:3232"
+      "server.js:3552"
     ]
   },
   "ecfc526de8ae3814": {
     "text": "local model is offline",
     "cat": "server",
     "where": [
-      "server.js:3243"
+      "server.js:3563"
     ]
   },
   "fec5f0616fdf6dd0": {
     "text": "hiccup is busy answering another question — try again in a moment",
     "cat": "server",
     "where": [
-      "server.js:3262"
+      "server.js:3582"
     ]
   },
   "1ab14d1c2578506a": {
     "text": "email and password are required",
     "cat": "server",
     "where": [
-      "server.js:3293",
-      "server.js:3322"
+      "server.js:3613",
+      "server.js:3642"
     ]
   },
   "9068dc9b3017c5ef": {
     "text": "Too many accounts created from here recently. Try again later.",
     "cat": "server",
     "where": [
-      "server.js:3300"
+      "server.js:3620"
     ]
   },
   "c0fa34830fadc18a": {
     "text": "Too many sign-in attempts. Wait a few minutes and try again.",
     "cat": "server",
     "where": [
-      "server.js:3337"
+      "server.js:3657"
     ]
   },
   "98c716c4e947ddc8": {
     "text": "wrong email or password",
     "cat": "server",
     "where": [
-      "server.js:3346"
+      "server.js:3666"
     ]
   },
   "f470143a26c5b7c9": {
     "text": "credential is required",
     "cat": "server",
     "where": [
-      "server.js:3357"
+      "server.js:3690"
     ]
   },
   "08565cf8a3e3ee3a": {
     "text": "not found",
     "cat": "server",
     "where": [
-      "server.js:3566",
-      "server.js:3588",
-      "server.js:3649",
-      "server.js:3758"
+      "server.js:3917",
+      "server.js:3931",
+      "server.js:3953",
+      "server.js:4014",
+      "server.js:4131"
     ]
   }
 }

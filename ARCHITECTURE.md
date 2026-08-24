@@ -2900,3 +2900,203 @@ Decisions worth recording:
 Verified against a live instance: 13/13 routes 200, 13/13 in sitemap (30
 URLs total), 32/32 internal links resolve, index + article rendered in both
 themes in a real browser. 117/117 selftests, 22/22 HTTP.
+
+# Wave 22 — enterprise SSO: per-team, bring-your-own OIDC identity provider
+
+A Team-tier account owner can connect their company's own identity provider —
+Microsoft Entra ID, Okta, Google Workspace, Keycloak, or any other IdP that
+speaks OpenID Connect — so colleagues on their claimed email domains sign in
+with "Continue with SSO" and join the team automatically, no invite link
+required.
+
+The pattern is ported from RFPlex.ai's own already-shipped enterprise SSO
+(same OIDC flow, same account-linking threat model), researched directly from
+its source rather than re-derived from the spec, then adapted to hiccup's
+narrower module boundaries and given one thing RFPlex's version does not
+have: a real, enforced plan gate. RFPlex's code has no tier check on SSO at
+all — its pricing page implies Enterprise-only, but any Solo-tier owner can
+turn it on. hiccup requires Team specifically (`teamHasPaidMember`, the same
+primitive that already governs a lapsed team's read-only freeze) — a
+deliberate choice, not a straight port, and Pro is excluded on purpose: SSO
+routes people into a *shared* workspace, and a solo individual plan has no
+team for it to serve.
+
+## The pieces, and why each lives where it does
+
+- **`lib/oidc.js`** — pure protocol functions only: PKCE (S256), discovery-
+  document validation, id-token claims validation, the public-email-domain
+  denylist, the open-redirect allowlist. Zero dependencies beyond
+  `node:crypto`, no fs, no network — the same design RFPlex used, and for the
+  same reason: a module with no I/O can be exhaustively unit-tested with no
+  server and no real IdP. **No JWKS signature check** — deliberate, per OIDC
+  Core §3.1.3.7 rule 6: TLS server validation substitutes for it, PROVIDED
+  the token is obtained exclusively from the token endpoint over a direct
+  server-to-server call, never from any front channel. That invariant is
+  enforced in `lib/sso.js`, not here.
+- **`lib/sso.js`** (new) — orchestration: the SSRF-guarded HTTP client that
+  actually talks to an IdP, the platform-wide kill switch, the ephemeral
+  login-flow state (CSRF state/nonce/PKCE verifier), and `resolveSignIn()`,
+  the account-linking policy. Kept separate from `lib/teams.js` on the same
+  reasoning `lib/stripe.js` is its own module: a feature big enough to
+  reason about on its own, not folded into the module it happens to touch.
+- **`lib/teams.js`** gained the team-scoped half of SSO state — `data/team-
+  sso.json` (issuer, client ID, client secret, claimed domains, enabled/
+  enforced flags), loaded and cached the same way teams/members/invites
+  already are. `setTeamSso()` does full server-side validation: issuer must
+  be `https:`, no query string or fragment, no bare-IP hostname; 1–10
+  domains, each syntactically valid, each checked against the public-email-
+  provider denylist, each checked for cross-team uniqueness (a domain
+  claimed by one team is refused for every other). The client secret is
+  **write-only**: a blank value on save means "keep what's stored", never
+  "clear it" — mirrored exactly in the UI, which never re-populates the
+  secret field, only a `clientSecretSet` boolean and a "already set" placeholder.
+- **`lib/auth.js`** gained `sso: {teamId, sub, iss}` as a new field on the
+  user record (alongside the existing `googleSub`), a raw (non-public)
+  accessor pair for `lib/sso.js`'s internal use (`findRawUserById`/
+  `findRawUserByEmail` — the public `findUserById`/`findUserByEmail` strip
+  this, same as they already strip `passwordHash`), `findUserBySso`, and
+  `linkUserSso`. `createUser` treats `sso` the same way it already treats
+  `googleSub`: presence means "an identity provider vouched for this
+  person", so no password is required.
+
+## SSRF: the one genuinely new attack surface in this codebase
+
+Every other outbound HTTP call hiccup makes goes to a fixed, hardcoded host —
+Stripe's API, Google's JWKS URL, RFPlex's status endpoint. This feature is
+the first time hiccup fetches a URL an *admin configured*: a team owner
+names an issuer, and hiccup calls whatever that issuer's discovery document
+points at. Unguarded, that is a standing SSRF primitive — a malicious or
+compromised team owner could point "issuer" at hiccup's own Ollama
+(`127.0.0.1:11434`), at a cloud metadata endpoint (`169.254.169.254`), or at
+anything on the operator's LAN, and use hiccup's server as the vantage point
+to probe or attack it.
+
+`lib/sso.js`'s `_safeFetch()` guards this with two properties that have to
+both hold for the guard to actually work, not just look like it works:
+
+1. **DNS is resolved once, and the connection is pinned to that resolved
+   IP** (via `https.request`'s own `lookup` override), not re-resolved when
+   the TCP connection is actually opened. Without this, an attacker
+   controlling DNS for their own issuer domain could pass the check against
+   a public IP on the first lookup, then have the real connection resolve
+   to an internal one moments later — DNS rebinding, the standard way a
+   naive "check the IP" guard gets bypassed. TLS servername and the `Host`
+   header still use the real hostname, so certificate validation is
+   unaffected.
+2. **No redirects are followed.** A 3xx is treated as a failure. Real IdP
+   endpoints don't redirect in practice, and redirect-following is itself a
+   well-known way to smuggle a request past a check that only validated the
+   first hop.
+
+`_isPrivateIp()` blocks the full private/reserved range table for both
+families — including the two that matter most and are easiest to get wrong:
+`169.254.169.254` (the cloud metadata address) and IPv4-mapped IPv6
+addresses (`::ffff:127.0.0.1`), which have to be unwrapped and re-checked
+against the IPv4 rules or an IPv4-only blocklist is trivially bypassed over
+IPv6.
+
+Verified against real infrastructure during development, not just logic: a
+live discovery fetch against `https://accounts.google.com` succeeded end to
+end (DNS resolve → pinned-IP connect → real TLS handshake → parsed, validated
+discovery document), and `https://localhost` — which genuinely resolves to
+loopback on the dev machine — was refused, proving the guard checks the
+*resolved* address rather than the literal string.
+
+## The account-linking policy — the single most important property
+
+`resolveSignIn()` decides who signs in when an IdP asserts an identity, in
+four branches, evaluated in order. The threat model this whole design exists
+to guarantee, stated plainly: **an identity provider asserting an email
+address must never be able to capture an account it does not own.**
+
+1. **Known SSO identity** (this exact team + `sub` signed in before) → sign
+   in, after re-confirming they're still on the team (they may have been
+   removed since their last login).
+2. **Email matches an existing member of THIS team** → link. First SSO
+   login for someone who joined normally; their password, if they had one,
+   keeps working too.
+3. **Email matches an existing account NOT on this team** → **hard refuse,
+   always.** This is deliberately *not* the same policy as the pre-existing
+   Google sign-in, which links by email match with no team boundary — SSO
+   cannot reuse that logic, because a team's own IdP asserting a stranger's
+   email must never be able to pull an unrelated account into that team.
+4. **No match at all** → JIT-provision a new member, if the domain is
+   claimed and the team has room (the same `MAX_TEAM_MEMBERS` ceiling
+   `acceptInvite` already enforces — this is functionally "accept your own
+   invite", just without a token).
+
+`ssoLoginBlocked()` is the enforcement side: when a team turns on "Require
+SSO", password and Google sign-in are refused for everyone except the team
+owner — a broken or misconfigured IdP must never be able to lock the paying
+customer's own owner out of their own team — and except a hiccup site admin.
+Checked *only after* the password has already verified, so a wrong-password
+attempt against an enforced account still gets the ordinary "wrong email or
+password", not a tell that reveals enforcement to someone who hasn't proven
+they own the account. The platform-wide kill switch (`data/sso-settings.json`,
+site-admin only, read fresh on every check rather than cached — so it takes
+effect on the very next request, no restart) suspends every team's
+enforcement at once when it's off, so an incident response can't strand
+every enforced team as a side effect of the fix.
+
+## Routes
+
+Three public (a signed-out visitor reaches these before hiccup has any
+session for them): `GET /api/auth/sso/available` (a boolean only — reveals
+nothing about which domains or teams use SSO, denying an enumeration probe),
+`GET /api/auth/sso/start?email=&next=` and `GET /api/auth/sso/callback?
+code=&state=`. Both are plain top-level browser navigations, not `fetch()` —
+the IdP round trip never has to touch CSP or the fetch layer — and every
+failure path is a 302 back to `/` carrying `?sso_error=`, read by
+`index-auth.js` and shown in the same error slot a JS-driven attempt would
+use. `/start` failures are collapsed to one generic message regardless of
+cause (no team claimed the domain, or a team's config is disabled) — the
+same anti-enumeration property `/available` has.
+
+Owner-only: `GET/PUT/DELETE /api/team/sso`, `POST /api/team/sso/test`
+(fetches and validates discovery without saving anything, so the UI's "Test
+connection" button can catch a typo before it's committed). The owner bar
+here is deliberately stricter than the usual owner-or-admin "canManage" line
+used elsewhere in `lib/teams.js` — SSO changes who is even *able* to sign
+in, which carries the same authority as transferring ownership itself.
+Site-admin only: `GET/POST /api/admin/sso-settings`, the platform kill
+switch.
+
+## What's tested, and what deliberately isn't
+
+145+ assertions across `test/selftest.js` (the RFC 7636 PKCE test vector
+verbatim, discovery/claims validation including the case that's easy to get
+backwards — an *empty expected* nonce must fail closed, not be read as
+"checking is off" — the full SSRF range table for both address families, the
+config-validation edge cases, and the account-linking policy's four branches
+including the critical cross-team refusal) plus 5 new HTTP-level tests
+exercising the real routes through a real server process (owner/Team-tier/
+non-owner gating, secret masking, enforcement, the kill switch releasing
+every team at once, deletion leaving members intact).
+
+Deliberately not in the checked-in suite: an actual outbound call to a real
+IdP. `test/selftest.js`'s own header rules out network beyond 127.0.0.1 —
+the same reason the Stripe tests never call the real Stripe API — so the
+live discovery-fetch and the full browser-redirect verification described
+above were done by hand against real infrastructure during development, not
+committed as an automated test. There is also, correspondingly, no
+completed round trip through a real customer IdP's consent screen — verified
+up to the boundary of "Google's real authorization server correctly rejects
+an unregistered client_id", which is as far as testing can go without a real
+registered OIDC application.
+
+## UI
+
+A "Continue with SSO" button on the landing page's sign-in card, hidden
+unless `/api/auth/sso/available` says at least one team has it on — reveals
+an email field, and submitting it is a plain navigation to `/start` (see
+above). An owner-only "Single sign-on" card on `/team`, shown only once
+`GET /api/team/sso` confirms both the ownership and the Team-tier gate
+server-side (a 402 renders an upsell linking `/subscribe` instead of the
+form — the client never duplicates the plan-tier check itself). A new public
+page, `/sso-setup` — the fields hiccup needs, the fixed redirect URI, a
+walkthrough, brief per-provider notes for Entra ID/Okta/Google Workspace,
+and a complete table mapping every user-facing error string the code can
+actually produce to its cause — cross-checked line by line against the real
+strings in `server.js`/`lib/sso.js`/`lib/teams.js` rather than written from
+memory, catching two real drift bugs (a truncated message, a missing row)
+before they shipped.
