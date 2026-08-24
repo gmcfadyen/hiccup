@@ -573,6 +573,10 @@ const STATIC_TYPES = {
   '.png': 'image/png',
   '.ico': 'image/x-icon',
   '.webmanifest': 'application/manifest+json',
+  // RFC 9116 security.txt at /.well-known/security.txt -- the traversal guard
+  // in serveStatic() has no opinion about dot-directories, so adding the
+  // extension here is the only change needed to make it reachable.
+  '.txt': 'text/plain; charset=utf-8',
 };
 
 /**

@@ -311,6 +311,7 @@ window.HICCUP_I18N = {
   "546401b5d2a8d2a4": "mensaje",
   "546478ca51bb0dbb": "la biblioteca de guías de configuración aún no está desplegada en este servidor",
   "547d54feea4643b1": "confianza",
+  "54a6c56b18ff7889": "¿Un pago no se ha completado, o su recibo parece incorrecto? ¿Y ahora qué?",
   "54a72ca1b15ba2e0": "Elimina tus capturas, proyectos y documentos de biblioteca. Tu cuenta sigue abierta y con la sesión iniciada — esto no es lo mismo que eliminar tu cuenta.",
   "54af0be549330aba": "(sin borrador)",
   "54c6c9cc108f2242": "no se ha podido leer la subida",

@@ -309,6 +309,7 @@ window.HICCUP_I18N = {
   "546401b5d2a8d2a4": "Nachricht",
   "546478ca51bb0dbb": "die Bibliothek der Konfigurationsanleitungen ist auf diesem Server noch nicht bereitgestellt",
   "547d54feea4643b1": "Konfidenz",
+  "54a6c56b18ff7889": "Eine Zahlung ist fehlgeschlagen oder Ihr Beleg stimmt nicht — was nun?",
   "54a72ca1b15ba2e0": "Entfernt Ihre Aufnahmen, Projekte und Bibliotheksdokumente. Ihr Konto bleibt bestehen und angemeldet — das ist nicht dasselbe wie das Löschen Ihres Kontos.",
   "54af0be549330aba": "(kein Entwurf)",
   "54c6c9cc108f2242": "Upload konnte nicht gelesen werden",

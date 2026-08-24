@@ -304,6 +304,7 @@ window.HICCUP_I18N = {
   "5457c7a2739006eb": "hiccup lit les blocs sip-manipulation Oracle/Acme, les lignes",
   "546478ca51bb0dbb": "la bibliothèque de guides de configuration n'est pas encore déployée sur ce serveur",
   "547d54feea4643b1": "confiance",
+  "54a6c56b18ff7889": "Un paiement a échoué, ou votre reçu semble incorrect — que faire ?",
   "54a72ca1b15ba2e0": "Supprime vos captures, vos projets et les documents de votre bibliothèque. Votre compte reste ouvert et connecté — ce n'est pas la même chose que supprimer votre compte.",
   "54af0be549330aba": "(aucun brouillon)",
   "54c6c9cc108f2242": "impossible de lire l'envoi",

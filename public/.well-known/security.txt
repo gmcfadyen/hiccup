@@ -1,0 +1,7 @@
+# hiccup is a one-person, self-hosted project. If you find a security issue,
+# please report it privately here rather than opening a public GitHub issue --
+# there is no dedicated security team, just email, read directly.
+Contact: mailto:security@hiccup.monster
+Expires: 2027-08-24T00:00:00.000Z
+Canonical: https://hiccup.monster/.well-known/security.txt
+Preferred-Languages: en

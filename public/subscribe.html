@@ -309,6 +309,16 @@
       <dt data-i18n>Do my traces get used to train anything?</dt>
       <dd data-i18n>No. Analysis runs on a self-hosted model on hiccup's own hardware in the
         EU. Nothing you upload leaves the box, and nothing is sold or used as training data.</dd>
+
+      <dt data-i18n>A payment didn't go through, or your receipt looks wrong — what now?</dt>
+      <!-- Not data-i18n: the extractor only captures a tagged element's direct
+           text-node children, so a parent wrapping a nested <a> would split
+           this into two disconnected fragments either side of the link
+           (matching how privacy.html's own mailto paragraph was deliberately
+           left untranslated for the same reason). -->
+      <dd>Email <a href="mailto:billing@hiccup.monster">billing@hiccup.monster</a> with
+        the email address on your account. Refunds and disputes are handled by hand, usually
+        within a day.</dd>
     </dl>
   </section>
 
