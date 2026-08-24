@@ -94,21 +94,7 @@
     fetch('/api/billing/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      // `plan` is a compatibility field, not a duplicate of `interval`.
-      //
-      // public/ IS the live document root, so this file goes live the moment
-      // it is saved, while server.js only changes on a service restart. In
-      // that window a browser is running 0.4.0's client against 0.3.x's
-      // server, which reads {plan:'monthly'|'annual'} and would 400 on a body
-      // that only carries {tier, interval}. The old server ignores tier and
-      // interval; the new one ignores plan; one body satisfies both.
-      //
-      // Safe to delete once nothing is serving a pre-0.4.0 server.js.
-      body: JSON.stringify({
-        tier: tier,
-        interval: currentInterval(),
-        plan: currentInterval(),
-      })
+      body: JSON.stringify({ tier: tier, interval: currentInterval() })
     }).then(function (r) {
       return r.json().catch(function () { return null; }).then(function (d) {
         if (r.status === 401) { location.href = '/'; return; }
