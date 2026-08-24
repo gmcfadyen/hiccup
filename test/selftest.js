@@ -565,6 +565,17 @@ async function main() {
     m.initStripe({ stripeSecretKey: 'sk_live_x', stripeWebhookSecret: 'whsec_x',
       stripePriceMonthly: 'price_m', stripePriceAnnual: 'price_a' });
     eq(m.isLiveMode(), true, 'a sk_live_ key must read as live');
+    // A RESTRICTED live key is still real money. Reporting rk_live_ as TEST
+    // would be backwards for the one thing isLiveMode() exists to do: warn a
+    // human before they touch production.
+    m.initStripe({ stripeSecretKey: 'rk_live_x', stripeWebhookSecret: 'whsec_x',
+      stripePriceMonthly: 'price_m', stripePriceAnnual: 'price_a' });
+    eq(m.isLiveMode(), true, 'a restricted rk_live_ key must also read as live');
+    m.initStripe({ stripeSecretKey: 'rk_test_x', stripeWebhookSecret: 'whsec_x',
+      stripePriceMonthly: 'price_m', stripePriceAnnual: 'price_a' });
+    eq(m.isLiveMode(), false, 'a restricted rk_test_ key must not read as live');
+    m.initStripe({ stripeSecretKey: 'sk_live_x', stripeWebhookSecret: 'whsec_x',
+      stripePriceMonthly: 'price_m', stripePriceAnnual: 'price_a' });
     // The client names a tier and an interval, never a price.
     eq(m.priceIdFor('team', 'monthly'), 'price_m', 'priceIdFor(team, monthly)');
     eq(m.priceIdFor('team', 'annual'), 'price_a', 'priceIdFor(team, annual)');
