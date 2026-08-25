@@ -1620,6 +1620,21 @@ async function main() {
     const found = w3teams.findTeamSsoByDomain('acme.example');
     ok(found && found.teamId === team.teamId, 'findTeamSsoByDomain should find the config by its claimed domain');
 
+    // Anti-enumeration, and the reason /api/auth/sso/start can afford ONE
+    // generic "not configured for this email domain" message: a disabled
+    // config must be indistinguishable from a domain no team ever claimed.
+    // If this ever returned the config for a disabled team, the route above
+    // would take a different branch and leak which companies use hiccup.
+    w3teams.setTeamSso(team.teamId, {
+      issuer: 'https://idp.acme.example/', clientId: 'client-1', clientSecret: '',
+      domains: 'acme.example', enabled: false, enforced: false,
+    }, sOwner.id);
+    eq(w3teams.findTeamSsoByDomain('acme.example'), null,
+      'a DISABLED config must look exactly like an unclaimed domain');
+    eq(w3teams.findTeamSsoByDomain('never-claimed.example'), null,
+      'an unclaimed domain returns null -- the same value, so the caller cannot tell them apart');
+    ok(w3teams.getTeamSso(team.teamId), 'disabling must not delete the stored config');
+
     const owner2 = await mkUser('sso-owner2@beta.example', 'SSO Owner 2');
     const team2 = w3teams.createTeam(owner2.id, 'SSO Beta');
     const e = await expectThrowsOrRejects(

@@ -570,7 +570,7 @@ async function main() {
     eq(r.json.enabled, true, 'sso should be enabled by default');
   });
 
-  await t('sso: start refuses a bad email and an unclaimed domain with the SAME generic message', async () => {
+  await t('sso: start always bounces to the sign-in page, and says nothing specific about an unclaimed domain', async () => {
     const anon = makeClient();
     const badEmail = await anon('GET', '/api/auth/sso/start?email=not-an-email');
     eq(badEmail.status, 302, 'bad email should redirect, not error out to the browser');
@@ -580,6 +580,17 @@ async function main() {
       encodeURIComponent('nobody@definitely-unclaimed-' + process.pid + '.example'));
     eq(unclaimed.status, 302, 'an unclaimed domain should redirect, not error out to the browser');
     ok(/sso_error=/.test(unclaimed.headers.location || ''), 'unclaimed domain redirect should carry sso_error');
+
+    // The message must not name the domain, the team, or whether one exists.
+    // A malformed address legitimately gets its OWN message (that leaks
+    // nothing -- it is a syntax complaint); what must never differ is
+    // unclaimed vs. claimed-but-disabled, which selftest.js pins at the
+    // findTeamSsoByDomain level where both are directly constructible.
+    const msg = decodeURIComponent(
+      (unclaimed.headers.location || '').replace(/^.*sso_error=/, ''));
+    ok(!/definitely-unclaimed/.test(msg), 'the error must not echo the domain back: ' + msg);
+    ok(/not configured for this email domain/.test(msg),
+      'an unclaimed domain should get the generic not-configured message, got: ' + msg);
   });
 
   await t('sso: callback refuses missing code, unknown state, and an IdP error param, without ever reaching the network', async () => {
