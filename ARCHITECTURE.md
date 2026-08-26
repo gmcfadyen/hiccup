@@ -3199,3 +3199,85 @@ Live-verified against real Ollama (qwen3.5:9b via RFPlex deference) on the
 ack-lost fixture: evidence-driven diagnosis quoting real ids, the
 draft→simulate→self-correct sequence, and every failure mode above that has
 a "seen live" note was actually seen live, then fixed, then re-run.
+
+# Wave 24 — the restart button actually works, and waits for the site to be idle
+
+## The bug: a ReferenceError, not a browser setting
+
+`/admin/status`'s "restart server" button did nothing at all. The access log
+showed the page load and then no POST — the request never left the browser.
+The cause was in `admin-status.js`: `say()` was **called five times and never
+defined**. It was called one line ABOVE the `try` block, so the
+ReferenceError was not caught, the `fetch()` below it never ran, and nothing
+surfaced anywhere. `clear()` was missing the same way.
+
+Worth naming the shape, because it is invisible to every check hiccup had:
+the file parses, the page loads, every other control works, and the landmine
+only detonates on the one code path nobody exercises until they need it. A
+scan of every `public/*.js` for called-but-undefined names found no others
+(the apparent hits in `app.js` and friends are all defined — they were
+artefacts of the scanner not understanding regex literals containing quotes).
+
+The confirmation is now **in-page**, not `window.confirm()`. A browser told
+to block dialogs for an origin returns `false` from `confirm()` without
+showing anything, which is indistinguishable from clicking Cancel — a
+restart button that a browser setting can silently disable is one you cannot
+trust. (That was the first hypothesis for this bug, and it was wrong; but it
+is a real failure mode and the in-page panel closes it too.)
+
+## lib/drain.js — "is anyone using the site right now?"
+
+Restarting drops whatever is in flight. Page loads do not matter; two things
+do: a capture upload, whose whole analysis runs synchronously inside its own
+request, and a chat answer, now an agent loop of up to 150s. Both lose work
+the user cannot cheaply redo.
+
+Busyness is measured as **in-flight work, never "recent activity"** — a
+timestamp-based idle check cannot work here, because `public/app.js` polls
+`/api/status` every 60s from every open workbench tab, so "no requests in the
+last minute" is never true while one tab sits open on a desk. So the drain
+counts requests actually being served, plus the LLM queue, minus traffic that
+is not a person: the gavbot2 health check, `GET /api/status`, and the drain's
+own polling endpoint. Static assets count on purpose — a page load in
+progress *is* someone using the site.
+
+Registration lives in `createServer` rather than `handle()` so it covers
+every response path including early returns, and releases on `'close'` rather
+than `'finish'` so an aborted upload frees its slot instead of pinning the
+drain open for the full grace period.
+
+The deadline is **two-tier**, because neither simple answer is right: waiting
+forever means the deploy never lands and the admin has walked away, while
+restarting anyway at the deadline defeats the point if a capture is being
+analysed at that exact second. So at `maxWaitMs` (5 min) it restarts if only
+*light* work is in flight, and if something *heavy* is running it extends by
+`heavyGraceMs` (5 more) and then goes regardless. Bounded either way, and the
+destructive case gets the extra grace. A genuinely idle site always reports
+reason `idle`, deadline or not — `deadline` is reserved for "gave up despite
+traffic", so the log line says which actually happened.
+
+The drain runs **on the server**, so closing the admin tab does not abandon
+it; `/admin/status` picks a queued restart back up on load via
+`restart-status` (which deliberately skips the PowerShell service probe that
+the `status` action does, far too slow for boot).
+
+## Routes and UI
+
+`POST /api/admin/server/control` gained `waitForIdle:true` (202 + queued),
+plus `restart-status` and `restart-cancel` actions. The immediate
+`{action:'restart'}` form is unchanged. The page offers "Restart when idle"
+(default), "Restart now", and while queued shows live what it is waiting for
+— "1 in-progress upload/analysis, 1 chat answer(s) running, 2 request(s) in
+flight" with per-item elapsed times, heavy ones highlighted — with "restart
+now anyway" and "cancel".
+
+Tested: 147/147 selftest — the state machine has an injected clock, so quiet
+windows, the one-tick observation lag, both deadline tiers, LLM-queue
+holding, cancel/idempotence and aborted-request release are all exercised in
+milliseconds — and 28/28 HTTP, which additionally pins that an unsupervised
+process refuses to exit into nothing and that the endpoint is superuser-only
+and cross-origin-refusing. Verified live in a browser: the button opens the
+panel, the request reaches the server, the refusal renders (the exact path
+that used to be silent), and the queued-restart panel renders correctly.
+The one thing no automated test can cover is a real supervised restart —
+by construction, that ends the process running the test.

@@ -90,6 +90,16 @@
   .st-bad { color: var(--crit); font-weight: 600; }
   .st-warn { color: var(--warn); font-weight: 600; }
 
+  .st-confirm, .st-drain { margin-top: 16px; padding: 12px 14px; }
+  .st-confirm h2, .st-drain h2 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--muted); margin: 0 0 4px;
+  }
+  .st-confirm p, .st-drain p { font-size: 13px; line-height: 1.55; margin: 0 0 10px; }
+  .st-confirm-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .st-drain { border-color: var(--accent); }
+  .st-drain-list { margin: 0 0 10px; padding-left: 18px; font-size: 12.5px; color: var(--muted); }
+  .st-drain-list li.is-heavy { color: var(--warn); }
   .st-users-card { margin-top: 16px; padding: 12px 14px; }
   .st-users-card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 0 0 4px; }
   .st-users-lede { color: var(--muted); font-size: 12.5px; margin: 0 0 10px; }
@@ -142,6 +152,33 @@
     </div>
   </div>
   <p id="st-msg" class="feedback-msg" role="status" aria-live="polite"></p>
+
+  <!-- In-page confirmation. NOT window.confirm(): a browser set to block
+       dialogs for this origin returns false without showing anything, which
+       is why the restart button used to do nothing at all. -->
+  <section id="st-confirm" class="card st-confirm" hidden>
+    <h2 data-i18n>Restart the hiccup service?</h2>
+    <p data-i18n class="muted">The service exits and NSSM relaunches it on the current code,
+      about 3 seconds later. Waiting for idle is the safe choice: an upload being analysed
+      or a chat answer mid-flight is lost if you restart underneath it.</p>
+    <div class="st-confirm-actions">
+      <button data-i18n class="btn btn-primary" id="st-confirm-wait" type="button">Restart when idle</button>
+      <button data-i18n class="btn" id="st-confirm-now" type="button">Restart now</button>
+      <button data-i18n class="btn" id="st-confirm-cancel" type="button">Cancel</button>
+    </div>
+  </section>
+
+  <!-- A queued restart lives on the SERVER, so this panel reflects it even
+       after a reload, and closing the tab does not abandon the drain. -->
+  <section id="st-drain" class="card st-drain" hidden>
+    <h2 data-i18n>Restart queued</h2>
+    <div id="st-drain-what"></div>
+    <div class="st-confirm-actions">
+      <button data-i18n class="btn" id="st-drain-now" type="button">Restart now anyway</button>
+      <button data-i18n class="btn" id="st-drain-cancel" type="button">Cancel the restart</button>
+    </div>
+  </section>
+
   <div id="st-body" class="st-grid"></div>
 
   <section class="card st-users-card">

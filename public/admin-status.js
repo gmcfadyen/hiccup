@@ -3,6 +3,24 @@
   'use strict';
 
   function $(id) { return document.getElementById(id); }
+
+  /**
+   * Status line under the header. This was CALLED five times and never
+   * defined -- a ReferenceError thrown before the fetch, which is why the
+   * restart button silently did nothing: the throw happened outside the
+   * try/catch below it, so no request was ever sent and no error surfaced.
+   */
+  function say(text, isErr) {
+    var m = $('st-msg');
+    if (!m) return;
+    m.textContent = text || '';
+    m.className = 'feedback-msg' + (isErr ? ' is-err' : (text ? ' is-ok' : ''));
+  }
+
+  function clear(node) {
+    if (!node) return;
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
   function el(tag, cls, text) {
     var n = document.createElement(tag);
     if (cls) n.className = cls;
@@ -366,30 +384,129 @@
   }
 
   // Restart is destructive-ish and easy to hit by accident next to refresh,
-  // so it confirms first and then polls until the new process answers —
+  // so it confirms first and then polls until the new process answers --
   // otherwise the page just sits on a dead socket looking broken.
-  $('st-restart').addEventListener('click', async function () {
-    if (!confirm(_t('Restart the hiccup service now?\n\nIn-flight requests are dropped and the app is unreachable for a few seconds.'))) return;
+  //
+  // The confirmation is IN-PAGE, not window.confirm(): a browser that has
+  // been told to block dialogs for this origin returns false from confirm()
+  // without showing anything, which is indistinguishable from the admin
+  // clicking Cancel. A restart button that can be silently disabled by a
+  // browser setting is a restart button you cannot trust.
+  var drainPoll = null;
+
+  function showConfirm(show) {
+    var box = $('st-confirm');
+    if (box) box.hidden = !show;
+    var btn = $('st-restart');
+    if (btn) btn.disabled = !!show;
+  }
+
+  $('st-restart').addEventListener('click', function () { showConfirm(true); });
+  $('st-confirm-cancel').addEventListener('click', function () { showConfirm(false); });
+
+  $('st-confirm-wait').addEventListener('click', function () {
+    showConfirm(false);
+    sendRestart(true);
+  });
+  $('st-confirm-now').addEventListener('click', function () {
+    showConfirm(false);
+    sendRestart(false);
+  });
+
+  async function sendRestart(waitForIdle) {
     $('st-restart').disabled = true;
-    say('asking the server to restart…');
+    say(waitForIdle ? _t('queueing the restart…') : _t('asking the server to restart…'));
     try {
       var r = await fetch('/api/admin/server/control', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'restart' })
+        body: JSON.stringify({ action: 'restart', waitForIdle: !!waitForIdle })
       });
       var d = await r.json();
       if (!r.ok) {
-        say(d.error || ('restart refused (' + r.status + ')'), true);
+        say(d.error || (_t('restart refused (') + r.status + ')'), true);
         $('st-restart').disabled = false;
         return;
       }
-      say(d.msg || "restarting…");
-      waitForServer(0);
+      say(d.msg || _t('restarting…'));
+      if (d.queued) { renderDrain(d.restart); pollDrain(); }
+      else waitForServer(0);
     } catch (e) {
-      say('could not reach the server', true);
+      say(_t('could not reach the server'), true);
       $('st-restart').disabled = false;
     }
+  }
+
+  /** Ask the server what its queued restart is waiting for, once a second. */
+  function pollDrain() {
+    if (drainPoll) return;
+    drainPoll = setInterval(async function () {
+      try {
+        var r = await fetch('/api/admin/server/control', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'restart-status' })
+        });
+        if (!r.ok) return;
+        var d = await r.json();
+        renderDrain(d.restart);
+        // The drain stopping means it either fired (the process is on its way
+        // out) or was cancelled elsewhere. Either way, start watching for the
+        // new process -- waitForServer only reloads on a LOW uptime, so a
+        // cancel just leaves the page as it was.
+        if (d.restart && !d.restart.pending) {
+          clearInterval(drainPoll); drainPoll = null;
+          waitForServer(0);
+        }
+      } catch (e) {
+        // The socket dying IS the restart happening.
+        clearInterval(drainPoll); drainPoll = null;
+        waitForServer(0);
+      }
+    }, 1000);
+  }
+
+  function renderDrain(st) {
+    var panel = $('st-drain');
+    if (!panel) return;
+    if (!st || !st.pending) { panel.hidden = true; return; }
+    panel.hidden = false;
+    var site = st.site || {};
+    var body = $('st-drain-what');
+    clear(body);
+    if (!site.busy) {
+      body.appendChild(el('p', 'muted', _t('Site is idle — restarting in a moment.')));
+    } else {
+      var bits = [];
+      if (site.heavy) bits.push(site.heavy + _t(' in-progress upload/analysis'));
+      if (site.llmJobs) bits.push(site.llmJobs + _t(' chat answer(s) running'));
+      if (site.light) bits.push(site.light + _t(' request(s) in flight'));
+      body.appendChild(el('p', null, _t('Waiting for: ') + bits.join(', ')));
+      var ul = el('ul', 'st-drain-list');
+      (site.items || []).forEach(function (it) {
+        ul.appendChild(el('li', it.heavy ? 'is-heavy' : null,
+          it.label + ' (' + Math.round(it.ms / 1000) + 's)'));
+      });
+      if (ul.childNodes.length) body.appendChild(ul);
+    }
+    var waited = Math.round((st.waitedMs || 0) / 1000);
+    var give = Math.round((st.deadlineInMs || 0) / 1000);
+    body.appendChild(el('p', 'muted', _t('waiting ') + waited + _t('s · gives up in ') + give + 's'));
+  }
+
+  $('st-drain-now').addEventListener('click', function () { sendRestart(false); });
+  $('st-drain-cancel').addEventListener('click', async function () {
+    try {
+      await fetch('/api/admin/server/control', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'restart-cancel' })
+      });
+    } catch (e) { /* reported by the poll */ }
+    if (drainPoll) { clearInterval(drainPoll); drainPoll = null; }
+    $('st-drain').hidden = true;
+    $('st-restart').disabled = false;
+    say(_t('queued restart cancelled'));
   });
 
   /** Poll /api/status until the relaunched process answers, then reload. */
@@ -412,5 +529,32 @@
     }, 1000);
   }
   $('st-refresh').addEventListener('click', load);
+
+  /**
+   * A queued restart lives on the server, so it survives this page being
+   * closed and reopened -- pick it back up on load, otherwise the admin
+   * reloads and sees no sign of the restart they queued a minute ago.
+   * Uses restart-status rather than the status action because that one
+   * spawns PowerShell to probe the service and is far too slow for boot.
+   */
+  async function resumeQueuedRestart() {
+    try {
+      var r = await fetch('/api/admin/server/control', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'restart-status' })
+      });
+      if (!r.ok) return;                       // not an admin, or no such route yet
+      var d = await r.json();
+      if (d.restart && d.restart.pending) {
+        renderDrain(d.restart);
+        $('st-restart').disabled = true;
+        say(_t('a restart is already queued — waiting for the site to go idle'));
+        pollDrain();
+      }
+    } catch (e) { /* the page is still perfectly usable without this */ }
+  }
+
   load();
+  resumeQueuedRestart();
 })();

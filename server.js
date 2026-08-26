@@ -16,6 +16,7 @@ const stripe = require('./lib/stripe');
 const metrics = require('./lib/metrics');
 const plans = require('./lib/plans');
 const llm = require('./lib/llm');
+const drain = require('./lib/drain').createDrain({ llmStatus: () => llm.getLlmStatus() });
 
 // lib/analyze.js is the integrator's module. Require it gracefully so a partial
 // deploy (or standalone server testing) stays diagnosable: the server boots and
@@ -2137,8 +2138,22 @@ async function handleServerControl(req, res, user) {
   }
 
   const action = String((body && body.action) || '').trim();
-  if (action !== 'status' && action !== 'restart') {
-    sendJson(res, 400, { error: "action must be 'status' or 'restart'" });
+  const ACTIONS = ['status', 'restart', 'restart-status', 'restart-cancel'];
+  if (ACTIONS.indexOf(action) === -1) {
+    sendJson(res, 400, { error: 'action must be one of: ' + ACTIONS.join(', ') });
+    return;
+  }
+
+  // Polling the drain and cancelling it never touch the service, so they
+  // answer before the (slow, PowerShell-spawning) supervision probe.
+  if (action === 'restart-status') {
+    sendJson(res, 200, { ok: true, restart: drain.getState() });
+    return;
+  }
+  if (action === 'restart-cancel') {
+    const cancelled = drain.cancelRestart();
+    if (cancelled) console.log('hiccup: pending restart cancelled by ' + (user && user.email));
+    sendJson(res, 200, { ok: true, cancelled, restart: drain.getState() });
     return;
   }
 
@@ -2155,6 +2170,7 @@ async function handleServerControl(req, res, user) {
       version: VERSION,
       uptimeSeconds: Math.round(process.uptime()),
       canSelfRestart: underNssm,
+      restart: drain.getState(),
       note: underNssm
         ? 'Managed by the hiccup service (AppExit=Restart): exiting relaunches on the new code.'
         : 'This process is not the one the hiccup service supervises (service state: ' + svcState +
@@ -2174,7 +2190,32 @@ async function handleServerControl(req, res, user) {
     return;
   }
 
-  console.log('hiccup: restart requested via /api/admin/server/control by ' + (user && user.email));
+  const who = (user && user.email) || 'unknown';
+
+  // Wait for the site to go quiet first. The drain lives on the SERVER, not
+  // in the admin's page, so closing the tab does not abandon it.
+  if (body && body.waitForIdle) {
+    const state = drain.requestRestart({
+      by: who,
+      quietMs: Number(body.quietMs) >= 0 ? Number(body.quietMs) : undefined,
+      maxWaitMs: Number(body.maxWaitMs) > 0 ? Number(body.maxWaitMs) : undefined,
+      onRestart: (reason, snap) => {
+        console.log('hiccup: restart firing (' + reason + ') requested by ' + who +
+          ' — in flight at the time: ' + snap.heavy + ' heavy, ' + snap.light +
+          ' light, ' + snap.llmJobs + ' llm job(s)');
+        shutdown('admin restart (' + reason + ')');
+      },
+    });
+    console.log('hiccup: restart QUEUED by ' + who + ' — waiting for the site to go idle');
+    sendJson(res, 202, {
+      ok: true, queued: true, via: 'nssm',
+      msg: 'Restart queued — hiccup will restart as soon as nobody is using it.',
+      restart: state,
+    });
+    return;
+  }
+
+  console.log('hiccup: restart requested via /api/admin/server/control by ' + who);
   sendJson(res, 200, {
     ok: true,
     via: 'nssm',
@@ -4293,6 +4334,16 @@ function setSecurityHeaders(req, res) {
 const server = http.createServer((req, res) => {
   const startedAt = Date.now();
   setSecurityHeaders(req, res);
+  // Busyness tracking for the "restart when idle" drain. Registered here
+  // rather than in handle() so it covers every response path including the
+  // early returns, and released on 'close' rather than 'finish' so an
+  // aborted upload frees its slot instead of pinning the drain open.
+  const drainId = drain.beginRequest({
+    method: req.method,
+    path: String(req.url || '/').split('?')[0],
+    ua: (req.headers && req.headers['user-agent']) || '',
+  });
+  res.on('close', () => drain.endRequest(drainId));
   res.on('finish', () => {
     // Timestamp + caller + user-agent, because the old line (method/path/
     // status/ms) could not answer the only questions anyone actually asks of

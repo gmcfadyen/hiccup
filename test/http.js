@@ -685,6 +685,60 @@ async function main() {
     eq(memberAfterDelete.status, 200, 'the member must be able to sign in normally once SSO is removed');
   });
 
+  await t('restart: queue/status/cancel work over real HTTP, and the drain never fires in a test', async () => {
+    // The one thing this must NOT do is actually restart the harness server,
+    // so every call here either queues-then-cancels or asks for status. The
+    // spawned test process is not NSSM-supervised, which is itself the first
+    // assertion: the endpoint must refuse to exit into nothing.
+    const admin = client;
+
+    const st = await admin('POST', '/api/admin/server/control', { action: 'status' });
+    eq(st.status, 200, 'status action responds');
+    eq(st.json.canSelfRestart, false,
+      'a test process is not NSSM-supervised, so self-restart must be refused');
+    ok(st.json.restart && st.json.restart.pending === false,
+      'status carries the drain state so a reloaded page sees a queued restart');
+
+    // An unsupervised process must refuse the restart itself -- this is the
+    // guard that stops a dev instance exiting with nothing to relaunch it.
+    const refused = await admin('POST', '/api/admin/server/control',
+      { action: 'restart', waitForIdle: true });
+    eq(refused.status, 409, 'restart on an unsupervised process must be refused, not queued');
+    ok(/not supervised/i.test(refused.json.error || ''), 'and say why: ' + refused.json.error);
+
+    // The drain itself is still reachable and honest about having nothing queued.
+    const drainSt = await admin('POST', '/api/admin/server/control', { action: 'restart-status' });
+    eq(drainSt.status, 200, 'restart-status responds');
+    eq(drainSt.json.restart.pending, false, 'nothing queued');
+    ok(drainSt.json.restart.site && typeof drainSt.json.restart.site.busy === 'boolean',
+      'and reports live busyness: ' + JSON.stringify(drainSt.json.restart.site));
+
+    const cancel = await admin('POST', '/api/admin/server/control', { action: 'restart-cancel' });
+    eq(cancel.status, 200, 'cancel responds');
+    eq(cancel.json.cancelled, false, 'cancelling nothing is a clean no-op, not an error');
+
+    const bogus = await admin('POST', '/api/admin/server/control', { action: 'explode' });
+    eq(bogus.status, 400, 'an unknown action is rejected');
+
+    // Still alive: proof none of the above exited the process.
+    const alive = await admin('GET', '/api/status');
+    eq(alive.status, 200, 'the server must still be running after all of that');
+  });
+
+  await t('restart: the control endpoint is superuser-only and refuses cross-origin', async () => {
+    const anon = makeClient();
+    const noAuth = await anon('POST', '/api/admin/server/control', { action: 'status' });
+    ok(noAuth.status === 401 || noAuth.status === 403,
+      'an anonymous caller must not reach the restart control, got ' + noAuth.status);
+
+    // SameSite=Lax already blocks a cross-site POST carrying the cookie; the
+    // Origin check is the independent second lock on an endpoint that ends
+    // the process.
+    const crossOrigin = await client('POST', '/api/admin/server/control',
+      { action: 'status' }, { Origin: 'https://evil.example' });
+    eq(crossOrigin.status, 403, 'a cross-origin restart POST must be refused');
+  });
+
   // --------------------------------------------------------------- teardown
   const failed = results.filter((r) => !r.ok);
   console.log('\nHTTP: ' + (results.length - failed.length) + '/' + results.length + ' passed');

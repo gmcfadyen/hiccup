@@ -1714,6 +1714,187 @@ async function main() {
     w3teams.deleteTeamSso(team3.teamId);
   });
 
+  // -------------------------------------------------------------- drain
+  // lib/drain.js decides when "nobody is using the site" is true and holds the
+  // queued restart. Clock and LLM probe are injected, so the whole state
+  // machine is exercised here in milliseconds rather than minutes.
+
+  /** A drain with a fake clock and a controllable LLM queue. */
+  function makeDrain(over) {
+    const d = require(path.join(ROOT, 'lib', 'drain.js'));
+    const clock = { t: 1000, llm: 0, fired: null };
+    const timers = [];
+    const inst = d.createDrain(Object.assign({
+      now: () => clock.t,
+      llmStatus: () => ({ queue: { active: clock.llm, depth: 0 } }),
+      // Timers are collected, never scheduled: the test drives time itself.
+      setTimer: (fn) => { timers.push(fn); return timers.length; },
+      clearTimer: () => {},
+    }, over || {}));
+    // Advance the clock the way the real 1s timer does — in tick-sized
+    // slices, running the pending tick at each one. Jumping the whole
+    // interval in one go would let a 5s quiet window "pass" in a single
+    // tick, which the real scheduler never does.
+    clock.step = (ms) => {
+      let left = ms;
+      while (left > 0) {
+        const slice = Math.min(1000, left);
+        clock.t += slice;
+        left -= slice;
+        const due = timers.splice(0, timers.length);
+        due.forEach((fn) => fn());
+      }
+    };
+    return { d: inst, clock };
+  }
+
+  await t('drain: background noise never counts as someone using the site', () => {
+    const r = tryRequire(path.join('lib', 'drain.js'));
+    if (r.err) throw new Error(r.err);
+    const { isIgnorable, isHeavy } = r.mod;
+    // The gavbot2 health check hits / forever, and app.js polls /api/status
+    // every 60s from every open tab -- counting either means the site is
+    // never idle and the drain never fires.
+    ok(isIgnorable({ method: 'GET', path: '/', ua: 'gavbot2-healthcheck' }), 'health check ignored');
+    ok(isIgnorable({ method: 'GET', path: '/api/status', ua: 'Mozilla/5.0' }), 'status poll ignored');
+    ok(isIgnorable({ method: 'POST', path: '/api/admin/server/control', ua: 'Mozilla/5.0' }),
+      "the drain's own polling must not keep the drain open");
+    ok(!isIgnorable({ method: 'GET', path: '/app', ua: 'Mozilla/5.0' }), 'a real page load counts');
+    ok(!isIgnorable({ method: 'GET', path: '/app.css', ua: 'Mozilla/5.0' }),
+      'assets count too -- a page load in progress IS someone using the site');
+    // Heavy = losing it costs the user real work.
+    ok(isHeavy({ method: 'POST', path: '/api/captures' }), 'capture upload+analysis is heavy');
+    ok(isHeavy({ method: 'POST', path: '/api/chat' }), 'a chat/agent answer is heavy');
+    ok(!isHeavy({ method: 'GET', path: '/api/captures' }), 'listing captures is not heavy');
+    ok(!isHeavy({ method: 'GET', path: '/app' }), 'a page load is not heavy');
+  });
+
+  await t('drain: fires only after a CONTINUOUS quiet window, not on a momentary gap', () => {
+    const { d, clock } = makeDrain();
+    let fired = null;
+    d.requestRestart({ quietMs: 5000, maxWaitMs: 300000, onRestart: (why) => { fired = why; } });
+
+    const a = d.beginRequest({ method: 'GET', path: '/app', ua: 'M' });
+    clock.step(1000);
+    ok(!fired, 'must not fire while a request is in flight');
+    ok(d.getState().pending === true, 'the drain stays pending');
+
+    d.endRequest(a);
+    clock.step(3000);
+    ok(!fired, '3s of quiet is not yet the 5s window');
+    // A new request resets the window -- this is the page-load settle case.
+    const b = d.beginRequest({ method: 'GET', path: '/app.css', ua: 'M' });
+    clock.step(1000);
+    d.endRequest(b);
+    clock.step(3000);
+    ok(!fired, 'the quiet window must RESTART after the interruption, not resume');
+    // Idleness is only OBSERVED at a tick boundary, so the window starts up
+    // to one tick after the last request actually ended -- the extra second
+    // here is that lag, not slack in the assertion.
+    clock.step(4000);
+    eq(fired, 'idle', 'a full continuous quiet window fires with reason "idle"');
+    eq(d.getState().pending, false, 'and the drain is no longer pending');
+  });
+
+  await t('drain: an already-idle site fires without waiting for a tick first', () => {
+    const { d, clock } = makeDrain();
+    let fired = null;
+    d.requestRestart({ quietMs: 0, onRestart: (why) => { fired = why; } });
+    eq(fired, 'idle', 'quietMs 0 on an idle site fires immediately, not one tick later');
+  });
+
+  await t('drain: the LLM queue counts as heavy even with no request in flight', () => {
+    const { d, clock } = makeDrain();
+    let fired = null;
+    d.requestRestart({ quietMs: 1000, onRestart: (why) => { fired = why; } });
+    clock.llm = 1;              // a queued chat answer, request already returned
+    clock.step(2000);
+    ok(!fired, 'a running LLM job must hold the restart');
+    const st = d.getState();
+    ok(st.site.heavyBusy && st.site.llmJobs === 1, 'and be reported as heavy: ' + JSON.stringify(st.site));
+    clock.llm = 0;
+    clock.step(2500);
+    eq(fired, 'idle', 'once the queue drains, it fires');
+  });
+
+  await t('drain: the deadline restarts through LIGHT traffic but waits out HEAVY work', () => {
+    // Light: a busy site of ordinary requests must not block a deploy forever.
+    const light = makeDrain();
+    let lightFired = null;
+    light.d.requestRestart({ quietMs: 5000, maxWaitMs: 10000, onRestart: (w) => { lightFired = w; } });
+    light.d.beginRequest({ method: 'GET', path: '/app', ua: 'M' });   // never ends
+    light.clock.step(5000);
+    ok(!lightFired, 'still inside the deadline');
+    light.clock.step(6000);
+    eq(lightFired, 'deadline', 'past the deadline with only light traffic, it goes');
+
+    // Heavy: a capture mid-analysis gets the grace period instead.
+    const heavy = makeDrain();
+    let heavyFired = null;
+    heavy.d.requestRestart({
+      quietMs: 5000, maxWaitMs: 10000, heavyGraceMs: 20000,
+      onRestart: (w) => { heavyFired = w; },
+    });
+    const up = heavy.d.beginRequest({ method: 'POST', path: '/api/captures', ua: 'M' });
+    heavy.clock.step(11000);
+    ok(!heavyFired, 'the deadline must NOT kill an in-progress capture analysis');
+    heavy.clock.step(15000);
+    ok(!heavyFired, 'still inside the heavy grace period');
+    heavy.clock.step(6000);
+    eq(heavyFired, 'deadline-forced', 'but the grace is bounded -- it is not a hang');
+
+    // And if the heavy work finishes inside the grace, it fires as idle.
+    const done = makeDrain();
+    let doneFired = null;
+    done.d.requestRestart({
+      quietMs: 1000, maxWaitMs: 5000, heavyGraceMs: 60000,
+      onRestart: (w) => { doneFired = w; },
+    });
+    const up2 = done.d.beginRequest({ method: 'POST', path: '/api/captures', ua: 'M' });
+    done.clock.step(6000);
+    ok(!doneFired, 'held by the upload');
+    done.d.endRequest(up2);
+    done.clock.step(2500);
+    eq(doneFired, 'idle', 'finishing the upload releases it immediately');
+  });
+
+  await t('drain: cancel stops it, a second request is idempotent, and the report names what it waits on', () => {
+    const { d, clock } = makeDrain();
+    let fires = 0;
+    d.requestRestart({ quietMs: 1000, onRestart: () => { fires++; } });
+    // Asking twice must not double-arm (two onRestart calls = two shutdowns).
+    d.requestRestart({ quietMs: 1000, onRestart: () => { fires++; } });
+    d.beginRequest({ method: 'POST', path: '/api/chat', ua: 'M' });
+
+    const st = d.getState();
+    eq(st.pending, true, 'pending');
+    eq(st.site.heavy, 1, 'the chat answer is counted as heavy');
+    ok(st.site.items.length === 1 && /chat answer/.test(st.site.items[0].label),
+      'the report must name it in plain English: ' + JSON.stringify(st.site.items));
+    ok(st.deadlineInMs > 0 && st.quietMs === 1000, 'the state carries the budget it is working to');
+
+    ok(d.cancelRestart() === true, 'cancel reports that it cancelled something');
+    eq(d.getState().pending, false, 'no longer pending');
+    ok(d.cancelRestart() === false, 'cancelling twice is a clean no-op');
+    clock.step(60000);
+    eq(fires, 0, 'a cancelled drain must never fire afterwards');
+  });
+
+  await t('drain: an aborted request releases its slot instead of pinning the drain open', () => {
+    const { d, clock } = makeDrain();
+    let fired = null;
+    d.requestRestart({ quietMs: 1000, onRestart: (w) => { fired = w; } });
+    // A browser that walks away mid-upload: server.js releases on 'close',
+    // which fires for an aborted response too. Without that the drain would
+    // wait out the full heavy grace for a request nobody is waiting on.
+    const gone = d.beginRequest({ method: 'POST', path: '/api/captures', ua: 'M' });
+    clock.step(2000);
+    ok(!fired, 'held while it looks in flight');
+    d.endRequest(gone);
+    clock.step(2500);
+    eq(fired, 'idle', 'releasing the aborted request lets the drain complete');
+  });
+
   // ------------------------------------------------------------ hmr-sim
   // lib/hmr-sim.js applies an HMR rule to one real SIP message. The stakes
   // are the same as hmr-generate's: this output tells an engineer whether a
