@@ -3078,11 +3078,22 @@ IdP. `test/selftest.js`'s own header rules out network beyond 127.0.0.1 —
 the same reason the Stripe tests never call the real Stripe API — so the
 live discovery-fetch and the full browser-redirect verification described
 above were done by hand against real infrastructure during development, not
-committed as an automated test. There is also, correspondingly, no
-completed round trip through a real customer IdP's consent screen — verified
-up to the boundary of "Google's real authorization server correctly rejects
-an unregistered client_id", which is as far as testing can go without a real
-registered OIDC application.
+committed as an automated test.
+
+The full round trip against a real registered IdP was completed on
+2026-08-26 using an Auth0 developer tenant (Okta's developer signup funnels
+there now): a real "hiccup" OIDC app, a real database user
+(sso-test@rfplex.ai) signing in through Auth0's own login page, code
+exchanged via client_secret_post through the SSRF-guarded pinned-DNS fetch,
+and the user JIT-provisioned onto the owner's team — branch (d) of
+resolveSignIn, live. Two field notes from that run worth keeping: Auth0's
+issuer carries a trailing slash, which normalizeIssuer on BOTH sides of
+every comparison absorbs (this is why it is applied on both sides); and an
+admin-created Auth0 user is email_verified:false until explicitly toggled —
+hiccup's callback rejects exactly that, so the toggle is a required setup
+step, not an optional nicety. Before this, verification stopped at the
+boundary of "Google's real authorization server correctly rejects an
+unregistered client_id".
 
 ## UI
 
