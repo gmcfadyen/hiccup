@@ -90,6 +90,12 @@ const CONFIG_DEFAULTS = {
   // the questions a log is for -- is traffic growing, is this one crawler or
   // many people -- without keeping something that identifies a person.
   accessLogIp: 'anonymised',
+  // Agentic chat: the model answers /api/chat by reading the capture through
+  // read-only tools (lib/agent.js) instead of a truncated prompt summary.
+  // false forces the old one-shot path everywhere; the one-shot path is ALSO
+  // the automatic fallback whenever the model has no tool support, so
+  // flipping this is an operator preference, not a availability lever.
+  agentChat: true,
   // New accounts per hour per IP. Tunable because the sensible value depends on
   // the deployment: a public site wants it low, and a test harness or an
   // internal box legitimately needs to create many accounts quickly.
@@ -3572,10 +3578,51 @@ async function handleChat(req, res, user) {
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i].role === 'user') { question = messages[i].content; break; }
   }
-  const kbHits = looksConfigShaped(question) ? kbSearchSafe(uid, question, 4) : [];
-  const system = buildSystemPrompt(analysis, body.scope, kbHits);
+  // Pro/Team buy queue priority (the pricing page sells it) — passed on
+  // every model call this request makes, agentic or not.
+  const priority = plans.queuePriority(user.plan);
+
   try {
-    const out = await llm.askLlm({ system, messages });
+    // Agent-first: the model reads the capture through tools (every finding,
+    // any message, the HMR simulator) instead of a truncated prompt summary.
+    // Falls back to the one-shot path when the operator turned it off, the
+    // module is missing, the model has no tool support, or the loop came
+    // back empty — chat never regresses below what it did before.
+    const agentMod = config.agentChat !== false ? optionalModule('./lib/agent') : null;
+    if (agentMod) {
+      let a = null;
+      try {
+        const scope = body.scope;
+        const scopeHint = (scope && scope.type && scope.id && SCOPE_TYPES.has(scope.type) &&
+          scope.type !== 'capture')
+          ? 'The user is currently focused on ' + scope.type + ' ' + String(scope.id).slice(0, 24) +
+            ' in the UI — when the question says "this" or "it", that is what they mean; start there.'
+          : null;
+        a = await agentMod.runAgent({
+          analysis,
+          messages,
+          ask: llm.askLlm,
+          kbSearch: (q, k) => kbSearchSafe(uid, q, k),
+          scopeHint,
+          priority,
+        });
+      } catch (e) {
+        if (e && (e.code === 'busy' || e.code === 'unavailable' || e.code === 'not-initialized')) throw e;
+        // Anything else (a mid-loop model error) degrades to one-shot below.
+        console.warn('hiccup: agent chat failed, falling back to one-shot: ' + (e && e.message));
+      }
+      if (a && !a.fellBack && String(a.reply || '').trim()) {
+        sendJson(res, 200, {
+          reply: a.reply, model: a.model,
+          agent: { calls: a.calls, tools: a.trace.map((t) => ({ tool: t.tool, ok: t.ok })) },
+        });
+        return;
+      }
+    }
+    // One-shot path (also the fallback): the original prompt-stuffed ask.
+    const kbHits = looksConfigShaped(question) ? kbSearchSafe(uid, question, 4) : [];
+    const system = buildSystemPrompt(analysis, body.scope, kbHits);
+    const out = await llm.askLlm({ system, messages, priority });
     sendJson(res, 200, { reply: out.text, model: out.model });
   } catch (e) {
     if (e && e.code === 'busy') {

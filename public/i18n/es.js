@@ -56,6 +56,7 @@ window.HICCUP_I18N = {
   "0b9a5e531efec815": "observado tal como está configurado",
   "0c2b6e8d9a256942": "comentarios",
   "0c8057b8591a0b00": "números H.323, resúmenes auxiliares, hallazgos y consejos.",
+  "0c8e0429a303de54": "consultado:",
   "0cc44970c8397929": "descripción",
   "0d132f8f1fade63d": "un pcap o pcapng, un log de texto de SBC pegado, un conjunto de reglas de manipulación de cabeceras, o una guía de configuración del fabricante.",
   "0d1ec2ca1edf2abf": "Enviando…",

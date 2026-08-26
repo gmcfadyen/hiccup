@@ -55,6 +55,7 @@ window.HICCUP_I18N = {
   "0b9a5e531efec815": "wie konfiguriert beobachtet",
   "0c2b6e8d9a256942": "Feedback",
   "0c8057b8591a0b00": "H.323-Nummern, Aux-Zusammenfassungen, Befunde und Hinweise.",
+  "0c8e0429a303de54": "geprüft:",
   "0cc44970c8397929": "Beschreibung",
   "0d132f8f1fade63d": "ein pcap oder pcapng, ein eingefügtes SBC-Textlog, ein Satz Header-Manipulationsregeln, oder eine Hersteller-Konfigurationsanleitung.",
   "0d1ec2ca1edf2abf": "Wird gesendet…",

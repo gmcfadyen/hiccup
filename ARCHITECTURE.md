@@ -3100,3 +3100,102 @@ actually produce to its cause — cross-checked line by line against the real
 strings in `server.js`/`lib/sso.js`/`lib/teams.js` rather than written from
 memory, catching two real drift bugs (a truncated message, a missing row)
 before they shipped.
+
+# Wave 23 — agentic chat: tools over the analysis, and an HMR simulator
+
+`/api/chat` now answers agentically: instead of stuffing a truncated summary
+into one prompt, the model reads the capture through nine read-only tools and
+iterates. The one-shot path is unchanged and remains the automatic fallback,
+so chat can never regress below what it did before.
+
+## The bug that motivated it
+
+`buildSystemPrompt()` showed the model 20 findings and then TOLD it how many
+more existed that it could not see ("and 40 more") — at `num_ctx: 8192` no
+cap raise fixes that. A busy trunk capture made the assistant confidently
+blind. Every tool in `lib/agent.js` is a thin accessor over the AnalysisJSON
+the deterministic pipeline already computed: `list_findings` (never
+truncated), `get_advice`, `list_calls`/`get_call` (message sequence + the
+ingress/egress diffs), `search_messages`, `get_message`, `get_media_quality`,
+`search_kb` (registered only when the account KB is available), plus the two
+HMR tools below. No tool mutates anything; the capture is resolved by the
+route before the agent starts, so there is no id-confusion surface — the
+lesson RFPlex's agent had to learn (resolve ownership on every model-supplied
+id) does not arise because nothing model-supplied ever reaches disk.
+
+## lib/hmr-sim.js — the verifier that makes the loop worth having
+
+`generateRule` drafted rules and `renderRule` printed vendor config, but
+nothing ever EXECUTED a rule — "does this fix the failing INVITE" was
+answered by eyeball. `applyRule(rule, rawMessage)` applies the IR to one real
+SIP message: scope check (msgType, methods via CSeq for responses),
+per-condition pass/fail with the actual compared value, then the operation
+(add / delete all-or-indexed / modify-replace with uri-user, uri-host,
+uri-port, display-name, uri-param surgery and the four prefix/suffix
+sub-operations / store / Request-URI start-line rewrite). Three honesty rules,
+each load-bearing: direction can never be judged from a single message (a
+note, never a fake verdict); anything unfaithful to model (vendor variables,
+cross-message stores, SBC-recomputed headers) becomes a warning, never a
+plausible guess; and nothing throws on malformed input. Zero dependencies —
+it reimplements the tiny header-normalisation table rather than importing
+lib/hmr.js, so the simulator loads even if the renderer is absent.
+
+The agent's `generate_hmr_rule` → `simulate_hmr` pair closes the loop the
+design argued for, and the first live run proved the point: the model's own
+draft rendered the Contact host as `sbc` instead of `sbc.example.com`, the
+simulator showed it, and the model corrected itself before presenting.
+
+## The citation guard — deterministic, like everything hiccup promises
+
+The prompt has always said "never invent an RFC section"; a 9B model breaks
+that at the margin (observed live: a plausible-but-wrong "RFC 3261 §10.2").
+So it is now enforced in code, the way RFPlex filters invented prices: every
+RFC+section pair appearing in ANY tool result (advice citations collected
+structurally, KB excerpts and raw messages by regex) is verified; any other
+section number in the reply is stripped to the bare RFC number, which is
+never wrong to say. Two regexes on purpose — a loose one for collection
+(tool results are JSON, with quotes between "RFC 3261" and its section) and a
+strict one for the rewrite (prose must never be grabbed across).
+
+## Budgets and degradation (the GPU is shared and RFPlex owns it)
+
+8 model calls per question (a real "diagnose AND draft AND verify" spends
+1 orient + 3-4 evidence + draft + simulate + final — at 6 the model was seen
+promising a simulation it could no longer run), 150s wall, 5 tool executions
+per turn, 4000-char tool results, num_predict 1200 (llm.js clamps there; 700
+clipped syntheses mid-sentence). Each call queues through llm.js's FIFO like
+any other request — the loop never holds the single Ollama slot between
+iterations — and Pro/Team queue priority is passed on every call (wiring
+that fixed a real gap: `plans.queuePriority` existed but nothing called it;
+the one-shot path now gets it too).
+
+The degradation ladder, each rung observed or tested: model has no tool
+template → `fellBack` → one-shot. Mid-loop Ollama failure WITH evidence
+gathered (seen live: qwen3.5 garbling its own tool-call XML → Ollama 500) →
+ONE tool-free recovery call that keeps the gathered tool results (no tools
+offered → the markup that broke cannot recur); a second failure, or one
+before any evidence, propagates to the route's one-shot fallback.
+busy/unavailable always propagate (429/503). `config.agentChat:false` forces
+one-shot everywhere. Empty reply → one-shot. LLM down → everything else
+still works, as always.
+
+Two qwen-observed behaviours are handled explicitly: the forced final call
+carries a user-turn nudge, not just a system suffix (the suffix alone was
+ignored — the model narrated "let's inspect…" into a dead end), and from the
+third call to the same tool the result carries a circling note (four
+`generate_hmr_rule` rephrasings once burned the whole budget).
+
+## Surfaces
+
+Response gains `agent: {calls, tools:[{tool,ok}]}`; the workbench chat
+renders it as a muted "checked: list_findings, get_message ×2" line under
+the answer (one new i18n string, 978/978). The UI scope (selected
+call/message/finding) reaches the agent as a one-line hint naming the id.
+
+Tested: 140/140 selftest (simulator semantics against rebuilt raw messages,
+loop mechanics with a scripted ask, budgets, citation guard through the loop,
+recovery, fallback signalling, request-shape pinning via `_buildChatBody`).
+Live-verified against real Ollama (qwen3.5:9b via RFPlex deference) on the
+ack-lost fixture: evidence-driven diagnosis quoting real ids, the
+draft→simulate→self-correct sequence, and every failure mode above that has
+a "seen live" note was actually seen live, then fixed, then re-run.

@@ -4332,6 +4332,9 @@
           var bubble = el('div', 'chat-bubble ' + (hist[i].role === 'user' ? 'from-user' : 'from-bot'));
           bubble.textContent = str(hist[i].content);
           box.appendChild(bubble);
+          if (hist[i].checked) {
+            box.appendChild(el('div', 'chat-checked', _t('checked: ') + str(hist[i].checked)));
+          }
         }
         if (state.chatBusy) {
           var busy = el('div', 'chat-bubble from-bot busy');
@@ -4422,7 +4425,24 @@
       } else if (!r.ok) {
         state.chatError = _t((j && j.error) || '') || (_t('chat failed (') + r.status + ')');
       } else {
-        hist.push({ role: 'assistant', content: str(j && j.reply), model: j && j.model });
+        var entry = { role: 'assistant', content: str(j && j.reply), model: j && j.model };
+        // Agentic answers say which capture tools they consulted — dedup to
+        // "list_findings ×2, get_message" so the line stays one line.
+        var used = j && j.agent && j.agent.tools;
+        if (used && used.length) {
+          var seen = {};
+          var order = [];
+          for (var ti = 0; ti < used.length; ti++) {
+            var tn = str(used[ti] && used[ti].tool);
+            if (!tn) continue;
+            if (seen[tn] == null) { seen[tn] = 0; order.push(tn); }
+            seen[tn] += 1;
+          }
+          entry.checked = order.map(function (n) {
+            return seen[n] > 1 ? n + ' ×' + seen[n] : n;
+          }).join(', ');
+        }
+        hist.push(entry);
         saveChat(hist);
       }
     } catch (e) {

@@ -55,6 +55,7 @@ window.HICCUP_I18N = {
   "0b9a5e531efec815": "observé conforme à la config",
   "0c2b6e8d9a256942": "retours",
   "0c8057b8591a0b00": "les numéros H.323, les résumés auxiliaires, les constats et les conseils.",
+  "0c8e0429a303de54": "consulté :",
   "0d132f8f1fade63d": "un pcap ou pcapng, un log texte de SBC collé, un jeu de règles de manipulation d'en-têtes, ou un guide de configuration constructeur.",
   "0d1ec2ca1edf2abf": "Envoi…",
   "0d39a60a5814cb56": "Une équipe partage chaque capture et chaque guide avec tous ses membres à égalité — il n'y a aucune permission par projet à configurer. Invitez un collègue et vous verrez tous les deux la même bibliothèque.",

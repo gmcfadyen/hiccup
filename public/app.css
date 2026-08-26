@@ -1885,6 +1885,15 @@ tr.skel-sel-row > td { padding: 5px 8px; }
   border: 1px solid var(--border);
 }
 
+/* Which capture tools the agent consulted for the answer above it. */
+.chat-checked {
+  align-self: flex-start;
+  margin: -2px 0 2px 4px;
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--mono);
+}
+
 .chat-error,
 .chat-offline {
   flex: none;

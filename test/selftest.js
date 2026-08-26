@@ -1714,6 +1714,488 @@ async function main() {
     w3teams.deleteTeamSso(team3.teamId);
   });
 
+  // ------------------------------------------------------------ hmr-sim
+  // lib/hmr-sim.js applies an HMR rule to one real SIP message. The stakes
+  // are the same as hmr-generate's: this output tells an engineer whether a
+  // rule is safe to paste into a production SBC, so a simulator that changes
+  // the wrong thing — or claims a change it did not make — is worse than no
+  // simulator. Every test below asserts on the REBUILT raw message, not just
+  // the action report, so the two can never drift apart.
+
+  const SIM_INVITE = [
+    'INVITE sip:+3349000000@sbc.example.com:5060 SIP/2.0',
+    'Via: SIP/2.0/UDP 10.0.0.1:5060;branch=z9hG4bK776asdhds',
+    'Max-Forwards: 70',
+    'From: "Alice" <sip:alice@corp.example.com>;tag=1928301774',
+    'To: <sip:+3349000000@sbc.example.com>',
+    'Call-ID: a84b4c76e66710',
+    'CSeq: 314159 INVITE',
+    'P-Asserted-Identity: <sip:+33612345678@corp.example.com>',
+    'P-Asserted-Identity: <tel:+33612345678>',
+    'Contact: <sip:alice@10.0.0.1:5060>',
+    'Content-Type: application/sdp',
+    'Content-Length: 12',
+    '',
+    'v=0 (stub)',
+    ''
+  ].join('\r\n');
+
+  await t('hmr-sim: parse -> serialize round-trips, preserving body and line endings', () => {
+    const r = tryRequire(path.join('lib', 'hmr-sim.js'));
+    if (r.err) throw new Error(r.err);
+    const sim = r.mod;
+    const p = sim.parseSipMessage(SIM_INVITE);
+    ok(p.ok, 'the fixture INVITE should parse: ' + p.error);
+    eq(p.method, 'INVITE', 'method');
+    eq(p.headers.length, 11, 'header count');
+    const rebuilt = sim.serializeSipMessage(p);
+    eq(rebuilt, SIM_INVITE, 'an untouched message must serialize byte-identical');
+    // And an LF-only message keeps LF — a simulator that silently converts
+    // line endings makes every diff look changed.
+    const lf = SIM_INVITE.replace(/\r\n/g, '\n');
+    const p2 = sim.parseSipMessage(lf);
+    ok(p2.ok && sim.serializeSipMessage(p2) === lf, 'LF line endings must survive the round trip');
+  });
+
+  await t('hmr-sim: delete removes every instance, and reports each one', () => {
+    const sim = require(path.join(ROOT, 'lib', 'hmr-sim.js'));
+    const res = sim.applyRule({
+      operation: 'delete',
+      target: { header: 'P-Asserted-Identity', element: null, index: null },
+      scope: { msgType: 'request', methods: ['INVITE'] }, conditions: [],
+    }, SIM_INVITE);
+    ok(res.ok && res.inScope && res.matched, 'rule should be in scope and matched');
+    ok(res.changed, 'the message should have changed');
+    eq(res.actions.length, 2, 'both PAI instances reported');
+    ok(res.after.indexOf('P-Asserted-Identity') === -1, 'no PAI may remain in the rebuilt message');
+    ok(res.after.indexOf('v=0 (stub)') !== -1, 'the body must survive untouched');
+    // index targets exactly one instance
+    const one = sim.applyRule({
+      operation: 'delete', target: { header: 'P-Asserted-Identity', element: null, index: 1 },
+      scope: {}, conditions: [],
+    }, SIM_INVITE);
+    ok(one.changed && (one.after.match(/P-Asserted-Identity/g) || []).length === 1,
+      'index:1 must remove only the second instance');
+    ok(one.after.indexOf('<sip:+33612345678@corp.example.com>') !== -1,
+      'the first instance must survive an index:1 delete');
+  });
+
+  await t('hmr-sim: element surgery — uri-user, display name, Request-URI host', () => {
+    const sim = require(path.join(ROOT, 'lib', 'hmr-sim.js'));
+    const user = sim.applyRule({
+      operation: 'modify', target: { header: 'From', element: 'uri-user' },
+      value: { kind: 'literal', text: 'anonymous' }, scope: {}, conditions: [],
+    }, SIM_INVITE);
+    ok(user.changed, 'uri-user modify should change the message');
+    ok(user.after.indexOf('From: "Alice" <sip:anonymous@corp.example.com>;tag=1928301774') !== -1,
+      'only the user part may change — display name, host and tag must survive: ' +
+      (user.actions[0] && user.actions[0].after));
+    const ruri = sim.applyRule({
+      operation: 'replace', target: { header: 'request-uri', element: 'uri-host' },
+      value: { kind: 'literal', text: 'core.internal' }, scope: {}, conditions: [],
+    }, SIM_INVITE);
+    ok(ruri.after.indexOf('INVITE sip:+3349000000@core.internal:5060 SIP/2.0') === 0,
+      'Request-URI host rewrite must keep user and port: ' + ruri.after.split(/\r?\n/)[0]);
+    // Deleting a Request-URI is protocol-invalid — refused with a warning,
+    // never silently done.
+    const bad = sim.applyRule({
+      operation: 'delete', target: { header: 'request-uri' }, scope: {}, conditions: [],
+    }, SIM_INVITE);
+    ok(!bad.changed && bad.warnings.length > 0, 'delete Request-URI must refuse with a warning');
+  });
+
+  await t('hmr-sim: conditions gate the change, and a bad regex fails closed without throwing', () => {
+    const sim = require(path.join(ROOT, 'lib', 'hmr-sim.js'));
+    const pass = sim.applyRule({
+      operation: 'delete', target: { header: 'Contact' }, scope: {},
+      conditions: [{ element: 'From', comparison: 'contains', value: 'alice' }],
+    }, SIM_INVITE);
+    ok(pass.matched && pass.changed, 'a passing condition lets the action run');
+    const fail = sim.applyRule({
+      operation: 'delete', target: { header: 'Contact' }, scope: {},
+      conditions: [{ element: 'From', comparison: 'contains', value: 'bob' }],
+    }, SIM_INVITE);
+    ok(fail.inScope && !fail.matched && !fail.changed && fail.after === SIM_INVITE,
+      'a failing condition must leave the message byte-identical');
+    const badRe = sim.applyRule({
+      operation: 'delete', target: { header: 'Contact' }, scope: {},
+      conditions: [{ element: 'From', comparison: 'matches', value: '[unclosed' }],
+    }, SIM_INVITE);
+    ok(!badRe.matched && badRe.conditions[0].note,
+      'an invalid regex must fail the condition with a note, not throw');
+    // negate flips, and a dotted element path reads a sub-part
+    const neg = sim.applyRule({
+      operation: 'delete', target: { header: 'Contact' }, scope: {},
+      conditions: [{ element: 'from.uri.user', comparison: 'equals', value: 'alice', negate: true }],
+    }, SIM_INVITE);
+    ok(!neg.matched, 'negate on a passing sub-element comparison must fail the condition');
+  });
+
+  await t('hmr-sim: scope filters by msgType and CSeq method; a response evaluates response.status', () => {
+    const sim = require(path.join(ROOT, 'lib', 'hmr-sim.js'));
+    const wrongType = sim.applyRule({
+      operation: 'delete', target: { header: 'Contact' }, scope: { msgType: 'reply' }, conditions: [],
+    }, SIM_INVITE);
+    ok(!wrongType.inScope && !wrongType.changed, 'a request must not match a reply-scoped rule');
+    const RESP = 'SIP/2.0 486 Busy Here\r\nVia: SIP/2.0/UDP 10.0.0.1;branch=z9\r\n' +
+      'From: <sip:a@x>;tag=1\r\nTo: <sip:b@y>;tag=2\r\nCall-ID: z\r\nCSeq: 1 INVITE\r\n' +
+      'Content-Length: 0\r\n\r\n';
+    const hit = sim.applyRule({
+      operation: 'add', target: { header: 'Reason' }, value: { kind: 'literal', text: 'Q.850;cause=17' },
+      scope: { msgType: 'reply', methods: ['INVITE'] },
+      conditions: [{ element: 'response.status', comparison: 'equals', value: '486' }],
+    }, RESP);
+    ok(hit.inScope && hit.matched && hit.changed, 'a 486 to INVITE must match reply+INVITE+status=486');
+    ok(hit.after.indexOf('Reason: Q.850;cause=17') !== -1, 'the Reason header must be in the output');
+    const missShort = sim.applyRule({
+      operation: 'add', target: { header: 'Reason' }, value: { kind: 'literal', text: 'x' },
+      scope: { msgType: 'reply', methods: ['BYE'] }, conditions: [],
+    }, RESP);
+    ok(!missShort.inScope, 'a 486 whose CSeq says INVITE must not match a BYE-scoped rule');
+  });
+
+  await t('hmr-sim: store captures without mutating; prefix/suffix sub-operations do arithmetic', () => {
+    const sim = require(path.join(ROOT, 'lib', 'hmr-sim.js'));
+    const st = sim.applyRule({
+      operation: 'store', name: 'origUser', target: { header: 'From', element: 'uri-user' },
+      scope: {}, conditions: [],
+    }, SIM_INVITE);
+    ok(st.stored && st.stored.value === 'alice', 'store must capture the user part');
+    ok(!st.changed && st.after === SIM_INVITE, 'store must not change the message');
+    const pre = sim.applyRule({
+      operation: 'modify', subOperation: 'add-prefix',
+      target: { header: 'To', element: 'uri-user' }, value: { kind: 'literal', text: '00' },
+      scope: {}, conditions: [],
+    }, SIM_INVITE);
+    ok(pre.after.indexOf('To: <sip:00+3349000000@sbc.example.com>') !== -1,
+      'add-prefix must prepend to the existing user, not replace it');
+    const rmMiss = sim.applyRule({
+      operation: 'modify', subOperation: 'remove-prefix',
+      target: { header: 'To', element: 'uri-user' }, value: { kind: 'literal', text: '99' },
+      scope: {}, conditions: [],
+    }, SIM_INVITE);
+    ok(!rmMiss.changed, 'remove-prefix with a non-matching prefix must change nothing');
+  });
+
+  await t('hmr-sim: a generated rule simulates end to end (draft -> simulate closes the loop)', () => {
+    const gen = require(path.join(ROOT, 'lib', 'hmr-generate.js'));
+    const sim = require(path.join(ROOT, 'lib', 'hmr-sim.js'));
+    const g = gen.generateRule('strip the P-Asserted-Identity header on INVITE requests');
+    ok(g.ok && g.rule, 'the generator should draft the strip rule');
+    const res = sim.applyRule(g.rule, SIM_INVITE);
+    ok(res.ok && res.inScope && res.matched && res.changed,
+      'the drafted rule must run against the real message');
+    ok(res.after.indexOf('P-Asserted-Identity') === -1,
+      'and actually strip the header — this is the loop the chat agent iterates on');
+  });
+
+  // -------------------------------------------------------------- agent
+  // lib/agent.js is the tool loop behind /api/chat. The model is faked with a
+  // scripted ask() — what is under test is the LOOP: tools execute against a
+  // real analysis shape, results flow back as role:'tool' messages, budgets
+  // hold, and failure modes (unknown tool, thrown tool, no tool support)
+  // degrade instead of crash. The live model's behaviour is a deployment
+  // check, not a unit test.
+
+  function agentFixtureAnalysis() {
+    const raw = SIM_INVITE;
+    return {
+      stats: { format: 'raw-sip', packets: 3, sipMessages: 3, legs: 2, calls: 1 },
+      messages: [
+        { id: 's1', protocol: 'sip', ts: '2026-08-26T10:00:00.000Z', isRequest: true,
+          method: 'INVITE', requestUri: 'sip:+3349000000@sbc.example.com:5060',
+          fromUri: 'sip:alice@corp.example.com', toUri: 'sip:+3349000000@sbc.example.com',
+          status: null, reason: null, raw: raw, transport: 'udp' },
+        { id: 's2', protocol: 'sip', ts: '2026-08-26T10:00:00.100Z', isRequest: false,
+          method: 'INVITE', status: 486, reason: 'Busy Here', raw: 'SIP/2.0 486 Busy Here\r\nCSeq: 1 INVITE\r\n\r\n', transport: 'udp' },
+        { id: 's3', protocol: 'sip', ts: '2026-08-26T10:00:00.200Z', isRequest: true,
+          method: 'ACK', requestUri: 'sip:+3349000000@sbc.example.com', status: null,
+          raw: 'ACK sip:+3349000000@sbc.example.com SIP/2.0\r\nCSeq: 1 ACK\r\n\r\n', transport: 'udp' },
+      ],
+      legs: [
+        { id: 'd1', protocol: 'sip', kind: 'call', from: 'sip:alice@corp.example.com',
+          to: 'sip:+3349000000@sbc.example.com', state: 'failed', failCode: 486,
+          msgIds: ['s1', 's2', 's3'], src: '10.0.0.1', sport: 5060, dst: '10.0.0.2', dport: 5060,
+          transport: 'udp', startTs: '2026-08-26T10:00:00.000Z' },
+        { id: 'd2', protocol: 'sip', kind: 'call', from: 'sip:x@y', to: 'sip:z@w',
+          state: 'failed', failCode: 486, msgIds: [], transport: 'udp' },
+      ],
+      calls: [{ id: 'c1', type: 'sip-sip', state: 'paired', confidence: 0.8,
+        legIds: ['d1', 'd2'], pairings: [], diffs: [] }],
+      findings: [
+        { id: 'f1', severity: 'crit', title: 'Call rejected 486', detail: 'busy', callIds: ['c1'], msgIds: ['s2'] },
+        { id: 'f2', severity: 'info', title: 'Single Via', detail: '', callIds: [], msgIds: [] },
+      ],
+      advice: [{ id: 'a1', findingIds: ['f1'], severity: 'crit', title: 'Far end busy',
+        whatsWrong: 'w', whyItMatters: 'y', mechanism: 'm', fixes: [],
+        citations: [{ source: 'RFC 3261', section: 'Section 21.4.24', title: '486 Busy Here', url: 'https://www.rfc-editor.org/rfc/rfc3261', note: 'n' }] }],
+      indicators: [{ key: 'sip', state: 'on', detail: '' }, { key: 'rtp', state: 'issue', detail: 'no media seen' }],
+      scenario: { primary: 'enterprise-trunk', confidence: 0.7, detail: 'one trunk pair', alternatives: [] },
+      media: { streams: [], rtcp: [] },
+      aux: [],
+    };
+  }
+
+  await t('agent: tools read the real analysis — findings are NEVER truncated to 20, ids resolve, unknowns name themselves', () => {
+    const r = tryRequire(path.join('lib', 'agent.js'));
+    if (r.err) throw new Error(r.err);
+    const agent = r.mod;
+    const analysis = agentFixtureAnalysis();
+    // 60 findings — three times the old prompt cap. Every one must come back.
+    for (let i = 3; i <= 60; i++) {
+      analysis.findings.push({ id: 'f' + i, severity: 'info', title: 'finding ' + i, callIds: [], msgIds: [] });
+    }
+    const tools = agent._buildTools(analysis, null);
+    const byName = new Map(tools.map((x) => [x.def.function.name, x]));
+    ok(byName.has('list_findings') && byName.has('simulate_hmr') && byName.has('generate_hmr_rule'),
+      'core tools must be registered; got: ' + tools.map((x) => x.def.function.name).join(','));
+    ok(!byName.has('search_kb'), 'search_kb must not register without an injected kbSearch');
+    const all = byName.get('list_findings').run({});
+    eq(all.count, 60, 'list_findings must return EVERY finding — the truncation bug this exists to fix');
+    const crit = byName.get('list_findings').run({ severity: 'crit' });
+    eq(crit.count, 1, 'severity filter');
+    ok(crit.findings[0].adviceIds && crit.findings[0].adviceIds[0] === 'a1',
+      'findings must link to the advice that explains them');
+    const adv = byName.get('get_advice').run({ id: 'a1' });
+    ok(adv.citations && adv.citations[0].source === 'RFC 3261',
+      'get_advice must return the deterministic citations verbatim');
+    const missing = byName.get('get_advice').run({ id: 'a99' });
+    ok(missing.error && Array.isArray(missing.available),
+      'a wrong id must name the ids that do exist rather than just failing');
+    const msg = byName.get('get_message').run({ id: 's1' });
+    ok(msg.raw && msg.raw.indexOf('INVITE') === 0 && msg.leg === 'd1',
+      'get_message must return the raw text and resolve the owning leg');
+    const found = byName.get('search_messages').run({ status: '4xx' });
+    eq(found.matched, 1, 'status-class search must match the 486 only');
+    const simRes = byName.get('simulate_hmr').run({
+      rule: { operation: 'delete', target: { header: 'P-Asserted-Identity' }, scope: {}, conditions: [] },
+      message_id: 's1',
+    });
+    ok(simRes.changed === true && simRes.after && simRes.after.indexOf('P-Asserted-Identity') === -1,
+      'simulate_hmr must run the rule against the capture message by id');
+  });
+
+  await t('agent: the loop executes tool calls, feeds results back, and stops on a text answer', async () => {
+    const agent = require(path.join(ROOT, 'lib', 'agent.js'));
+    const analysis = agentFixtureAnalysis();
+    const askLog = [];
+    const ask = async (opts) => {
+      askLog.push(opts);
+      if (askLog.length === 1) {
+        ok(Array.isArray(opts.tools) && opts.tools.length >= 8, 'first call must offer the toolset');
+        return { text: '', model: 'fake-model', toolCalls: [
+          { function: { name: 'list_findings', arguments: { severity: 'crit' } } },
+          { function: { name: 'get_message', arguments: '{"id":"s2"}' } }, // string args must parse
+        ] };
+      }
+      // Second call: the conversation must now carry the tool results.
+      const toolMsgs = opts.messages.filter((m) => m.role === 'tool');
+      eq(toolMsgs.length, 2, 'both tool results must be in the conversation');
+      ok(toolMsgs[0].content.indexOf('Call rejected 486') !== -1, 'the finding text must reach the model');
+      ok(toolMsgs[1].content.indexOf('Busy Here') !== -1, 'the raw message must reach the model');
+      const echoed = opts.messages.filter((m) => m.role === 'assistant' && m.tool_calls);
+      eq(echoed.length, 1, 'the assistant turn with its tool_calls must be echoed back');
+      return { text: 'The call failed 486 (finding f1).', model: 'fake-model', toolCalls: [] };
+    };
+    const out = await agent.runAgent({ analysis, messages: [{ role: 'user', content: 'why did the call fail?' }], ask });
+    eq(out.calls, 2, 'two model calls');
+    eq(out.fellBack, false, 'no fallback');
+    ok(/486/.test(out.reply), 'the final text is the reply');
+    eq(out.trace.length, 2, 'both tool executions traced');
+    ok(out.trace.every((tr) => tr.ok), 'both traced as ok');
+  });
+
+  await t('agent: budgets hold — the final call is forced tool-free, oversized results are truncated, bad tools degrade', async () => {
+    const agent = require(path.join(ROOT, 'lib', 'agent.js'));
+    const analysis = agentFixtureAnalysis();
+    let sawToolFreeFinal = false;
+    let n = 0;
+    const greedy = async (opts) => {
+      n++;
+      if (!opts.tools) {
+        sawToolFreeFinal = true;
+        ok(/budget for this question is exhausted/.test(opts.system),
+          'the forced final call must TELL the model its tool budget is gone');
+        const last = opts.messages[opts.messages.length - 1];
+        ok(last.role === 'user' && /no further tool use is possible/.test(last.content),
+          'and carry a user-turn nudge — the system suffix alone was ignored live');
+        return { text: 'forced final answer', model: 'fake', toolCalls: [] };
+      }
+      ok(!/budget for this question is exhausted/.test(opts.system),
+        'mid-loop calls must not carry the exhaustion notice');
+      // Always asks for more tools — only the budget can stop it.
+      return { text: '', model: 'fake', toolCalls: [{ function: { name: 'list_calls', arguments: {} } }] };
+    };
+    const out = await agent.runAgent({
+      analysis, messages: [{ role: 'user', content: 'q' }], ask: greedy, maxCalls: 3,
+    });
+    eq(out.calls, 3, 'a greedy model must be stopped at maxCalls');
+    ok(sawToolFreeFinal, 'the last call must go out WITHOUT tools so an answer is forced');
+    eq(out.reply, 'forced final answer', 'and its text is the reply');
+
+    // Unknown tool + a tool that throws both come back as error results the
+    // model can read — the loop itself never dies.
+    let step = 0;
+    const wild = async (opts) => {
+      step++;
+      if (step === 1) return { text: '', model: 'fake', toolCalls: [
+        { function: { name: 'not_a_tool', arguments: {} } },
+        { function: { name: 'get_advice', arguments: { id: { bad: 'shape' } } } },
+      ] };
+      const toolMsgs = opts.messages.filter((m) => m.role === 'tool');
+      eq(toolMsgs.length, 2, 'both results present despite both failing');
+      ok(/unknown tool/.test(toolMsgs[0].content), 'unknown tool names itself and lists what exists');
+      return { text: 'recovered', model: 'fake', toolCalls: [] };
+    };
+    const out2 = await agent.runAgent({ analysis, messages: [{ role: 'user', content: 'q' }], ask: wild });
+    eq(out2.reply, 'recovered', 'the loop survives bad tool calls');
+    ok(out2.trace.some((tr) => !tr.ok), 'the failures are visible in the trace');
+
+    // Oversized tool result: truncated to the cap, with the guidance suffix.
+    analysis.findings = [];
+    for (let i = 0; i < 500; i++) {
+      analysis.findings.push({ id: 'f' + i, severity: 'info', title: 'x'.repeat(120), callIds: [], msgIds: [] });
+    }
+    let truncatedSeen = null;
+    const big = async (opts) => {
+      const toolMsgs = opts.messages.filter((m) => m.role === 'tool');
+      if (toolMsgs.length) { truncatedSeen = toolMsgs[0].content; return { text: 'done', model: 'fake', toolCalls: [] }; }
+      return { text: '', model: 'fake', toolCalls: [{ function: { name: 'list_findings', arguments: {} } }] };
+    };
+    await agent.runAgent({ analysis, messages: [{ role: 'user', content: 'q' }], ask: big });
+    ok(truncatedSeen && truncatedSeen.length <= agent._limits.TOOL_RESULT_MAX + 100,
+      'a huge result must be clamped near TOOL_RESULT_MAX, got ' + (truncatedSeen && truncatedSeen.length));
+    ok(/truncated/.test(truncatedSeen), 'and say so, telling the model to narrow the query');
+  });
+
+  await t('agent: the citation guard strips RFC sections no tool result carried, and keeps the ones one did', async () => {
+    const agent = require(path.join(ROOT, 'lib', 'agent.js'));
+    // Unit level: the regex handles the formats models actually emit.
+    const verified = new Set();
+    agent._collectRfcSections('{"citations":[{"source":"RFC 3261","section":"Section 13.2.2.4"}]} RFC 3261 Section 13.2.2.4', verified);
+    ok(verified.has('3261|13.2.2.4'), 'collector should normalise "Section 13.2.2.4"');
+    const g = agent._stripUnverifiedCitations(
+      'Per RFC 3261 §13.2.2.4 the ACK is its own transaction, but RFC 3261 §10.2 and RFC 3665, section 3.1.2 do not apply.',
+      verified);
+    ok(g.text.indexOf('RFC 3261 §13.2.2.4') !== -1, 'the verified section must survive untouched');
+    ok(g.text.indexOf('§10.2') === -1 && g.text.indexOf('section 3.1.2') === -1,
+      'invented sections must be stripped: ' + g.text);
+    ok(/but RFC 3261 and RFC 3665 do not apply/.test(g.text),
+      'the bare RFC numbers must remain readable prose: ' + g.text);
+    eq(g.stripped, 2, 'both inventions counted');
+
+    // Through the loop: get_advice returns the real citation; the model's
+    // reply quotes it AND invents a second one. Only the invention dies.
+    const analysis = agentFixtureAnalysis();
+    let step = 0;
+    const ask = async () => {
+      step++;
+      if (step === 1) return { text: '', model: 'fake', toolCalls: [{ function: { name: 'get_advice', arguments: { id: 'a1' } } }] };
+      return {
+        text: 'See RFC 3261 Section 21.4.24 (from the advice). Also RFC 3261 §17.1.1 says retransmit.',
+        model: 'fake', toolCalls: [],
+      };
+    };
+    const out = await agent.runAgent({ analysis, messages: [{ role: 'user', content: 'q' }], ask });
+    ok(out.reply.indexOf('RFC 3261 Section 21.4.24') !== -1,
+      'the advice-carried citation must survive the loop');
+    ok(out.reply.indexOf('17.1.1') === -1, 'the invented one must not: ' + out.reply);
+    eq(out.citationsStripped, 1, 'the strip is counted on the result');
+  });
+
+  await t('agent: a mid-loop model failure salvages the gathered evidence with ONE tool-free recovery call', async () => {
+    const agent = require(path.join(ROOT, 'lib', 'agent.js'));
+    const analysis = agentFixtureAnalysis();
+    // Call 1: asks for a tool. Call 2: Ollama 500s (the qwen tool-call XML
+    // flake, seen live). Call 3 must arrive WITHOUT tools and succeed with
+    // the tool results still in the conversation.
+    let step = 0;
+    const flaky = async (opts) => {
+      step++;
+      if (step === 1) return { text: '', model: 'fake', toolCalls: [{ function: { name: 'list_findings', arguments: {} } }] };
+      if (step === 2) {
+        ok(opts.tools, 'the failing call was a normal tooled call');
+        const e = new Error('Ollama HTTP 500: XML syntax error on line 7');
+        e.statusCode = 500;
+        throw e;
+      }
+      ok(!opts.tools, 'the recovery call must offer no tools (the markup that broke cannot recur)');
+      ok(opts.messages.some((m) => m.role === 'tool'), 'the gathered evidence must still be in the conversation');
+      return { text: 'salvaged answer from the evidence', model: 'fake', toolCalls: [] };
+    };
+    const out = await agent.runAgent({ analysis, messages: [{ role: 'user', content: 'q' }], ask: flaky });
+    eq(out.reply, 'salvaged answer from the evidence', 'the recovery call answers');
+    eq(step, 3, 'exactly one recovery attempt');
+
+    // A failure BEFORE any evidence exists is not salvageable — it propagates
+    // so the route can fall back to the one-shot path.
+    const earlyFail = async () => { const e = new Error('boom'); e.statusCode = 500; throw e; };
+    let threw = null;
+    try { await agent.runAgent({ analysis, messages: [{ role: 'user', content: 'q' }], ask: earlyFail }); }
+    catch (e) { threw = e; }
+    ok(threw && /boom/.test(threw.message), 'a first-call failure must propagate');
+
+    // And a SECOND failure after recovery also propagates — one attempt only.
+    let step2 = 0;
+    const doubleFail = async () => {
+      step2++;
+      if (step2 === 1) return { text: '', model: 'fake', toolCalls: [{ function: { name: 'list_calls', arguments: {} } }] };
+      const e = new Error('still broken'); e.statusCode = 500; throw e;
+    };
+    threw = null;
+    try { await agent.runAgent({ analysis, messages: [{ role: 'user', content: 'q' }], ask: doubleFail }); }
+    catch (e) { threw = e; }
+    ok(threw && /still broken/.test(threw.message), 'recovery does not loop — the second failure propagates');
+    eq(step2, 3, 'call, failed call, failed recovery — and no more');
+  });
+
+  await t('agent: a model with no tool support reports fellBack instead of failing chat', async () => {
+    const agent = require(path.join(ROOT, 'lib', 'agent.js'));
+    const noTools = async () => {
+      const e = new Error('registry.ollama.ai/library/phi4 does not support tools');
+      e.code = 'no-tools';
+      throw e;
+    };
+    const out = await agent.runAgent({
+      analysis: agentFixtureAnalysis(), messages: [{ role: 'user', content: 'q' }], ask: noTools,
+    });
+    eq(out.fellBack, true, 'no-tools must surface as fellBack for the one-shot fallback');
+    // Any OTHER model error must propagate — the route maps it to 429/503.
+    const busy = async () => { const e = new Error('queue full'); e.code = 'busy'; throw e; };
+    let threw = null;
+    try { await agent.runAgent({ analysis: agentFixtureAnalysis(), messages: [{ role: 'user', content: 'q' }], ask: busy }); }
+    catch (e) { threw = e; }
+    ok(threw && threw.code === 'busy', 'busy must propagate, not be swallowed');
+  });
+
+  await t('agent: llm.buildChatBody carries tools and the tool-loop message shapes without breaking plain chat', () => {
+    const llmMod = require(path.join(ROOT, 'lib', 'llm.js'));
+    const tools = [{ type: 'function', function: { name: 't1', description: 'd', parameters: { type: 'object', properties: {} } } }];
+    const body = llmMod._buildChatBody('qwen3.5:9b', 'sys', [
+      { role: 'user', content: 'q' },
+      { role: 'assistant', content: '', tool_calls: [{ function: { name: 't1', arguments: {} } }] },
+      { role: 'tool', content: '{"x":1}', tool_name: 't1' },
+    ], '5m', tools);
+    eq(body.tools.length, 1, 'tools attached');
+    eq(body.messages.length, 4, 'system + 3 turns');
+    ok(body.messages[2].tool_calls && body.messages[2].tool_calls.length === 1,
+      'the assistant turn must keep its tool_calls');
+    eq(body.messages[3].role, 'tool', 'tool role preserved');
+    eq(body.messages[3].tool_name, 't1', 'tool_name preserved');
+    eq(body.think, false, 'qwen3* still gets think:false — tool-following depends on it');
+    // Plain chat unchanged: no tools key, roles coerced exactly as before.
+    const plain = llmMod._buildChatBody('m', 'sys', [{ role: 'weird', content: 'q' }], '5m');
+    ok(!('tools' in plain), 'no tools key on a plain body');
+    eq(plain.messages[1].role, 'user', 'unknown roles still coerce to user');
+    eq(plain.options.num_predict, 700, 'the default generation cap is unchanged');
+    // numPredict override: honoured, but hard-capped so no caller can turn
+    // one request into an unbounded generation.
+    const longer = llmMod._buildChatBody('m', 's', [{ role: 'user', content: 'q' }], '5m', null, 1000);
+    eq(longer.options.num_predict, 1000, 'numPredict override honoured');
+    const greedyCap = llmMod._buildChatBody('m', 's', [{ role: 'user', content: 'q' }], '5m', null, 99999);
+    eq(greedyCap.options.num_predict, 1200, 'and clamped at 1200');
+  });
+
   // ---------------------------------------------------------------- wave 6
   // The privacy boundary from ARCHITECTURE.md "Wave 6". These are the tests
   // that matter most in this file: sanitizeContext() is the single thing
