@@ -457,7 +457,7 @@
       "public/hmr.html:251",
       "public/index.html:576",
       "public/kb.html:234",
-      "public/subscribe.html:331",
+      "public/subscribe.html:358",
       "public/team.html:311"
     ]
   },
@@ -1474,8 +1474,8 @@
     "cat": "html",
     "where": [
       "public/index.html:539",
-      "public/subscribe.html:222",
-      "public/subscribe.html:241"
+      "public/subscribe.html:228",
+      "public/subscribe.html:247"
     ]
   },
   "116466ff73700aed": {
@@ -1978,205 +1978,205 @@
     "text": "Pricing",
     "cat": "html",
     "where": [
-      "public/subscribe.html:175"
+      "public/subscribe.html:181"
     ]
   },
   "e5511c8d8c16fbce": {
     "text": "The analyser itself is free, for anyone, for good — no card, no trial clock, no feature held back to make you pay. The paid plans buy scale and collaboration: bigger captures, a place at the front of the queue, and a shared library for a whole team.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:176"
+      "public/subscribe.html:182"
     ]
   },
   "a18adec38faaaa4e": {
     "text": "Launch pricing.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:185"
+      "public/subscribe.html:191"
     ]
   },
   "a9c8bdf7098c53ea": {
     "text": "hiccup is new, so these are introductory rates — about half what they will settle at. Whatever price you sign up on is the price you keep for as long as your subscription runs, even after the rates go up.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:186"
+      "public/subscribe.html:192"
     ]
   },
   "c1c8144de145082d": {
     "text": "Billing period",
     "cat": "html",
     "where": [
-      "public/subscribe.html:196"
+      "public/subscribe.html:202"
     ]
   },
   "046a35bfdd88a596": {
     "text": "Monthly",
     "cat": "html",
     "where": [
-      "public/subscribe.html:197"
+      "public/subscribe.html:203"
     ]
   },
   "0321c7dccee14a8a": {
     "text": "Annual",
     "cat": "html",
     "where": [
-      "public/subscribe.html:198"
+      "public/subscribe.html:204"
     ]
   },
   "c74422ed3746fda8": {
     "text": "— 2 months free",
     "cat": "html",
     "where": [
-      "public/subscribe.html:198"
+      "public/subscribe.html:204"
     ]
   },
   "951c63b0f1064454": {
     "text": "Free forever",
     "cat": "html",
     "where": [
-      "public/subscribe.html:204"
+      "public/subscribe.html:210"
     ]
   },
   "a6895584d61478fb": {
     "text": "Free",
     "cat": "html",
     "where": [
-      "public/subscribe.html:205"
+      "public/subscribe.html:211"
     ]
   },
   "18991e9f0e16bddb": {
     "text": "For anyone with a trace to read",
     "cat": "html",
     "where": [
-      "public/subscribe.html:206"
+      "public/subscribe.html:212"
     ]
   },
   "aaf691eb661ba9ac": {
     "text": "No card, no trial period, no expiry.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:208"
+      "public/subscribe.html:214"
     ]
   },
   "55d7fe2c2ee255b6": {
     "text": "Every analysis feature — ladder, timeline, verdicts, Q.850 decoding",
     "cat": "html",
     "where": [
-      "public/subscribe.html:210"
+      "public/subscribe.html:216"
     ]
   },
   "7359b22b13f5f671": {
     "text": "Write HMR from a plain-language description",
     "cat": "html",
     "where": [
-      "public/subscribe.html:211"
+      "public/subscribe.html:217"
     ]
   },
   "8e48821d2e13a4e0": {
     "text": "Captures up to 50 MB",
     "cat": "html",
     "where": [
-      "public/subscribe.html:212"
+      "public/subscribe.html:218"
     ]
   },
   "40e3459dbb6335dc": {
     "text": "Your own private capture library",
     "cat": "html",
     "where": [
-      "public/subscribe.html:213"
+      "public/subscribe.html:219"
     ]
   },
   "7053f40522e9830d": {
     "text": "Open the workbench →",
     "cat": "html",
     "where": [
-      "public/subscribe.html:215"
+      "public/subscribe.html:221"
     ]
   },
   "bcdf6481fb0ab3d3": {
     "text": "Launch price",
     "cat": "html",
     "where": [
-      "public/subscribe.html:219",
-      "public/subscribe.html:238"
+      "public/subscribe.html:225",
+      "public/subscribe.html:244"
     ]
   },
   "8e067719f45b0458": {
     "text": "Pro",
     "cat": "html",
     "where": [
-      "public/subscribe.html:220"
+      "public/subscribe.html:226"
     ]
   },
   "26dd42f49a379a2c": {
     "text": "For the engineer who lives in traces",
     "cat": "html",
     "where": [
-      "public/subscribe.html:221"
+      "public/subscribe.html:227"
     ]
   },
   "a1867795dfba0687": {
     "text": "/ year",
     "cat": "html",
     "where": [
-      "public/subscribe.html:223",
-      "public/subscribe.html:242"
+      "public/subscribe.html:229",
+      "public/subscribe.html:248"
     ]
   },
   "a25d70df937602a1": {
     "text": "Introductory rate — heading for €20 a month once launch pricing ends.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:224"
+      "public/subscribe.html:230"
     ]
   },
   "c596179b6a68b8d4": {
     "text": "Introductory rate — heading for €200 a year once launch pricing ends.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:226"
+      "public/subscribe.html:232"
     ]
   },
   "0a41e3de105b3243": {
     "text": "Everything in Free",
     "cat": "html",
     "where": [
-      "public/subscribe.html:229"
+      "public/subscribe.html:235"
     ]
   },
   "66cde536fe0883e7": {
     "text": "Captures up to 250 MB — a full day of signalling, not a trimmed clip",
     "cat": "html",
     "where": [
-      "public/subscribe.html:230"
+      "public/subscribe.html:236"
     ]
   },
   "c7dbb53436ee6537": {
     "text": "Priority in the analysis queue when the server is busy",
     "cat": "html",
     "where": [
-      "public/subscribe.html:231"
+      "public/subscribe.html:237"
     ]
   },
   "2a55e36081525cf2": {
     "text": "Keeps hiccup independent and ad-free",
     "cat": "html",
     "where": [
-      "public/subscribe.html:232"
+      "public/subscribe.html:238"
     ]
   },
   "51ec1e2385f8a4d2": {
     "text": "Go Pro →",
     "cat": "html",
     "where": [
-      "public/subscribe.html:234"
+      "public/subscribe.html:240"
     ]
   },
   "24b1dafb1b20370c": {
     "text": "Team",
     "cat": "html",
     "where": [
-      "public/subscribe.html:239",
+      "public/subscribe.html:245",
       "public/team.html:143"
     ]
   },
@@ -2184,203 +2184,217 @@
     "text": "For the people on the bridge call together",
     "cat": "html",
     "where": [
-      "public/subscribe.html:240"
+      "public/subscribe.html:246"
     ]
   },
   "7afe440bb527a973": {
     "text": "Introductory rate — heading for €40 a month once launch pricing ends.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:243"
+      "public/subscribe.html:249"
     ]
   },
   "0da12273c48f466a": {
     "text": "Introductory rate — heading for €400 a year once launch pricing ends.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:245"
+      "public/subscribe.html:251"
     ]
   },
   "8d863202fdc9325a": {
     "text": "Everything in Pro, for every member",
     "cat": "html",
     "where": [
-      "public/subscribe.html:248"
+      "public/subscribe.html:254"
     ]
   },
   "3dee3829243473d0": {
     "text": "A shared capture library — one upload, everyone sees the same diagnosis",
     "cat": "html",
     "where": [
-      "public/subscribe.html:249"
+      "public/subscribe.html:255"
     ]
   },
   "314fd3e0a1f6a210": {
     "text": "Owner and admin roles: invite, promote, suspend, remove",
     "cat": "html",
     "where": [
-      "public/subscribe.html:250"
+      "public/subscribe.html:256"
     ]
   },
   "989e868a039d8ac2": {
     "text": "One price for the whole team — up to 50 members, never per seat",
     "cat": "html",
     "where": [
-      "public/subscribe.html:251"
+      "public/subscribe.html:257"
     ]
   },
   "baf84d132e61ecfa": {
     "text": "Get Team →",
     "cat": "html",
     "where": [
-      "public/subscribe.html:256"
+      "public/subscribe.html:262"
     ]
   },
   "43f8157d090a9820": {
     "text": "How this works, for now",
     "cat": "html",
     "where": [
-      "public/subscribe.html:265"
+      "public/subscribe.html:271"
     ]
   },
   "22a803812ddc28ed": {
     "text": "hiccup is a solo-built, self-hosted tool — there is no payment processor wired into the app yet, so upgrading is a short manual step rather than an instant checkout.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:266"
+      "public/subscribe.html:272"
     ]
   },
   "3373c93116973142": {
     "text": "Click a plan above — it opens hiccup's Buy Me a Coffee page.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:270"
+      "public/subscribe.html:276"
     ]
   },
   "135eb6e9de10fbb4": {
     "text": "Enter the monthly amount and tick “Make this monthly”, or the yearly amount as a one-time payment.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:271"
+      "public/subscribe.html:277"
     ]
   },
   "b745e50fdfbd6137": {
     "text": "In the message field, include the email address your hiccup account uses — that is how your payment gets matched to your account.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:273"
+      "public/subscribe.html:279"
     ]
   },
   "62534b90cb936f84": {
     "text": "Your account is upgraded by hand, usually within a day. No need to wait around — you will be able to create or join a team as soon as it is done.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:275"
+      "public/subscribe.html:281"
     ]
   },
   "47158c05bd31ba99": {
     "text": "How this works",
     "cat": "html",
     "where": [
-      "public/subscribe.html:281"
+      "public/subscribe.html:287"
     ]
   },
   "c947cf524c7703a8": {
     "text": "Payment is handled by Stripe on their own checkout page — your card details never reach hiccup. Your account switches over as soon as Stripe confirms the payment, usually instantly.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:282"
+      "public/subscribe.html:288"
     ]
   },
   "fd418bdc121da438": {
     "text": "Cancel any time from the billing portal link Stripe emails you with your receipt.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:285"
+      "public/subscribe.html:291"
     ]
   },
   "1fa04bb12212f00f": {
     "text": "Questions people actually ask",
     "cat": "html",
     "where": [
-      "public/subscribe.html:290"
+      "public/subscribe.html:296"
     ]
   },
   "93ed02e66cf32695": {
     "text": "Is the free plan a trial?",
     "cat": "html",
     "where": [
-      "public/subscribe.html:292"
+      "public/subscribe.html:298"
     ]
   },
   "4dfe96fede78ca42": {
     "text": "No. It does not expire and it is not crippled. Every diagnostic feature — the ladder, the timeline, the verdicts, the HMR writer — works the same on a free account as on a paid one. What you are buying above is scale and teamwork.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:293"
+      "public/subscribe.html:299"
     ]
   },
   "d4255c082a16ec59": {
     "text": "What is the difference between Pro and Team?",
     "cat": "html",
     "where": [
-      "public/subscribe.html:297"
+      "public/subscribe.html:303"
     ]
   },
   "69f5c785ceedea4b": {
     "text": "Pro is for one person: bigger captures and priority when the server is busy. Team is that for everybody, plus a shared library so the whole group works from one copy of the trace instead of forwarding pcaps around.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:298"
+      "public/subscribe.html:304"
     ]
   },
   "f8e89e3a7e3c6193": {
     "text": "Does the price go up on me later?",
     "cat": "html",
     "where": [
-      "public/subscribe.html:302"
+      "public/subscribe.html:308"
     ]
   },
   "cc66da4290c58490": {
     "text": "No. These are introductory rates and they will rise for new subscribers, but your own price is fixed at whatever you signed up on, for as long as you stay subscribed.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:303"
+      "public/subscribe.html:309"
     ]
   },
   "f3d197ba99e853d9": {
     "text": "Can I cancel?",
     "cat": "html",
     "where": [
-      "public/subscribe.html:307"
+      "public/subscribe.html:313"
     ]
   },
   "78befdd5514c5732": {
     "text": "Any time, from the billing portal link on your Stripe receipt. You keep the paid features until the end of the period you have already paid for, and your captures stay where they are — nothing is deleted for downgrading.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:308"
+      "public/subscribe.html:314"
     ]
   },
   "e186be61d8be776b": {
     "text": "Do my traces get used to train anything?",
     "cat": "html",
     "where": [
-      "public/subscribe.html:312"
+      "public/subscribe.html:318"
     ]
   },
   "9beda55b6d9d5065": {
     "text": "No. Analysis runs on a self-hosted model on hiccup's own hardware in the EU. Nothing you upload leaves the box, and nothing is sold or used as training data.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:313"
+      "public/subscribe.html:319"
     ]
   },
   "54a6c56b18ff7889": {
     "text": "A payment didn't go through, or your receipt looks wrong — what now?",
     "cat": "html",
     "where": [
-      "public/subscribe.html:316"
+      "public/subscribe.html:322"
+    ]
+  },
+  "d892d5321fc521a6": {
+    "text": "Who you are buying from",
+    "cat": "html",
+    "where": [
+      "public/subscribe.html:335"
+    ]
+  },
+  "8eaf4a2fc05b3af7": {
+    "text": "The price you see is the price you pay — no VAT is added at checkout.",
+    "cat": "html",
+    "where": [
+      "public/subscribe.html:347"
     ]
   },
   "20d2719255c74e18": {

@@ -148,6 +148,12 @@
   .sub-faq h2 { font-size: 16px; margin-bottom: 10px; }
   .sub-faq dt { font-weight: 600; margin-top: 14px; font-size: 13.5px; }
   .sub-faq dd { margin: 4px 0 0; color: var(--muted); font-size: 13.5px; line-height: 1.55; }
+  .sub-legal { margin-top: 30px; }
+  .sub-legal h2 { font-size: 16px; margin-bottom: 10px; }
+  .sub-legal address {
+    font-style: normal; font-size: 13.5px; line-height: 1.6; color: var(--muted);
+  }
+  .sub-legal p { color: var(--muted); font-size: 13px; line-height: 1.55; margin: 10px 0 0; }
 
   /* subscribe.js sets data-pay="card" once /api/config/public says Stripe is
      configured. Doing the swap in CSS keeps both blocks in the served HTML,
@@ -323,6 +329,27 @@
         the email address on your account. Refunds and disputes are handled by hand, usually
         within a day.</dd>
     </dl>
+  </section>
+
+  <section class="card sub-legal">
+    <h2 data-i18n>Who you are buying from</h2>
+    <!-- Untranslated on purpose: a registered name, a postal address and a
+         French tax citation are legal identifiers, not prose -- translating
+         any of them would make the page disagree with the register. -->
+    <address>
+      Spotlight.Riviera (Gavin McFadyen)<br>
+      1460 chemin des Plaines<br>
+      06370 Mouans-Sartoux<br>
+      France<br>
+      SIRET: 999&nbsp;113&nbsp;319&nbsp;00019
+    </address>
+    <p lang="fr">TVA non applicable, article&nbsp;293&nbsp;B du CGI.</p>
+    <p data-i18n>The price you see is the price you pay — no VAT is added at checkout.</p>
+    <!-- Not data-i18n: the extractor only captures a tagged element's direct
+         text-node children, so a parent wrapping a nested <a> would split this
+         into two disconnected fragments either side of the link. -->
+    <p>Card payments are handled by Stripe — hiccup never sees your card details.
+      See <a href="/privacy">how your data is handled</a>.</p>
   </section>
 
   <aside data-i18n-attrs="aria-label" class="promo-card" aria-label="also from the same workshop">
