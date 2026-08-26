@@ -706,6 +706,7 @@ function notFoundText(res) {
 const PUBLIC_PAGES = new Map([
   ['/', 'index.html'],
   ['/privacy', 'privacy.html'],
+  ['/legal', 'legal.html'],
   ['/subscribe', 'subscribe.html'],
   ['/sso-setup', 'sso-setup.html'],
   ['/sip', 'sip/index.html'],

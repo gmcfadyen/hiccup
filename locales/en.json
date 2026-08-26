@@ -505,8 +505,8 @@
       "public/app.html:172",
       "public/hmr.html:248",
       "public/hmr.html:249",
-      "public/index.html:573",
-      "public/index.html:574"
+      "public/index.html:574",
+      "public/index.html:575"
     ]
   },
   "c8444bcade4335ca": {
@@ -515,9 +515,9 @@
     "where": [
       "public/app.html:174",
       "public/hmr.html:251",
-      "public/index.html:576",
+      "public/index.html:577",
       "public/kb.html:234",
-      "public/subscribe.html:358",
+      "public/subscribe.html:359",
       "public/team.html:311"
     ]
   },
@@ -1639,11 +1639,18 @@
       "public/index.html:570"
     ]
   },
+  "96a94ae7dfda921e": {
+    "text": "legal notice",
+    "cat": "html",
+    "where": [
+      "public/index.html:571"
+    ]
+  },
   "d486e88b5301428b": {
     "text": "self-hosted · your traces never leave this box",
     "cat": "html",
     "where": [
-      "public/index.html:572"
+      "public/index.html:573"
     ]
   },
   "5a29a54158399ac4": {
@@ -1769,6 +1776,7 @@
     "text": "SIP reference",
     "cat": "html",
     "where": [
+      "public/legal.html:33",
       "public/privacy.html:29",
       "public/sso-setup.html:36"
     ]
@@ -1777,7 +1785,8 @@
     "text": "← back to hiccup",
     "cat": "html",
     "where": [
-      "public/privacy.html:199"
+      "public/legal.html:116",
+      "public/privacy.html:200"
     ]
   },
   "12ee598766626354": {
@@ -2622,7 +2631,7 @@
     "cat": "html",
     "where": [
       "public/team.html:234",
-      "server.js:2605"
+      "server.js:2606"
     ]
   },
   "7616d7621ffd4767": {
@@ -6697,515 +6706,515 @@
     "text": "analysis engine not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:887"
+      "server.js:888"
     ]
   },
   "6a2b7043de978ef9": {
     "text": "that project was not found",
     "cat": "server",
     "where": [
-      "server.js:901"
+      "server.js:902"
     ]
   },
   "a80b26feac395b9e": {
     "text": "upload exceeds the",
     "cat": "server",
     "where": [
-      "server.js:917"
+      "server.js:918"
     ]
   },
   "54c6c9cc108f2242": {
     "text": "could not read upload",
     "cat": "server",
     "where": [
-      "server.js:923",
-      "server.js:1253"
+      "server.js:924",
+      "server.js:1254"
     ]
   },
   "0801d0a52741c7bf": {
     "text": "empty upload",
     "cat": "server",
     "where": [
-      "server.js:928",
-      "server.js:1258"
+      "server.js:929",
+      "server.js:1259"
     ]
   },
   "01a383ac2116bf20": {
     "text": "capture not found",
     "cat": "server",
     "where": [
-      "server.js:1006",
-      "server.js:1144",
-      "server.js:3605",
-      "server.js:4081",
-      "server.js:4096"
+      "server.js:1007",
+      "server.js:1145",
+      "server.js:3606",
+      "server.js:4082",
+      "server.js:4097"
     ]
   },
   "f79423093897467e": {
     "text": "the rule generator is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:1052"
+      "server.js:1053"
     ]
   },
   "090e1a119d8daa21": {
     "text": "description (what the rule should do, in English) is required",
     "cat": "server",
     "where": [
-      "server.js:1058"
+      "server.js:1059"
     ]
   },
   "d7b4031340d3e796": {
     "text": "vendors must be a subset of",
     "cat": "server",
     "where": [
-      "server.js:1066"
+      "server.js:1067"
     ]
   },
   "620fd49ea6d862c9": {
     "text": "could not process that description",
     "cat": "server",
     "where": [
-      "server.js:1079"
+      "server.js:1080"
     ]
   },
   "e29465da56a30135": {
     "text": "the config-manipulation engine is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:1102"
+      "server.js:1103"
     ]
   },
   "020034a3e7c22a8c": {
     "text": "text (an SBC config excerpt) is required",
     "cat": "server",
     "where": [
-      "server.js:1108"
+      "server.js:1109"
     ]
   },
   "546478ca51bb0dbb": {
     "text": "the config-guide library is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:1183"
+      "server.js:1184"
     ]
   },
   "540a07c7e762b016": {
     "text": "this build of lib/kb.js cannot add documents",
     "cat": "server",
     "where": [
-      "server.js:1234"
+      "server.js:1235"
     ]
   },
   "e27a75ef46fcc316": {
     "text": "document exceeds the",
     "cat": "server",
     "where": [
-      "server.js:1247"
+      "server.js:1248"
     ]
   },
   "402ff74fd64be7f1": {
     "text": "this build of lib/kb.js cannot add links",
     "cat": "server",
     "where": [
-      "server.js:1290"
+      "server.js:1291"
     ]
   },
   "2a59e817abd5fd84": {
     "text": "this build of lib/kb.js cannot delete documents",
     "cat": "server",
     "where": [
-      "server.js:1330"
+      "server.js:1331"
     ]
   },
   "f9cb3b7e6e30bdb9": {
     "text": "document not found",
     "cat": "server",
     "where": [
-      "server.js:1341"
+      "server.js:1342"
     ]
   },
   "3f951aec7bc91ff5": {
     "text": "this build has no feedback module",
     "cat": "server",
     "where": [
-      "server.js:1361"
+      "server.js:1362"
     ]
   },
   "c63c0aa33a970b76": {
     "text": "admin only",
     "cat": "server",
     "where": [
-      "server.js:1405"
+      "server.js:1406"
     ]
   },
   "766bccfadc60d6b3": {
     "text": "comment is required",
     "cat": "server",
     "where": [
-      "server.js:1545"
+      "server.js:1546"
     ]
   },
   "f08c15b90c9cd570": {
     "text": "too many submissions — try again later",
     "cat": "server",
     "where": [
-      "server.js:1549"
+      "server.js:1550"
     ]
   },
   "8433e48ee25ebe05": {
     "text": "send {\"confirm\":\"DELETE\"} to confirm this irreversible deletion",
     "cat": "server",
     "where": [
-      "server.js:1647"
+      "server.js:1648"
     ]
   },
   "ce52b93db38ac16b": {
     "text": "You still own a team with other members. Transfer ownership to one of them first, then delete your account. Nothing has been deleted.",
     "cat": "server",
     "where": [
-      "server.js:1674"
+      "server.js:1675"
     ]
   },
   "750fa3e5656e2d66": {
     "text": "send {\"confirm\":\"ERASE\"} to confirm erasing your data",
     "cat": "server",
     "where": [
-      "server.js:1786"
+      "server.js:1787"
     ]
   },
   "b107b578f662fb05": {
     "text": "cross-origin request refused",
     "cat": "server",
     "where": [
-      "server.js:2033",
-      "server.js:2135"
+      "server.js:2034",
+      "server.js:2136"
     ]
   },
   "2e962d10a2a3218e": {
     "text": "send {\"superuser\": true|false} and/or {\"plan\": \"free\"|\"pro\"|\"team\"}",
     "cat": "server",
     "where": [
-      "server.js:2041"
+      "server.js:2042"
     ]
   },
   "114895a695d6cf0c": {
     "text": "no such user",
     "cat": "server",
     "where": [
-      "server.js:2047",
-      "server.js:2090"
+      "server.js:2048",
+      "server.js:2091"
     ]
   },
   "f69098f93dd285bb": {
     "text": "could not save the updated admin list to disk",
     "cat": "server",
     "where": [
-      "server.js:2071"
+      "server.js:2072"
     ]
   },
   "dfd3eff711dd27cc": {
     "text": "action must be one of:",
     "cat": "server",
     "where": [
-      "server.js:2143"
+      "server.js:2144"
     ]
   },
   "c9025488a137cf6c": {
     "text": "Not supervised by the hiccup service (state:",
     "cat": "server",
     "where": [
-      "server.js:2187"
+      "server.js:2188"
     ]
   },
   "3fb3204d07f649c4": {
     "text": "no such feedback",
     "cat": "server",
     "where": [
-      "server.js:2295"
+      "server.js:2296"
     ]
   },
   "2668e3335367971b": {
     "text": "no feedback module",
     "cat": "server",
     "where": [
-      "server.js:2318"
+      "server.js:2319"
     ]
   },
   "b5872077e7138177": {
     "text": "no digestRecipient configured",
     "cat": "server",
     "where": [
-      "server.js:2332"
+      "server.js:2333"
     ]
   },
   "3e230b47bf9bb8d3": {
     "text": "no mail module",
     "cat": "server",
     "where": [
-      "server.js:2336"
+      "server.js:2337"
     ]
   },
   "d1638c2147bb7e7d": {
     "text": "this build of lib/kb.js cannot search",
     "cat": "server",
     "where": [
-      "server.js:2363"
+      "server.js:2364"
     ]
   },
   "5337ea8f8150b659": {
     "text": "q (a search query) is required",
     "cat": "server",
     "where": [
-      "server.js:2368"
+      "server.js:2369"
     ]
   },
   "d53aa13ba29ffd09": {
     "text": "the teams module is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:2418",
-      "server.js:2711",
-      "server.js:2723",
-      "server.js:2744",
-      "server.js:3008",
-      "server.js:3058"
+      "server.js:2419",
+      "server.js:2712",
+      "server.js:2724",
+      "server.js:2745",
+      "server.js:3009",
+      "server.js:3059"
     ]
   },
   "782715c4b601e788": {
     "text": "the sso module is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:2589",
-      "server.js:2695"
+      "server.js:2590",
+      "server.js:2696"
     ]
   },
   "eca7437ca69b34e5": {
     "text": "Create a team first.",
     "cat": "server",
     "where": [
-      "server.js:2594"
+      "server.js:2595"
     ]
   },
   "41781f2557282402": {
     "text": "Only the team owner can manage single sign-on.",
     "cat": "server",
     "where": [
-      "server.js:2601"
+      "server.js:2602"
     ]
   },
   "89cd945318c06367": {
     "text": "Too many changes. Wait a minute and try again.",
     "cat": "server",
     "where": [
-      "server.js:2631"
+      "server.js:2632"
     ]
   },
   "2caa2a67e67befdb": {
     "text": "Too many tests. Wait a minute and try again.",
     "cat": "server",
     "where": [
-      "server.js:2665"
+      "server.js:2666"
     ]
   },
   "0a826825b6606449": {
     "text": "No issuer configured yet.",
     "cat": "server",
     "where": [
-      "server.js:2674"
+      "server.js:2675"
     ]
   },
   "b4557baf45c6a947": {
     "text": "this invite link is invalid or has expired",
     "cat": "server",
     "where": [
-      "server.js:2749",
-      "server.js:3018"
+      "server.js:2750",
+      "server.js:3019"
     ]
   },
   "3f36b069bc670ec9": {
     "text": "Card payment is not set up on this server yet.",
     "cat": "server",
     "where": [
-      "server.js:2774"
+      "server.js:2775"
     ]
   },
   "5a7f4408f7db2802": {
     "text": "Choose a plan and a billing period.",
     "cat": "server",
     "where": [
-      "server.js:2783"
+      "server.js:2784"
     ]
   },
   "84307029bc061442": {
     "text": "The Pro plan is not set up on this server yet.",
     "cat": "server",
     "where": [
-      "server.js:2787"
+      "server.js:2788"
     ]
   },
   "114536ca7c2810d5": {
     "text": "You are already on the paid plan.",
     "cat": "server",
     "where": [
-      "server.js:2798"
+      "server.js:2799"
     ]
   },
   "bb9c45b8ad22bb47": {
     "text": "stripe is not configured on this server",
     "cat": "server",
     "where": [
-      "server.js:2865"
+      "server.js:2866"
     ]
   },
   "39f86b43347c4755": {
     "text": "signature verification failed",
     "cat": "server",
     "where": [
-      "server.js:2874"
+      "server.js:2875"
     ]
   },
   "9c156729d644795b": {
     "text": "could not apply event",
     "cat": "server",
     "where": [
-      "server.js:2891"
+      "server.js:2892"
     ]
   },
   "d7bf7c6c99ed4407": {
     "text": "token is required",
     "cat": "server",
     "where": [
-      "server.js:3013"
+      "server.js:3014"
     ]
   },
   "baa0a3344e8c0331": {
     "text": "joined the team, but could not load the account",
     "cat": "server",
     "where": [
-      "server.js:3046"
+      "server.js:3047"
     ]
   },
   "3696efafd4e94786": {
     "text": "role or suspended is required",
     "cat": "server",
     "where": [
-      "server.js:3066"
+      "server.js:3067"
     ]
   },
   "8085f74c9d35d6d7": {
     "text": "Only the team owner can change member roles.",
     "cat": "server",
     "where": [
-      "server.js:3072"
+      "server.js:3073"
     ]
   },
   "0136bec8180be8a5": {
     "text": "Only a team owner or admin can suspend members.",
     "cat": "server",
     "where": [
-      "server.js:3084"
+      "server.js:3085"
     ]
   },
   "00adf0d1bc93484d": {
     "text": "Only a team owner or admin can remove members.",
     "cat": "server",
     "where": [
-      "server.js:3105"
+      "server.js:3106"
     ]
   },
   "408635fc82cc11a8": {
     "text": "Only the team owner can transfer ownership.",
     "cat": "server",
     "where": [
-      "server.js:3188"
+      "server.js:3189"
     ]
   },
   "4bf96ced8828fabd": {
     "text": "the projects module is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:3204",
-      "server.js:3217",
-      "server.js:3240",
-      "server.js:3266"
+      "server.js:3205",
+      "server.js:3218",
+      "server.js:3241",
+      "server.js:3267"
     ]
   },
   "0d9aceb8b8384b7f": {
     "text": "project not found",
     "cat": "server",
     "where": [
-      "server.js:3246",
-      "server.js:3272",
-      "server.js:3277"
+      "server.js:3247",
+      "server.js:3273",
+      "server.js:3278"
     ]
   },
   "8c827ee96db5d1cd": {
     "text": "messages array is required",
     "cat": "server",
     "where": [
-      "server.js:3599"
+      "server.js:3600"
     ]
   },
   "ecfc526de8ae3814": {
     "text": "local model is offline",
     "cat": "server",
     "where": [
-      "server.js:3610"
+      "server.js:3611"
     ]
   },
   "fec5f0616fdf6dd0": {
     "text": "hiccup is busy answering another question — try again in a moment",
     "cat": "server",
     "where": [
-      "server.js:3670"
+      "server.js:3671"
     ]
   },
   "1ab14d1c2578506a": {
     "text": "email and password are required",
     "cat": "server",
     "where": [
-      "server.js:3701",
-      "server.js:3730"
+      "server.js:3702",
+      "server.js:3731"
     ]
   },
   "9068dc9b3017c5ef": {
     "text": "Too many accounts created from here recently. Try again later.",
     "cat": "server",
     "where": [
-      "server.js:3708"
+      "server.js:3709"
     ]
   },
   "c0fa34830fadc18a": {
     "text": "Too many sign-in attempts. Wait a few minutes and try again.",
     "cat": "server",
     "where": [
-      "server.js:3745"
+      "server.js:3746"
     ]
   },
   "98c716c4e947ddc8": {
     "text": "wrong email or password",
     "cat": "server",
     "where": [
-      "server.js:3754"
+      "server.js:3755"
     ]
   },
   "f470143a26c5b7c9": {
     "text": "credential is required",
     "cat": "server",
     "where": [
-      "server.js:3778"
+      "server.js:3779"
     ]
   },
   "08565cf8a3e3ee3a": {
     "text": "not found",
     "cat": "server",
     "where": [
-      "server.js:4005",
-      "server.js:4019",
-      "server.js:4041",
-      "server.js:4102",
-      "server.js:4219"
+      "server.js:4006",
+      "server.js:4020",
+      "server.js:4042",
+      "server.js:4103",
+      "server.js:4220"
     ]
   }
 }

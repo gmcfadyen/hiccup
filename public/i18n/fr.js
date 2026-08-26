@@ -547,6 +547,7 @@ window.HICCUP_I18N = {
   "963cace19c8b2f91": "Mise à jour…",
   "9650a81ddc6b26be": "échec du chat :",
   "96a6b1995e6e88bc": "appels :",
+  "96a94ae7dfda921e": "mentions légales",
   "96a9b47e685a5df6": "aucune fonction de protocole détectée dans cette capture",
   "96fce300d8996465": "Authentification unique activée",
   "974c4b0e59e43e71": "n'a pas été indexé — voir la note ci-dessous.",

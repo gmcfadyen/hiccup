@@ -558,6 +558,7 @@ window.HICCUP_I18N = {
   "963cace19c8b2f91": "Wird aktualisiert…",
   "9650a81ddc6b26be": "Chat fehlgeschlagen:",
   "96a6b1995e6e88bc": "Anrufe:",
+  "96a94ae7dfda921e": "Impressum",
   "96a9b47e685a5df6": "keine Protokollmerkmale in diesem Capture erkannt",
   "96fce300d8996465": "Single Sign-on aktiviert",
   "974c4b0e59e43e71": "wurde nicht indexiert — siehe Hinweis unten.",

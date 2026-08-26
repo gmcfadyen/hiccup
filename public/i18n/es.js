@@ -561,6 +561,7 @@ window.HICCUP_I18N = {
   "963cace19c8b2f91": "Actualizando…",
   "9650a81ddc6b26be": "error en el chat:",
   "96a6b1995e6e88bc": "llamadas:",
+  "96a94ae7dfda921e": "aviso legal",
   "96a9b47e685a5df6": "no se ha detectado ninguna función de protocolo en esta captura",
   "96fce300d8996465": "Inicio de sesión único activado",
   "974c4b0e59e43e71": "no se ha indexado — mira la nota de abajo.",
