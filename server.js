@@ -3660,6 +3660,14 @@ async function handleChat(req, res, user) {
         });
         return;
       }
+      // Falling back is CORRECT but not free: the user gets the truncated
+      // summary answer instead of the tool-driven one, and without this line
+      // that downgrade is invisible in production. Logged, not thrown -- the
+      // one-shot answer below is still a good answer.
+      if (a && !a.fellBack) {
+        console.warn('hiccup: agent chat returned an empty reply after ' + a.calls +
+          ' call(s), ' + a.trace.length + ' tool use(s) — using the one-shot answer');
+      }
     }
     // One-shot path (also the fallback): the original prompt-stuffed ask.
     const kbHits = looksConfigShaped(question) ? kbSearchSafe(uid, question, 4) : [];

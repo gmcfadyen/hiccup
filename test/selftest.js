@@ -2330,6 +2330,46 @@ async function main() {
     eq(step2, 3, 'call, failed call, failed recovery — and no more');
   });
 
+  await t('agent: an empty answer gets ONE tool-free retry rather than silently wasting the tool results', async () => {
+    const agent = require(path.join(ROOT, 'lib', 'agent.js'));
+    const analysis = agentFixtureAnalysis();
+
+    // Seen live on qwen3.5:9b: empty content and no tool calls on the first
+    // turn. Falling straight back would re-ask from the truncated summary,
+    // which is exactly the blindness the agent exists to remove.
+    let step = 0;
+    const emptyFirst = async (opts) => {
+      step++;
+      if (step === 1) { ok(opts.tools, 'first call offers tools'); return { text: '   ', model: 'fake', toolCalls: [] }; }
+      ok(!opts.tools, 'the retry must be tool-free');
+      return { text: 'answer on the retry', model: 'fake', toolCalls: [] };
+    };
+    const out = await agent.runAgent({ analysis, messages: [{ role: 'user', content: 'q' }], ask: emptyFirst });
+    eq(out.reply, 'answer on the retry', 'the retry answer is used');
+    eq(step, 2, 'exactly one retry');
+    eq(out.fellBack, false, 'this is not a fallback — the agent answered');
+
+    // Evidence already gathered must survive into the retry.
+    let step2 = 0;
+    const emptyAfterTools = async (opts) => {
+      step2++;
+      if (step2 === 1) return { text: '', model: 'fake', toolCalls: [{ function: { name: 'list_findings', arguments: {} } }] };
+      if (step2 === 2) return { text: '', model: 'fake', toolCalls: [] };
+      ok(opts.messages.some((m) => m.role === 'tool'), 'the tool results must still be in the conversation on the retry');
+      return { text: 'synthesised from the tool results', model: 'fake', toolCalls: [] };
+    };
+    const out2 = await agent.runAgent({ analysis, messages: [{ role: 'user', content: 'q' }], ask: emptyAfterTools });
+    eq(out2.reply, 'synthesised from the tool results', 'the retry answers from gathered evidence');
+    eq(out2.trace.length, 1, 'the tool use is still reported');
+
+    // Still empty after the retry: give up and let the caller fall back.
+    let step3 = 0;
+    const alwaysEmpty = async () => { step3++; return { text: '', model: 'fake', toolCalls: [] }; };
+    const out3 = await agent.runAgent({ analysis, messages: [{ role: 'user', content: 'q' }], ask: alwaysEmpty });
+    eq(out3.reply, '', 'an empty reply is returned so the route falls back to one-shot');
+    eq(step3, 2, 'and the retry is not repeated forever');
+  });
+
   await t('agent: a model with no tool support reports fellBack instead of failing chat', async () => {
     const agent = require(path.join(ROOT, 'lib', 'agent.js'));
     const noTools = async () => {
