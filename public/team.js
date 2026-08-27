@@ -257,7 +257,11 @@
   }
 
   async function transferOwnership(userId, label) {
-    if (!window.confirm(_t('Make this person the owner of the team? You will become an admin.') + '\n\n' + label)) return;
+    if (!await window.hiccupUi.confirm({
+      title: _t('Make this person the owner?'),
+      body: _t('Make this person the owner of the team? You will become an admin.') + '\n\n' + label,
+      confirmLabel: _t('Transfer ownership'), danger: true,
+    })) return;
     $('team-transfer-error').textContent = '';
     var btn = $('team-transfer-btn');
     btn.disabled = true;
@@ -283,7 +287,11 @@
   }
 
   async function leaveTeam() {
-    if (!window.confirm(_t('Leave this team? You keep your account, but you lose access to the team\'s shared captures and guides.'))) return;
+    if (!await window.hiccupUi.confirm({
+      title: _t('Leave this team?'),
+      body: _t('Leave this team? You keep your account, but you lose access to the team\'s shared captures and guides.'),
+      confirmLabel: _t('Leave team'), danger: true,
+    })) return;
     $('team-leave-error').textContent = '';
     var btn = $('team-leave-btn');
     btn.disabled = true;
@@ -344,7 +352,11 @@
   }
 
   async function claimOwnership() {
-    if (!window.confirm(_t('Take ownership of this team? The current owner, if their account still exists, becomes an admin.'))) return;
+    if (!await window.hiccupUi.confirm({
+      title: _t('Take ownership of this team?'),
+      body: _t('Take ownership of this team? The current owner, if their account still exists, becomes an admin.'),
+      confirmLabel: _t('Take ownership'), danger: true,
+    })) return;
     $('team-recovery-error').textContent = '';
     var btn = $('team-claim-btn');
     btn.disabled = true;
@@ -765,8 +777,12 @@
     // else out of their own account if the IdP is misconfigured -- worth an
     // explicit confirmation, matching how removeMember() and leaveTeam()
     // already gate their own irreversible-feeling actions.
-    if (enforced && !confirm(_t('Members will only be able to sign in through your identity ' +
-      'provider — not with a password or Google. You will always keep password access. Continue?'))) {
+    if (enforced && !await window.hiccupUi.confirm({
+      title: _t('Require SSO for every member?'),
+      body: _t('Members will only be able to sign in through your identity ' +
+        'provider — not with a password or Google. You will always keep password access. Continue?'),
+      confirmLabel: _t('Require SSO'), danger: true,
+    })) {
       return;
     }
     var body = {
@@ -840,8 +856,12 @@
   }
 
   async function removeSso() {
-    if (!confirm(_t('Remove single sign-on for this team? Members who only ever signed in ' +
-      'through it will need to use "Forgot password" to get back in.'))) return;
+    if (!await window.hiccupUi.confirm({
+      title: _t('Remove single sign-on?'),
+      body: _t('Remove single sign-on for this team? Members who only ever signed in ' +
+        'through it will need to use "Forgot password" to get back in.'),
+      confirmLabel: _t('Remove SSO'), danger: true,
+    })) return;
     setSsoError('');
     var btn = $('team-sso-remove-btn');
     btn.disabled = true;
@@ -866,8 +886,12 @@
 
   async function removeMember(userId, name) {
     if (state.membersBusy[userId]) return;
-    if (!confirm(_t('Remove ') + name + _t(' from the team? They will lose access to every ') +
-      _t('shared capture and guide.'))) return;
+    if (!await window.hiccupUi.confirm({
+      title: _t('Remove this member?'),
+      body: _t('Remove ') + name + _t(' from the team? They will lose access to every ') +
+        _t('shared capture and guide.'),
+      confirmLabel: _t('Remove member'), danger: true,
+    })) return;
 
     state.membersBusy[userId] = true;
     setMembersMsg(_t('Removing…'));

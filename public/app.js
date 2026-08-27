@@ -608,7 +608,11 @@
 
   async function deleteCapture(cap) {
     if (!cap) return;
-    if (!confirm(_t('Delete "') + cap.filename + _t('"? This removes the capture and its analysis.'))) return;
+    if (!await window.hiccupUi.confirm({
+      title: _t('Delete this capture?'),
+      body: _t('Delete "') + cap.filename + _t('"? This removes the capture and its analysis.'),
+      confirmLabel: _t('Delete capture'), danger: true,
+    })) return;
     try {
       var r = await fetch('/api/captures/' + encodeURIComponent(cap.id), { method: 'DELETE' });
       if (!r.ok) throw new Error(_t('delete ') + r.status);
@@ -946,8 +950,12 @@
 
   async function deleteProject(p, btn) {
     if (state.projectBusy) return;
-    if (!confirm(_t('Delete project "') + (p.name || p.id) + _t('"? Its captures will become ') +
-      _t('Unfiled, not deleted.'))) return;
+    if (!await window.hiccupUi.confirm({
+      title: _t('Delete this project?'),
+      body: _t('Delete project "') + (p.name || p.id) + _t('"? Its captures will become ') +
+        _t('Unfiled, not deleted.'),
+      confirmLabel: _t('Delete project'), danger: true,
+    })) return;
 
     state.projectBusy = true;
     if (btn) { btn.disabled = true; btn.textContent = _t('Deleting…'); }
@@ -4465,174 +4473,17 @@
   // onGlobalKeyDown.
 
   // ------------------------------------------------------------ focus trap
-
-  var FOCUSABLE_SEL = 'a[href], button:not([disabled]), input:not([disabled]), ' +
-    'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
-  /** Active traps, innermost last. Only the top of the stack handles keys. */
-  var trapStack = [];
-
-  function topTrap() { return trapStack.length ? trapStack[trapStack.length - 1] : null; }
-
-  function isRendered(node) {
-    if (!node) return false;
-    if (node.offsetWidth || node.offsetHeight) return true;
-    return !!(node.getClientRects && node.getClientRects().length);
-  }
-
-  /** Tabbable descendants of `container`, in DOM order, visible ones only. */
-  function focusablesIn(container) {
-    var out = [];
-    if (!container || !container.querySelectorAll) return out;
-    var nodes = container.querySelectorAll(FOCUSABLE_SEL);
-    for (var i = 0; i < nodes.length; i++) {
-      if (nodes[i].hasAttribute('hidden')) continue;
-      if (!isRendered(nodes[i])) continue;
-      out.push(nodes[i]);
-    }
-    return out;
-  }
-
-  /**
-   * The one focus trap, shared by every modal surface in the app:
-   *   - #command-palette          (new, Wave 5A)
-   *   - #shortcuts-help           (new, Wave 5A)
-   *   - #project-manage-panel     (existing panel that had no trap)
-   *   - #chat-drawer              (only below the stacking breakpoint, where it
-   *                                covers the panes instead of displacing them)
-   *
-   * Tab/Shift+Tab cycling and Escape are handled centrally in onGlobalKeyDown
-   * against the top of the trap stack, so a trap adds no keydown listener of
-   * its own. A `focusin` guard catches focus arriving from anywhere else
-   * (programmatic focus, a click on something behind the overlay) and pulls it
-   * back in.
-   *
-   * @param {HTMLElement} container the element focus may not leave
-   * @param {{onEscape?:function, onOutsideClick?:function, dialog?:boolean}} opts
-   *   onEscape        — called for Escape (typically closes the surface)
-   *   onOutsideClick  — called on a pointerdown outside; omit for no-op
-   *   dialog          — add role=dialog + aria-modal while active, and remove
-   *                     them on release (for surfaces whose markup is not
-   *                     already a dialog: the drawer and the projects panel)
-   * @returns {{activate:function, release:function, active:function,
-   *            container:HTMLElement}}
-   */
-  function createFocusTrap(container, opts) {
-    var o = opts || {};
-    var trap = {
-      container: container,
-      returnTo: null,
-      isActive: false,
-      hadRole: null,
-      hadModal: null,
-      onDown: null
-    };
-
-    trap.active = function () { return trap.isActive; };
-
-    trap.escape = function () { if (typeof o.onEscape === 'function') o.onEscape(); };
-
-    /** True for the element the surface was opened from — never an outside click. */
-    trap.isTrigger = function (node) {
-      var rt = trap.returnTo;
-      if (!rt || !node) return false;
-      if (rt === document.body || rt === document.documentElement) return false;
-      return rt === node || (rt.contains && rt.contains(node));
-    };
-
-    trap.activate = function (arg) {
-      if (trap.isActive || !container) return;
-      var a = arg || {};
-      trap.returnTo = a.returnTo || document.activeElement || null;
-      trap.isActive = true;
-      trapStack.push(trap);
-
-      if (o.dialog) {
-        trap.hadRole = container.getAttribute('role');
-        trap.hadModal = container.getAttribute('aria-modal');
-        container.setAttribute('role', 'dialog');
-        container.setAttribute('aria-modal', 'true');
-      }
-
-      if (typeof o.onOutsideClick === 'function') {
-        trap.onDown = function (ev) {
-          if (topTrap() !== trap) return;
-          var t = ev.target;
-          if (container.contains && container.contains(t)) return;
-          if (trap.isTrigger(t)) return;   // else the trigger's click re-opens it
-          o.onOutsideClick();
-        };
-        document.addEventListener('pointerdown', trap.onDown, true);
-      }
-
-      var first = a.initialFocus || focusablesIn(container)[0] || container;
-      if (first === container && !container.hasAttribute('tabindex')) {
-        container.setAttribute('tabindex', '-1');
-      }
-      focusQuietly(first);
-    };
-
-    /**
-     * @param {{restoreFocus?:boolean}} [arg] restoreFocus defaults to true; pass
-     *   false when the surface is staying open and merely stopped being modal
-     *   (the drawer when the viewport widens) — moving focus then would be rude.
-     */
-    trap.release = function (arg) {
-      if (!trap.isActive) return;
-      var a = arg || {};
-      trap.isActive = false;
-      for (var i = trapStack.length - 1; i >= 0; i--) {
-        if (trapStack[i] === trap) { trapStack.splice(i, 1); break; }
-      }
-      if (trap.onDown) {
-        document.removeEventListener('pointerdown', trap.onDown, true);
-        trap.onDown = null;
-      }
-      if (o.dialog && container) {
-        if (trap.hadRole == null) container.removeAttribute('role');
-        else container.setAttribute('role', trap.hadRole);
-        if (trap.hadModal == null) container.removeAttribute('aria-modal');
-        else container.setAttribute('aria-modal', trap.hadModal);
-      }
-      var back = trap.returnTo;
-      trap.returnTo = null;
-      if (a.restoreFocus === false) return;
-      if (back && back.focus && document.contains(back) && isRendered(back)) focusQuietly(back);
-    };
-
-    return trap;
-  }
+  //
+  // MOVED to public/ui-dialog.js so /team, /kb and /admin/status get the same
+  // trap instead of each page reimplementing it (or, as was the case, going
+  // without). The API is unchanged; these are thin aliases so the call sites
+  // below read exactly as they did.
+  var createFocusTrap = window.hiccupUi.createFocusTrap;
+  var focusablesIn = window.hiccupUi.focusablesIn;
 
   function focusQuietly(node) {
     if (!node || !node.focus) return;
     try { node.focus({ preventScroll: true }); } catch (e) { node.focus(); }
-  }
-
-  /** Tab / Shift+Tab, confined to the top trap's container. */
-  function trapTab(trap, ev) {
-    var items = focusablesIn(trap.container);
-    ev.preventDefault();
-    if (!items.length) { focusQuietly(trap.container); return; }
-    var first = items[0], last = items[items.length - 1];
-    var at = document.activeElement;
-    if (!trap.container.contains || !trap.container.contains(at)) {
-      focusQuietly(ev.shiftKey ? last : first);
-      return;
-    }
-    var i = -1;
-    for (var k = 0; k < items.length; k++) { if (items[k] === at) { i = k; break; } }
-    if (i === -1) { focusQuietly(ev.shiftKey ? last : first); return; }
-    focusQuietly(ev.shiftKey ? (i === 0 ? last : items[i - 1]) : (i === items.length - 1 ? first : items[i + 1]));
-  }
-
-  /** Focus arriving from outside a trapped surface is pulled straight back. */
-  function onGlobalFocusIn(ev) {
-    var trap = topTrap();
-    if (!trap || !trap.container) return;
-    var t = ev.target;
-    if (t === trap.container || (trap.container.contains && trap.container.contains(t))) return;
-    var items = focusablesIn(trap.container);
-    focusQuietly(items[0] || trap.container);
   }
 
   // -------------------------------------------------- global keyboard layer
@@ -4664,7 +4515,10 @@
     // branch below can never tell a query from an empty field. Every other
     // binding is unaffected by the phase.
     document.addEventListener('keydown', onGlobalKeyDown, true);
-    document.addEventListener('focusin', onGlobalFocusIn, true);
+    // Tell ui-dialog.js not to install its own keydown listener: this page has
+    // one already and calls handleTrapKey() from inside it. The focusin guard
+    // lives in ui-dialog.js and is installed there for every page.
+    window.hiccupUi.hostHandlesKeys = true;
 
     var opener = $('command-palette-open');
     if (opener) {
@@ -4719,12 +4573,10 @@
     if (ev.ctrlKey || ev.metaKey) return;
 
     // --- a modal surface is up: only Tab and Escape reach it --------------
-    var trap = topTrap();
-    if (trap) {
-      if (key === 'Tab') { trapTab(trap, ev); return; }
-      if (key === 'Escape' || key === 'Esc') { ev.preventDefault(); trap.escape(); return; }
-      return;   // no page-level shortcut fires behind an open dialog
-    }
+    // Handled by ui-dialog.js against its trap stack; it returns true when it
+    // consumed the event, including the "swallow everything else" case that
+    // keeps page shortcuts from firing behind an open dialog.
+    if (window.hiccupUi.handleTrapKey(ev)) return;
 
     // --- Escape: context-sensitive, and allowed from inside a field -------
     // (the palette/dialog case is the trap branch above — first in priority

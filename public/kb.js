@@ -291,7 +291,10 @@
       ? _t('Remove the link "{0}"?', name)
       : (_t('Remove "') + name + _t('" from the knowledge base?\n') +
          _t('Config advice will stop citing it.'));
-    if (!confirm(question)) return;
+    if (!await window.hiccupUi.confirm({
+      title: _t('Remove this guide?'),
+      body: question, confirmLabel: _t('Remove'), danger: true,
+    })) return;
     try {
       var r = await fetch('/api/kb/docs/' + encodeURIComponent(doc.id), { method: 'DELETE' });
       if (r.status === 401) { location.href = '/'; return; }

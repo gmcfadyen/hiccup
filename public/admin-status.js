@@ -307,7 +307,11 @@
     var wantPlan = btn.value;
     var was = u.plan || 'free';
     if (wantPlan === was) return;
-    if (!confirm((PLAN_EFFECT[wantPlan] || 'Change the plan for "{e}"?').replace('{e}', u.email))) {
+    if (!await window.hiccupUi.confirm({
+      title: _t('Change this account\'s plan?'),
+      body: (PLAN_EFFECT[wantPlan] || 'Change the plan for "{e}"?').replace('{e}', u.email),
+      confirmLabel: _t('Change plan'), danger: true,
+    })) {
       btn.value = was;   // the select already moved; put it back
       return;
     }
@@ -343,7 +347,11 @@
       ? ('Make "' + u.email + '" a superuser? They will be able to see this page, restart ' +
          'the service, and manage other users.')
       : ('Revoke superuser access for "' + u.email + '"?');
-    if (!confirm(question)) return;
+    if (!await window.hiccupUi.confirm({
+      title: wantSuperuser ? _t('Grant superuser access?') : _t('Revoke superuser access?'),
+      body: question,
+      confirmLabel: wantSuperuser ? _t('Make superuser') : _t('Revoke'), danger: true,
+    })) return;
 
     btn.disabled = true;
     usersMsg(wantSuperuser ? 'Granting…' : 'Revoking…');

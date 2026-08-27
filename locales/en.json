@@ -39,7 +39,7 @@
     "cat": "html",
     "where": [
       "public/accept-invite.html:73",
-      "public/team.html:157"
+      "public/team.html:158"
     ]
   },
   "6409fab9e8bec6cb": {
@@ -60,18 +60,6 @@
     "text": "tools",
     "cat": "html",
     "where": [
-      "public/admin-feedback.html:39",
-      "public/admin-status.html:132",
-      "public/app.html:94",
-      "public/hmr.html:174",
-      "public/kb.html:152",
-      "public/settings.html:70"
-    ]
-  },
-  "302be2b037ca1f9e": {
-    "text": "workbench",
-    "cat": "html",
-    "where": [
       "public/admin-feedback.html:40",
       "public/admin-status.html:133",
       "public/app.html:95",
@@ -80,20 +68,20 @@
       "public/settings.html:71"
     ]
   },
-  "a6edc30d22e57748": {
-    "text": "guides",
+  "302be2b037ca1f9e": {
+    "text": "workbench",
     "cat": "html",
     "where": [
-      "public/admin-feedback.html:42",
-      "public/admin-status.html:135",
-      "public/app.html:97",
-      "public/hmr.html:177",
-      "public/kb.html:155",
-      "public/settings.html:73"
+      "public/admin-feedback.html:41",
+      "public/admin-status.html:134",
+      "public/app.html:96",
+      "public/hmr.html:176",
+      "public/kb.html:154",
+      "public/settings.html:72"
     ]
   },
-  "fa23d9ef19afc32c": {
-    "text": "team",
+  "a6edc30d22e57748": {
+    "text": "guides",
     "cat": "html",
     "where": [
       "public/admin-feedback.html:43",
@@ -104,53 +92,65 @@
       "public/settings.html:74"
     ]
   },
+  "fa23d9ef19afc32c": {
+    "text": "team",
+    "cat": "html",
+    "where": [
+      "public/admin-feedback.html:44",
+      "public/admin-status.html:137",
+      "public/app.html:99",
+      "public/hmr.html:179",
+      "public/kb.html:157",
+      "public/settings.html:75"
+    ]
+  },
   "5928cfb985c5f790": {
     "text": "Toggle theme",
     "cat": "html",
     "where": [
-      "public/admin-feedback.html:47",
-      "public/admin-status.html:144",
-      "public/app.html:110",
-      "public/hmr.html:183",
+      "public/admin-feedback.html:48",
+      "public/admin-status.html:145",
+      "public/app.html:111",
+      "public/hmr.html:184",
       "public/index.html:381",
-      "public/kb.html:161"
+      "public/kb.html:162"
     ]
   },
   "bb588bb505779122": {
     "text": "Feedback",
     "cat": "html",
     "where": [
-      "public/admin-feedback.html:53"
+      "public/admin-feedback.html:54"
     ]
   },
   "eba8ef88cc7dd4e1": {
     "text": "loading…",
     "cat": "html",
     "where": [
-      "public/admin-feedback.html:54",
-      "public/admin-status.html:151",
-      "public/settings.html:84"
+      "public/admin-feedback.html:55",
+      "public/admin-status.html:152",
+      "public/settings.html:85"
     ]
   },
   "e995f1b767c96b70": {
     "text": "unread only",
     "cat": "html",
     "where": [
-      "public/admin-feedback.html:59"
+      "public/admin-feedback.html:60"
     ]
   },
   "2d2fffc5458ea3ad": {
     "text": "preview digest",
     "cat": "html",
     "where": [
-      "public/admin-feedback.html:61"
+      "public/admin-feedback.html:62"
     ]
   },
   "9f7565468855a429": {
     "text": "send digest now",
     "cat": "html",
     "where": [
-      "public/admin-feedback.html:62"
+      "public/admin-feedback.html:63"
     ]
   },
   "3362fc2ad43b98cb": {
@@ -164,7 +164,7 @@
     "text": "status",
     "cat": "html",
     "where": [
-      "public/admin-status.html:137",
+      "public/admin-status.html:138",
       "public/app.js:370"
     ]
   },
@@ -172,78 +172,78 @@
     "text": "feedback",
     "cat": "html",
     "where": [
-      "public/admin-status.html:138",
-      "public/app.html:111",
-      "public/hmr.html:184",
-      "public/kb.html:162",
-      "public/team.html:134"
+      "public/admin-status.html:139",
+      "public/app.html:112",
+      "public/hmr.html:185",
+      "public/kb.html:163",
+      "public/team.html:135"
     ]
   },
   "fbe431bed6ae75a3": {
     "text": "Restart the hiccup service so it picks up new code",
     "cat": "html",
     "where": [
-      "public/admin-status.html:141"
+      "public/admin-status.html:142"
     ]
   },
   "419e2d74343beee7": {
     "text": "restart server",
     "cat": "html",
     "where": [
-      "public/admin-status.html:141"
+      "public/admin-status.html:142"
     ]
   },
   "02e1cb3ec3737d54": {
     "text": "refresh",
     "cat": "html",
     "where": [
-      "public/admin-status.html:142"
+      "public/admin-status.html:143"
     ]
   },
   "ad3e3c8146fc920f": {
     "text": "Status",
     "cat": "html",
     "where": [
-      "public/admin-status.html:150",
-      "public/team.js:581"
+      "public/admin-status.html:151",
+      "public/team.js:593"
     ]
   },
   "2405e3c6d5f44227": {
     "text": "Restart the hiccup service?",
     "cat": "html",
     "where": [
-      "public/admin-status.html:160"
+      "public/admin-status.html:161"
     ]
   },
   "68105977db73fcde": {
     "text": "The service exits and NSSM relaunches it on the current code, about 3 seconds later. Waiting for idle is the safe choice: an upload being analysed or a chat answer mid-flight is lost if you restart underneath it.",
     "cat": "html",
     "where": [
-      "public/admin-status.html:161"
+      "public/admin-status.html:162"
     ]
   },
   "48307d9a339ca816": {
     "text": "Restart when idle",
     "cat": "html",
     "where": [
-      "public/admin-status.html:165"
+      "public/admin-status.html:166"
     ]
   },
   "0586c6db55ce141c": {
     "text": "Restart now",
     "cat": "html",
     "where": [
-      "public/admin-status.html:166"
+      "public/admin-status.html:167"
     ]
   },
   "2ceb11be2290bb1b": {
     "text": "Cancel",
     "cat": "html",
     "where": [
-      "public/admin-status.html:167",
-      "public/settings.html:164",
-      "public/settings.html:185",
-      "public/app.js:860",
+      "public/admin-status.html:168",
+      "public/settings.html:165",
+      "public/settings.html:186",
+      "public/app.js:864",
       "public/feedback.js:180"
     ]
   },
@@ -251,35 +251,35 @@
     "text": "Restart queued",
     "cat": "html",
     "where": [
-      "public/admin-status.html:174"
+      "public/admin-status.html:175"
     ]
   },
   "f7285a4805c411c5": {
     "text": "Restart now anyway",
     "cat": "html",
     "where": [
-      "public/admin-status.html:177"
+      "public/admin-status.html:178"
     ]
   },
   "b17ac25ed6a4986b": {
     "text": "Cancel the restart",
     "cat": "html",
     "where": [
-      "public/admin-status.html:178"
+      "public/admin-status.html:179"
     ]
   },
   "586d6bd2eca2da93": {
     "text": "Users",
     "cat": "html",
     "where": [
-      "public/admin-status.html:185"
+      "public/admin-status.html:186"
     ]
   },
   "c26bfe7eea4ab376": {
     "text": "Grant or revoke superuser access. Superusers can see this page, restart the service, and manage other users.",
     "cat": "html",
     "where": [
-      "public/admin-status.html:186"
+      "public/admin-status.html:187"
     ]
   },
   "c9531ffbb25b1bea": {
@@ -293,56 +293,56 @@
     "text": "skip to the ladder",
     "cat": "html",
     "where": [
-      "public/app.html:90"
+      "public/app.html:91"
     ]
   },
   "ee5f6d7b48b44de8": {
     "text": "settings",
     "cat": "html",
     "where": [
-      "public/app.html:99",
-      "public/hmr.html:179",
-      "public/kb.html:157",
-      "public/settings.html:75",
-      "public/team.html:129"
+      "public/app.html:100",
+      "public/hmr.html:180",
+      "public/kb.html:158",
+      "public/settings.html:76",
+      "public/team.html:130"
     ]
   },
   "bdf783d621a56d89": {
     "text": "local model status",
     "cat": "html",
     "where": [
-      "public/app.html:102"
+      "public/app.html:103"
     ]
   },
   "133d25345abdfa34": {
     "text": "LLM …",
     "cat": "html",
     "where": [
-      "public/app.html:102"
+      "public/app.html:103"
     ]
   },
   "477b8a67724eb5ef": {
     "text": "Commands — Ctrl+K (⌘K on a Mac)",
     "cat": "html",
     "where": [
-      "public/app.html:106"
+      "public/app.html:107"
     ]
   },
   "9ba4af9304dc80ec": {
     "text": "Open the command palette",
     "cat": "html",
     "where": [
-      "public/app.html:106"
+      "public/app.html:107"
     ]
   },
   "e8426bdfb8839245": {
     "text": "Send feedback about hiccup",
     "cat": "html",
     "where": [
-      "public/app.html:111",
-      "public/hmr.html:184",
-      "public/kb.html:162",
-      "public/team.html:134",
+      "public/app.html:112",
+      "public/hmr.html:185",
+      "public/kb.html:163",
+      "public/team.html:135",
       "public/feedback.js:294"
     ]
   },
@@ -350,21 +350,21 @@
     "text": "Sign out",
     "cat": "html",
     "where": [
-      "public/app.html:114",
-      "public/hmr.html:187",
-      "public/kb.html:165",
-      "public/team.html:137",
-      "public/app.js:4910"
+      "public/app.html:115",
+      "public/hmr.html:188",
+      "public/kb.html:166",
+      "public/team.html:138",
+      "public/app.js:4762"
     ]
   },
   "9d0140cfd4a70596": {
     "text": "captures",
     "cat": "html",
     "where": [
-      "public/app.html:120",
-      "public/app.html:135",
+      "public/app.html:121",
+      "public/app.html:136",
       "public/app.js:540",
-      "public/app.js:811",
+      "public/app.js:815",
       "public/hmr.js:200"
     ]
   },
@@ -372,139 +372,139 @@
     "text": "Drop a capture here",
     "cat": "html",
     "where": [
-      "public/app.html:123"
+      "public/app.html:124"
     ]
   },
   "260f242932cb5996": {
     "text": "Choose file…",
     "cat": "html",
     "where": [
-      "public/app.html:125",
-      "public/kb.html:182"
+      "public/app.html:126",
+      "public/kb.html:183"
     ]
   },
   "282049f502eac1de": {
     "text": "Project",
     "cat": "html",
     "where": [
-      "public/app.html:128"
+      "public/app.html:129"
     ]
   },
   "f83a843570c34e68": {
     "text": "Unfiled",
     "cat": "html",
     "where": [
-      "public/app.html:129",
-      "public/app.html:139",
-      "public/app.js:736",
-      "public/app.js:753"
+      "public/app.html:130",
+      "public/app.html:140",
+      "public/app.js:740",
+      "public/app.js:757"
     ]
   },
   "00662caa03cabfda": {
     "text": "filter captures by project",
     "cat": "html",
     "where": [
-      "public/app.html:137"
+      "public/app.html:138"
     ]
   },
   "3f89d25b99662857": {
     "text": "All captures",
     "cat": "html",
     "where": [
-      "public/app.html:138",
-      "public/app.js:733"
+      "public/app.html:139",
+      "public/app.js:737"
     ]
   },
   "9dc07595ea841c35": {
     "text": "+ manage projects",
     "cat": "html",
     "where": [
-      "public/app.html:141"
+      "public/app.html:142"
     ]
   },
   "31483df448ccabe9": {
     "text": "no captures yet — drop a pcap or an SBC log above and the monster gets to work.",
     "cat": "html",
     "where": [
-      "public/app.html:144"
+      "public/app.html:145"
     ]
   },
   "146317ff545814b0": {
     "text": "manage projects",
     "cat": "html",
     "where": [
-      "public/app.html:150"
+      "public/app.html:151"
     ]
   },
   "d15ad42f11c69d10": {
     "text": "Manage projects",
     "cat": "html",
     "where": [
-      "public/app.html:152",
-      "public/app.js:4882"
+      "public/app.html:153",
+      "public/app.js:4734"
     ]
   },
   "9ec2699513c0f9c3": {
     "text": "close",
     "cat": "html",
     "where": [
-      "public/app.html:153",
-      "public/app.html:423"
+      "public/app.html:154",
+      "public/app.html:424"
     ]
   },
   "42d935fb49da5d2d": {
     "text": "no projects yet — create one below.",
     "cat": "html",
     "where": [
-      "public/app.html:156"
+      "public/app.html:157"
     ]
   },
   "f28d171a302d2b60": {
     "text": "New project",
     "cat": "html",
     "where": [
-      "public/app.html:159"
+      "public/app.html:160"
     ]
   },
   "446c46bc623ccce1": {
     "text": "Project name",
     "cat": "html",
     "where": [
-      "public/app.html:160"
+      "public/app.html:161"
     ]
   },
   "4751dfb9fb0442c4": {
     "text": "Description (optional)",
     "cat": "html",
     "where": [
-      "public/app.html:162",
-      "public/app.js:845"
+      "public/app.html:163",
+      "public/app.js:849"
     ]
   },
   "d2c2335700fec502": {
     "text": "What is this project for?",
     "cat": "html",
     "where": [
-      "public/app.html:163"
+      "public/app.html:164"
     ]
   },
   "fb43be2359ccab14": {
     "text": "Create project",
     "cat": "html",
     "where": [
-      "public/app.html:165",
-      "public/app.js:896",
-      "public/app.js:901"
+      "public/app.html:166",
+      "public/app.js:900",
+      "public/app.js:905"
     ]
   },
   "90776041eea61d12": {
     "text": "also from the same workshop",
     "cat": "html",
     "where": [
-      "public/app.html:171",
       "public/app.html:172",
-      "public/hmr.html:248",
+      "public/app.html:173",
       "public/hmr.html:249",
+      "public/hmr.html:250",
       "public/index.html:574",
       "public/index.html:575"
     ]
@@ -513,337 +513,337 @@
     "text": "— AI that answers RFPs, RFIs and DDQs from your own document library. Self-hosted, EU-sovereign, free during beta.",
     "cat": "html",
     "where": [
-      "public/app.html:174",
-      "public/hmr.html:251",
+      "public/app.html:175",
+      "public/hmr.html:252",
       "public/index.html:577",
-      "public/kb.html:234",
+      "public/kb.html:235",
       "public/subscribe.html:359",
-      "public/team.html:311"
+      "public/team.html:312"
     ]
   },
   "cb5f17fdfee392d7": {
     "text": "search the trace",
     "cat": "html",
     "where": [
-      "public/app.html:184"
+      "public/app.html:185"
     ]
   },
   "eda9d9fde54d2b9d": {
     "text": "bare text matches anything (raw messages, headers, URIs, Call-IDs, tags, branches, SDP, aux summaries, findings, advice). 4+ digits match phone numbers ignoring + - ( ) spaces. Filters: call: leg: callid: from: to: method: status: ip: port: codec: proto: sev: has:",
     "cat": "html",
     "where": [
-      "public/app.html:185"
+      "public/app.html:186"
     ]
   },
   "bc6103433112f0e5": {
     "text": "search the trace — 654321 · from:alice · method:INVITE · sev:crit · has:t38",
     "cat": "html",
     "where": [
-      "public/app.html:185"
+      "public/app.html:186"
     ]
   },
   "f531f89544a910a2": {
     "text": "clear",
     "cat": "html",
     "where": [
-      "public/app.html:189"
+      "public/app.html:190"
     ]
   },
   "574d8b7e94cc4c17": {
     "text": "clear the search",
     "cat": "html",
     "where": [
-      "public/app.html:189",
-      "public/app.js:3646"
+      "public/app.html:190",
+      "public/app.js:3654"
     ]
   },
   "976feaa151428f7e": {
     "text": "no search",
     "cat": "html",
     "where": [
-      "public/app.html:190",
-      "public/app.js:4059"
+      "public/app.html:191",
+      "public/app.js:4067"
     ]
   },
   "00b600cb5a113d36": {
     "text": "detected scenario — opens the advice drawer",
     "cat": "html",
     "where": [
-      "public/app.html:197"
+      "public/app.html:198"
     ]
   },
   "eb61e97a21e26ad9": {
     "text": "scenario: —",
     "cat": "html",
     "where": [
-      "public/app.html:198",
-      "public/app.js:2558"
+      "public/app.html:199",
+      "public/app.js:2566"
     ]
   },
   "75ae0bf9ba61af1d": {
     "text": "protocol indicators",
     "cat": "html",
     "where": [
-      "public/app.html:201"
+      "public/app.html:202"
     ]
   },
   "f18b0f57ab41281e": {
     "text": "indicators light up once a capture is analysed — one lamp per protocol feature hiccup found.",
     "cat": "html",
     "where": [
-      "public/app.html:202",
-      "public/app.js:2508"
+      "public/app.html:203",
+      "public/app.js:2516"
     ]
   },
   "3328f554188b0d90": {
     "text": "lamp legend",
     "cat": "html",
     "where": [
-      "public/app.html:208"
+      "public/app.html:209"
     ]
   },
   "6f3f2303c0258eac": {
     "text": "present",
     "cat": "html",
     "where": [
-      "public/app.html:209"
+      "public/app.html:210"
     ]
   },
   "b5d43e6c2878bc7a": {
     "text": "partial",
     "cat": "html",
     "where": [
-      "public/app.html:210"
+      "public/app.html:211"
     ]
   },
   "1c54d4fa8357f520": {
     "text": "issue",
     "cat": "html",
     "where": [
-      "public/app.html:211"
+      "public/app.html:212"
     ]
   },
   "acebadbd2040ebac": {
     "text": "sessions",
     "cat": "html",
     "where": [
-      "public/app.html:217",
-      "public/app.html:219"
+      "public/app.html:218",
+      "public/app.html:220"
     ]
   },
   "dcbae06900da7ec6": {
     "text": "expand all",
     "cat": "html",
     "where": [
-      "public/app.html:221"
+      "public/app.html:222"
     ]
   },
   "fc2749975c75b3e1": {
     "text": "expand",
     "cat": "html",
     "where": [
-      "public/app.html:221"
+      "public/app.html:222"
     ]
   },
   "793261ff368975c1": {
     "text": "collapse all",
     "cat": "html",
     "where": [
-      "public/app.html:222"
+      "public/app.html:223"
     ]
   },
   "494951a1e157797e": {
     "text": "collapse",
     "cat": "html",
     "where": [
-      "public/app.html:222"
+      "public/app.html:223"
     ]
   },
   "fc4412094f15b997": {
     "text": "calls, legs and transactions",
     "cat": "html",
     "where": [
-      "public/app.html:226"
+      "public/app.html:227"
     ]
   },
   "8f249268b3007c1b": {
     "text": "no capture selected — calls, their legs and each transaction appear here. selecting a node scopes the ladder, the message list and the info pane.",
     "cat": "html",
     "where": [
-      "public/app.html:227"
+      "public/app.html:228"
     ]
   },
   "db9904d53db88c68": {
     "text": "ladder diagram",
     "cat": "html",
     "where": [
-      "public/app.html:236"
+      "public/app.html:237"
     ]
   },
   "c9fdce47f12e86dd": {
     "text": "ladder controls",
     "cat": "html",
     "where": [
-      "public/app.html:237"
+      "public/app.html:238"
     ]
   },
   "d7bae7e66a6099a9": {
     "text": "ladder",
     "cat": "html",
     "where": [
-      "public/app.html:238"
+      "public/app.html:239"
     ]
   },
   "ebddd46117f69692": {
     "text": "zoom",
     "cat": "html",
     "where": [
-      "public/app.html:240"
+      "public/app.html:241"
     ]
   },
   "148789d2deadc1da": {
     "text": "zoom out",
     "cat": "html",
     "where": [
-      "public/app.html:241",
-      "public/app.js:2241",
-      "public/app.js:2242"
+      "public/app.html:242",
+      "public/app.js:2249",
+      "public/app.js:2250"
     ]
   },
   "9ba623f49a6b807b": {
     "text": "reset zoom",
     "cat": "html",
     "where": [
-      "public/app.html:242",
-      "public/app.js:2259"
+      "public/app.html:243",
+      "public/app.js:2267"
     ]
   },
   "52a39e7e6cde3759": {
     "text": "zoom in",
     "cat": "html",
     "where": [
-      "public/app.html:243",
-      "public/app.js:2252",
-      "public/app.js:2253"
+      "public/app.html:244",
+      "public/app.js:2260",
+      "public/app.js:2261"
     ]
   },
   "a1485bbd1dfce5e2": {
     "text": "export the ladder as SVG",
     "cat": "html",
     "where": [
-      "public/app.html:245"
+      "public/app.html:246"
     ]
   },
   "edb2d39755161f73": {
     "text": "export",
     "cat": "html",
     "where": [
-      "public/app.html:245"
+      "public/app.html:246"
     ]
   },
   "6023efbd4196adc8": {
     "text": "timestamps and deltas",
     "cat": "html",
     "where": [
-      "public/app.html:249"
+      "public/app.html:250"
     ]
   },
   "6e5e49606812cf5f": {
     "text": "time · Δ",
     "cat": "html",
     "where": [
-      "public/app.html:250"
+      "public/app.html:251"
     ]
   },
   "7c1ea9c38b4a0a54": {
     "text": "the ladder for the selected session is drawn here — one column per host:port, arrows coloured by class, retransmissions collapsed to a single ×N row.",
     "cat": "html",
     "where": [
-      "public/app.html:254"
+      "public/app.html:255"
     ]
   },
   "0d40d80466f736bd": {
     "text": "messages in the selection",
     "cat": "html",
     "where": [
-      "public/app.html:263"
+      "public/app.html:264"
     ]
   },
   "478fee1bd52522b5": {
     "text": "selection",
     "cat": "html",
     "where": [
-      "public/app.html:265"
+      "public/app.html:266"
     ]
   },
   "f06954424e5bdc20": {
     "text": "sort by capture order",
     "cat": "html",
     "where": [
-      "public/app.html:267"
+      "public/app.html:268"
     ]
   },
   "314fcaa85e159b47": {
     "text": "sort by number",
     "cat": "html",
     "where": [
-      "public/app.html:267"
+      "public/app.html:268"
     ]
   },
   "3ca622239962ebac": {
     "text": "sort by delta",
     "cat": "html",
     "where": [
-      "public/app.html:269"
+      "public/app.html:270"
     ]
   },
   "0cc44970c8397929": {
     "text": "description",
     "cat": "html",
     "where": [
-      "public/app.html:275"
+      "public/app.html:276"
     ]
   },
   "1ca71b7c84289429": {
     "text": "Δ ms",
     "cat": "html",
     "where": [
-      "public/app.html:276"
+      "public/app.html:277"
     ]
   },
   "50b183f1066a07fa": {
     "text": "numbered message list",
     "cat": "html",
     "where": [
-      "public/app.html:279"
+      "public/app.html:280"
     ]
   },
   "25beae50c0d77f6f": {
     "text": "every message of the selected session lands here, numbered, with the delta from the previous row — the column engineers actually read.",
     "cat": "html",
     "where": [
-      "public/app.html:280"
+      "public/app.html:281"
     ]
   },
   "ab516cd8e24a3f6b": {
     "text": "details for the selection",
     "cat": "html",
     "where": [
-      "public/app.html:289"
+      "public/app.html:290"
     ]
   },
   "0aa6088403916c02": {
     "text": "detail views",
     "cat": "html",
     "where": [
-      "public/app.html:290"
+      "public/app.html:291"
     ]
   },
   "f0ca10f343249063": {
     "text": "Contents",
     "cat": "html",
     "where": [
-      "public/app.html:292",
+      "public/app.html:293",
       "public/app.js:40"
     ]
   },
@@ -851,7 +851,7 @@
     "text": "Packet Info",
     "cat": "html",
     "where": [
-      "public/app.html:294",
+      "public/app.html:295",
       "public/app.js:41"
     ]
   },
@@ -859,7 +859,7 @@
     "text": "Media",
     "cat": "html",
     "where": [
-      "public/app.html:296",
+      "public/app.html:297",
       "public/app.js:42"
     ]
   },
@@ -867,220 +867,220 @@
     "text": "open the chat scoped to the current selection",
     "cat": "html",
     "where": [
-      "public/app.html:298"
+      "public/app.html:299"
     ]
   },
   "b0b4eedf6b94e20f": {
     "text": "explain in chat",
     "cat": "html",
     "where": [
-      "public/app.html:299",
-      "public/app.js:2662",
-      "public/app.js:3385"
+      "public/app.html:300",
+      "public/app.js:2670",
+      "public/app.js:3393"
     ]
   },
   "a2fa4b9ef7b73e88": {
     "text": "pick a message in the ladder or the selection list to read its full text here — redacted, monospaced, with search terms highlighted.",
     "cat": "html",
     "where": [
-      "public/app.html:305"
+      "public/app.html:306"
     ]
   },
   "10c71a3914dc6fb5": {
     "text": "the parsed view: SIP headers and SDP, ISUP parameters for SIP-I bodies, Q.931 information elements for H.323 — field by field.",
     "cat": "html",
     "where": [
-      "public/app.html:311"
+      "public/app.html:312"
     ]
   },
   "b5d241607288a671": {
     "text": "RTP / RTCP streams for the selected session: packets, loss, jitter, gaps and an estimated MOS, with a loss-over-time sparkline.",
     "cat": "html",
     "where": [
-      "public/app.html:317"
+      "public/app.html:318"
     ]
   },
   "d88b333cf6eb6d33": {
     "text": "resize the sessions pane",
     "cat": "html",
     "where": [
-      "public/app.html:325"
+      "public/app.html:326"
     ]
   },
   "86e347aa8da4cc38": {
     "text": "resize the ladder pane",
     "cat": "html",
     "where": [
-      "public/app.html:327"
+      "public/app.html:328"
     ]
   },
   "53a796f7a7f02712": {
     "text": "resize the selection pane",
     "cat": "html",
     "where": [
-      "public/app.html:329"
+      "public/app.html:330"
     ]
   },
   "36faf8b49e338767": {
     "text": "close chat",
     "cat": "html",
     "where": [
-      "public/app.html:356"
+      "public/app.html:357"
     ]
   },
   "765b4e47fe68816a": {
     "text": "advice for the current selection",
     "cat": "html",
     "where": [
-      "public/app.html:359"
+      "public/app.html:360"
     ]
   },
   "dfdb112320130bb1": {
     "text": "advice",
     "cat": "html",
     "where": [
-      "public/app.html:362"
+      "public/app.html:363"
     ]
   },
   "626432e10c59ddc6": {
     "text": "what is wrong, why it matters, the mechanism, then fix cards per vendor with copyable draft config and RFC citations. deterministic — no invented section numbers.",
     "cat": "html",
     "where": [
-      "public/app.html:366"
+      "public/app.html:367"
     ]
   },
   "e2947be2b8e39914": {
     "text": "hiccup and RFPlex.ai share the same local-LLM stack.",
     "cat": "html",
     "where": [
-      "public/app.html:372"
+      "public/app.html:373"
     ]
   },
   "f669755c06354255": {
     "text": "local model offline — chat is unavailable. Every other feature still works.",
     "cat": "html",
     "where": [
-      "public/app.html:377"
+      "public/app.html:378"
     ]
   },
   "f82bbec0014387a5": {
     "text": "Ask about this capture, SIP, H.323…",
     "cat": "html",
     "where": [
-      "public/app.html:381"
+      "public/app.html:382"
     ]
   },
   "57adf424d57c8a0f": {
     "text": "Send",
     "cat": "html",
     "where": [
-      "public/app.html:383"
+      "public/app.html:384"
     ]
   },
   "4b305030ec421c71": {
     "text": "Command palette",
     "cat": "html",
     "where": [
-      "public/app.html:399"
+      "public/app.html:400"
     ]
   },
   "fef0b5b4a31c4250": {
     "text": "Type a command — theme, HMR, media, sign out…",
     "cat": "html",
     "where": [
-      "public/app.html:400"
+      "public/app.html:401"
     ]
   },
   "3cc8bf892e4522d3": {
     "text": "commands",
     "cat": "html",
     "where": [
-      "public/app.html:404"
+      "public/app.html:405"
     ]
   },
   "0085f9deba09815f": {
     "text": "No command matches that.",
     "cat": "html",
     "where": [
-      "public/app.html:406"
+      "public/app.html:407"
     ]
   },
   "0d3b2977440bb113": {
     "text": "↑ ↓ move · ⏎ run · esc close",
     "cat": "html",
     "where": [
-      "public/app.html:407"
+      "public/app.html:408"
     ]
   },
   "e3b4c857f91f80d7": {
     "text": "Keyboard shortcuts",
     "cat": "html",
     "where": [
-      "public/app.html:422",
-      "public/app.js:4909"
+      "public/app.html:423",
+      "public/app.js:4761"
     ]
   },
   "b1eab5944f1d5be4": {
     "text": "Open the command palette (",
     "cat": "html",
     "where": [
-      "public/app.html:428"
+      "public/app.html:429"
     ]
   },
   "f7251d0cec55980c": {
     "text": "on a Mac). The one shortcut that still works while you are typing — except in the chat box, where it would interrupt a half-written question.",
     "cat": "html",
     "where": [
-      "public/app.html:428"
+      "public/app.html:429"
     ]
   },
   "5cb9d10965a46e0f": {
     "text": "Focus the trace search.",
     "cat": "html",
     "where": [
-      "public/app.html:433"
+      "public/app.html:434"
     ]
   },
   "2435fee70616b7b7": {
     "text": "Move down / up one row in whichever list you last selected in — the sessions tree or the selection list.",
     "cat": "html",
     "where": [
-      "public/app.html:436"
+      "public/app.html:437"
     ]
   },
   "7542880be85d168f": {
     "text": "This list.",
     "cat": "html",
     "where": [
-      "public/app.html:440"
+      "public/app.html:441"
     ]
   },
   "fab8e68a14401c3b": {
     "text": "Close the palette or this dialog · else clear and leave the search · else close the chat drawer when it is covering the panes on a narrow screen.",
     "cat": "html",
     "where": [
-      "public/app.html:443"
+      "public/app.html:444"
     ]
   },
   "81b0e97fa0c7633f": {
     "text": "Inside a dialog, cycles within it. Closing returns you to wherever you were.",
     "cat": "html",
     "where": [
-      "public/app.html:448"
+      "public/app.html:449"
     ]
   },
   "cb5963d72b509559": {
     "text": "Single-key shortcuts never fire while you are typing in a field —",
     "cat": "html",
     "where": [
-      "public/app.html:451"
+      "public/app.html:452"
     ]
   },
   "82b2c69ee50d9598": {
     "text": "in the search box types a j.",
     "cat": "html",
     "where": [
-      "public/app.html:452"
+      "public/app.html:453"
     ]
   },
   "2998d26faa5a5ffd": {
@@ -1094,42 +1094,42 @@
     "text": "Header manipulation rules",
     "cat": "html",
     "where": [
-      "public/hmr.html:193"
+      "public/hmr.html:194"
     ]
   },
   "1aac075d80795d6c": {
     "text": "Describe a rule in plain English and hiccup drafts it, or paste an existing SBC config and hiccup reads the header-manipulation rules back to you, checks them for the usual mistakes, and can re-render any rule for another vendor. Drafts are for review — hiccup never applies config.",
     "cat": "html",
     "where": [
-      "public/hmr.html:194"
+      "public/hmr.html:195"
     ]
   },
   "32bb9435ac92cf86": {
     "text": "Generate a rule from a description",
     "cat": "html",
     "where": [
-      "public/hmr.html:202"
+      "public/hmr.html:203"
     ]
   },
   "cdcc60ab6a867fcd": {
     "text": "Describe the rule you want, in plain English",
     "cat": "html",
     "where": [
-      "public/hmr.html:204"
+      "public/hmr.html:205"
     ]
   },
   "c0ae216edc87e1d9": {
     "text": "e.g. strip the P-Asserted-Identity header on outbound INVITEs",
     "cat": "html",
     "where": [
-      "public/hmr.html:205"
+      "public/hmr.html:206"
     ]
   },
   "9178bdd03e53dd70": {
     "text": "Generate rule",
     "cat": "html",
     "where": [
-      "public/hmr.html:210",
+      "public/hmr.html:211",
       "public/hmr.js:327"
     ]
   },
@@ -1137,43 +1137,43 @@
     "text": "Clear",
     "cat": "html",
     "where": [
-      "public/hmr.html:211",
-      "public/hmr.html:237"
+      "public/hmr.html:212",
+      "public/hmr.html:238"
     ]
   },
   "be1e3a4fcc2edac3": {
     "text": "Or paste an existing config",
     "cat": "html",
     "where": [
-      "public/hmr.html:219"
+      "public/hmr.html:220"
     ]
   },
   "56bde584f2a00456": {
     "text": "SBC config — Oracle/Acme",
     "cat": "html",
     "where": [
-      "public/hmr.html:221"
+      "public/hmr.html:222"
     ]
   },
   "d0682a765687a875": {
     "text": ", AudioCodes",
     "cat": "html",
     "where": [
-      "public/hmr.html:221"
+      "public/hmr.html:222"
     ]
   },
   "ac59308083cc0c09": {
     "text": "MessageManipulations, or Ribbon SMM rules",
     "cat": "html",
     "where": [
-      "public/hmr.html:222"
+      "public/hmr.html:223"
     ]
   },
   "02fda68c559e5704": {
     "text": "Analyse config",
     "cat": "html",
     "where": [
-      "public/hmr.html:227",
+      "public/hmr.html:228",
       "public/hmr.js:238"
     ]
   },
@@ -1181,14 +1181,14 @@
     "text": "Choose config file…",
     "cat": "html",
     "where": [
-      "public/hmr.html:228"
+      "public/hmr.html:229"
     ]
   },
   "5eb9db3357f09035": {
     "text": "Check against a capture",
     "cat": "html",
     "where": [
-      "public/hmr.html:234"
+      "public/hmr.html:235"
     ]
   },
   "f45d71f0737d7d39": {
@@ -1203,7 +1203,7 @@
     "cat": "html",
     "where": [
       "public/index.html:391",
-      "public/app.js:2400"
+      "public/app.js:2408"
     ]
   },
   "c1bb992a847a7c50": {
@@ -1550,8 +1550,8 @@
     "cat": "html",
     "where": [
       "public/index.html:542",
-      "public/team.html:175",
-      "public/team.html:235"
+      "public/team.html:176",
+      "public/team.html:236"
     ]
   },
   "c14eb09dbd62d084": {
@@ -1664,112 +1664,112 @@
     "text": "Config guides",
     "cat": "html",
     "where": [
-      "public/kb.html:171"
+      "public/kb.html:172"
     ]
   },
   "f999addfdbf294a3": {
     "text": "What this is for: grounding config suggestions in the vendor's own guide — upload the SBC documentation you trust and hiccup cites its passages instead of guessing.",
     "cat": "html",
     "where": [
-      "public/kb.html:172"
+      "public/kb.html:173"
     ]
   },
   "c7023fd85a9b853b": {
     "text": "Drop vendor guides here",
     "cat": "html",
     "where": [
-      "public/kb.html:180"
+      "public/kb.html:181"
     ]
   },
   "d11046c82fbd9773": {
     "text": ".txt · .md · .html · .ini · .cfg · .conf · .cli · .log — PDF needs an optional dependency",
     "cat": "html",
     "where": [
-      "public/kb.html:181"
+      "public/kb.html:182"
     ]
   },
   "a223c737bb21b418": {
     "text": "or link to a guide hiccup does not host",
     "cat": "html",
     "where": [
-      "public/kb.html:186"
+      "public/kb.html:187"
     ]
   },
   "ef2921246ea3de42": {
     "text": "Guide URL",
     "cat": "html",
     "where": [
-      "public/kb.html:188"
+      "public/kb.html:189"
     ]
   },
   "aee580759589d4cc": {
     "text": "Add link",
     "cat": "html",
     "where": [
-      "public/kb.html:191"
+      "public/kb.html:192"
     ]
   },
   "12c6b10e324c8106": {
     "text": "hiccup stores only the link and the tags below — it never fetches, copies or indexes the page, so this guide will not appear in search results.",
     "cat": "html",
     "where": [
-      "public/kb.html:193"
+      "public/kb.html:194"
     ]
   },
   "8acdbb98e99e879e": {
     "text": "Vendor (optional)",
     "cat": "html",
     "where": [
-      "public/kb.html:198"
+      "public/kb.html:199"
     ]
   },
   "d1d1a723544df8e8": {
     "text": "oracle-acme, audiocodes, ribbon…",
     "cat": "html",
     "where": [
-      "public/kb.html:199"
+      "public/kb.html:200"
     ]
   },
   "bd807724e1184623": {
     "text": "Product (optional)",
     "cat": "html",
     "where": [
-      "public/kb.html:203"
+      "public/kb.html:204"
     ]
   },
   "d0739d2d12946821": {
     "text": "Acme Packet 4600, Mediant 4000…",
     "cat": "html",
     "where": [
-      "public/kb.html:204"
+      "public/kb.html:205"
     ]
   },
   "dfa171455b9dc9ef": {
     "text": "Your guides",
     "cat": "html",
     "where": [
-      "public/kb.html:214"
+      "public/kb.html:215"
     ]
   },
   "fe0480c36565268b": {
     "text": "Search the guides",
     "cat": "html",
     "where": [
-      "public/kb.html:219"
+      "public/kb.html:220"
     ]
   },
   "97825158e43702cd": {
     "text": "e.g. session-expires refresher, sip-manipulation store, coder group",
     "cat": "html",
     "where": [
-      "public/kb.html:222"
+      "public/kb.html:223"
     ]
   },
   "5d929ff1619ac0c9": {
     "text": "Search",
     "cat": "html",
     "where": [
-      "public/kb.html:224"
+      "public/kb.html:225"
     ]
   },
   "ebd50aa244e53246": {
@@ -1800,223 +1800,223 @@
     "text": "Settings",
     "cat": "html",
     "where": [
-      "public/settings.html:83"
+      "public/settings.html:84"
     ]
   },
   "c688123bacd22912": {
     "text": "Privacy of your captures",
     "cat": "html",
     "where": [
-      "public/settings.html:88"
+      "public/settings.html:89"
     ]
   },
   "e7a5a68d766b49e2": {
     "text": "Traces routinely contain phone numbers. These control what hiccup keeps in the analysis it builds from them.",
     "cat": "html",
     "where": [
-      "public/settings.html:89"
+      "public/settings.html:90"
     ]
   },
   "4ac03f56f72b4226": {
     "text": "Mask phone numbers in new uploads",
     "cat": "html",
     "where": [
-      "public/settings.html:94"
+      "public/settings.html:95"
     ]
   },
   "8036e4ca267d7125": {
     "text": "Shows numbers as",
     "cat": "html",
     "where": [
-      "public/settings.html:95"
+      "public/settings.html:96"
     ]
   },
   "e4ee48083f224295": {
     "text": "in the analysis — still enough to follow a call across legs, without keeping the full number. Your uploaded file is never altered, only what hiccup derives from it.",
     "cat": "html",
     "where": [
-      "public/settings.html:95"
+      "public/settings.html:96"
     ]
   },
   "9c59c7bdf8a7fd03": {
     "text": "use the server default",
     "cat": "html",
     "where": [
-      "public/settings.html:102"
+      "public/settings.html:103"
     ]
   },
   "dff35ef6dfc95fdc": {
     "text": "always mask",
     "cat": "html",
     "where": [
-      "public/settings.html:103"
+      "public/settings.html:104"
     ]
   },
   "cb9f394fe954695f": {
     "text": "never mask",
     "cat": "html",
     "where": [
-      "public/settings.html:104"
+      "public/settings.html:105"
     ]
   },
   "4661bbea10e4a7ca": {
     "text": "How long captures are kept",
     "cat": "html",
     "where": [
-      "public/settings.html:111"
+      "public/settings.html:112"
     ]
   },
   "7ba9d783b7673877": {
     "text": "checking…",
     "cat": "html",
     "where": [
-      "public/settings.html:112",
-      "public/settings.html:119",
-      "public/settings.html:154",
-      "public/settings.html:175"
+      "public/settings.html:113",
+      "public/settings.html:120",
+      "public/settings.html:155",
+      "public/settings.html:176"
     ]
   },
   "f9ee06b5ff26c62b": {
     "text": "Who else can see your captures",
     "cat": "html",
     "where": [
-      "public/settings.html:118"
+      "public/settings.html:119"
     ]
   },
   "60c9cf051f0b9a39": {
     "text": "Your privacy rights",
     "cat": "html",
     "where": [
-      "public/settings.html:124"
+      "public/settings.html:125"
     ]
   },
   "ad2e6868b10b38aa": {
     "text": "Export, erase, or delete — everything on this page is something you can do yourself, right now, without asking an administrator.",
     "cat": "html",
     "where": [
-      "public/settings.html:125"
+      "public/settings.html:126"
     ]
   },
   "9b8a8e248af82262": {
     "text": "Read the privacy notice",
     "cat": "html",
     "where": [
-      "public/settings.html:127"
+      "public/settings.html:128"
     ]
   },
   "4f115b48fcd53957": {
     "text": "Download a copy",
     "cat": "html",
     "where": [
-      "public/settings.html:130"
+      "public/settings.html:131"
     ]
   },
   "1a459bd2e7b53974": {
     "text": "Everything hiccup holds about this account.",
     "cat": "html",
     "where": [
-      "public/settings.html:131"
+      "public/settings.html:132"
     ]
   },
   "0886ea2a1f4b50d1": {
     "text": "Export as JSON",
     "cat": "html",
     "where": [
-      "public/settings.html:135"
+      "public/settings.html:136"
     ]
   },
   "9b2be74d948736e9": {
     "text": "One file: your account record, capture list, projects, team, library documents and any feedback you have sent. Capture file contents are not included — download those individually from the workbench.",
     "cat": "html",
     "where": [
-      "public/settings.html:136"
+      "public/settings.html:137"
     ]
   },
   "d3386a2ef42e80b9": {
     "text": "Download",
     "cat": "html",
     "where": [
-      "public/settings.html:142"
+      "public/settings.html:143"
     ]
   },
   "0d7192fab7c9eb3c": {
     "text": "Erase your data",
     "cat": "html",
     "where": [
-      "public/settings.html:148"
+      "public/settings.html:149"
     ]
   },
   "54a72ca1b15ba2e0": {
     "text": "Removes your captures, projects and library documents. Your account stays open and signed in — this is not the same as deleting your account.",
     "cat": "html",
     "where": [
-      "public/settings.html:149"
+      "public/settings.html:150"
     ]
   },
   "720689d4346abc1c": {
     "text": "What this removes",
     "cat": "html",
     "where": [
-      "public/settings.html:153",
-      "public/settings.html:174"
+      "public/settings.html:154",
+      "public/settings.html:175"
     ]
   },
   "691d2c8f160c597f": {
     "text": "Erase my data",
     "cat": "html",
     "where": [
-      "public/settings.html:157"
+      "public/settings.html:158"
     ]
   },
   "d2223afb7d6b100d": {
     "text": "Type",
     "cat": "html",
     "where": [
-      "public/settings.html:161",
-      "public/settings.html:182"
+      "public/settings.html:162",
+      "public/settings.html:183"
     ]
   },
   "cfbd46e8a190134a": {
     "text": "to confirm:",
     "cat": "html",
     "where": [
-      "public/settings.html:161",
-      "public/settings.html:182"
+      "public/settings.html:162",
+      "public/settings.html:183"
     ]
   },
   "4082bb30552dd590": {
     "text": "Erase permanently",
     "cat": "html",
     "where": [
-      "public/settings.html:163"
+      "public/settings.html:164"
     ]
   },
   "83b1523cb540e0fd": {
     "text": "Delete this account",
     "cat": "html",
     "where": [
-      "public/settings.html:169"
+      "public/settings.html:170"
     ]
   },
   "992032218333b658": {
     "text": "Everything above, plus the account itself. Irreversible — there is no undo and no backup to restore from.",
     "cat": "html",
     "where": [
-      "public/settings.html:170"
+      "public/settings.html:171"
     ]
   },
   "045c3b86aae073c1": {
     "text": "Delete account",
     "cat": "html",
     "where": [
-      "public/settings.html:178"
+      "public/settings.html:179"
     ]
   },
   "f0ef7644098b8a63": {
     "text": "Delete permanently",
     "cat": "html",
     "where": [
-      "public/settings.html:184"
+      "public/settings.html:185"
     ]
   },
   "bde3eb3f3d10fffa": {
@@ -2236,7 +2236,7 @@
     "cat": "html",
     "where": [
       "public/subscribe.html:245",
-      "public/team.html:143"
+      "public/team.html:144"
     ]
   },
   "ecd538cf902f5ab3": {
@@ -2467,49 +2467,49 @@
     "text": "A team shares every capture and guide with all of its members equally — there is no per-project permission to configure. Invite a colleague and you will both see the same library.",
     "cat": "html",
     "where": [
-      "public/team.html:144"
+      "public/team.html:145"
     ]
   },
   "238faafc43142fb1": {
     "text": "Loading your team…",
     "cat": "html",
     "where": [
-      "public/team.html:152"
+      "public/team.html:153"
     ]
   },
   "9f5c475fc7d6614d": {
     "text": "Create your team",
     "cat": "html",
     "where": [
-      "public/team.html:162"
+      "public/team.html:163"
     ]
   },
   "8c359b69c2dfb726": {
     "text": "Create a team and every capture and guide already in your library becomes shared with whoever you invite — nothing to migrate, nothing to configure per file.",
     "cat": "html",
     "where": [
-      "public/team.html:163"
+      "public/team.html:164"
     ]
   },
   "4e6bac96fe4475bf": {
     "text": "Team name",
     "cat": "html",
     "where": [
-      "public/team.html:168"
+      "public/team.html:169"
     ]
   },
   "3a4272d5c2aff670": {
     "text": "e.g. Acme NetOps",
     "cat": "html",
     "where": [
-      "public/team.html:169"
+      "public/team.html:170"
     ]
   },
   "ccdc445505b97876": {
     "text": "Create team",
     "cat": "html",
     "where": [
-      "public/team.html:172",
+      "public/team.html:173",
       "public/team.js:195",
       "public/team.js:200"
     ]
@@ -2518,119 +2518,119 @@
     "text": "Creating a team needs a Team account — the Pro plan is for working solo.",
     "cat": "html",
     "where": [
-      "public/team.html:174"
+      "public/team.html:175"
     ]
   },
   "3a85be90c011b81a": {
     "text": "This team has no active owner",
     "cat": "html",
     "where": [
-      "public/team.html:187"
+      "public/team.html:188"
     ]
   },
   "71e6300a835a6d55": {
     "text": "Take ownership of this team",
     "cat": "html",
     "where": [
-      "public/team.html:190"
+      "public/team.html:191"
     ]
   },
   "edfd3b1ef4c879e8": {
     "text": "Invite a colleague",
     "cat": "html",
     "where": [
-      "public/team.html:194"
+      "public/team.html:195"
     ]
   },
   "4c228342c58c38d6": {
     "text": "hiccup does not send email — you copy the link and share it yourself.",
     "cat": "html",
     "where": [
-      "public/team.html:195"
+      "public/team.html:196"
     ]
   },
   "d1f44f1a8bc20e67": {
     "text": "Email",
     "cat": "html",
     "where": [
-      "public/team.html:197",
-      "public/team.js:581"
+      "public/team.html:198",
+      "public/team.js:593"
     ]
   },
   "1bf586d4e16bfb89": {
     "text": "colleague@example.com",
     "cat": "html",
     "where": [
-      "public/team.html:198"
+      "public/team.html:199"
     ]
   },
   "f4f6ec349795904e": {
     "text": "Create invite link",
     "cat": "html",
     "where": [
-      "public/team.html:201",
-      "public/team.js:424",
-      "public/team.js:429"
+      "public/team.html:202",
+      "public/team.js:436",
+      "public/team.js:441"
     ]
   },
   "3fbbdd951b460b4f": {
     "text": "Invite link for",
     "cat": "html",
     "where": [
-      "public/team.html:205"
+      "public/team.html:206"
     ]
   },
   "3687049d1af562c4": {
     "text": "Copy",
     "cat": "html",
     "where": [
-      "public/team.html:208",
-      "public/team.html:244",
+      "public/team.html:209",
+      "public/team.html:245",
       "public/hmr.js:872",
       "public/hmr.js:881",
-      "public/team.js:485"
+      "public/team.js:497"
     ]
   },
   "3bc8830b974426c7": {
     "text": "No email is sent — copy this link and send it to your colleague yourself.",
     "cat": "html",
     "where": [
-      "public/team.html:210"
+      "public/team.html:211"
     ]
   },
   "9f5a5f23312798f0": {
     "text": "Members",
     "cat": "html",
     "where": [
-      "public/team.html:218"
+      "public/team.html:219"
     ]
   },
   "d83c09031a298b6c": {
     "text": "Single sign-on",
     "cat": "html",
     "where": [
-      "public/team.html:227"
+      "public/team.html:228"
     ]
   },
   "92d550d341585e09": {
     "text": "Connect your company's identity provider (Microsoft Entra ID, Okta, Google Workspace, or any OpenID Connect IdP). Members use \"Continue with SSO\" on the sign-in page with their work email; colleagues on your claimed domains join automatically.",
     "cat": "html",
     "where": [
-      "public/team.html:228"
+      "public/team.html:229"
     ]
   },
   "5d9739ed6eb74c94": {
     "text": "Setup guide →",
     "cat": "html",
     "where": [
-      "public/team.html:231"
+      "public/team.html:232"
     ]
   },
   "67fa87ad7956c1f8": {
     "text": "Single sign-on needs the Team plan.",
     "cat": "html",
     "where": [
-      "public/team.html:234",
+      "public/team.html:235",
       "server.js:2606"
     ]
   },
@@ -2638,140 +2638,142 @@
     "text": "Single sign-on is temporarily disabled platform-wide by the operator.",
     "cat": "html",
     "where": [
-      "public/team.html:238"
+      "public/team.html:239"
     ]
   },
   "68a3ec9439b479de": {
     "text": "Redirect URI — paste into your IdP's app registration",
     "cat": "html",
     "where": [
-      "public/team.html:241"
+      "public/team.html:242"
     ]
   },
   "374644612690fd4b": {
     "text": "Issuer URL",
     "cat": "html",
     "where": [
-      "public/team.html:247"
+      "public/team.html:248"
     ]
   },
   "4d00e5de1c8213b7": {
     "text": "Client ID",
     "cat": "html",
     "where": [
-      "public/team.html:251"
+      "public/team.html:252"
     ]
   },
   "c8746c934398646a": {
     "text": "Client secret",
     "cat": "html",
     "where": [
-      "public/team.html:254",
       "public/team.html:255",
-      "public/team.js:728",
-      "public/team.js:734"
+      "public/team.html:256",
+      "public/team.js:740",
+      "public/team.js:746"
     ]
   },
   "92d9320c13536f7e": {
     "text": "Email domains (comma-separated)",
     "cat": "html",
     "where": [
-      "public/team.html:258"
+      "public/team.html:259"
     ]
   },
   "de465f23004b5dac": {
     "text": "acme.com, acme.co.uk",
     "cat": "html",
     "where": [
-      "public/team.html:259"
+      "public/team.html:260"
     ]
   },
   "96fce300d8996465": {
     "text": "Single sign-on enabled",
     "cat": "html",
     "where": [
-      "public/team.html:263"
+      "public/team.html:264"
     ]
   },
   "d9e134e1c33a4939": {
     "text": "Members must sign in through your identity provider. You, the owner, always keep password access as a fallback.",
     "cat": "html",
     "where": [
-      "public/team.html:264"
+      "public/team.html:265"
     ]
   },
   "e2d49bc3cc3e537d": {
     "text": "Require SSO for members (you keep password access)",
     "cat": "html",
     "where": [
-      "public/team.html:266"
+      "public/team.html:267"
     ]
   },
   "2834f4f3b0f0ba7c": {
     "text": "Save SSO settings",
     "cat": "html",
     "where": [
-      "public/team.html:272",
-      "public/team.js:794",
-      "public/team.js:799"
+      "public/team.html:273",
+      "public/team.js:810",
+      "public/team.js:815"
     ]
   },
   "cd292a7dac55e777": {
     "text": "Test connection",
     "cat": "html",
     "where": [
-      "public/team.html:273"
+      "public/team.html:274"
     ]
   },
   "ea4f08110bb8f15d": {
     "text": "Remove",
     "cat": "html",
     "where": [
-      "public/team.html:274",
-      "public/team.js:642",
-      "public/team.js:869"
+      "public/team.html:275",
+      "public/kb.js:296",
+      "public/team.js:654",
+      "public/team.js:891"
     ]
   },
   "4a6b60c560092f6e": {
     "text": "Leaving this team",
     "cat": "html",
     "where": [
-      "public/team.html:284"
+      "public/team.html:285"
     ]
   },
   "528cf0029897392b": {
     "text": "You own this team. To leave it, or to delete your account, hand ownership to another member first — the team keeps every capture and guide, and you stay on as an admin.",
     "cat": "html",
     "where": [
-      "public/team.html:287"
+      "public/team.html:288"
     ]
   },
   "c18e7750364b1976": {
     "text": "New owner",
     "cat": "html",
     "where": [
-      "public/team.html:291"
+      "public/team.html:292"
     ]
   },
   "3df0bc21c11764a7": {
     "text": "Transfer ownership",
     "cat": "html",
     "where": [
-      "public/team.html:294"
+      "public/team.html:295",
+      "public/team.js:263"
     ]
   },
   "476efaa8f5584146": {
     "text": "You keep your account. The team's shared captures and guides stay with the team.",
     "cat": "html",
     "where": [
-      "public/team.html:299"
+      "public/team.html:300"
     ]
   },
   "8a61911c187e89ad": {
     "text": "Leave this team",
     "cat": "html",
     "where": [
-      "public/team.html:302"
+      "public/team.html:303"
     ]
   },
   "ad65264d44677cf0": {
@@ -2948,39 +2950,81 @@
       "public/accept-invite.js:285"
     ]
   },
+  "ffab8d7dde463f02": {
+    "text": "Change this account's plan?",
+    "cat": "js",
+    "where": [
+      "public/admin-status.js:311"
+    ]
+  },
+  "ae74a93390f2bae0": {
+    "text": "Change plan",
+    "cat": "js",
+    "where": [
+      "public/admin-status.js:313"
+    ]
+  },
+  "e0dbe420332aa76e": {
+    "text": "Grant superuser access?",
+    "cat": "js",
+    "where": [
+      "public/admin-status.js:351"
+    ]
+  },
+  "0f3891e353202128": {
+    "text": "Revoke superuser access?",
+    "cat": "js",
+    "where": [
+      "public/admin-status.js:351"
+    ]
+  },
+  "afecde9b928af1df": {
+    "text": "Make superuser",
+    "cat": "js",
+    "where": [
+      "public/admin-status.js:353"
+    ]
+  },
+  "0e871352ba4b17d3": {
+    "text": "Revoke",
+    "cat": "js",
+    "where": [
+      "public/admin-status.js:353"
+    ]
+  },
   "7d1a7d0d15d46624": {
     "text": "queueing the restart…",
     "cat": "js",
     "where": [
-      "public/admin-status.js:418"
+      "public/admin-status.js:426"
     ]
   },
   "50a00181d72c3c0a": {
     "text": "asking the server to restart…",
     "cat": "js",
     "where": [
-      "public/admin-status.js:418"
+      "public/admin-status.js:426"
     ]
   },
   "91b00dd3a1c19274": {
     "text": "restart refused (",
     "cat": "js",
     "where": [
-      "public/admin-status.js:427"
+      "public/admin-status.js:435"
     ]
   },
   "2e338ae86c831b68": {
     "text": "restarting…",
     "cat": "js",
     "where": [
-      "public/admin-status.js:431"
+      "public/admin-status.js:439"
     ]
   },
   "e5f03607dcb73e9e": {
     "text": "could not reach the server",
     "cat": "js",
     "where": [
-      "public/admin-status.js:435",
+      "public/admin-status.js:443",
       "public/index-auth.js:35"
     ]
   },
@@ -2988,63 +3032,63 @@
     "text": "Site is idle — restarting in a moment.",
     "cat": "js",
     "where": [
-      "public/admin-status.js:478"
+      "public/admin-status.js:486"
     ]
   },
   "db1460167103b7be": {
     "text": "in-progress upload/analysis",
     "cat": "js",
     "where": [
-      "public/admin-status.js:481"
+      "public/admin-status.js:489"
     ]
   },
   "78b9ee3ca8250896": {
     "text": "chat answer(s) running",
     "cat": "js",
     "where": [
-      "public/admin-status.js:482"
+      "public/admin-status.js:490"
     ]
   },
   "f2ae5cdfbdcc8589": {
     "text": "request(s) in flight",
     "cat": "js",
     "where": [
-      "public/admin-status.js:483"
+      "public/admin-status.js:491"
     ]
   },
   "c0a48bfaa96a7d67": {
     "text": "Waiting for:",
     "cat": "js",
     "where": [
-      "public/admin-status.js:484"
+      "public/admin-status.js:492"
     ]
   },
   "eac9afef1a00b5e8": {
     "text": "waiting",
     "cat": "js",
     "where": [
-      "public/admin-status.js:494"
+      "public/admin-status.js:502"
     ]
   },
   "559de8227bbbdcd3": {
     "text": "s · gives up in",
     "cat": "js",
     "where": [
-      "public/admin-status.js:494"
+      "public/admin-status.js:502"
     ]
   },
   "8ef030c09877b05c": {
     "text": "queued restart cancelled",
     "cat": "js",
     "where": [
-      "public/admin-status.js:509"
+      "public/admin-status.js:517"
     ]
   },
   "3b9ac6d413a79653": {
     "text": "a restart is already queued — waiting for the site to go idle",
     "cat": "js",
     "where": [
-      "public/admin-status.js:552"
+      "public/admin-status.js:560"
     ]
   },
   "b50ee4a7a3cad2d6": {
@@ -3143,180 +3187,194 @@
     "cat": "js",
     "where": [
       "public/app.js:603",
-      "public/app.js:4449",
+      "public/app.js:4457",
       "public/kb.js:215"
+    ]
+  },
+  "fbb68bf45f95c32d": {
+    "text": "Delete this capture?",
+    "cat": "js",
+    "where": [
+      "public/app.js:612"
     ]
   },
   "039b6034e8a74e94": {
     "text": "Delete \"",
     "cat": "js",
     "where": [
-      "public/app.js:611"
+      "public/app.js:613"
     ]
   },
   "8dfc732b0899acf1": {
     "text": "\"? This removes the capture and its analysis.",
     "cat": "js",
     "where": [
-      "public/app.js:611"
+      "public/app.js:613"
+    ]
+  },
+  "bf9f3c45d67a8cdc": {
+    "text": "Delete capture",
+    "cat": "js",
+    "where": [
+      "public/app.js:614"
     ]
   },
   "f3fe6b5fdb85d50a": {
     "text": "delete",
     "cat": "js",
     "where": [
-      "public/app.js:614"
+      "public/app.js:618"
     ]
   },
   "5506ef2a3ff8aa23": {
     "text": "Delete failed.",
     "cat": "js",
     "where": [
-      "public/app.js:616"
+      "public/app.js:620"
     ]
   },
   "7bf8bb220db5eb60": {
     "text": "No captures match this filter.",
     "cat": "js",
     "where": [
-      "public/app.js:635"
+      "public/app.js:639"
     ]
   },
   "98c37d5e62b7bb31": {
     "text": "Choose a different project, or clear the filter to see everything.",
     "cat": "js",
     "where": [
-      "public/app.js:636"
+      "public/app.js:640"
     ]
   },
   "e4eb3e2e6b63147f": {
     "text": "No captures yet.",
     "cat": "js",
     "where": [
-      "public/app.js:638"
+      "public/app.js:642"
     ]
   },
   "69030b23e318abae": {
     "text": "Upload a pcap, pcapng, or an SBC log / SIP text export to get started.",
     "cat": "js",
     "where": [
-      "public/app.js:639"
+      "public/app.js:643"
     ]
   },
   "6580790b036f0c6f": {
     "text": "active",
     "cat": "js",
     "where": [
-      "public/app.js:645"
+      "public/app.js:649"
     ]
   },
   "aa5a0b9443a7fa7c": {
     "text": "delete capture",
     "cat": "js",
     "where": [
-      "public/app.js:651"
+      "public/app.js:655"
     ]
   },
   "f0d71e3a9d591e6e": {
     "text": "calls",
     "cat": "js",
     "where": [
-      "public/app.js:662",
-      "public/app.js:1665"
+      "public/app.js:666",
+      "public/app.js:1673"
     ]
   },
   "651e4382bf518217": {
     "text": "projects",
     "cat": "js",
     "where": [
-      "public/app.js:692"
+      "public/app.js:696"
     ]
   },
   "8e6f9e4e82003e60": {
     "text": "No projects yet.",
     "cat": "js",
     "where": [
-      "public/app.js:796"
+      "public/app.js:800"
     ]
   },
   "6150b7a0c6741319": {
     "text": "Create one below to start filing captures.",
     "cat": "js",
     "where": [
-      "public/app.js:796"
+      "public/app.js:800"
     ]
   },
   "f4cd65eb4aa3fd61": {
     "text": "capture",
     "cat": "js",
     "where": [
-      "public/app.js:811"
+      "public/app.js:815"
     ]
   },
   "60320a18282b2b33": {
     "text": "Rename",
     "cat": "js",
     "where": [
-      "public/app.js:816"
+      "public/app.js:820"
     ]
   },
   "dc673e73b5c13aea": {
     "text": "Delete",
     "cat": "js",
     "where": [
-      "public/app.js:824",
-      "public/app.js:962",
-      "public/app.js:968",
-      "public/kb.js:395"
+      "public/app.js:828",
+      "public/app.js:970",
+      "public/app.js:976",
+      "public/kb.js:398"
     ]
   },
   "d96dc724ec12ae01": {
     "text": "project name",
     "cat": "js",
     "where": [
-      "public/app.js:840"
+      "public/app.js:844"
     ]
   },
   "25e116660ef4fb1c": {
     "text": "project description",
     "cat": "js",
     "where": [
-      "public/app.js:847"
+      "public/app.js:851"
     ]
   },
   "33f85f24c0f5f008": {
     "text": "Save",
     "cat": "js",
     "where": [
-      "public/app.js:851",
-      "public/app.js:930",
-      "public/app.js:936"
+      "public/app.js:855",
+      "public/app.js:934",
+      "public/app.js:940"
     ]
   },
   "22e2859c72a39268": {
     "text": "Enter a project name.",
     "cat": "js",
     "where": [
-      "public/app.js:855",
-      "public/app.js:877"
+      "public/app.js:859",
+      "public/app.js:881"
     ]
   },
   "4a58e62083970a56": {
     "text": "Creating…",
     "cat": "js",
     "where": [
-      "public/app.js:883",
+      "public/app.js:887",
       "public/team.js:183",
-      "public/team.js:412"
+      "public/team.js:424"
     ]
   },
   "ca3a1b6fa9671d70": {
     "text": "Could not reach the server.",
     "cat": "js",
     "where": [
-      "public/app.js:897",
-      "public/app.js:931",
-      "public/app.js:963",
+      "public/app.js:901",
+      "public/app.js:935",
+      "public/app.js:971",
       "public/feedback.js:280",
       "public/kb.js:271",
       "public/settings.js:81"
@@ -3326,65 +3384,79 @@
     "text": "Could not create the project (status",
     "cat": "js",
     "where": [
-      "public/app.js:904"
+      "public/app.js:908"
     ]
   },
   "b41b2cfbbc52565b": {
     "text": "Created",
     "cat": "js",
     "where": [
-      "public/app.js:909"
+      "public/app.js:913"
     ]
   },
   "329e062dd1fdf61d": {
     "text": "Saving…",
     "cat": "js",
     "where": [
-      "public/app.js:917",
-      "public/team.js:782"
+      "public/app.js:921",
+      "public/team.js:798"
     ]
   },
   "b26795f2be45df57": {
     "text": "Could not rename the project (status",
     "cat": "js",
     "where": [
-      "public/app.js:938"
+      "public/app.js:942"
     ]
   },
   "1c7d83e8dc6b85de": {
     "text": "Saved.",
     "cat": "js",
     "where": [
-      "public/app.js:942",
-      "public/team.js:808"
+      "public/app.js:946",
+      "public/team.js:824"
+    ]
+  },
+  "64b4814726e38224": {
+    "text": "Delete this project?",
+    "cat": "js",
+    "where": [
+      "public/app.js:954"
     ]
   },
   "8735197baf1f305d": {
     "text": "Delete project \"",
     "cat": "js",
     "where": [
-      "public/app.js:949"
+      "public/app.js:955"
     ]
   },
   "89d063afdf823e76": {
     "text": "\"? Its captures will become",
     "cat": "js",
     "where": [
-      "public/app.js:949"
+      "public/app.js:955"
     ]
   },
   "b790c5a456301be2": {
     "text": "Unfiled, not deleted.",
     "cat": "js",
     "where": [
-      "public/app.js:950"
+      "public/app.js:956"
+    ]
+  },
+  "e84bf9df099e039f": {
+    "text": "Delete project",
+    "cat": "js",
+    "where": [
+      "public/app.js:957"
     ]
   },
   "f520d1f154f4acf3": {
     "text": "Deleting…",
     "cat": "js",
     "where": [
-      "public/app.js:953",
+      "public/app.js:961",
       "public/settings.js:102"
     ]
   },
@@ -3392,245 +3464,245 @@
     "text": "Could not delete the project (status",
     "cat": "js",
     "where": [
-      "public/app.js:970"
+      "public/app.js:978"
     ]
   },
   "44a9ac9dd7567f4a": {
     "text": "Deleted",
     "cat": "js",
     "where": [
-      "public/app.js:978"
+      "public/app.js:986"
     ]
   },
   "cceb15ae9c0a524d": {
     "text": "Loading analysis…",
     "cat": "js",
     "where": [
-      "public/app.js:1005"
+      "public/app.js:1013"
     ]
   },
   "4b7785c29fc3ab83": {
     "text": "analysis",
     "cat": "js",
     "where": [
-      "public/app.js:1008"
+      "public/app.js:1016"
     ]
   },
   "556a1a4ddc1af89f": {
     "text": "Could not load the analysis for this capture.",
     "cat": "js",
     "where": [
-      "public/app.js:1012"
+      "public/app.js:1020"
     ]
   },
   "c50c306d6cf00dc4": {
     "text": "state:",
     "cat": "js",
     "where": [
-      "public/app.js:1537"
+      "public/app.js:1545"
     ]
   },
   "83aeb63eb6d008e1": {
     "text": "retransmissions here",
     "cat": "js",
     "where": [
-      "public/app.js:1587"
+      "public/app.js:1595"
     ]
   },
   "c83273a124317d59": {
     "text": "No capture selected.",
     "cat": "js",
     "where": [
-      "public/app.js:1650"
+      "public/app.js:1658"
     ]
   },
   "12b07bccd39ee73f": {
     "text": "Calls, their legs and each transaction appear here. Selecting a node scopes the ladder, the message list and the info pane.",
     "cat": "js",
     "where": [
-      "public/app.js:1651"
+      "public/app.js:1659"
     ]
   },
   "d5d19ededd48854e": {
     "text": "whole capture",
     "cat": "js",
     "where": [
-      "public/app.js:1663",
-      "public/app.js:4276"
+      "public/app.js:1671",
+      "public/app.js:4284"
     ]
   },
   "189aa68745ab9607": {
     "text": "select the whole capture",
     "cat": "js",
     "where": [
-      "public/app.js:1669"
+      "public/app.js:1677"
     ]
   },
   "56f29359778fb62e": {
     "text": "other legs",
     "cat": "js",
     "where": [
-      "public/app.js:1698"
+      "public/app.js:1706"
     ]
   },
   "88119a37ad4ebdbb": {
     "text": "legs outside any correlated call — REGISTER, OPTIONS, SUBSCRIBE, strays",
     "cat": "js",
     "where": [
-      "public/app.js:1702"
+      "public/app.js:1710"
     ]
   },
   "700b70b7961f3c02": {
     "text": "No legs in this capture.",
     "cat": "js",
     "where": [
-      "public/app.js:1711"
+      "public/app.js:1719"
     ]
   },
   "2f438fa7b1aaa6c8": {
     "text": "The ladder still shows every message hiccup could parse.",
     "cat": "js",
     "where": [
-      "public/app.js:1712"
+      "public/app.js:1720"
     ]
   },
   "85d634ae0c7786f7": {
     "text": "AMBIGUOUS",
     "cat": "js",
     "where": [
-      "public/app.js:1728"
+      "public/app.js:1736"
     ]
   },
   "3ffd2ed5e12457fe": {
     "text": "hiccup will not guess between competing pairings",
     "cat": "js",
     "where": [
-      "public/app.js:1729"
+      "public/app.js:1737"
     ]
   },
   "b74b3dc8cc8e9489": {
     "text": "pairing confidence",
     "cat": "js",
     "where": [
-      "public/app.js:1732"
+      "public/app.js:1740"
     ]
   },
   "b5167a90e83ba4a9": {
     "text": "call",
     "cat": "js",
     "where": [
-      "public/app.js:1747"
+      "public/app.js:1755"
     ]
   },
   "687feaf62f0709c5": {
     "text": ", confidence",
     "cat": "js",
     "where": [
-      "public/app.js:1748"
+      "public/app.js:1756"
     ]
   },
   "07e05a191745be82": {
     "text": "msg",
     "cat": "js",
     "where": [
-      "public/app.js:1843"
+      "public/app.js:1851"
     ]
   },
   "4380d624f5690fe3": {
     "text": "transaction",
     "cat": "js",
     "where": [
-      "public/app.js:1847"
+      "public/app.js:1855"
     ]
   },
   "756b021763217a74": {
     "text": "message(s)",
     "cat": "js",
     "where": [
-      "public/app.js:1847"
+      "public/app.js:1855"
     ]
   },
   "6be6ae4450b33bec": {
     "text": "retransmission(s)",
     "cat": "js",
     "where": [
-      "public/app.js:1848"
+      "public/app.js:1856"
     ]
   },
   "48f88db8ef9f6b35": {
     "text": "sorted by",
     "cat": "js",
     "where": [
-      "public/app.js:1896"
+      "public/app.js:1904"
     ]
   },
   "34b9bea5211f99e0": {
     "text": "— click to reverse",
     "cat": "js",
     "where": [
-      "public/app.js:1896"
+      "public/app.js:1904"
     ]
   },
   "65406f1ef7e03b1e": {
     "text": "sort by",
     "cat": "js",
     "where": [
-      "public/app.js:1897",
-      "public/app.js:2036"
+      "public/app.js:1905",
+      "public/app.js:2044"
     ]
   },
   "142ff3c89dd876de": {
     "text": "No capture open.",
     "cat": "js",
     "where": [
-      "public/app.js:1960",
-      "public/app.js:2691",
-      "public/app.js:2828",
-      "public/app.js:3079",
-      "public/app.js:3257"
+      "public/app.js:1968",
+      "public/app.js:2699",
+      "public/app.js:2836",
+      "public/app.js:3087",
+      "public/app.js:3265"
     ]
   },
   "e95d7a856bbf60e9": {
     "text": "Every message of the selected session lands here, numbered, with the delta from the previous row.",
     "cat": "js",
     "where": [
-      "public/app.js:1961"
+      "public/app.js:1969"
     ]
   },
   "cb238034ee7c1825": {
     "text": "Nothing in this selection.",
     "cat": "js",
     "where": [
-      "public/app.js:1967"
+      "public/app.js:1975"
     ]
   },
   "d6aef5d4b60d351a": {
     "text": "The active lamp filter may be hiding everything — click the lamp again to clear it.",
     "cat": "js",
     "where": [
-      "public/app.js:1969"
+      "public/app.js:1977"
     ]
   },
   "e441ea1eb5103ec1": {
     "text": "Pick a call, leg or transaction in the tree above.",
     "cat": "js",
     "where": [
-      "public/app.js:1970"
+      "public/app.js:1978"
     ]
   },
   "5ecbf049d04bbac4": {
     "text": "further rows not shown — narrow the selection in the tree.",
     "cat": "js",
     "where": [
-      "public/app.js:1980",
-      "public/app.js:2095"
+      "public/app.js:1988",
+      "public/app.js:2103"
     ]
   },
   "2535ddc1247cf8ad": {
     "text": "retransmissions",
     "cat": "js",
     "where": [
-      "public/app.js:2075",
+      "public/app.js:2083",
       "public/ladder.js:731"
     ]
   },
@@ -3638,103 +3710,103 @@
     "text": "Critical condition on this message",
     "cat": "js",
     "where": [
-      "public/app.js:2163"
+      "public/app.js:2171"
     ]
   },
   "9a8b688a6592cb43": {
     "text": "Warning on this message",
     "cat": "js",
     "where": [
-      "public/app.js:2163"
+      "public/app.js:2171"
     ]
   },
   "1ea0b4dbe81f83b4": {
     "text": "Full advice, fixes and RFC citations are in the ask hiccup panel.",
     "cat": "js",
     "where": [
-      "public/app.js:2178"
+      "public/app.js:2186"
     ]
   },
   "014a73e75b83d41d": {
     "text": "export SVG",
     "cat": "js",
     "where": [
-      "public/app.js:2263"
+      "public/app.js:2271"
     ]
   },
   "0fa1dc38eebfbafa": {
     "text": "download this ladder as an SVG file",
     "cat": "js",
     "where": [
-      "public/app.js:2265"
+      "public/app.js:2273"
     ]
   },
   "6a67d89542d41350": {
     "text": "Explain this",
     "cat": "js",
     "where": [
-      "public/app.js:2331",
-      "public/app.js:2337",
-      "public/app.js:2668",
-      "public/app.js:2675"
+      "public/app.js:2339",
+      "public/app.js:2345",
+      "public/app.js:2676",
+      "public/app.js:2683"
     ]
   },
   "8354ed8d157e3591": {
     "text": "message: what is it doing in this call, and is anything wrong with it?",
     "cat": "js",
     "where": [
-      "public/app.js:2332",
-      "public/app.js:2669"
+      "public/app.js:2340",
+      "public/app.js:2677"
     ]
   },
   "3bbfccf71c82b137": {
     "text": "observation: \"",
     "cat": "js",
     "where": [
-      "public/app.js:2337",
-      "public/app.js:2676"
+      "public/app.js:2345",
+      "public/app.js:2684"
     ]
   },
   "85fa00a8ddbdcb55": {
     "text": "Walk me through call",
     "cat": "js",
     "where": [
-      "public/app.js:2342"
+      "public/app.js:2350"
     ]
   },
   "5c70ec40f47cc162": {
     "text": ": what happened, and is anything wrong with it?",
     "cat": "js",
     "where": [
-      "public/app.js:2343"
+      "public/app.js:2351"
     ]
   },
   "85b3b275b4abb893": {
     "text": "Walk me through leg",
     "cat": "js",
     "where": [
-      "public/app.js:2345"
+      "public/app.js:2353"
     ]
   },
   "b556dcff0d4aebe1": {
     "text": ": what happened on it?",
     "cat": "js",
     "where": [
-      "public/app.js:2345"
+      "public/app.js:2353"
     ]
   },
   "44102ce65a49b0da": {
     "text": "Summarise this capture: what is it, and what is wrong with it?",
     "cat": "js",
     "where": [
-      "public/app.js:2348"
+      "public/app.js:2356"
     ]
   },
   "a3a7061ff10a8138": {
     "text": "rows",
     "cat": "js",
     "where": [
-      "public/app.js:2361",
+      "public/app.js:2369",
       "public/ladder.js:575"
     ]
   },
@@ -3742,789 +3814,789 @@
     "text": "hidden)",
     "cat": "js",
     "where": [
-      "public/app.js:2361"
+      "public/app.js:2369"
     ]
   },
   "c377ae765da5362a": {
     "text": "Select a capture on the left, or drop a pcap / SBC log to analyse it.",
     "cat": "js",
     "where": [
-      "public/app.js:2401"
+      "public/app.js:2409"
     ]
   },
   "ed09a0a60786ff40": {
     "text": "Ladder renderer unavailable.",
     "cat": "js",
     "where": [
-      "public/app.js:2403"
+      "public/app.js:2411"
     ]
   },
   "96a9b47e685a5df6": {
     "text": "no protocol features detected in this capture",
     "cat": "js",
     "where": [
-      "public/app.js:2507"
+      "public/app.js:2515"
     ]
   },
   "2b31ee7710ca1985": {
     "text": "hiccup could not classify this capture",
     "cat": "js",
     "where": [
-      "public/app.js:2560"
+      "public/app.js:2568"
     ]
   },
   "36cdf600107afa24": {
     "text": "no capture open",
     "cat": "js",
     "where": [
-      "public/app.js:2561"
+      "public/app.js:2569"
     ]
   },
   "9f1f656755ff104f": {
     "text": "scenario:",
     "cat": "js",
     "where": [
-      "public/app.js:2567",
-      "public/app.js:2568"
+      "public/app.js:2575",
+      "public/app.js:2576"
     ]
   },
   "02069bd746dc6b0e": {
     "text": "— click for the full capture-wide read-out in the advice drawer",
     "cat": "js",
     "where": [
-      "public/app.js:2569"
+      "public/app.js:2577"
     ]
   },
   "546401b5d2a8d2a4": {
     "text": "message",
     "cat": "js",
     "where": [
-      "public/app.js:2660"
+      "public/app.js:2668"
     ]
   },
   "4f6a36d8e8907985": {
     "text": "stream",
     "cat": "js",
     "where": [
-      "public/app.js:2660"
+      "public/app.js:2668"
     ]
   },
   "e745ad1905623939": {
     "text": "aux",
     "cat": "js",
     "where": [
-      "public/app.js:2660"
+      "public/app.js:2668"
     ]
   },
   "0ddb70d1ae7488ac": {
     "text": "Explain this media stream (",
     "cat": "js",
     "where": [
-      "public/app.js:2672"
+      "public/app.js:2680"
     ]
   },
   "dbdc424b32ab4282": {
     "text": "). Is the loss/jitter a problem, and what would cause it?",
     "cat": "js",
     "where": [
-      "public/app.js:2672"
+      "public/app.js:2680"
     ]
   },
   "7065b78a129160f5": {
     "text": "\". What does it mean for the call?",
     "cat": "js",
     "where": [
-      "public/app.js:2676"
+      "public/app.js:2684"
     ]
   },
   "c11fcb928acece2b": {
     "text": "Nothing selected.",
     "cat": "js",
     "where": [
-      "public/app.js:2693",
-      "public/app.js:2830"
+      "public/app.js:2701",
+      "public/app.js:2838"
     ]
   },
   "d22c94a10d6dd5e8": {
     "text": "Pick a message in the ladder or the selection list to read its full text here — redacted, monospaced, with search terms highlighted.",
     "cat": "js",
     "where": [
-      "public/app.js:2694"
+      "public/app.js:2702"
     ]
   },
   "a9ff6fab66159015": {
     "text": "raw (hex — Q.931 / H.225)",
     "cat": "js",
     "where": [
-      "public/app.js:2702"
+      "public/app.js:2710"
     ]
   },
   "273022af0519354c": {
     "text": "raw (redacted)",
     "cat": "js",
     "where": [
-      "public/app.js:2702"
+      "public/app.js:2710"
     ]
   },
   "af2a36c4602f9123": {
     "text": "Digest credentials are redacted server-side before the analysis is stored.",
     "cat": "js",
     "where": [
-      "public/app.js:2707"
+      "public/app.js:2715"
     ]
   },
   "3b3bd7a9b9c7ae41": {
     "text": "media stream",
     "cat": "js",
     "where": [
-      "public/app.js:2713"
+      "public/app.js:2721"
     ]
   },
   "059a078d25abad68": {
     "text": "SRTP: the payload is encrypted. hiccup reports header-derived statistics only and never attempts decryption.",
     "cat": "js",
     "where": [
-      "public/app.js:2723"
+      "public/app.js:2731"
     ]
   },
   "17c30ae86a87a76d": {
     "text": "observation",
     "cat": "js",
     "where": [
-      "public/app.js:2729"
+      "public/app.js:2737"
     ]
   },
   "33e6f2b44e1ba302": {
     "text": "No raw bytes retained for this observation.",
     "cat": "js",
     "where": [
-      "public/app.js:2738"
+      "public/app.js:2746"
     ]
   },
   "1ea7cd8ab3decd86": {
     "text": "(unserializable)",
     "cat": "js",
     "where": [
-      "public/app.js:2787"
+      "public/app.js:2795"
     ]
   },
   "f76e08ece4d476b7": {
     "text": "(empty)",
     "cat": "js",
     "where": [
-      "public/app.js:2792",
-      "public/app.js:2805"
+      "public/app.js:2800",
+      "public/app.js:2813"
     ]
   },
   "7afbded886181495": {
     "text": "The parsed view: SIP headers and SDP, ISUP parameters for SIP-I bodies, Q.931 information elements for H.323 — field by field.",
     "cat": "js",
     "where": [
-      "public/app.js:2831"
+      "public/app.js:2839"
     ]
   },
   "a8a74aa141250df4": {
     "text": "detail",
     "cat": "js",
     "where": [
-      "public/app.js:2838"
+      "public/app.js:2846"
     ]
   },
   "c6a2be6fd6b05f04": {
     "text": "message type",
     "cat": "js",
     "where": [
-      "public/app.js:2847",
-      "public/app.js:2937"
+      "public/app.js:2855",
+      "public/app.js:2945"
     ]
   },
   "3987d636efc548c6": {
     "text": "information elements",
     "cat": "js",
     "where": [
-      "public/app.js:2853"
+      "public/app.js:2861"
     ]
   },
   "50a51275b81ed8b0": {
     "text": "call reference",
     "cat": "js",
     "where": [
-      "public/app.js:2854"
+      "public/app.js:2862"
     ]
   },
   "9b3a5bcdc7902c09": {
     "text": "(flag",
     "cat": "js",
     "where": [
-      "public/app.js:2854"
+      "public/app.js:2862"
     ]
   },
   "b355b8bc8e68943f": {
     "text": "present (heuristic)",
     "cat": "js",
     "where": [
-      "public/app.js:2861"
+      "public/app.js:2869"
     ]
   },
   "1671d117a687bb25": {
     "text": "not seen",
     "cat": "js",
     "where": [
-      "public/app.js:2861"
+      "public/app.js:2869"
     ]
   },
   "c0bbaeade40391f2": {
     "text": "No decodable IEs in this message.",
     "cat": "js",
     "where": [
-      "public/app.js:2863"
+      "public/app.js:2871"
     ]
   },
   "45a247ac358cc76f": {
     "text": "additional IEs",
     "cat": "js",
     "where": [
-      "public/app.js:2866"
+      "public/app.js:2874"
     ]
   },
   "aba13d9edb4451f7": {
     "text": "body type",
     "cat": "js",
     "where": [
-      "public/app.js:2884"
+      "public/app.js:2892"
     ]
   },
   "b02fcd4477170115": {
     "text": "retransmission of",
     "cat": "js",
     "where": [
-      "public/app.js:2886"
+      "public/app.js:2894"
     ]
   },
   "1966a1e6921d9787": {
     "text": "(call",
     "cat": "js",
     "where": [
-      "public/app.js:2889"
+      "public/app.js:2897"
     ]
   },
   "6f4a1debe5fa48b9": {
     "text": "No headers parsed.",
     "cat": "js",
     "where": [
-      "public/app.js:2895"
+      "public/app.js:2903"
     ]
   },
   "8da6bd607686d5a5": {
     "text": "o= origin",
     "cat": "js",
     "where": [
-      "public/app.js:2906"
+      "public/app.js:2914"
     ]
   },
   "854c128a264c729f": {
     "text": "c= connection",
     "cat": "js",
     "where": [
-      "public/app.js:2909"
+      "public/app.js:2917"
     ]
   },
   "788e4f672a47f1b3": {
     "text": "session a=",
     "cat": "js",
     "where": [
-      "public/app.js:2911"
+      "public/app.js:2919"
     ]
   },
   "ce7d079560c5cd4c": {
     "text": "No m= blocks.",
     "cat": "js",
     "where": [
-      "public/app.js:2915"
+      "public/app.js:2923"
     ]
   },
   "14e5faab9ce0e362": {
     "text": "block",
     "cat": "js",
     "where": [
-      "public/app.js:2919"
+      "public/app.js:2927"
     ]
   },
   "af65a6769ef39704": {
     "text": "called party",
     "cat": "js",
     "where": [
-      "public/app.js:2938"
+      "public/app.js:2946"
     ]
   },
   "3128bf195b427127": {
     "text": "calling party",
     "cat": "js",
     "where": [
-      "public/app.js:2939"
+      "public/app.js:2947"
     ]
   },
   "166b8ef87c4dac21": {
     "text": "nature of connection",
     "cat": "js",
     "where": [
-      "public/app.js:2943"
+      "public/app.js:2951"
     ]
   },
   "17b8007759802084": {
     "text": "ISUP parameters",
     "cat": "js",
     "where": [
-      "public/app.js:2946"
+      "public/app.js:2954"
     ]
   },
   "028ab3b84c4e3197": {
     "text": "No ISUP parameters decoded.",
     "cat": "js",
     "where": [
-      "public/app.js:2951"
+      "public/app.js:2959"
     ]
   },
   "68840a179f540ab0": {
     "text": "body part —",
     "cat": "js",
     "where": [
-      "public/app.js:2958"
+      "public/app.js:2966"
     ]
   },
   "5411ce164648f6eb": {
     "text": "retransmission collapse",
     "cat": "js",
     "where": [
-      "public/app.js:2968"
+      "public/app.js:2976"
     ]
   },
   "3ec32f46cd8e8576": {
     "text": "likely cause",
     "cat": "js",
     "where": [
-      "public/app.js:2975",
-      "public/app.js:3574"
+      "public/app.js:2983",
+      "public/app.js:3582"
     ]
   },
   "f2cb6775da35c5ca": {
     "text": "RTCP fraction-lost over time (%)",
     "cat": "js",
     "where": [
-      "public/app.js:3016"
+      "public/app.js:3024"
     ]
   },
   "917459c21a652cac": {
     "text": "silence / black-hole gap milliseconds over the stream",
     "cat": "js",
     "where": [
-      "public/app.js:3034"
+      "public/app.js:3042"
     ]
   },
   "f320d769df4a17c5": {
     "text": "no loss series available",
     "cat": "js",
     "where": [
-      "public/app.js:3041"
+      "public/app.js:3049"
     ]
   },
   "35681a8dc95e5d1c": {
     "text": "(overall",
     "cat": "js",
     "where": [
-      "public/app.js:3042"
+      "public/app.js:3050"
     ]
   },
   "51ba489dde4c7b4d": {
     "text": "% lost)",
     "cat": "js",
     "where": [
-      "public/app.js:3042"
+      "public/app.js:3050"
     ]
   },
   "c2e98828bf4023c9": {
     "text": "No media in this selection.",
     "cat": "js",
     "where": [
-      "public/app.js:3085"
+      "public/app.js:3093"
     ]
   },
   "00e54a3ca610663c": {
     "text": "This selection has no RTP/RTCP associated with it — widen it to the whole capture in the tree.",
     "cat": "js",
     "where": [
-      "public/app.js:3087"
+      "public/app.js:3095"
     ]
   },
   "2b499091ae0418ee": {
     "text": "This capture has no RTP/RTCP: signalling only, or an analysis produced before the media module existed.",
     "cat": "js",
     "where": [
-      "public/app.js:3088"
+      "public/app.js:3096"
     ]
   },
   "cf75f768321ab431": {
     "text": "loss %",
     "cat": "js",
     "where": [
-      "public/app.js:3098"
+      "public/app.js:3106"
     ]
   },
   "24483d1093d15687": {
     "text": "jitter ms mean/max",
     "cat": "js",
     "where": [
-      "public/app.js:3098"
+      "public/app.js:3106"
     ]
   },
   "9e6002d42d09d99d": {
     "text": "loss over time",
     "cat": "js",
     "where": [
-      "public/app.js:3098"
+      "public/app.js:3106"
     ]
   },
   "d87a0972aa18c2f3": {
     "text": "ESTIMATE only — ITU-T G.107 simplified E-model from packet loss and jitter, not a listening test",
     "cat": "js",
     "where": [
-      "public/app.js:3102"
+      "public/app.js:3110"
     ]
   },
   "642b70b5196d2acc": {
     "text": "encrypted — statistics from headers only, no decryption attempted",
     "cat": "js",
     "where": [
-      "public/app.js:3117"
+      "public/app.js:3125"
     ]
   },
   "bcab3660764766ab": {
     "text": "est.",
     "cat": "js",
     "where": [
-      "public/app.js:3134"
+      "public/app.js:3142"
     ]
   },
   "5b14e28b91fd8738": {
     "text": "— method:",
     "cat": "js",
     "where": [
-      "public/app.js:3135"
+      "public/app.js:3143"
     ]
   },
   "be9fa295f13f98ec": {
     "text": "one-way — no reverse stream seen for a paired leg",
     "cat": "js",
     "where": [
-      "public/app.js:3144"
+      "public/app.js:3152"
     ]
   },
   "13749a7d87ae764d": {
     "text": "max gap",
     "cat": "js",
     "where": [
-      "public/app.js:3145"
+      "public/app.js:3153"
     ]
   },
   "4a40dbe3e7c10d98": {
     "text": "out of order",
     "cat": "js",
     "where": [
-      "public/app.js:3146"
+      "public/app.js:3154"
     ]
   },
   "26c11773433b3b70": {
     "text": "SSRC change(s)",
     "cat": "js",
     "where": [
-      "public/app.js:3147"
+      "public/app.js:3155"
     ]
   },
   "4122273855097898": {
     "text": "marker reset(s)",
     "cat": "js",
     "where": [
-      "public/app.js:3148"
+      "public/app.js:3156"
     ]
   },
   "b8ca89b04c5b0398": {
     "text": "RFC 4733 DTMF event(s)",
     "cat": "js",
     "where": [
-      "public/app.js:3149"
+      "public/app.js:3157"
     ]
   },
   "4f32f1f9a6475d16": {
     "text": "MOS is an ESTIMATE derived from loss and jitter (ITU-T G.107 simplified) — not a listening test.",
     "cat": "js",
     "where": [
-      "public/app.js:3158"
+      "public/app.js:3166"
     ]
   },
   "f0a2bd6ff6264c43": {
     "text": "The sparkline is RTCP fraction-lost where available, otherwise silence gaps.",
     "cat": "js",
     "where": [
-      "public/app.js:3159"
+      "public/app.js:3167"
     ]
   },
   "fda562bb17645100": {
     "text": "fraction lost %",
     "cat": "js",
     "where": [
-      "public/app.js:3168"
+      "public/app.js:3176"
     ]
   },
   "bb46c13c6b4c7f74": {
     "text": "cumulative lost",
     "cat": "js",
     "where": [
-      "public/app.js:3168"
+      "public/app.js:3176"
     ]
   },
   "547d54feea4643b1": {
     "text": "confidence",
     "cat": "js",
     "where": [
-      "public/app.js:3266"
+      "public/app.js:3274"
     ]
   },
   "5b54a7e5be4b9621": {
     "text": "alternatives:",
     "cat": "js",
     "where": [
-      "public/app.js:3284"
+      "public/app.js:3292"
     ]
   },
   "f8ba4fb1cd6b2c35": {
     "text": "Other findings",
     "cat": "js",
     "where": [
-      "public/app.js:3308"
+      "public/app.js:3316"
     ]
   },
   "2812f9df9146890f": {
     "text": "Findings",
     "cat": "js",
     "where": [
-      "public/app.js:3308"
+      "public/app.js:3316"
     ]
   },
   "2dbf5a5023e76f0e": {
     "text": "This analysis has no advisory objects — findings are shown raw.",
     "cat": "js",
     "where": [
-      "public/app.js:3311"
+      "public/app.js:3319"
     ]
   },
   "de72c7317cf30d4c": {
     "text": "Re-upload the capture once the advisor module is live to get cited fixes.",
     "cat": "js",
     "where": [
-      "public/app.js:3312"
+      "public/app.js:3320"
     ]
   },
   "d7707851b64bcd0d": {
     "text": "Retransmissions",
     "cat": "js",
     "where": [
-      "public/app.js:3326"
+      "public/app.js:3334"
     ]
   },
   "83b62efa76379984": {
     "text": "Box-wide storms",
     "cat": "js",
     "where": [
-      "public/app.js:3333"
+      "public/app.js:3341"
     ]
   },
   "3f6b6c2b6b998721": {
     "text": "legs retransmitting together",
     "cat": "js",
     "where": [
-      "public/app.js:3341"
+      "public/app.js:3349"
     ]
   },
   "aeba38db6907eee9": {
     "text": "retransmissions between",
     "cat": "js",
     "where": [
-      "public/app.js:3344"
+      "public/app.js:3352"
     ]
   },
   "e6f79719051ff286": {
     "text": "and",
     "cat": "js",
     "where": [
-      "public/app.js:3344"
+      "public/app.js:3352"
     ]
   },
   "1898d566cacdd7b8": {
     "text": ". This is the box melting, not one broken call — look at licence",
     "cat": "js",
     "where": [
-      "public/app.js:3345"
+      "public/app.js:3353"
     ]
   },
   "83ee3b0a22d158d9": {
     "text": "exhaustion, CPU, or an unreachable session agent before you look at the call.",
     "cat": "js",
     "where": [
-      "public/app.js:3346"
+      "public/app.js:3354"
     ]
   },
   "597192d9e2337371": {
     "text": "Nothing to advise on for this selection.",
     "cat": "js",
     "where": [
-      "public/app.js:3352"
+      "public/app.js:3360"
     ]
   },
   "ba76acea80c2e750": {
     "text": "hiccup found no warn/crit conditions here. Widen the selection to the whole capture in the tree.",
     "cat": "js",
     "where": [
-      "public/app.js:3353"
+      "public/app.js:3361"
     ]
   },
   "839b8d908ebd2204": {
     "text": "1 advisory card for the current selection",
     "cat": "js",
     "where": [
-      "public/app.js:3369"
+      "public/app.js:3377"
     ]
   },
   "8432bd81562f2352": {
     "text": "advisory cards for the current selection",
     "cat": "js",
     "where": [
-      "public/app.js:3370"
+      "public/app.js:3378"
     ]
   },
   "8ca257d2fa743873": {
     "text": "(empty advice)",
     "cat": "js",
     "where": [
-      "public/app.js:3397"
+      "public/app.js:3405"
     ]
   },
   "7faaf1b1ba5e8e55": {
     "text": "(untitled advice)",
     "cat": "js",
     "where": [
-      "public/app.js:3403"
+      "public/app.js:3411"
     ]
   },
   "a83b53155d7f0c49": {
     "text": "Explain this advice in your own words: \"",
     "cat": "js",
     "where": [
-      "public/app.js:3405"
+      "public/app.js:3413"
     ]
   },
   "c13627107b3b04a5": {
     "text": "Use only the supplied Advice object and its citations — do not invent RFC section numbers.",
     "cat": "js",
     "where": [
-      "public/app.js:3406"
+      "public/app.js:3414"
     ]
   },
   "387ac45377e5dd68": {
     "text": "what is wrong",
     "cat": "js",
     "where": [
-      "public/app.js:3419"
+      "public/app.js:3427"
     ]
   },
   "ba39cf000f6fda38": {
     "text": "why it matters",
     "cat": "js",
     "where": [
-      "public/app.js:3420"
+      "public/app.js:3428"
     ]
   },
   "720108ac89bab3d6": {
     "text": "mechanism",
     "cat": "js",
     "where": [
-      "public/app.js:3421"
+      "public/app.js:3429"
     ]
   },
   "4caffac081d7c447": {
     "text": "opens in a new tab",
     "cat": "js",
     "where": [
-      "public/app.js:3439"
+      "public/app.js:3447"
     ]
   },
   "05e2d4c56491949a": {
     "text": "Guide excerpts ground a reviewable draft — they are not a verified change.",
     "cat": "js",
     "where": [
-      "public/app.js:3469"
+      "public/app.js:3477"
     ]
   },
   "b4c7121e50b2297a": {
     "text": "(empty fix)",
     "cat": "js",
     "where": [
-      "public/app.js:3476"
+      "public/app.js:3484"
     ]
   },
   "8558f2a1a6ccb891": {
     "text": "how likely this fix is to be the right one here",
     "cat": "js",
     "where": [
-      "public/app.js:3481"
+      "public/app.js:3489"
     ]
   },
   "8e2f2acfb3a20874": {
     "text": "copy this draft to the clipboard — review before applying",
     "cat": "js",
     "where": [
-      "public/app.js:3500"
+      "public/app.js:3508"
     ]
   },
   "cd911691efab87fe": {
     "text": "Draft only — review before applying to a live box.",
     "cat": "js",
     "where": [
-      "public/app.js:3507"
+      "public/app.js:3515"
     ]
   },
   "3d43d56fa6056e30": {
     "text": "(empty finding)",
     "cat": "js",
     "where": [
-      "public/app.js:3527"
+      "public/app.js:3535"
     ]
   },
   "bdd4786c6e6296a5": {
     "text": "(untitled)",
     "cat": "js",
     "where": [
-      "public/app.js:3531"
+      "public/app.js:3539"
     ]
   },
   "60a0278515310157": {
     "text": "Explain this finding: \"",
     "cat": "js",
     "where": [
-      "public/app.js:3533"
+      "public/app.js:3541"
     ]
   },
   "be3176b084a3d410": {
     "text": "\". What causes it and what should I check?",
     "cat": "js",
     "where": [
-      "public/app.js:3533"
+      "public/app.js:3541"
     ]
   },
   "96a6b1995e6e88bc": {
     "text": "calls:",
     "cat": "js",
     "where": [
-      "public/app.js:3542",
+      "public/app.js:3550",
       "public/hmr.js:934"
     ]
   },
@@ -4532,441 +4604,441 @@
     "text": "legs:",
     "cat": "js",
     "where": [
-      "public/app.js:3543"
+      "public/app.js:3551"
     ]
   },
   "edec1833105da35b": {
     "text": "msgs:",
     "cat": "js",
     "where": [
-      "public/app.js:3544"
+      "public/app.js:3552"
     ]
   },
   "f72276ce8bcdf349": {
     "text": "jump to the first referenced object",
     "cat": "js",
     "where": [
-      "public/app.js:3548"
+      "public/app.js:3556"
     ]
   },
   "49bceb1dc81fb4fe": {
     "text": "(empty collapse)",
     "cat": "js",
     "where": [
-      "public/app.js:3557"
+      "public/app.js:3565"
     ]
   },
   "9425399fce9442a1": {
     "text": "Explain this retransmission pattern: \"",
     "cat": "js",
     "where": [
-      "public/app.js:3568"
+      "public/app.js:3576"
     ]
   },
   "764144403cda8340": {
     "text": "\" classified as",
     "cat": "js",
     "where": [
-      "public/app.js:3568"
+      "public/app.js:3576"
     ]
   },
   "3afacdc24f661b95": {
     "text": ". What would cause it and how do I confirm it?",
     "cat": "js",
     "where": [
-      "public/app.js:3569"
+      "public/app.js:3577"
     ]
   },
   "dd36c53371afde96": {
     "text": "· outcome",
     "cat": "js",
     "where": [
-      "public/app.js:3586"
+      "public/app.js:3594"
     ]
   },
   "3902193211e92545": {
     "text": "show in ladder",
     "cat": "js",
     "where": [
-      "public/app.js:3589"
+      "public/app.js:3597"
     ]
   },
   "38e5b75e4b1fef99": {
     "text": "search raw, headers, numbers… or call: leg: callid: from: to: method: status: ip: port: codec: proto: sev: has:",
     "cat": "js",
     "where": [
-      "public/app.js:3635"
+      "public/app.js:3643"
     ]
   },
   "7bb530439e8e6f7c": {
     "text": "Substring search over raw messages, headers, URIs, Call-IDs, tags, branches, SDP,",
     "cat": "js",
     "where": [
-      "public/app.js:3637"
+      "public/app.js:3645"
     ]
   },
   "0c8057b8591a0b00": {
     "text": "H.323 numbers, aux summaries, findings and advice.",
     "cat": "js",
     "where": [
-      "public/app.js:3638"
+      "public/app.js:3646"
     ]
   },
   "a69166ccfea77a1a": {
     "text": "Digits are matched phone-normalized: 654321 finds +33987654321.",
     "cat": "js",
     "where": [
-      "public/app.js:3639"
+      "public/app.js:3647"
     ]
   },
   "4386f5ec9c826cad": {
     "text": "Filters: call: leg: callid: from: to: method: status: ip: port: codec:",
     "cat": "js",
     "where": [
-      "public/app.js:3640"
+      "public/app.js:3648"
     ]
   },
   "805aaf15c71ec39d": {
     "text": "raw (hex)",
     "cat": "js",
     "where": [
-      "public/app.js:3697"
+      "public/app.js:3705"
     ]
   },
   "cd4de79bc6c93295": {
     "text": "body",
     "cat": "js",
     "where": [
-      "public/app.js:3756"
+      "public/app.js:3764"
     ]
   },
   "dc9e7e18fec93bb8": {
     "text": "fix",
     "cat": "js",
     "where": [
-      "public/app.js:3880"
+      "public/app.js:3888"
     ]
   },
   "d5f81fa019827d1c": {
     "text": "number (digit-normalized)",
     "cat": "js",
     "where": [
-      "public/app.js:4015"
+      "public/app.js:4023"
     ]
   },
   "3f8eeb8c1460054f": {
     "text": "no matches",
     "cat": "js",
     "where": [
-      "public/app.js:4072"
+      "public/app.js:4080"
     ]
   },
   "e52f3db9da1aeade": {
     "text": "nothing in this capture matched the query",
     "cat": "js",
     "where": [
-      "public/app.js:4073"
+      "public/app.js:4081"
     ]
   },
   "de6569f1f0f8ef8a": {
     "text": "hits ·",
     "cat": "js",
     "where": [
-      "public/app.js:4078"
+      "public/app.js:4086"
     ]
   },
   "3ca2c49553a457d7": {
     "text": "session",
     "cat": "js",
     "where": [
-      "public/app.js:4079"
+      "public/app.js:4087"
     ]
   },
   "066deb2a56d74ddd": {
     "text": "capped at",
     "cat": "js",
     "where": [
-      "public/app.js:4081"
+      "public/app.js:4089"
     ]
   },
   "1b59ae268a19b4f1": {
     "text": "hits — narrow the query with a field filter such as call: or method:",
     "cat": "js",
     "where": [
-      "public/app.js:4081"
+      "public/app.js:4089"
     ]
   },
   "6ea4504960954ea8": {
     "text": "hits across",
     "cat": "js",
     "where": [
-      "public/app.js:4082"
+      "public/app.js:4090"
     ]
   },
   "bd3e27675103a469": {
     "text": "session(s)",
     "cat": "js",
     "where": [
-      "public/app.js:4082"
+      "public/app.js:4090"
     ]
   },
   "7abae245b3eb1f63": {
     "text": "search results",
     "cat": "js",
     "where": [
-      "public/app.js:4095"
+      "public/app.js:4103"
     ]
   },
   "7e0db32193238ea1": {
     "text": "clear the search and go back to the session tree",
     "cat": "js",
     "where": [
-      "public/app.js:4098"
+      "public/app.js:4106"
     ]
   },
   "f619fe19b5cfd806": {
     "text": "clear search",
     "cat": "js",
     "where": [
-      "public/app.js:4099"
+      "public/app.js:4107"
     ]
   },
   "5b2f40c57a52fcb3": {
     "text": "No matches.",
     "cat": "js",
     "where": [
-      "public/app.js:4105"
+      "public/app.js:4113"
     ]
   },
   "6b01c670890668b5": {
     "text": "Try a shorter substring, a phone-number fragment (digits are matched ignoring + - ( ) spaces), or a filter like method:INVITE or has:retrans.",
     "cat": "js",
     "where": [
-      "public/app.js:4106"
+      "public/app.js:4114"
     ]
   },
   "8ff4d0dc56cddd9a": {
     "text": "not tied to a call",
     "cat": "js",
     "where": [
-      "public/app.js:4125"
+      "public/app.js:4133"
     ]
   },
   "c72947cccfbe78e7": {
     "text": "select call",
     "cat": "js",
     "where": [
-      "public/app.js:4133"
+      "public/app.js:4141"
     ]
   },
   "c6cfc0f30f9445b8": {
     "text": "matches with no call association",
     "cat": "js",
     "where": [
-      "public/app.js:4133"
+      "public/app.js:4141"
     ]
   },
   "5c70e0f83cdfc9aa": {
     "text": "More matches exist — capped at",
     "cat": "js",
     "where": [
-      "public/app.js:4166"
+      "public/app.js:4174"
     ]
   },
   "f6f36e24d53a1b62": {
     "text": "Narrow the query with a filter (call:, method:, has:…).",
     "cat": "js",
     "where": [
-      "public/app.js:4167"
+      "public/app.js:4175"
     ]
   },
   "574193ebbf068988": {
     "text": "offline",
     "cat": "js",
     "where": [
-      "public/app.js:4287"
+      "public/app.js:4295"
     ]
   },
   "86086f09401ea1b7": {
     "text": "— shares its brain with RFPlex — answers may queue behind RFPlex work",
     "cat": "js",
     "where": [
-      "public/app.js:4294"
+      "public/app.js:4302"
     ]
   },
   "ef515a0b1ca12c03": {
     "text": "scope:",
     "cat": "js",
     "where": [
-      "public/app.js:4304"
+      "public/app.js:4312"
     ]
   },
   "6e015b5c41eca056": {
     "text": "× whole capture",
     "cat": "js",
     "where": [
-      "public/app.js:4308"
+      "public/app.js:4316"
     ]
   },
   "e5830503e61588de": {
     "text": "reset the scope to the whole capture",
     "cat": "js",
     "where": [
-      "public/app.js:4310"
+      "public/app.js:4318"
     ]
   },
   "60b7d43d3c4c2f02": {
     "text": "Open a capture first — hiccup answers about what it can see.",
     "cat": "js",
     "where": [
-      "public/app.js:4324"
+      "public/app.js:4332"
     ]
   },
   "b1b6d2de499181cd": {
     "text": "Ask about this capture or about SIP/H.323 in general.",
     "cat": "js",
     "where": [
-      "public/app.js:4328"
+      "public/app.js:4336"
     ]
   },
   "12d7d6f695a78005": {
     "text": "Try: \"why is this call ambiguous?\" · \"what does Session-Expires do?\" · \"what stripped the PAI header?\"",
     "cat": "js",
     "where": [
-      "public/app.js:4329"
+      "public/app.js:4337"
     ]
   },
   "0c8e0429a303de54": {
     "text": "checked:",
     "cat": "js",
     "where": [
-      "public/app.js:4336"
+      "public/app.js:4344"
     ]
   },
   "b7381b4347b1d935": {
     "text": "local model unavailable right now",
     "cat": "js",
     "where": [
-      "public/app.js:4423"
+      "public/app.js:4431"
     ]
   },
   "d648b4bd8a23ff08": {
     "text": "chat failed (",
     "cat": "js",
     "where": [
-      "public/app.js:4426"
+      "public/app.js:4434"
     ]
   },
   "9650a81ddc6b26be": {
     "text": "chat failed:",
     "cat": "js",
     "where": [
-      "public/app.js:4449"
+      "public/app.js:4457"
     ]
   },
   "5336719b416404c2": {
     "text": "Go to the workbench",
     "cat": "js",
     "where": [
-      "public/app.js:4874"
+      "public/app.js:4726"
     ]
   },
   "8187a3f36bee8a9e": {
     "text": "Go to the HMR translator",
     "cat": "js",
     "where": [
-      "public/app.js:4875"
+      "public/app.js:4727"
     ]
   },
   "16ab59e6303ae8b4": {
     "text": "Go to the guides",
     "cat": "js",
     "where": [
-      "public/app.js:4876"
+      "public/app.js:4728"
     ]
   },
   "b1fb2fa6c1183cbb": {
     "text": "Go to the team page",
     "cat": "js",
     "where": [
-      "public/app.js:4877"
+      "public/app.js:4729"
     ]
   },
   "3a82cb11f9a9c0bd": {
     "text": "Toggle light / dark theme",
     "cat": "js",
     "where": [
-      "public/app.js:4879"
+      "public/app.js:4731"
     ]
   },
   "7057b1384b1e8555": {
     "text": "Close the ask-hiccup drawer",
     "cat": "js",
     "where": [
-      "public/app.js:4880"
+      "public/app.js:4732"
     ]
   },
   "80b93c36dc1ec8ff": {
     "text": "Open the ask-hiccup drawer",
     "cat": "js",
     "where": [
-      "public/app.js:4880"
+      "public/app.js:4732"
     ]
   },
   "f604cc605323c662": {
     "text": "Close the manage-projects panel",
     "cat": "js",
     "where": [
-      "public/app.js:4882"
+      "public/app.js:4734"
     ]
   },
   "14fdfcc88fa79289": {
     "text": "Upload a capture",
     "cat": "js",
     "where": [
-      "public/app.js:4884"
+      "public/app.js:4736"
     ]
   },
   "eafca1af60b43437": {
     "text": "Search the trace",
     "cat": "js",
     "where": [
-      "public/app.js:4886"
+      "public/app.js:4738"
     ]
   },
   "5d7548be29b19777": {
     "text": "Clear the search",
     "cat": "js",
     "where": [
-      "public/app.js:4892"
+      "public/app.js:4744"
     ]
   },
   "716a6024e3fe999c": {
     "text": "Show",
     "cat": "js",
     "where": [
-      "public/app.js:4897"
+      "public/app.js:4749"
     ]
   },
   "884130fd8be9f65f": {
     "text": "Expand all sessions",
     "cat": "js",
     "where": [
-      "public/app.js:4904"
+      "public/app.js:4756"
     ]
   },
   "e96040ad643b096a": {
     "text": "Collapse all sessions",
     "cat": "js",
     "where": [
-      "public/app.js:4905"
+      "public/app.js:4757"
     ]
   },
   "30fa7a199fa16302": {
     "text": "Export the ladder as SVG",
     "cat": "js",
     "where": [
-      "public/app.js:4906"
+      "public/app.js:4758"
     ]
   },
   "999277b009ca9392": {
@@ -5244,9 +5316,9 @@
       "public/hmr.js:282",
       "public/hmr.js:352",
       "public/team.js:157",
-      "public/team.js:279",
-      "public/team.js:305",
-      "public/team.js:366"
+      "public/team.js:283",
+      "public/team.js:313",
+      "public/team.js:378"
     ]
   },
   "b21da1f1e0b54220": {
@@ -5592,8 +5664,8 @@
     "cat": "js",
     "where": [
       "public/hmr.js:878",
-      "public/team.js:481",
-      "public/team.js:754"
+      "public/team.js:493",
+      "public/team.js:766"
     ]
   },
   "fdac821ad17ac772": {
@@ -5794,7 +5866,7 @@
     "cat": "js",
     "where": [
       "public/kb.js:284",
-      "public/kb.js:355"
+      "public/kb.js:358"
     ]
   },
   "6bfd0d7f752cdcfd": {
@@ -5825,195 +5897,202 @@
       "public/kb.js:293"
     ]
   },
+  "2aeed82d0c40edfc": {
+    "text": "Remove this guide?",
+    "cat": "js",
+    "where": [
+      "public/kb.js:295"
+    ]
+  },
   "235ef204d73a8254": {
     "text": "Could not delete \"",
     "cat": "js",
     "where": [
-      "public/kb.js:302",
-      "public/kb.js:307"
+      "public/kb.js:305",
+      "public/kb.js:310"
     ]
   },
   "496548705d9d0dd7": {
     "text": "\" — the server did not answer.",
     "cat": "js",
     "where": [
-      "public/kb.js:307"
+      "public/kb.js:310"
     ]
   },
   "dd3bedf6eb41e3db": {
     "text": "Removed",
     "cat": "js",
     "where": [
-      "public/kb.js:310",
-      "public/team.js:893"
+      "public/kb.js:313",
+      "public/team.js:917"
     ]
   },
   "99034d67cbe5d3a3": {
     "text": "chunks",
     "cat": "js",
     "where": [
-      "public/kb.js:332"
+      "public/kb.js:335"
     ]
   },
   "a77ff879b670c5e9": {
     "text": "No guides yet.",
     "cat": "js",
     "where": [
-      "public/kb.js:343"
+      "public/kb.js:346"
     ]
   },
   "aa56b6dd7718e3e7": {
     "text": "Add the SBC administration guide, a release note, or your own runbook. hiccup",
     "cat": "js",
     "where": [
-      "public/kb.js:345"
+      "public/kb.js:348"
     ]
   },
   "a2ae0f173cbf06ae": {
     "text": "chunks it, indexes the words (no embeddings — the GPU stays free for RFPlex), and",
     "cat": "js",
     "where": [
-      "public/kb.js:346"
+      "public/kb.js:349"
     ]
   },
   "cc859a4d8e59507c": {
     "text": "quotes the relevant passage next to any config suggestion.",
     "cat": "js",
     "where": [
-      "public/kb.js:347"
+      "public/kb.js:350"
     ]
   },
   "99f110d27e30b289": {
     "text": "Title",
     "cat": "js",
     "where": [
-      "public/kb.js:355"
+      "public/kb.js:358"
     ]
   },
   "720e2b83a5cad48d": {
     "text": "Vendor / product",
     "cat": "js",
     "where": [
-      "public/kb.js:355"
+      "public/kb.js:358"
     ]
   },
   "816c207ba6213983": {
     "text": "Chunks",
     "cat": "js",
     "where": [
-      "public/kb.js:355"
+      "public/kb.js:358"
     ]
   },
   "78789724e789221c": {
     "text": "Size",
     "cat": "js",
     "where": [
-      "public/kb.js:355"
+      "public/kb.js:358"
     ]
   },
   "bf4b9bad694f4809": {
     "text": "link",
     "cat": "js",
     "where": [
-      "public/kb.js:376"
+      "public/kb.js:379"
     ]
   },
   "c165825453577f07": {
     "text": "remove this guide from the knowledge base",
     "cat": "js",
     "where": [
-      "public/kb.js:397"
+      "public/kb.js:400"
     ]
   },
   "0aa6124a98669444": {
     "text": "Type a few words from the guide — hiccup scores passages by keyword,",
     "cat": "js",
     "where": [
-      "public/kb.js:438"
+      "public/kb.js:441"
     ]
   },
   "fd92c80fc6b97fda": {
     "text": "so nouns beat sentences.",
     "cat": "js",
     "where": [
-      "public/kb.js:439"
+      "public/kb.js:442"
     ]
   },
   "fe515bf2902cac81": {
     "text": "Searching…",
     "cat": "js",
     "where": [
-      "public/kb.js:445"
+      "public/kb.js:448"
     ]
   },
   "6228f61c860046d3": {
     "text": "Search failed — could not reach the server.",
     "cat": "js",
     "where": [
-      "public/kb.js:459"
+      "public/kb.js:462"
     ]
   },
   "450e506e7c686c2e": {
     "text": "Search failed (",
     "cat": "js",
     "where": [
-      "public/kb.js:470"
+      "public/kb.js:473"
     ]
   },
   "f351cf3a937f0703": {
     "text": "passage",
     "cat": "js",
     "where": [
-      "public/kb.js:481"
+      "public/kb.js:484"
     ]
   },
   "28e59f305e6cef09": {
     "text": "matched “",
     "cat": "js",
     "where": [
-      "public/kb.js:482"
+      "public/kb.js:485"
     ]
   },
   "53778a1655ccc60b": {
     "text": "Nothing in your guides matched “",
     "cat": "js",
     "where": [
-      "public/kb.js:492"
+      "public/kb.js:495"
     ]
   },
   "b0dacef012169a7d": {
     "text": "Try the vendor’s own wording — parameter names beat descriptions.",
     "cat": "js",
     "where": [
-      "public/kb.js:494"
+      "public/kb.js:497"
     ]
   },
   "bf81cfc3c4f59cd3": {
     "text": "There are no guides uploaded yet, so there is nothing to search.",
     "cat": "js",
     "where": [
-      "public/kb.js:495"
+      "public/kb.js:498"
     ]
   },
   "c10e63fbe7f624f5": {
     "text": "score",
     "cat": "js",
     "where": [
-      "public/kb.js:514"
+      "public/kb.js:517"
     ]
   },
   "d96aabf6b7818413": {
     "text": "BM25-ish keyword score — higher is a closer keyword match, not a ranking of truth",
     "cat": "js",
     "where": [
-      "public/kb.js:515"
+      "public/kb.js:518"
     ]
   },
   "e29a71538c0d17df": {
     "text": "This passage came back without text.",
     "cat": "js",
     "where": [
-      "public/kb.js:527"
+      "public/kb.js:530"
     ]
   },
   "84164bca6b061a4e": {
@@ -6169,7 +6248,7 @@
     "where": [
       "public/settings.js:154",
       "public/subscribe.js:52",
-      "public/team.js:384"
+      "public/team.js:396"
     ]
   },
   "01da8beea2de4826": {
@@ -6335,312 +6414,389 @@
       "public/team.js:253"
     ]
   },
+  "0cd931be587ad2fb": {
+    "text": "Make this person the owner?",
+    "cat": "js",
+    "where": [
+      "public/team.js:261"
+    ]
+  },
   "4851fe12383b2a5e": {
     "text": "Make this person the owner of the team? You will become an admin.",
     "cat": "js",
     "where": [
-      "public/team.js:260"
+      "public/team.js:262"
     ]
   },
   "e4387bb4426f378b": {
     "text": "Could not transfer ownership.",
     "cat": "js",
     "where": [
-      "public/team.js:274"
+      "public/team.js:278"
+    ]
+  },
+  "a25324bd9f03c316": {
+    "text": "Leave this team?",
+    "cat": "js",
+    "where": [
+      "public/team.js:291"
     ]
   },
   "6b61ca78da78d5be": {
     "text": "Leave this team? You keep your account, but you lose access to the team's shared captures and guides.",
     "cat": "js",
     "where": [
-      "public/team.js:286"
+      "public/team.js:292"
+    ]
+  },
+  "6969baaef4daa479": {
+    "text": "Leave team",
+    "cat": "js",
+    "where": [
+      "public/team.js:293"
     ]
   },
   "d8111d74de37b64a": {
     "text": "Could not leave the team.",
     "cat": "js",
     "where": [
-      "public/team.js:300"
+      "public/team.js:308"
     ]
   },
   "4039af07b52f2808": {
     "text": "The account that owned this team no longer exists, so nobody can manage members. You can take ownership.",
     "cat": "js",
     "where": [
-      "public/team.js:331"
+      "public/team.js:339"
     ]
   },
   "b7557d6db6e7a8ad": {
     "text": "The owner ({owner}) has not signed in for {days} days. You can take ownership so the team can be managed again.",
     "cat": "js",
     "where": [
-      "public/team.js:337"
+      "public/team.js:345"
     ]
   },
   "498865c7bd1f3959": {
     "text": "unknown",
     "cat": "js",
     "where": [
-      "public/team.js:338"
+      "public/team.js:346"
+    ]
+  },
+  "e4910bdd32a7eb1e": {
+    "text": "Take ownership of this team?",
+    "cat": "js",
+    "where": [
+      "public/team.js:356"
     ]
   },
   "d12d5c1fe5cedc5d": {
     "text": "Take ownership of this team? The current owner, if their account still exists, becomes an admin.",
     "cat": "js",
     "where": [
-      "public/team.js:347"
+      "public/team.js:357"
+    ]
+  },
+  "825cdba977dd7437": {
+    "text": "Take ownership",
+    "cat": "js",
+    "where": [
+      "public/team.js:358"
     ]
   },
   "05130ff346223741": {
     "text": "Could not take ownership of this team.",
     "cat": "js",
     "where": [
-      "public/team.js:361"
+      "public/team.js:373"
     ]
   },
   "70b2a928d2cc5f17": {
     "text": "Your team",
     "cat": "js",
     "where": [
-      "public/team.js:378"
+      "public/team.js:390"
     ]
   },
   "0518900372e0ea0c": {
     "text": ". Every member sees every capture and guide — there is",
     "cat": "js",
     "where": [
-      "public/team.js:384"
+      "public/team.js:396"
     ]
   },
   "1e94e27c870cd8ea": {
     "text": "no per-project permission.",
     "cat": "js",
     "where": [
-      "public/team.js:385"
+      "public/team.js:397"
     ]
   },
   "4647d5733475ee5f": {
     "text": "Could not create an invite (status",
     "cat": "js",
     "where": [
-      "public/team.js:431"
+      "public/team.js:443"
     ]
   },
   "1b2cf687b759bbba": {
     "text": "Pending invites",
     "cat": "js",
     "where": [
-      "public/team.js:462"
+      "public/team.js:474"
     ]
   },
   "b1b241f06bb1cf03": {
     "text": "expires",
     "cat": "js",
     "where": [
-      "public/team.js:468"
+      "public/team.js:480"
     ]
   },
   "8fa24daae78dead9": {
     "text": "Copy blocked by the browser — the link is selected, press Ctrl/Cmd+C.",
     "cat": "js",
     "where": [
-      "public/team.js:489"
+      "public/team.js:501"
     ]
   },
   "339cc6ad232433e3": {
     "text": "No members yet.",
     "cat": "js",
     "where": [
-      "public/team.js:573"
+      "public/team.js:585"
     ]
   },
   "ca7fed2bef53cb99": {
     "text": "Role",
     "cat": "js",
     "where": [
-      "public/team.js:581"
+      "public/team.js:593"
     ]
   },
   "8af61807443f32a4": {
     "text": "Actions",
     "cat": "js",
     "where": [
-      "public/team.js:581"
+      "public/team.js:593"
     ]
   },
   "a61c2eb0c12377d5": {
     "text": "(you)",
     "cat": "js",
     "where": [
-      "public/team.js:598"
+      "public/team.js:610"
     ]
   },
   "702dc3661c2fb511": {
     "text": "this member",
     "cat": "js",
     "where": [
-      "public/team.js:617"
+      "public/team.js:629"
     ]
   },
   "bcf612e1db77bcec": {
     "text": "Make admin",
     "cat": "js",
     "where": [
-      "public/team.js:621"
+      "public/team.js:633"
     ]
   },
   "0139bbfdf9b1a4a8": {
     "text": "Revoke admin",
     "cat": "js",
     "where": [
-      "public/team.js:621"
+      "public/team.js:633"
     ]
   },
   "10d2dbc4613397f0": {
     "text": "Updated",
     "cat": "js",
     "where": [
-      "public/team.js:625"
+      "public/team.js:637"
     ]
   },
   "3906cd4a102867a3": {
     "text": "Suspend",
     "cat": "js",
     "where": [
-      "public/team.js:631"
+      "public/team.js:643"
     ]
   },
   "26f91b6796e33111": {
     "text": "Restore",
     "cat": "js",
     "where": [
-      "public/team.js:631"
+      "public/team.js:643"
     ]
   },
   "155e35813a089462": {
     "text": "Suspended",
     "cat": "js",
     "where": [
-      "public/team.js:636"
+      "public/team.js:648"
     ]
   },
   "1c7b0605640d09cf": {
     "text": "Restored",
     "cat": "js",
     "where": [
-      "public/team.js:636"
+      "public/team.js:648"
     ]
   },
   "963cace19c8b2f91": {
     "text": "Updating…",
     "cat": "js",
     "where": [
-      "public/team.js:663"
+      "public/team.js:675"
     ]
   },
   "ce26c5bf45dd2b75": {
     "text": "That action failed (status",
     "cat": "js",
     "where": [
-      "public/team.js:683"
+      "public/team.js:695"
     ]
   },
   "c9e34cb12aab0e3a": {
     "text": "Updated.",
     "cat": "js",
     "where": [
-      "public/team.js:687"
+      "public/team.js:699"
     ]
   },
   "17a0ca02009c2e94": {
     "text": "•••••••• (saved — leave blank to keep)",
     "cat": "js",
     "where": [
-      "public/team.js:728"
+      "public/team.js:740"
+    ]
+  },
+  "5647095e121b3540": {
+    "text": "Require SSO for every member?",
+    "cat": "js",
+    "where": [
+      "public/team.js:781"
     ]
   },
   "bd11c46599547bfc": {
     "text": "Members will only be able to sign in through your identity",
     "cat": "js",
     "where": [
-      "public/team.js:768"
+      "public/team.js:782"
+    ]
+  },
+  "24c78f81475b974f": {
+    "text": "Require SSO",
+    "cat": "js",
+    "where": [
+      "public/team.js:784"
     ]
   },
   "6d97e7b43c3a71d0": {
     "text": "Could not save single sign-on settings (status",
     "cat": "js",
     "where": [
-      "public/team.js:801"
+      "public/team.js:817"
     ]
   },
   "bf005315e8088c25": {
     "text": "Testing…",
     "cat": "js",
     "where": [
-      "public/team.js:817"
+      "public/team.js:833"
     ]
   },
   "a20dd1566fe28540": {
     "text": "Could not verify the issuer.",
     "cat": "js",
     "where": [
-      "public/team.js:836"
+      "public/team.js:852"
     ]
   },
   "3fc8805de638ef90": {
     "text": "Looks good — found the authorization and token endpoints.",
     "cat": "js",
     "where": [
-      "public/team.js:839"
+      "public/team.js:855"
+    ]
+  },
+  "f7a2c614faa84073": {
+    "text": "Remove single sign-on?",
+    "cat": "js",
+    "where": [
+      "public/team.js:860"
     ]
   },
   "b9987b66b1a7299f": {
     "text": "Remove single sign-on for this team? Members who only ever signed in",
     "cat": "js",
     "where": [
-      "public/team.js:843"
+      "public/team.js:861"
+    ]
+  },
+  "8277b29476e304f6": {
+    "text": "Remove SSO",
+    "cat": "js",
+    "where": [
+      "public/team.js:863"
     ]
   },
   "5eb2e78a900cf6d8": {
     "text": "Could not remove single sign-on (status",
     "cat": "js",
     "where": [
-      "public/team.js:860"
+      "public/team.js:880"
     ]
   },
   "2eb94f91c0f6594f": {
     "text": "Removed.",
     "cat": "js",
     "where": [
-      "public/team.js:863"
+      "public/team.js:883"
+    ]
+  },
+  "63e9c493bf2d8074": {
+    "text": "Remove this member?",
+    "cat": "js",
+    "where": [
+      "public/team.js:890"
     ]
   },
   "ae99f2707eb88943": {
     "text": "from the team? They will lose access to every",
     "cat": "js",
     "where": [
-      "public/team.js:869"
+      "public/team.js:891"
     ]
   },
   "9fa8561e836cb7b3": {
     "text": "shared capture and guide.",
     "cat": "js",
     "where": [
-      "public/team.js:870"
+      "public/team.js:892"
+    ]
+  },
+  "b38253b7012e60c5": {
+    "text": "Remove member",
+    "cat": "js",
+    "where": [
+      "public/team.js:893"
     ]
   },
   "bfd448043b93b6d6": {
     "text": "Removing…",
     "cat": "js",
     "where": [
-      "public/team.js:873"
+      "public/team.js:897"
     ]
   },
   "e21b89185b6c5e84": {
     "text": "Remove failed (status",
     "cat": "js",
     "where": [
-      "public/team.js:889"
+      "public/team.js:913"
     ]
   },
   "6ce0fded45fae733": {
@@ -6746,8 +6902,8 @@
       "server.js:1007",
       "server.js:1145",
       "server.js:3606",
-      "server.js:4082",
-      "server.js:4097"
+      "server.js:4090",
+      "server.js:4105"
     ]
   },
   "f79423093897467e": {
@@ -7167,54 +7323,54 @@
     "text": "hiccup is busy answering another question — try again in a moment",
     "cat": "server",
     "where": [
-      "server.js:3671"
+      "server.js:3679"
     ]
   },
   "1ab14d1c2578506a": {
     "text": "email and password are required",
     "cat": "server",
     "where": [
-      "server.js:3702",
-      "server.js:3731"
+      "server.js:3710",
+      "server.js:3739"
     ]
   },
   "9068dc9b3017c5ef": {
     "text": "Too many accounts created from here recently. Try again later.",
     "cat": "server",
     "where": [
-      "server.js:3709"
+      "server.js:3717"
     ]
   },
   "c0fa34830fadc18a": {
     "text": "Too many sign-in attempts. Wait a few minutes and try again.",
     "cat": "server",
     "where": [
-      "server.js:3746"
+      "server.js:3754"
     ]
   },
   "98c716c4e947ddc8": {
     "text": "wrong email or password",
     "cat": "server",
     "where": [
-      "server.js:3755"
+      "server.js:3763"
     ]
   },
   "f470143a26c5b7c9": {
     "text": "credential is required",
     "cat": "server",
     "where": [
-      "server.js:3779"
+      "server.js:3787"
     ]
   },
   "08565cf8a3e3ee3a": {
     "text": "not found",
     "cat": "server",
     "where": [
-      "server.js:4006",
-      "server.js:4020",
-      "server.js:4042",
-      "server.js:4103",
-      "server.js:4220"
+      "server.js:4014",
+      "server.js:4028",
+      "server.js:4050",
+      "server.js:4111",
+      "server.js:4228"
     ]
   }
 }

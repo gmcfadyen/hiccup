@@ -392,6 +392,78 @@ textarea.input { resize: vertical; min-height: 70px; }
   border-color: var(--btn-primary-hover);
 }
 
+/* Destructive confirm. Was page-scoped in team.html; shared now that
+   ui-dialog.js's confirm uses it on every page. */
+.btn-danger {
+  border-color: var(--crit);
+  color: var(--crit);
+}
+
+.btn-danger:hover {
+  background: var(--crit);
+  border-color: var(--crit);
+  color: var(--bg);
+}
+
+/* ---------- modal confirm (ui-dialog.js) ---------- */
+/* Replaces window.confirm() for consequential actions — see that file's header
+   for why a browser-suppressible dialog is not an acceptable gate. */
+
+.ui-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.ui-modal {
+  width: 100%;
+  max-width: 460px;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: 10px;
+  padding: 20px 22px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+}
+
+.ui-modal-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 10px;
+  color: var(--text);
+}
+
+.ui-modal-body {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+
+.ui-modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+/* Honour a reduced-motion preference by having no entrance animation at all
+   rather than a shorter one. */
+@media (prefers-reduced-motion: no-preference) {
+  .ui-modal { animation: ui-modal-in 120ms ease-out; }
+  @keyframes ui-modal-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: none; }
+  }
+}
+
 /* ---------- cards ---------- */
 
 .card {
