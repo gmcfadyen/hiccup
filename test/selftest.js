@@ -1895,6 +1895,62 @@ async function main() {
     eq(fired, 'idle', 'releasing the aborted request lets the drain complete');
   });
 
+  // -------------------------------------------------------------- tokens
+  // lib/tokens.js — bearer tokens for the MCP endpoint. The property that
+  // matters most: the full value exists exactly once, at creation. Only a
+  // hash is stored, so a leaked api-tokens.json is not a leaked credential.
+
+  await t('tokens: create/verify/revoke round-trip, and only a hash ever touches disk', () => {
+    const r = tryRequire(path.join('lib', 'tokens.js'));
+    if (r.err) throw new Error(r.err);
+    const tok = r.mod;
+    const dir = path.join(TMP_DATA, 'tokens-a');
+    fs.mkdirSync(dir, { recursive: true });
+    tok.initTokens(dir);
+
+    const made = tok.createToken('user-1', 'laptop — Claude Code');
+    ok(made.token.startsWith(tok.TOKEN_PREFIX), 'token carries the hk_ prefix');
+    ok(made.token.length > 60, 'token is long: ' + made.token.length);
+    ok(!('hash' in made.record), 'the returned record must not expose the hash');
+    ok(made.record.prefix.length < 12 && made.token.startsWith(made.record.prefix),
+      'the stored prefix identifies without revealing');
+
+    // The full token must not be recoverable from disk.
+    const onDisk = fs.readFileSync(path.join(dir, 'api-tokens.json'), 'utf8');
+    ok(onDisk.indexOf(made.token) === -1, 'the raw token must NEVER be written to disk');
+
+    const hit = tok.verifyToken(made.token);
+    ok(hit && hit.userId === 'user-1', 'verify resolves the owner');
+    eq(tok.verifyToken('hk_' + '0'.repeat(64)), null, 'a wrong token of the right shape fails');
+    eq(tok.verifyToken('sk_live_nonsense'), null, 'a wrong prefix fails without scanning');
+
+    const listed = tok.listTokens('user-1');
+    eq(listed.length, 1, 'listed for the owner');
+    ok(!('hash' in listed[0]), 'listing never includes hashes');
+    eq(tok.listTokens('user-2').length, 0, 'not listed for anyone else');
+
+    ok(!tok.revokeToken('user-2', listed[0].id),
+      "revoking someone else's token is a clean false, not an oracle");
+    ok(tok.revokeToken('user-1', listed[0].id), 'owner revokes');
+    eq(tok.verifyToken(made.token), null, 'a revoked token stops verifying immediately');
+  });
+
+  await t('tokens: a name is required, the per-user limit holds, and revokeAllFor sweeps', () => {
+    const tok = require(path.join(ROOT, 'lib', 'tokens.js'));
+    const dir = path.join(TMP_DATA, 'tokens-b');
+    fs.mkdirSync(dir, { recursive: true });
+    tok.initTokens(dir);
+    let threw = null;
+    try { tok.createToken('u', '   '); } catch (e) { threw = e; }
+    ok(threw && threw.userMessage, 'a blank name is refused with a userMessage');
+    for (let i = 0; i < tok.MAX_TOKENS_PER_USER; i++) tok.createToken('u', 'token ' + i);
+    threw = null;
+    try { tok.createToken('u', 'one too many'); } catch (e) { threw = e; }
+    ok(threw && /limit/i.test(threw.userMessage), 'the per-user cap is enforced: ' + (threw && threw.userMessage));
+    eq(tok.revokeAllFor('u'), tok.MAX_TOKENS_PER_USER, 'account deletion sweeps every token');
+    eq(tok.listTokens('u').length, 0, 'nothing left');
+  });
+
   // ------------------------------------------------------------ hmr-sim
   // lib/hmr-sim.js applies an HMR rule to one real SIP message. The stakes
   // are the same as hmr-generate's: this output tells an engineer whether a
@@ -2416,6 +2472,91 @@ async function main() {
     const greedyCap = llmMod._buildChatBody('m', 's', [{ role: 'user', content: 'q' }], '5m', null, 99999);
     eq(greedyCap.options.num_predict, 1200, 'and clamped at 1200');
   });
+
+  // ----------------------------------------------------------------- mcp
+  // lib/mcp.js — the protocol layer. Fake deps; what is under test is the
+  // JSON-RPC handling, version negotiation, the capture_id adaptation of the
+  // agent registry, and that ownership needs no checks INSIDE tools because
+  // the deps are closed over one account.
+
+  function mcpFixture() {
+    const analysis = agentFixtureAnalysis();
+    const seen = { loads: [] };
+    const deps = {
+      listCaptures: () => [{ id: 'cap1', filename: 'a.pcap', uploadedAt: 'x', stats: {}, findingCounts: { crit: 1 } }],
+      loadAnalysis: (cid) => { seen.loads.push(cid); return cid === 'cap1' ? analysis : null; },
+      kbSearch: null,
+    };
+    const mcp = require(path.join(ROOT, 'lib', 'mcp.js'));
+    return { mcp, deps, seen, handler: mcp.createMcpHandler({ tools: mcp.buildCaptureTools(deps), serverVersion: 'test' }) };
+  }
+
+  await t('mcp: initialize negotiates the version and declares exactly the tools capability', async () => {
+    const r = tryRequire(path.join('lib', 'mcp.js'));
+    if (r.err) throw new Error(r.err);
+    const { handler, mcp } = mcpFixture();
+    const known = await handler.handle({ jsonrpc: '2.0', id: 1, method: 'initialize',
+      params: { protocolVersion: '2025-03-26' } });
+    eq(known.result.protocolVersion, '2025-03-26', 'a supported client version is echoed');
+    const unknown = await handler.handle({ jsonrpc: '2.0', id: 2, method: 'initialize',
+      params: { protocolVersion: '1999-01-01' } });
+    eq(unknown.result.protocolVersion, mcp.SUPPORTED_VERSIONS[0],
+      'an unknown version gets our newest, for the client to accept or drop');
+    ok(unknown.result.capabilities.tools, 'tools capability declared');
+    ok(!unknown.result.capabilities.resources && !unknown.result.capabilities.prompts,
+      'no capability is claimed that the server does not have');
+    eq(await handler.handle({ jsonrpc: '2.0', method: 'notifications/initialized' }), null,
+      'notifications produce no response at all');
+    const ping = await handler.handle({ jsonrpc: '2.0', id: 3, method: 'ping' });
+    ok(ping.result && Object.keys(ping.result).length === 0, 'ping pongs an empty object');
+  });
+
+  await t('mcp: the catalogue is the agent registry plus list_captures, with capture_id required', async () => {
+    const { handler } = mcpFixture();
+    const list = await handler.handle({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
+    const tools = list.result.tools;
+    const names = tools.map((x) => x.name);
+    ok(names.includes('list_captures') && names.includes('list_findings') && names.includes('simulate_hmr'),
+      'catalogue: ' + names.join(','));
+    const lc = tools.find((x) => x.name === 'list_captures');
+    eq((lc.inputSchema.required || []).length, 0, 'list_captures needs no arguments');
+    const lf = tools.find((x) => x.name === 'list_findings');
+    ok(lf.inputSchema.required.includes('capture_id'), 'per-capture tools REQUIRE capture_id');
+    ok(lf.inputSchema.properties.capture_id, 'and document it');
+  });
+
+  await t('mcp: tools/call routes to the right capture, and every failure mode has its lane', async () => {
+    const { handler, seen } = mcpFixture();
+    const lc = await handler.handle({ jsonrpc: '2.0', id: 1, method: 'tools/call',
+      params: { name: 'list_captures', arguments: {} } });
+    ok(!lc.result.isError && /cap1/.test(lc.result.content[0].text), 'list_captures answers');
+
+    const lf = await handler.handle({ jsonrpc: '2.0', id: 2, method: 'tools/call',
+      params: { name: 'list_findings', arguments: { capture_id: 'cap1', severity: 'crit' } } });
+    ok(!lf.result.isError, 'a good call succeeds');
+    ok(/Call rejected 486/.test(lf.result.content[0].text), 'and returns real finding data');
+    eq(seen.loads[seen.loads.length - 1], 'cap1', 'the analysis was loaded for the capture the client named');
+
+    const wrong = await handler.handle({ jsonrpc: '2.0', id: 3, method: 'tools/call',
+      params: { name: 'list_findings', arguments: { capture_id: 'not-mine' } } });
+    ok(wrong.result.isError, 'an unresolvable capture is an EXECUTION error the model can read');
+    ok(/list_captures/.test(wrong.result.content[0].text), 'and the message points back to list_captures');
+
+    const missing = await handler.handle({ jsonrpc: '2.0', id: 4, method: 'tools/call',
+      params: { name: 'get_message', arguments: {} } });
+    ok(missing.result.isError && /capture_id is required/.test(missing.result.content[0].text),
+      'a missing capture_id says so');
+
+    const unk = await handler.handle({ jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'nope' } });
+    eq(unk.error.code, -32602, 'an unknown TOOL is a protocol error');
+    const meth = await handler.handle({ jsonrpc: '2.0', id: 6, method: 'resources/list' });
+    eq(meth.error.code, -32601, 'an unknown METHOD is method-not-found');
+    const batch = await handler.handle([{ jsonrpc: '2.0', id: 7, method: 'ping' }]);
+    eq(batch.error.code, -32600, 'batches are refused (removed in 2025-06-18)');
+    const junk = await handler.handle({ id: 8, method: 'ping' });
+    eq(junk.error.code, -32600, 'a message without jsonrpc:2.0 is invalid');
+  });
+
 
   // ---------------------------------------------------------------- wave 6
   // The privacy boundary from ARCHITECTURE.md "Wave 6". These are the tests

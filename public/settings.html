@@ -122,6 +122,48 @@
     </div>
   </section>
 
+  <section class="card set-card" id="set-mcp-card">
+    <h2 data-i18n>AI assistant access (MCP)</h2>
+    <!-- The intro names a real config key and links a setup page, so it stays
+         untranslated for the same reason the SSO card's technical strings do. -->
+    <p class="set-lede">Let your own AI assistant — Claude Code, Claude Desktop, Cursor —
+      read your captures over the Model Context Protocol. Your assistant does the
+      reasoning; hiccup supplies the deterministic findings and citations.
+      <a href="/mcp-setup" target="_blank">Setup guide →</a></p>
+
+    <p data-i18n class="set-row-help" id="set-mcp-upsell" hidden>API tokens need the Pro or Team plan.
+      <a href="/subscribe">See plans →</a></p>
+
+    <div id="set-mcp-main" hidden>
+      <div class="set-row">
+        <div class="set-row-text">
+          <div data-i18n class="set-row-title">Your API tokens</div>
+          <div data-i18n class="set-row-help">A token is shown once when created — hiccup keeps
+            only a hash. Revoke any token you no longer recognise.</div>
+        </div>
+        <div class="set-row-action">
+          <input class="input" id="set-token-name" type="text" maxlength="60"
+            data-i18n-attrs="placeholder" placeholder="name, e.g. laptop — Claude Code">
+          <button data-i18n class="btn btn-primary" id="set-token-create" type="button">Create token</button>
+        </div>
+      </div>
+
+      <div class="set-row" id="set-token-reveal" hidden>
+        <div class="set-row-text">
+          <div data-i18n class="set-row-title">Copy this token now</div>
+          <div data-i18n class="set-row-help">This is the only time it is shown.</div>
+          <input class="input mono" id="set-token-value" type="text" readonly>
+        </div>
+        <div class="set-row-action">
+          <button data-i18n class="btn" id="set-token-copy" type="button">Copy</button>
+        </div>
+      </div>
+
+      <div id="set-token-list"></div>
+      <p class="set-row-help" id="set-token-msg" role="status" aria-live="polite"></p>
+    </div>
+  </section>
+
   <h2 data-i18n class="set-section-title">Your privacy rights</h2>
   <p data-i18n class="set-section-lede">Export, erase, or delete — everything on this page is
     something you can do yourself, right now, without asking an administrator.</p>

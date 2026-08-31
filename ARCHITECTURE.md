@@ -3292,3 +3292,69 @@ panel, the request reaches the server, the refusal renders (the exact path
 that used to be silent), and the queued-restart panel renders correctly.
 The one thing no automated test can cover is a real supervised restart —
 by construction, that ends the process running the test.
+
+# Wave 25 — MCP: the customer's own AI, hiccup's ground truth
+
+`POST /mcp` is a Model Context Protocol server: Claude Code, Claude Desktop,
+Cursor — anything that speaks MCP — reads the account's captures through the
+same tool registry the internal chat agent uses. The strategic point, stated
+plainly: the built-in chat is capped by the shared local model and burns this
+box's GPU; over MCP the CUSTOMER'S frontier model does the reasoning, spends
+the customer's tokens, and hiccup supplies the one thing it is authoritative
+for — deterministic parsing, findings, and cited advice. The determinism that
+makes hiccup trustworthy for humans is exactly what makes it safe ground
+truth for someone else's LLM.
+
+## The pieces
+
+- **`lib/tokens.js`** — bearer tokens (`hk_` + 32 random bytes), because MCP
+  clients send a static header from a config file and can never do a cookie
+  login. Only a SHA-256 hash is stored: these tokens live in editor configs
+  on laptops until revoked, so a leaked `data/api-tokens.json` must not be a
+  leaked credential. Shown once at creation, timing-safe verify, per-user cap
+  of 10, lastUsedAt touched at most once a minute so verification is not a
+  disk write per call. `revokeAllFor(userId)` exists for account deletion.
+- **`lib/mcp.js`** — JSON-RPC 2.0 + the MCP lifecycle (initialize /
+  notifications / tools/list / tools/call / ping), zero-dep, no I/O. A
+  tools-only server never initiates messages, so every POST gets a single
+  JSON response and GET is 405 — both spec-legal — and the server is
+  stateless (no Mcp-Session-Id issued). Batches are refused (removed from the
+  protocol in 2025-06-18). Tool EXECUTION failures are `result.isError` the
+  model can read and route around; only unknown tools/methods are protocol
+  errors.
+- **The registry is lib/agent.js's**, adapted not duplicated: agent tools
+  close over ONE loaded analysis, an MCP client works account-wide — so
+  `list_captures` is added and every per-capture tool gains a required
+  `capture_id`. Ownership needs no per-tool checks because the deps server.js
+  injects (`listCaptures`/`loadAnalysis`/`kbSearch`) are closed over the
+  authenticated account uid; anyone else's capture id simply fails to
+  resolve, and `store.captureDir` still throws on traversal-shaped ids.
+
+## Gates, in order
+
+401 bad/absent token → 401 orphaned token (account deleted) → 402 free plan
+(creation is ALSO gated, so a free user cannot mint a token that a 402 then
+refuses — that would look broken rather than gated) → 429 at 120 calls/min
+per TOKEN (keyed by token, not IP: several MCP clients legitimately share an
+office IP). Transport/auth problems are HTTP status codes; anything
+protocol-shaped is a 200 carrying a JSON-RPC response, which is what MCP
+clients expect. Sessions deliberately do NOT authenticate /mcp, so a
+CSRF-able cookie can never drive it.
+
+## Surfaces
+
+Settings gains an "AI assistant access (MCP)" card (list/create/revoke, the
+value shown once in a copy box, revocation confirmed through ui-dialog.js);
+the card's upsell-vs-form state comes from the server's `mcpAllowed` flag,
+never a client-side plan check. `/mcp-setup` documents the three clients —
+honestly: Claude Desktop's connector UI wants OAuth, which this server does
+not offer, so Desktop goes through `mcp-remote`. One PUBLIC_PAGES entry
+covers route + sitemap. The Pro card on /subscribe carries the bullet; Team
+inherits.
+
+Tested: tokens round-trip with the raw-value-never-on-disk property asserted
+against the actual file bytes; the MCP handler's version negotiation,
+catalogue shape, capture routing and every failure lane (153/153 selftest);
+and over real HTTP, bearer-only auth (a session cookie is explicitly asserted
+NOT to work), the plan gate, the full initialize → tools/list → tools/call
+lifecycle, and revocation killing the token on the next call (30/30).

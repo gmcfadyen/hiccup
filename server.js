@@ -189,6 +189,7 @@ function initKbIfPossible() {
 let teamsInitialised = false;
 let projectsInitialised = false;
 let ssoInitialised = false;
+let tokensInitialised = false;
 initTeamsIfPossible();
 initProjectsIfPossible();
 initSsoIfPossible();
@@ -229,6 +230,22 @@ function initSsoIfPossible() {
   } catch (e) {
     console.warn('hiccup: initSso failed (' + (e && e.message) +
       ') — /api/auth/sso/* and /api/team/sso will answer 501');
+    return null;
+  }
+}
+
+/** Same shape for lib/tokens.js — API tokens for the MCP endpoint. */
+function initTokensIfPossible() {
+  const tokens = optionalModule('./lib/tokens');
+  if (!tokens) return null;
+  if (tokensInitialised) return tokens;
+  try {
+    tokens.initTokens(DATA_DIR);
+    tokensInitialised = true;
+    return tokens;
+  } catch (e) {
+    console.warn('hiccup: initTokens failed (' + (e && e.message) +
+      ') — /mcp and /api/tokens will answer 501');
     return null;
   }
 }
@@ -709,6 +726,7 @@ const PUBLIC_PAGES = new Map([
   ['/legal', 'legal.html'],
   ['/subscribe', 'subscribe.html'],
   ['/sso-setup', 'sso-setup.html'],
+  ['/mcp-setup', 'mcp-setup.html'],
   ['/sip', 'sip/index.html'],
   ['/sip/488-not-acceptable-here', 'sip/488-not-acceptable-here.html'],
   ['/sip/408-request-timeout', 'sip/408-request-timeout.html'],
@@ -1501,6 +1519,12 @@ const SSO_CONFIG_MAX_PER_IP = 10;
 const SSO_CONFIG_WINDOW_MS = 60 * 1000;
 const SSO_TEST_MAX_PER_IP = 6;
 const SSO_TEST_WINDOW_MS = 60 * 1000;
+// MCP calls are cheap reads, but a runaway agent loop should hit a wall
+// before it hits the disk 10k times. Keyed by TOKEN id, not IP: several
+// MCP clients legitimately share one office IP.
+const MCP_MAX_PER_TOKEN = 120;
+const MCP_WINDOW_MS = 60 * 1000;
+const _mcpByToken = new Map();
 const _ssoStartByIp = new Map();
 const _ssoCallbackByIp = new Map();
 const _ssoConfigByIp = new Map();
@@ -1512,7 +1536,7 @@ function _sweepAuthLimiters() {
   for (const [map, win] of [[_loginByEmail, LOGIN_WINDOW_MS], [_loginByIp, LOGIN_WINDOW_MS],
     [_signupByIp, SIGNUP_WINDOW_MS], [_ssoStartByIp, SSO_START_WINDOW_MS],
     [_ssoCallbackByIp, SSO_CALLBACK_WINDOW_MS], [_ssoConfigByIp, SSO_CONFIG_WINDOW_MS],
-    [_ssoTestByIp, SSO_TEST_WINDOW_MS]]) {
+    [_ssoTestByIp, SSO_TEST_WINDOW_MS], [_mcpByToken, MCP_WINDOW_MS]]) {
     for (const [k, arr] of map) {
       const live = arr.filter((t) => t > now - win);
       if (live.length) map.set(k, live); else map.delete(k);
@@ -3687,6 +3711,112 @@ async function handleChat(req, res, user) {
 }
 
 // ---------------------------------------------------------------------------
+// MCP — the customer's own AI assistant, reading their captures
+// ---------------------------------------------------------------------------
+
+/** GET /api/tokens — the caller's API tokens, hashes never included. */
+function handleTokensList(req, res, user) {
+  const tokens = initTokensIfPossible();
+  if (!tokens) { sendJson(res, 501, { error: 'the tokens module is not deployed on this server yet' }); return; }
+  sendJson(res, 200, { tokens: tokens.listTokens(user.id), mcpAllowed: plans.isPaid(user.plan) });
+}
+
+/** POST /api/tokens {name} — mint one; the full value appears ONLY here. */
+async function handleTokensCreate(req, res, user) {
+  let body;
+  try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
+  const tokens = initTokensIfPossible();
+  if (!tokens) { sendJson(res, 501, { error: 'the tokens module is not deployed on this server yet' }); return; }
+  // Gated on creation, not just use: a free account minting tokens that a
+  // 402 then refuses would look broken rather than gated.
+  if (!plans.isPaid(user.plan)) {
+    sendJson(res, 402, { error: 'API tokens for MCP need a paid plan (Pro or Team).' });
+    return;
+  }
+  try {
+    const out = tokens.createToken(user.id, body && body.name);
+    sendJson(res, 200, { token: out.token, record: out.record,
+      note: 'Store this token now — it is shown once and only a hash is kept.' });
+  } catch (e) {
+    sendJson(res, 400, { error: (e && e.userMessage) || 'could not create the token' });
+  }
+}
+
+/** DELETE /api/tokens/:id */
+function handleTokenRevoke(req, res, user, id) {
+  const tokens = initTokensIfPossible();
+  if (!tokens) { sendJson(res, 501, { error: 'the tokens module is not deployed on this server yet' }); return; }
+  const gone = tokens.revokeToken(user.id, id);
+  sendJson(res, gone ? 200 : 404, gone ? { ok: true } : { error: 'no such token' });
+}
+
+/**
+ * POST /mcp — the Model Context Protocol endpoint.
+ *
+ * Bearer-token auth, deliberately NOT sessions: MCP clients send a static
+ * header from a config file. Transport/auth problems are HTTP status codes;
+ * everything protocol-shaped is a 200 carrying a JSON-RPC response, which is
+ * what MCP clients expect.
+ *
+ * Read-only by construction — the tool registry is lib/agent.js's accessor
+ * set plus list_captures, and the deps handed to it are closed over the
+ * token owner's account uid, so nobody else's capture ids resolve.
+ */
+async function handleMcp(req, res) {
+  const tokens = initTokensIfPossible();
+  const mcp = optionalModule('./lib/mcp');
+  if (!tokens || !mcp) {
+    sendJson(res, 501, { error: 'the MCP module is not deployed on this server yet' });
+    return;
+  }
+  const m = /^Bearer\s+(.+)$/i.exec(String(req.headers.authorization || ''));
+  const hit = m ? tokens.verifyToken(m[1].trim()) : null;
+  if (!hit) {
+    sendJson(res, 401, { error: 'a valid API token is required — create one on /settings' });
+    return;
+  }
+  const user = auth.findUserById(hit.userId);
+  if (!user) {
+    // The account behind the token is gone; the token is dead weight.
+    sendJson(res, 401, { error: 'the account for this token no longer exists' });
+    return;
+  }
+  if (!plans.isPaid(user.plan)) {
+    sendJson(res, 402, { error: 'MCP access needs a paid plan (Pro or Team).' });
+    return;
+  }
+  if (_slidingLimited(_mcpByToken, hit.tokenId, MCP_MAX_PER_TOKEN, MCP_WINDOW_MS, false)) {
+    res.setHeader('Retry-After', '60');
+    sendJson(res, 429, { error: 'rate limit: ' + MCP_MAX_PER_TOKEN + ' MCP calls per minute per token' });
+    return;
+  }
+
+  let body;
+  try {
+    body = await readJsonBody(req);
+  } catch (e) {
+    // Malformed JSON is a protocol-level condition: answer in JSON-RPC.
+    sendJson(res, 200, { jsonrpc: '2.0', id: null,
+      error: { code: -32700, message: 'parse error: ' + ((e && e.userMessage) || 'invalid JSON') } });
+    return;
+  }
+
+  const uid = resolveAccountUid(user.id);
+  const deps = {
+    listCaptures: () => { try { return store.listCaptures(DATA_DIR, uid); } catch { return []; } },
+    loadAnalysis: (cid) => loadAnalysis(uid, cid),
+    kbSearch: (q, k) => kbSearchSafe(uid, q, k),
+  };
+  const handler = mcp.createMcpHandler({
+    tools: mcp.buildCaptureTools(deps),
+    serverVersion: VERSION,
+  });
+  const out = await handler.handle(body);
+  if (out === null) { res.writeHead(202); res.end(); return; }
+  sendJson(res, 200, out);
+}
+
+// ---------------------------------------------------------------------------
 // Auth routes
 // ---------------------------------------------------------------------------
 
@@ -4004,6 +4134,27 @@ async function handle(req, res) {
     const user = requireAuth(req, res);
     if (!user) { req.resume(); return; }
     return handleTeamClaim(req, res, user);
+  }
+  // MCP endpoint: bearer-token auth, never sessions — see handleMcp.
+  if (pathname === '/mcp') {
+    if (method === 'POST') return handleMcp(req, res);
+    req.resume();
+    res.setHeader('Allow', 'POST');
+    sendJson(res, 405, { error: 'MCP uses POST only — this server has no server-initiated stream' });
+    return;
+  }
+  if (pathname === '/api/tokens') {
+    const user = requireAuth(req, res);
+    if (!user) { req.resume(); return; }
+    if (method === 'GET') return handleTokensList(req, res, user);
+    if (method === 'POST') return handleTokensCreate(req, res, user);
+    sendJson(res, 404, { error: 'not found' });
+    return;
+  }
+  if (pathname.startsWith('/api/tokens/') && method === 'DELETE') {
+    const user = requireAuth(req, res);
+    if (!user) { req.resume(); return; }
+    return handleTokenRevoke(req, res, user, pathname.slice('/api/tokens/'.length));
   }
   if (pathname === '/api/team/sso') {
     const user = requireAuth(req, res);

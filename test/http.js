@@ -739,6 +739,74 @@ async function main() {
     eq(crossOrigin.status, 403, 'a cross-origin restart POST must be refused');
   });
 
+  await t('mcp: bearer-only auth — no token 401, garbage 401, sessions do not count, GET 405', async () => {
+    const anon = makeClient();
+    const noAuth = await anon('POST', '/mcp', { jsonrpc: '2.0', id: 1, method: 'ping' });
+    eq(noAuth.status, 401, 'no Authorization header');
+    const bad = await anon('POST', '/mcp', { jsonrpc: '2.0', id: 1, method: 'ping' },
+      { Authorization: 'Bearer hk_' + '0'.repeat(64) });
+    eq(bad.status, 401, 'a well-shaped but wrong token');
+    // The admin CLIENT has a session cookie — it must not open /mcp: MCP auth
+    // is tokens only, so a CSRF-able cookie can never drive the endpoint.
+    const cookieOnly = await client('POST', '/mcp', { jsonrpc: '2.0', id: 1, method: 'ping' });
+    eq(cookieOnly.status, 401, 'a session cookie alone must NOT authenticate MCP');
+    const get = await anon('GET', '/mcp');
+    eq(get.status, 405, 'GET is refused — no server-initiated stream here');
+  });
+
+  await t('mcp: token creation is plan-gated, and a paid token drives the full protocol round trip', async () => {
+    // A fresh free account may not mint tokens.
+    const freeC = makeClient();
+    const freeSu = await freeC('POST', '/api/auth/signup',
+      { email: 'mcp-free-' + Date.now() + '@example.com', password: 'correct-horse-8', name: 'MCP Free' });
+    eq(freeSu.status, 200, 'free signup');
+    const denied = await freeC('POST', '/api/tokens', { name: 'should not exist' });
+    eq(denied.status, 402, 'a free account may not create API tokens');
+
+    // Upgrade them to Pro via the admin, then the whole flow works.
+    const up = await client('PATCH', '/api/admin/users/' + freeSu.json.user.id, { plan: 'pro' });
+    eq(up.status, 200, 'admin sets plan pro');
+    const made = await freeC('POST', '/api/tokens', { name: 'harness token' });
+    eq(made.status, 200, 'a Pro account creates a token');
+    ok(/^hk_/.test(made.json.token), 'the token value is returned once');
+    const bearer = { Authorization: 'Bearer ' + made.json.token };
+
+    const listed = await freeC('GET', '/api/tokens');
+    ok(listed.json.tokens.length === 1 && !JSON.stringify(listed.json).includes(made.json.token),
+      'the listing shows the token but NEVER its value');
+
+    // The MCP lifecycle over real HTTP.
+    const anon = makeClient(); // no cookies at all — the token is everything
+    const init = await anon('POST', '/mcp',
+      { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } }, bearer);
+    eq(init.status, 200, 'initialize');
+    eq(init.json.result.protocolVersion, '2025-06-18', 'version echoed');
+    eq(init.json.result.serverInfo.name, 'hiccup', 'serverInfo');
+
+    const note = await anon('POST', '/mcp', { jsonrpc: '2.0', method: 'notifications/initialized' }, bearer);
+    eq(note.status, 202, 'a notification is accepted with no body');
+
+    const tl = await anon('POST', '/mcp', { jsonrpc: '2.0', id: 2, method: 'tools/list' }, bearer);
+    ok(tl.json.result.tools.length >= 10, 'the catalogue arrives: ' + tl.json.result.tools.length + ' tools');
+
+    const lc = await anon('POST', '/mcp',
+      { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'list_captures', arguments: {} } }, bearer);
+    eq(lc.status, 200, 'tools/call status');
+    ok(!lc.json.result.isError, 'list_captures succeeds');
+    ok(/"count":0/.test(lc.json.result.content[0].text), 'a fresh account has zero captures');
+
+    const wrongCap = await anon('POST', '/mcp',
+      { jsonrpc: '2.0', id: 4, method: 'tools/call',
+        params: { name: 'list_findings', arguments: { capture_id: 'deadbeef0000' } } }, bearer);
+    ok(wrongCap.json.result.isError, "a capture id that is not this account's is an execution error");
+
+    // Revocation kills it on the very next call.
+    const rev = await freeC('DELETE', '/api/tokens/' + made.json.record.id);
+    eq(rev.status, 200, 'revoke');
+    const afterRevoke = await anon('POST', '/mcp', { jsonrpc: '2.0', id: 5, method: 'ping' }, bearer);
+    eq(afterRevoke.status, 401, 'the revoked token is dead immediately');
+  });
+
   // --------------------------------------------------------------- teardown
   const failed = results.filter((r) => !r.ok);
   console.log('\nHTTP: ' + (results.length - failed.length) + '/' + results.length + ' passed');

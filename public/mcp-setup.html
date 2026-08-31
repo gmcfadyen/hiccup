@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MCP setup — hiccup</title>
+<meta name="description" content="Connect your own AI assistant to hiccup over the Model Context Protocol: Claude Code, Claude Desktop and Cursor read your captures with read-only tools.">
+<link rel="canonical" href="https://hiccup.monster/mcp-setup">
+<script src="/boot-theme.js"></script>
+<script src="/boot-lang.js"></script>
+<script src="/i18n.js"></script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+</head>
+<!--
+  MCP setup guide. Untranslated (no data-i18n on body content) for the same
+  reason as /sso-setup: it quotes real config keys, real commands and real
+  error strings, and a drifted translation of those is worse than none.
+-->
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <span class="topbar-spacer"></span>
+  <a data-i18n class="topnav-link" href="/knowledge">protocol guides</a>
+  <a data-i18n class="topnav-link" href="/sip">SIP reference</a>
+  <span data-lang-switcher></span>
+  <button data-i18n-attrs="aria-label" class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+</header>
+
+<main class="doc">
+  <p class="doc-kicker">Pro and Team plans</p>
+  <h1>Connect your AI assistant (MCP)</h1>
+  <p class="doc-lede">
+    hiccup is an MCP server: Claude Code, Claude Desktop, Cursor — anything that
+    speaks the Model Context Protocol — can read your captures through the same
+    tools hiccup's own chat uses. Your assistant does the reasoning with whatever
+    model you pay for; hiccup supplies what it is authoritative about: the parsed
+    messages, the deterministic findings, and advice with real citations.
+  </p>
+
+  <h2>What you need</h2>
+  <ol class="doc-list">
+    <li>A <a href="/subscribe">Pro or Team</a> account.</li>
+    <li>An API token: <a href="/settings">Settings</a> → <strong>AI assistant access
+      (MCP)</strong> → name it after the machine it will live on → <strong>Create
+      token</strong>. It is shown <strong>once</strong>; hiccup keeps only a hash.</li>
+  </ol>
+
+  <div class="doc-note">
+    <strong>Endpoint.</strong> <code>https://hiccup.monster/mcp</code> — POST only,
+    authenticated with <code>Authorization: Bearer hk_…</code>. Tokens are
+    per-user: your assistant sees exactly the captures your account sees.
+  </div>
+
+  <h2>Claude Code</h2>
+  <p>One command:</p>
+  <pre class="doc-pre">claude mcp add --transport http hiccup https://hiccup.monster/mcp \
+  --header "Authorization: Bearer hk_YOUR_TOKEN"</pre>
+  <p>Then ask, in any session: <em>"Using hiccup, list my captures and tell me why
+    the newest one failed."</em></p>
+
+  <h2>Cursor</h2>
+  <p>Add to <code>~/.cursor/mcp.json</code> (or the project's <code>.cursor/mcp.json</code>):</p>
+  <pre class="doc-pre">{
+  "mcpServers": {
+    "hiccup": {
+      "url": "https://hiccup.monster/mcp",
+      "headers": { "Authorization": "Bearer hk_YOUR_TOKEN" }
+    }
+  }
+}</pre>
+
+  <h2>Claude Desktop</h2>
+  <p>
+    Desktop's own remote-connector UI expects OAuth, which hiccup does not offer
+    for MCP (tokens are simpler to reason about and to revoke). Bridge it with
+    <code>mcp-remote</code> in <code>claude_desktop_config.json</code>:
+  </p>
+  <pre class="doc-pre">{
+  "mcpServers": {
+    "hiccup": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://hiccup.monster/mcp",
+               "--header", "Authorization: Bearer hk_YOUR_TOKEN"]
+    }
+  }
+}</pre>
+
+  <h2>What your assistant can do</h2>
+  <p>Eleven tools, <strong>all read-only</strong> — nothing over MCP can upload,
+    change or delete anything:</p>
+  <table class="doc-table">
+    <thead><tr><th>Tool</th><th>What it returns</th></tr></thead>
+    <tbody>
+      <tr><td><code>list_captures</code></td><td>every capture in the account — the starting point; all other tools take a <code>capture_id</code> from here</td></tr>
+      <tr><td><code>list_findings</code></td><td>every finding, with severity and the messages that prove it</td></tr>
+      <tr><td><code>get_advice</code></td><td>hiccup's deterministic advice: what is wrong, why, vendor fixes, and the only citations worth trusting</td></tr>
+      <tr><td><code>list_calls</code> / <code>get_call</code></td><td>correlated calls, legs, the message sequence, and what changed between ingress and egress</td></tr>
+      <tr><td><code>search_messages</code> / <code>get_message</code></td><td>find and read raw SIP messages (credentials already redacted)</td></tr>
+      <tr><td><code>get_media_quality</code></td><td>RTP/RTCP loss, jitter, estimated MOS, one-way audio, DNS/ICE/Diameter observations</td></tr>
+      <tr><td><code>search_kb</code></td><td>keyword search over your own uploaded vendor guides</td></tr>
+      <tr><td><code>generate_hmr_rule</code> / <code>simulate_hmr</code></td><td>draft a header-manipulation rule from plain English, then run it against a real message from the capture and see exactly what changes</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Limits and revocation</h2>
+  <ul class="doc-list">
+    <li>120 MCP calls per minute per token — generous for interactive use, a wall
+      for a runaway agent loop.</li>
+    <li>Revoke any token instantly on <a href="/settings">Settings</a>; anything
+      configured with it stops working on the next call.</li>
+    <li>Phone-number and credential material follows the same redaction rules as
+      the workbench — what your assistant sees is what you would see.</li>
+  </ul>
+
+  <h2>Why this beats a bigger built-in chatbot</h2>
+  <p>
+    hiccup's findings, correlation and citations are computed deterministically —
+    the same input always produces the same verdict, and every RFC reference is
+    hand-verified. That is precisely what makes them safe ground truth for a
+    large language model to reason over. Your assistant brings the model;
+    hiccup makes sure it cannot hallucinate the pcap.
+  </p>
+
+  <p class="doc-foot"><a data-i18n href="/">← back to hiccup</a></p>
+</main>
+
+<script src="/theme.js"></script>
+</body>
+</html>

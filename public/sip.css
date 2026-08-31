@@ -299,6 +299,21 @@
    should weigh, not an error and not decoration. */
 .doc-note-warn { border-left-color: var(--warn); }
 
+/* Block code samples on doc pages (/mcp-setup's client configs). Scrolls
+   inside itself — a long token or npx line must never widen the page. */
+.doc-pre {
+  margin: 12px 0 16px;
+  padding: 12px 14px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+  overflow-x: auto;
+  white-space: pre;
+}
+
 .doc-list { line-height: 1.7; padding-left: 20px; }
 .doc-list li { margin-bottom: 8px; }
 

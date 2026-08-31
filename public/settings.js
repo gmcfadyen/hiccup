@@ -185,4 +185,122 @@
 
     renderScopes(onTeam);
   })();
+
+  // --- API tokens for MCP ----------------------------------------------
+  // The card's two states (upsell vs form) are decided by the SERVER's
+  // mcpAllowed flag, not by reading the plan client-side — same rule as the
+  // team SSO card: the client never duplicates a plan gate.
+
+  function tokenMsg(text, isErr) {
+    var m = $('set-token-msg');
+    if (!m) return;
+    m.textContent = text || '';
+    m.style.color = isErr ? 'var(--crit)' : '';
+  }
+
+  function renderTokenList(tokens) {
+    var box = $('set-token-list');
+    if (!box) return;
+    while (box.firstChild) box.removeChild(box.firstChild);
+    if (!tokens.length) return;
+    tokens.forEach(function (t) {
+      var row = document.createElement('div');
+      row.className = 'set-row';
+      var text = document.createElement('div');
+      text.className = 'set-row-text';
+      var title = document.createElement('div');
+      title.className = 'set-row-title';
+      title.textContent = t.name;
+      var help = document.createElement('div');
+      help.className = 'set-row-help mono';
+      help.textContent = t.prefix + '…  · ' + _t('created ') + String(t.createdAt).slice(0, 10) +
+        (t.lastUsedAt ? _t(' · last used ') + String(t.lastUsedAt).slice(0, 10) : _t(' · never used'));
+      text.appendChild(title);
+      text.appendChild(help);
+      var action = document.createElement('div');
+      action.className = 'set-row-action';
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-danger';
+      btn.textContent = _t('Revoke');
+      btn.addEventListener('click', function () { revokeToken(t, btn); });
+      action.appendChild(btn);
+      row.appendChild(text);
+      row.appendChild(action);
+      box.appendChild(row);
+    });
+  }
+
+  async function loadTokens() {
+    var card = $('set-mcp-card');
+    if (!card) return;
+    try {
+      var r = await fetch('/api/tokens', { cache: 'no-store' });
+      if (!r.ok) { card.hidden = true; return; }   // 501 (module not deployed) etc.
+      var d = await r.json();
+      if (d.mcpAllowed) {
+        $('set-mcp-main').hidden = false;
+        $('set-mcp-upsell').hidden = true;
+        renderTokenList(d.tokens || []);
+      } else {
+        $('set-mcp-main').hidden = true;
+        $('set-mcp-upsell').hidden = false;
+      }
+    } catch (e) { card.hidden = true; }
+  }
+
+  async function createToken() {
+    var name = ($('set-token-name').value || '').trim();
+    if (!name) { tokenMsg(_t('Give the token a name first.'), true); return; }
+    $('set-token-create').disabled = true;
+    tokenMsg(_t('Creating…'));
+    try {
+      var r = await fetch('/api/tokens', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name })
+      });
+      var d = await r.json();
+      if (!r.ok) { tokenMsg(d.error || (_t('could not create the token (') + r.status + ')'), true); return; }
+      $('set-token-value').value = d.token;
+      $('set-token-reveal').hidden = false;
+      $('set-token-name').value = '';
+      tokenMsg('');
+      loadTokens();
+    } catch (e) {
+      tokenMsg(_t('could not reach the server'), true);
+    } finally {
+      $('set-token-create').disabled = false;
+    }
+  }
+
+  async function revokeToken(t, btn) {
+    var sure = await window.hiccupUi.confirm({
+      title: _t('Revoke this token?'),
+      body: _t('Anything configured with "') + t.name + _t('" stops working immediately.'),
+      confirmLabel: _t('Revoke'), danger: true
+    });
+    if (!sure) return;
+    btn.disabled = true;
+    try {
+      var r = await fetch('/api/tokens/' + encodeURIComponent(t.id), { method: 'DELETE' });
+      if (!r.ok) { tokenMsg(_t('could not revoke (') + r.status + ')', true); btn.disabled = false; return; }
+      // Revoking the token whose value is still on screen makes that value
+      // dead — hide the reveal so nobody copies a corpse.
+      $('set-token-reveal').hidden = true;
+      loadTokens();
+    } catch (e) { tokenMsg(_t('could not reach the server'), true); btn.disabled = false; }
+  }
+
+  var tcBtn = $('set-token-create');
+  if (tcBtn) {
+    tcBtn.addEventListener('click', createToken);
+    $('set-token-copy').addEventListener('click', function () {
+      var f = $('set-token-value');
+      f.select();
+      try { navigator.clipboard.writeText(f.value); tokenMsg(_t('copied')); }
+      catch (e) { document.execCommand('copy'); tokenMsg(_t('copied')); }
+    });
+    loadTokens();
+  }
 })();
