@@ -505,8 +505,8 @@
       "public/app.html:173",
       "public/hmr.html:249",
       "public/hmr.html:250",
-      "public/index.html:614",
-      "public/index.html:615"
+      "public/index.html:616",
+      "public/index.html:617"
     ]
   },
   "c8444bcade4335ca": {
@@ -515,9 +515,9 @@
     "where": [
       "public/app.html:175",
       "public/hmr.html:252",
-      "public/index.html:617",
+      "public/index.html:619",
       "public/kb.html:235",
-      "public/subscribe.html:362",
+      "public/subscribe.html:363",
       "public/team.html:312"
     ]
   },
@@ -1543,25 +1543,32 @@
       "public/index.html:571"
     ]
   },
+  "9121f3c3eb20e916": {
+    "text": "MCP access — plug Claude Code or Cursor into the shared library, for every member",
+    "cat": "html",
+    "where": [
+      "public/index.html:573"
+    ]
+  },
   "d653f688b8925eb1": {
     "text": "everything on the free plan stays free — paying buys scale and teamwork, never a feature paywall on the analyser",
     "cat": "html",
     "where": [
-      "public/index.html:573"
+      "public/index.html:575"
     ]
   },
   "acfce08efc600cf3": {
     "text": "launch price",
     "cat": "html",
     "where": [
-      "public/index.html:578"
+      "public/index.html:580"
     ]
   },
   "6c6559110431703c": {
     "text": "/ month",
     "cat": "html",
     "where": [
-      "public/index.html:579",
+      "public/index.html:581",
       "public/subscribe.html:228",
       "public/subscribe.html:250"
     ]
@@ -1570,14 +1577,14 @@
     "text": "for the whole team, not per seat — or €200 / year. Working solo? Pro is €10 / month.",
     "cat": "html",
     "where": [
-      "public/index.html:580"
+      "public/index.html:582"
     ]
   },
   "302851c586974df6": {
     "text": "See plans →",
     "cat": "html",
     "where": [
-      "public/index.html:582",
+      "public/index.html:584",
       "public/team.html:176",
       "public/team.html:236"
     ]
@@ -1586,99 +1593,99 @@
     "text": "SIP failure reference",
     "cat": "html",
     "where": [
-      "public/index.html:586",
-      "public/index.html:587"
+      "public/index.html:588",
+      "public/index.html:589"
     ]
   },
   "72b75f6e2765d68f": {
     "text": "no account needed — short pages on the failures that send people looking for a trace in the first place. what the thing you are staring at means, and what to check.",
     "cat": "html",
     "where": [
-      "public/index.html:588"
+      "public/index.html:590"
     ]
   },
   "2c0e10c6af0f76b9": {
     "text": "— codec, payload-type or SRTP mismatch in the SDP",
     "cat": "html",
     "where": [
-      "public/index.html:592"
+      "public/index.html:594"
     ]
   },
   "8cffbb465c1c6a9f": {
     "text": "— the trunk refused it: carrier congestion, a CPS cap, or a dead gateway",
     "cat": "html",
     "where": [
-      "public/index.html:594"
+      "public/index.html:596"
     ]
   },
   "380bb8a70db3f109": {
     "text": "— the full mapping table, for when the PSTN is hiding behind a SIP code",
     "cat": "html",
     "where": [
-      "public/index.html:596"
+      "public/index.html:598"
     ]
   },
   "abcf3d1b765ed7a3": {
     "text": "one-way audio",
     "cat": "html",
     "where": [
-      "public/index.html:597"
+      "public/index.html:599"
     ]
   },
   "be2a6b4e618b3c14": {
     "text": "— the signalling worked and the RTP went somewhere else",
     "cat": "html",
     "where": [
-      "public/index.html:598"
+      "public/index.html:600"
     ]
   },
   "662c8219d6a2150e": {
     "text": "retransmissions and storms",
     "cat": "html",
     "where": [
-      "public/index.html:599"
+      "public/index.html:601"
     ]
   },
   "58e1d5db27a987a9": {
     "text": "— reading the ladder, and why 200 OK retransmits matter most",
     "cat": "html",
     "where": [
-      "public/index.html:600"
+      "public/index.html:602"
     ]
   },
   "ee2074488cbb8817": {
     "text": "all reference pages →",
     "cat": "html",
     "where": [
-      "public/index.html:602"
+      "public/index.html:604"
     ]
   },
   "fa63191b3d7d6f2c": {
     "text": "protocol guides: IMS, Diameter, SS7, lawful intercept →",
     "cat": "html",
     "where": [
-      "public/index.html:603"
+      "public/index.html:605"
     ]
   },
   "c56e382dd98062e7": {
     "text": "privacy",
     "cat": "html",
     "where": [
-      "public/index.html:610"
+      "public/index.html:612"
     ]
   },
   "96a94ae7dfda921e": {
     "text": "legal notice",
     "cat": "html",
     "where": [
-      "public/index.html:611"
+      "public/index.html:613"
     ]
   },
   "d486e88b5301428b": {
     "text": "self-hosted · your traces never leave this box",
     "cat": "html",
     "where": [
-      "public/index.html:613"
+      "public/index.html:615"
     ]
   },
   "5a29a54158399ac4": {
@@ -2387,172 +2394,179 @@
       "public/subscribe.html:260"
     ]
   },
+  "153315470d352896": {
+    "text": "MCP access for every member — the whole team's AI assistants can read the shared library",
+    "cat": "html",
+    "where": [
+      "public/subscribe.html:261"
+    ]
+  },
   "baf84d132e61ecfa": {
     "text": "Get Team →",
     "cat": "html",
     "where": [
-      "public/subscribe.html:265"
+      "public/subscribe.html:266"
     ]
   },
   "43f8157d090a9820": {
     "text": "How this works, for now",
     "cat": "html",
     "where": [
-      "public/subscribe.html:274"
+      "public/subscribe.html:275"
     ]
   },
   "22a803812ddc28ed": {
     "text": "hiccup is a solo-built, self-hosted tool — there is no payment processor wired into the app yet, so upgrading is a short manual step rather than an instant checkout.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:275"
+      "public/subscribe.html:276"
     ]
   },
   "3373c93116973142": {
     "text": "Click a plan above — it opens hiccup's Buy Me a Coffee page.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:279"
+      "public/subscribe.html:280"
     ]
   },
   "135eb6e9de10fbb4": {
     "text": "Enter the monthly amount and tick “Make this monthly”, or the yearly amount as a one-time payment.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:280"
+      "public/subscribe.html:281"
     ]
   },
   "b745e50fdfbd6137": {
     "text": "In the message field, include the email address your hiccup account uses — that is how your payment gets matched to your account.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:282"
+      "public/subscribe.html:283"
     ]
   },
   "62534b90cb936f84": {
     "text": "Your account is upgraded by hand, usually within a day. No need to wait around — you will be able to create or join a team as soon as it is done.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:284"
+      "public/subscribe.html:285"
     ]
   },
   "47158c05bd31ba99": {
     "text": "How this works",
     "cat": "html",
     "where": [
-      "public/subscribe.html:290"
+      "public/subscribe.html:291"
     ]
   },
   "c947cf524c7703a8": {
     "text": "Payment is handled by Stripe on their own checkout page — your card details never reach hiccup. Your account switches over as soon as Stripe confirms the payment, usually instantly.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:291"
+      "public/subscribe.html:292"
     ]
   },
   "fd418bdc121da438": {
     "text": "Cancel any time from the billing portal link Stripe emails you with your receipt.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:294"
+      "public/subscribe.html:295"
     ]
   },
   "1fa04bb12212f00f": {
     "text": "Questions people actually ask",
     "cat": "html",
     "where": [
-      "public/subscribe.html:299"
+      "public/subscribe.html:300"
     ]
   },
   "93ed02e66cf32695": {
     "text": "Is the free plan a trial?",
     "cat": "html",
     "where": [
-      "public/subscribe.html:301"
+      "public/subscribe.html:302"
     ]
   },
   "4dfe96fede78ca42": {
     "text": "No. It does not expire and it is not crippled. Every diagnostic feature — the ladder, the timeline, the verdicts, the HMR writer — works the same on a free account as on a paid one. What you are buying above is scale and teamwork.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:302"
+      "public/subscribe.html:303"
     ]
   },
   "d4255c082a16ec59": {
     "text": "What is the difference between Pro and Team?",
     "cat": "html",
     "where": [
-      "public/subscribe.html:306"
+      "public/subscribe.html:307"
     ]
   },
   "69f5c785ceedea4b": {
     "text": "Pro is for one person: bigger captures and priority when the server is busy. Team is that for everybody, plus a shared library so the whole group works from one copy of the trace instead of forwarding pcaps around.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:307"
+      "public/subscribe.html:308"
     ]
   },
   "f8e89e3a7e3c6193": {
     "text": "Does the price go up on me later?",
     "cat": "html",
     "where": [
-      "public/subscribe.html:311"
+      "public/subscribe.html:312"
     ]
   },
   "cc66da4290c58490": {
     "text": "No. These are introductory rates and they will rise for new subscribers, but your own price is fixed at whatever you signed up on, for as long as you stay subscribed.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:312"
+      "public/subscribe.html:313"
     ]
   },
   "f3d197ba99e853d9": {
     "text": "Can I cancel?",
     "cat": "html",
     "where": [
-      "public/subscribe.html:316"
+      "public/subscribe.html:317"
     ]
   },
   "78befdd5514c5732": {
     "text": "Any time, from the billing portal link on your Stripe receipt. You keep the paid features until the end of the period you have already paid for, and your captures stay where they are — nothing is deleted for downgrading.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:317"
+      "public/subscribe.html:318"
     ]
   },
   "e186be61d8be776b": {
     "text": "Do my traces get used to train anything?",
     "cat": "html",
     "where": [
-      "public/subscribe.html:321"
+      "public/subscribe.html:322"
     ]
   },
   "9beda55b6d9d5065": {
     "text": "No. Analysis runs on a self-hosted model on hiccup's own hardware in the EU. Nothing you upload leaves the box, and nothing is sold or used as training data.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:322"
+      "public/subscribe.html:323"
     ]
   },
   "54a6c56b18ff7889": {
     "text": "A payment didn't go through, or your receipt looks wrong — what now?",
     "cat": "html",
     "where": [
-      "public/subscribe.html:325"
+      "public/subscribe.html:326"
     ]
   },
   "d892d5321fc521a6": {
     "text": "Who you are buying from",
     "cat": "html",
     "where": [
-      "public/subscribe.html:338"
+      "public/subscribe.html:339"
     ]
   },
   "8eaf4a2fc05b3af7": {
     "text": "The price you see is the price you pay — no VAT is added at checkout.",
     "cat": "html",
     "where": [
-      "public/subscribe.html:350"
+      "public/subscribe.html:351"
     ]
   },
   "20d2719255c74e18": {
@@ -7066,8 +7080,8 @@
       "server.js:1026",
       "server.js:1164",
       "server.js:3631",
-      "server.js:4242",
-      "server.js:4257"
+      "server.js:4264",
+      "server.js:4279"
     ]
   },
   "f79423093897467e": {
@@ -7494,113 +7508,113 @@
     "text": "the tokens module is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:3721",
-      "server.js:3730",
-      "server.js:3749"
+      "server.js:3743",
+      "server.js:3752",
+      "server.js:3771"
     ]
   },
   "88f7877930a28ddc": {
     "text": "API tokens for MCP need a paid plan (Pro or Team).",
     "cat": "server",
     "where": [
-      "server.js:3734"
+      "server.js:3756"
     ]
   },
   "b1ccc25f01180814": {
     "text": "no such token",
     "cat": "server",
     "where": [
-      "server.js:3751"
+      "server.js:3773"
     ]
   },
   "2c2ceca77de5dc47": {
     "text": "the MCP module is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:3770"
+      "server.js:3792"
     ]
   },
   "2b865bbbb28ccaf9": {
     "text": "a valid API token is required — create one on /settings",
     "cat": "server",
     "where": [
-      "server.js:3776"
+      "server.js:3798"
     ]
   },
   "aee32d5e15b29b2f": {
     "text": "the account for this token no longer exists",
     "cat": "server",
     "where": [
-      "server.js:3782"
+      "server.js:3804"
     ]
   },
   "268930db6e924d7e": {
     "text": "MCP access needs a paid plan (Pro or Team).",
     "cat": "server",
     "where": [
-      "server.js:3786"
+      "server.js:3808"
     ]
   },
   "4147a77160e1cb4a": {
     "text": "rate limit:",
     "cat": "server",
     "where": [
-      "server.js:3791"
+      "server.js:3813"
     ]
   },
   "1ab14d1c2578506a": {
     "text": "email and password are required",
     "cat": "server",
     "where": [
-      "server.js:3841",
-      "server.js:3870"
+      "server.js:3863",
+      "server.js:3892"
     ]
   },
   "9068dc9b3017c5ef": {
     "text": "Too many accounts created from here recently. Try again later.",
     "cat": "server",
     "where": [
-      "server.js:3848"
+      "server.js:3870"
     ]
   },
   "c0fa34830fadc18a": {
     "text": "Too many sign-in attempts. Wait a few minutes and try again.",
     "cat": "server",
     "where": [
-      "server.js:3885"
+      "server.js:3907"
     ]
   },
   "98c716c4e947ddc8": {
     "text": "wrong email or password",
     "cat": "server",
     "where": [
-      "server.js:3894"
+      "server.js:3916"
     ]
   },
   "f470143a26c5b7c9": {
     "text": "credential is required",
     "cat": "server",
     "where": [
-      "server.js:3918"
+      "server.js:3940"
     ]
   },
   "c3678c5724b8e88e": {
     "text": "MCP uses POST only — this server has no server-initiated stream",
     "cat": "server",
     "where": [
-      "server.js:4144"
+      "server.js:4166"
     ]
   },
   "08565cf8a3e3ee3a": {
     "text": "not found",
     "cat": "server",
     "where": [
-      "server.js:4152",
-      "server.js:4166",
-      "server.js:4180",
+      "server.js:4174",
+      "server.js:4188",
       "server.js:4202",
-      "server.js:4263",
-      "server.js:4380"
+      "server.js:4224",
+      "server.js:4285",
+      "server.js:4402"
     ]
   }
 }

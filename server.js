@@ -3715,11 +3715,33 @@ async function handleChat(req, res, user) {
 // MCP — the customer's own AI assistant, reading their captures
 // ---------------------------------------------------------------------------
 
+/**
+ * May this user use MCP? Paid individually, OR a member of a team someone is
+ * paying for. The second half matters: joining a team does NOT change the
+ * member's own plan field (deliberately — leaving must not keep a free
+ * account paid), so gating on user.plan alone would 402 exactly the people
+ * the Team tier's "MCP for every member" promise is sold to. Mirrors
+ * teamWritesFrozen()'s membership logic, in the allowing direction.
+ * @param {object} user
+ * @returns {boolean}
+ */
+function mcpAllowedFor(user) {
+  if (plans.isPaid(user && user.plan)) return true;
+  const teams = initTeamsIfPossible();
+  if (!teams || typeof teams.teamHasPaidMember !== 'function') return false;
+  try {
+    const teamId = teams.getTeamIdFor(user.id);
+    return !!teamId && teams.teamHasPaidMember(teamId);
+  } catch {
+    return false;
+  }
+}
+
 /** GET /api/tokens — the caller's API tokens, hashes never included. */
 function handleTokensList(req, res, user) {
   const tokens = initTokensIfPossible();
   if (!tokens) { sendJson(res, 501, { error: 'the tokens module is not deployed on this server yet' }); return; }
-  sendJson(res, 200, { tokens: tokens.listTokens(user.id), mcpAllowed: plans.isPaid(user.plan) });
+  sendJson(res, 200, { tokens: tokens.listTokens(user.id), mcpAllowed: mcpAllowedFor(user) });
 }
 
 /** POST /api/tokens {name} — mint one; the full value appears ONLY here. */
@@ -3730,7 +3752,7 @@ async function handleTokensCreate(req, res, user) {
   if (!tokens) { sendJson(res, 501, { error: 'the tokens module is not deployed on this server yet' }); return; }
   // Gated on creation, not just use: a free account minting tokens that a
   // 402 then refuses would look broken rather than gated.
-  if (!plans.isPaid(user.plan)) {
+  if (!mcpAllowedFor(user)) {
     sendJson(res, 402, { error: 'API tokens for MCP need a paid plan (Pro or Team).' });
     return;
   }
@@ -3782,7 +3804,7 @@ async function handleMcp(req, res) {
     sendJson(res, 401, { error: 'the account for this token no longer exists' });
     return;
   }
-  if (!plans.isPaid(user.plan)) {
+  if (!mcpAllowedFor(user)) {
     sendJson(res, 402, { error: 'MCP access needs a paid plan (Pro or Team).' });
     return;
   }

@@ -807,6 +807,44 @@ async function main() {
     eq(afterRevoke.status, 401, 'the revoked token is dead immediately');
   });
 
+  await t('mcp: a FREE member of a paid team gets MCP — the Team tier sells "for every member"', async () => {
+    // Joining a team does not change the member's own plan field, so this is
+    // the exact case a user.plan-only gate would wrongly 402 — and the case
+    // hiccup's own production data has (a free-plan member on a paid team).
+    const ownerC = makeClient();
+    const ownerSu = await ownerC('POST', '/api/auth/signup',
+      { email: 'mcp-owner-' + Date.now() + '@example.com', password: 'correct-horse-8', name: 'MCP Owner' });
+    eq(ownerSu.status, 200, 'owner signup');
+    eq((await client('PATCH', '/api/admin/users/' + ownerSu.json.user.id, { plan: 'team' })).status, 200,
+      'owner made team plan');
+    eq((await ownerC('POST', '/api/team', { name: 'MCP Test Team' })).status, 200, 'team created');
+
+    // Invites require a paid account to join, so the production shape — a
+    // FREE member on a paid team — arrives via SSO JIT provisioning, which
+    // the harness has no IdP for. Construct the same end state the honest
+    // way: join paid, then downgrade to free while staying on the team.
+    // (That state also occurs naturally when an individual Pro sub lapses.)
+    const memberC = makeClient();
+    const memberSu = await memberC('POST', '/api/auth/signup',
+      { email: 'mcp-member-' + Date.now() + '@example.com', password: 'correct-horse-8', name: 'MCP Member' });
+    eq(memberSu.status, 200, 'member signup');
+    eq((await client('PATCH', '/api/admin/users/' + memberSu.json.user.id, { plan: 'team' })).status, 200,
+      'member temporarily paid to satisfy the invite gate');
+    const inv = await ownerC('POST', '/api/team/invite', { email: memberSu.json.user.email });
+    eq(inv.status, 200, 'invite created');
+    const accept = await memberC('POST', '/api/team/accept', { token: inv.json.token });
+    eq(accept.status, 200, 'member joins the team: ' + JSON.stringify(accept.json).slice(0, 140));
+    eq((await client('PATCH', '/api/admin/users/' + memberSu.json.user.id, { plan: 'free' })).status, 200,
+      'member downgraded to free — now the exact shape production has');
+
+    const made = await memberC('POST', '/api/tokens', { name: 'free member token' });
+    eq(made.status, 200, 'a FREE member of a PAID team may create an API token');
+    const mcpPing = await makeClient()('POST', '/mcp', { jsonrpc: '2.0', id: 1, method: 'ping' },
+      { Authorization: 'Bearer ' + made.json.token });
+    eq(mcpPing.status, 200, 'and their token opens /mcp');
+    ok(mcpPing.json.result, 'ping answered');
+  });
+
   // --------------------------------------------------------------- teardown
   const failed = results.filter((r) => !r.ok);
   console.log('\nHTTP: ' + (results.length - failed.length) + '/' + results.length + ' passed');
