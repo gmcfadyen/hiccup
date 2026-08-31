@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Analysing SIP captures with your AI assistant — MCP — hiccup</title>
+<meta name="description" content="How to work a SIP capture with Claude Code, Claude Desktop or Cursor talking to hiccup over MCP: the workflow, prompts that get good answers, what each tool returns, and where the boundary between the model and the evidence sits.">
+<link rel="canonical" href="https://hiccup.monster/knowledge/ai-analysis-mcp">
+<script src="/boot-theme.js"></script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="Analysing SIP captures with your AI assistant (MCP)">
+<meta property="og:description" content="Your assistant does the reasoning; hiccup supplies deterministic findings and cited advice it cannot hallucinate. The workflow, the prompts, the boundary.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/knowledge/ai-analysis-mcp">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "Analysing SIP captures with your AI assistant (MCP)",
+  "description": "Working a SIP capture with an MCP-connected assistant: the workflow, prompts that get good answers, what each hiccup tool returns, and where the boundary between model and evidence sits.",
+  "url": "https://hiccup.monster/knowledge/ai-analysis-mcp",
+  "inLanguage": "en",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "Model Context Protocol" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/knowledge">protocol guides</a>
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/knowledge">Protocol guides</a><span>/</span>AI-assisted analysis (MCP)
+  </nav>
+
+  <article class="ref">
+
+    <h1>Analysing SIP captures with your AI assistant</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> hiccup is an MCP server, so the assistant you
+      already work in — Claude Code, Claude Desktop, Cursor — can read your captures
+      directly. The division of labour is the whole point: your assistant brings the
+      reasoning, hiccup brings evidence it cannot hallucinate — the parsed messages,
+      the deterministic findings, and advice whose RFC citations were verified by a
+      human, not generated. Setup is two steps and
+      <a href="/mcp-setup">documented here</a>; this page is about how to actually
+      work with it once it is connected.</p>
+    </div>
+
+    <h2>Why bolt an AI onto a deterministic analyser at all</h2>
+    <p>
+      hiccup's analysis is deliberately not AI: the same pcap always produces the same
+      findings, the correlation confidence is a number you can argue with, and every
+      citation in an advice card points at a real section of a real document. That is
+      what makes a verdict trustworthy at 3am. But a language model is genuinely good
+      at the parts around the verdict: connecting a finding to the change your team
+      shipped yesterday, walking a junior engineer through <em>why</em> an ACK that
+      never lands drops the call at exactly 32 seconds, or drafting the ticket to the
+      carrier with the right evidence attached. Over MCP those two halves meet without
+      contaminating each other — the model reasons, but every protocol fact it uses
+      came out of a tool call it cannot fake.
+    </p>
+
+    <h2>The shape of a good session</h2>
+    <p>
+      Assistants use hiccup well when they orient first, then narrow. The pattern that
+      works, and that you can prompt for explicitly:
+    </p>
+    <div class="ref-table-wrap">
+      <table>
+        <thead>
+          <tr><th>Step</th><th>Tool(s) the assistant should reach for</th><th>What comes back</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1. Orient</td><td><code>list_captures</code></td><td>Every capture in the account with message counts and finding severities — and the <code>capture_id</code> every other tool needs.</td></tr>
+          <tr><td>2. Triage</td><td><code>list_findings</code></td><td>Every finding, worst first, each naming the messages that prove it. Nothing is truncated.</td></tr>
+          <tr><td>3. Explain</td><td><code>get_advice</code></td><td>hiccup's articulation of the fault: what is wrong, why it matters, the mechanism, vendor-specific fixes — and the only citations worth repeating.</td></tr>
+          <tr><td>4. Verify</td><td><code>get_call</code>, <code>get_message</code>, <code>search_messages</code></td><td>The call's leg structure and ingress/egress diff, and the raw messages themselves (credentials already redacted).</td></tr>
+          <tr><td>5. Fix</td><td><code>generate_hmr_rule</code> → <code>simulate_hmr</code></td><td>A drafted header-manipulation rule, then that rule <em>executed against the real failing message</em> with a before/after of every touched header.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Step 5 deserves emphasis, because it is the one most people do not expect to
+      work: the assistant can draft an HMR rule and then <em>prove or disprove it</em>
+      against the actual INVITE from your capture before you ever see it. Ask for
+      exactly that — "verify it against the real message before showing me" — and a
+      wrong draft gets caught by the simulator instead of by your SBC.
+    </p>
+
+    <h2>Prompts that get good answers</h2>
+    <ul>
+      <li><em>"Using hiccup, list my captures, pick the one from this morning, and walk
+        me through the worst finding — quote the message ids as evidence."</em></li>
+      <li><em>"Why does this call answer and then drop? Follow the ACK. Show me the
+        exact messages that prove your answer."</em></li>
+      <li><em>"Compare the ingress and egress INVITE on call c1 — what did the SBC
+        change, and which change would break the far end?"</em></li>
+      <li><em>"Draft an Oracle Acme rule that fixes the leaked private address, simulate
+        it against the real 200 OK, and show the before/after."</em></li>
+      <li><em>"Summarise this capture for a carrier ticket: symptom, evidence with
+        message ids, and what we need them to check."</em></li>
+    </ul>
+    <p>
+      The common thread: ask for <strong>message ids and before/afters</strong>, not
+      just conclusions. The tools return them, and an answer that cites <code>s7</code>
+      and <code>s9</code> is one you can check in the <a href="/app">workbench</a> in
+      ten seconds.
+    </p>
+
+    <h2>Where the boundary sits</h2>
+    <p>
+      Two rules keep the output honest. First, everything over MCP is
+      <strong>read-only</strong> — an assistant can never upload, alter or delete a
+      capture, so the worst a confused prompt can do is read the wrong thing. Second,
+      protocol citations belong to hiccup, not the model: the advice cards carry
+      hand-verified references, and a well-behaved assistant repeats those rather than
+      recalling section numbers from training data. If an answer cites an RFC section
+      that no tool result contained, treat it exactly as you would a colleague quoting
+      a spec from memory — check it. The same discipline hiccup's
+      <a href="/knowledge/session-border-controller">deterministic analysis</a> applies
+      to itself is the standard to hold the assistant to.
+    </p>
+
+    <h2>Practicalities</h2>
+    <ul>
+      <li>Tokens are created on <a href="/settings">Settings</a>, shown once, revocable
+        instantly, and scoped to your account — the assistant sees exactly the captures
+        you see, on the Pro and Team plans.</li>
+      <li>Phone numbers and credentials follow the same redaction rules as the
+        workbench. What the model reads is what you would read.</li>
+      <li>120 tool calls per minute per token — no interactive session comes near it; a
+        runaway agent loop hits the wall instead of your disk.</li>
+      <li>The full client configuration for Claude Code, Claude Desktop and Cursor is on
+        the <a href="/mcp-setup">MCP setup page</a>.</li>
+    </ul>
+
+    <nav class="ref-more">
+      See also:
+      <ul>
+        <li><a href="/mcp-setup">MCP setup</a> — tokens and client configuration, the two-minute version.</li>
+        <li><a href="/knowledge/session-border-controller">What an SBC actually does</a> — the machine most of these captures are about.</li>
+        <li><a href="/sip">The SIP failure reference</a> — what each failure code means when you would rather read than ask.</li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+  <p><a href="mailto:contact@hiccup.monster">contact@hiccup.monster</a></p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

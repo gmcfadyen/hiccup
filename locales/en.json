@@ -112,7 +112,7 @@
       "public/admin-status.html:145",
       "public/app.html:111",
       "public/hmr.html:184",
-      "public/index.html:381",
+      "public/index.html:407",
       "public/kb.html:162"
     ]
   },
@@ -505,8 +505,8 @@
       "public/app.html:173",
       "public/hmr.html:249",
       "public/hmr.html:250",
-      "public/index.html:574",
-      "public/index.html:575"
+      "public/index.html:614",
+      "public/index.html:615"
     ]
   },
   "c8444bcade4335ca": {
@@ -515,7 +515,7 @@
     "where": [
       "public/app.html:175",
       "public/hmr.html:252",
-      "public/index.html:577",
+      "public/index.html:617",
       "public/kb.html:235",
       "public/subscribe.html:362",
       "public/team.html:312"
@@ -1202,7 +1202,7 @@
     "text": "see where the call went wrong",
     "cat": "html",
     "where": [
-      "public/index.html:391",
+      "public/index.html:417",
       "public/app.js:2408"
     ]
   },
@@ -1210,207 +1210,235 @@
     "text": "a big friendly monster lives at hiccup.monster — its whole job is fixing yours.",
     "cat": "html",
     "where": [
-      "public/index.html:392"
+      "public/index.html:418"
     ]
   },
   "b897c33a90df5f73": {
     "text": "a self-hosted SIP, H.323 and Diameter trace analyser for the SBC-curious. upload a pcap or paste an SBC log — get the ladder, the deltas, and a ranked, automatic diagnosis instead of two 200-line INVITEs to eyeball. nothing leaves this box.",
     "cat": "html",
     "where": [
-      "public/index.html:393"
+      "public/index.html:419"
     ]
   },
   "bc7871b7c9c8cba3": {
     "text": "free for individual users",
     "cat": "html",
     "where": [
-      "public/index.html:397"
+      "public/index.html:423"
     ]
   },
   "1468a82f94607d69": {
     "text": "every analysis feature, no card, no time limit. paid plans exist only for teams who want a shared library and roles.",
     "cat": "html",
     "where": [
-      "public/index.html:398"
+      "public/index.html:424"
     ]
   },
   "be45a3a6ee3c626a": {
     "text": "features",
     "cat": "html",
     "where": [
-      "public/index.html:404"
+      "public/index.html:430"
     ]
   },
   "204ac44286ceac03": {
     "text": "automatic fault detection",
     "cat": "html",
     "where": [
-      "public/index.html:406"
+      "public/index.html:432"
     ]
   },
   "a5cebf748ef4cac5": {
     "text": "every capture runs through a rule engine that surfaces what is actually wrong, ranked by severity — each finding cited to an RFC section instead of a hunch.",
     "cat": "html",
     "where": [
-      "public/index.html:407"
+      "public/index.html:433"
     ]
   },
   "07e26b41c2b19f55": {
     "text": "multi-protocol correlation",
     "cat": "html",
     "where": [
-      "public/index.html:412"
+      "public/index.html:438"
     ]
   },
   "5fd31e21a4e4a24c": {
     "text": "decodes H.323 (Q.931/H.225) and Diameter (Rx/Gx/Cx/Sh) alongside SIP, stitching IWF calls and IMS charging events into one flow with a confidence score — and an honest AMBIGUOUS state instead of a silent wrong guess.",
     "cat": "html",
     "where": [
-      "public/index.html:413"
+      "public/index.html:439"
     ]
   },
   "7735e9b639e73075": {
     "text": "header-rule explainer",
     "cat": "html",
     "where": [
-      "public/index.html:418"
+      "public/index.html:444"
     ]
   },
   "42073c95556cbcfd": {
     "text": "paste your SBC's manipulation rules — Oracle/Acme, AudioCodes, Ribbon — and get the plain-English intent, a correctness check against the protocol, and which rule explains what the capture actually shows.",
     "cat": "html",
     "where": [
-      "public/index.html:419"
+      "public/index.html:445"
     ]
   },
   "eb4ef92d3b1847b6": {
     "text": "describe it, get the config",
     "cat": "html",
     "where": [
-      "public/index.html:424"
+      "public/index.html:450"
     ]
   },
   "8b3a378284acab1c": {
     "text": "describe the change in plain English — “strip P-Asserted-Identity on requests to the carrier” — and get a draft rule in Oracle/Acme, AudioCodes or Ribbon syntax, with hiccup's reading of it shown beside it. ambiguous wording gets a question, never a confident guess.",
     "cat": "html",
     "where": [
-      "public/index.html:425"
+      "public/index.html:451"
     ]
   },
   "0b7eb914fea41e75": {
     "text": "your own config guides",
     "cat": "html",
     "where": [
-      "public/index.html:431"
+      "public/index.html:457"
     ]
   },
   "1d12b107d71afd53": {
     "text": "upload the vendor guide for your box — AudioCodes, Ribbon, Oracle/Acme SBC docs, release notes, PDFs — and hiccup grounds its advice in the exact passage, cited back to you.",
     "cat": "html",
     "where": [
-      "public/index.html:432"
+      "public/index.html:458"
     ]
   },
   "a183f4359a1bb370": {
     "text": "how it works",
     "cat": "html",
     "where": [
-      "public/index.html:438",
-      "public/index.html:439"
+      "public/index.html:464",
+      "public/index.html:465"
     ]
   },
   "5225bd77a61f971c": {
     "text": "upload",
     "cat": "html",
     "where": [
-      "public/index.html:443"
+      "public/index.html:469"
     ]
   },
   "0d132f8f1fade63d": {
     "text": "a pcap or pcapng, a pasted SBC text log, a header-manipulation rule set, or a vendor config guide.",
     "cat": "html",
     "where": [
-      "public/index.html:444"
+      "public/index.html:470"
     ]
   },
   "3af6a7a476ec0859": {
     "text": "get a diagnosis",
     "cat": "html",
     "where": [
-      "public/index.html:449"
+      "public/index.html:475"
     ]
   },
   "dfe6b6f7d4a1d27f": {
     "text": "a ladder diagram, a two-leg diff, and a ranked list of findings — each one cited to an RFC section or to your own documentation.",
     "cat": "html",
     "where": [
-      "public/index.html:450"
+      "public/index.html:476"
     ]
   },
   "68edf4408f47230f": {
     "text": "fix it, or hand it off",
     "cat": "html",
     "where": [
-      "public/index.html:455"
+      "public/index.html:481"
     ]
   },
   "1a7299f9d5d14774": {
     "text": "fix it yourself, or bring the diagnosis to your team — a shared library and roles are one plan away.",
     "cat": "html",
     "where": [
-      "public/index.html:456"
+      "public/index.html:482"
+    ]
+  },
+  "d55da6421ae0069e": {
+    "text": "MCP announcement",
+    "cat": "html",
+    "where": [
+      "public/index.html:490"
+    ]
+  },
+  "2138d5192571b731": {
+    "text": "new",
+    "cat": "html",
+    "where": [
+      "public/index.html:491"
+    ]
+  },
+  "7daa22aabd24cb7a": {
+    "text": "hiccup speaks MCP.",
+    "cat": "html",
+    "where": [
+      "public/index.html:493"
+    ]
+  },
+  "7aa0cf0778638bad": {
+    "text": "Connect Claude Code, Claude Desktop or Cursor and let your own AI reason over your captures — hiccup supplies the findings and citations it cannot hallucinate.",
+    "cat": "html",
+    "where": [
+      "public/index.html:494"
     ]
   },
   "80acb9f47238932e": {
     "text": "get started",
     "cat": "html",
     "where": [
-      "public/index.html:465"
+      "public/index.html:505"
     ]
   },
   "01e544babcc5402c": {
     "text": "free for individuals",
     "cat": "html",
     "where": [
-      "public/index.html:466"
+      "public/index.html:506"
     ]
   },
   "7749728bbcc6de13": {
     "text": "create an account",
     "cat": "html",
     "where": [
-      "public/index.html:471"
+      "public/index.html:511"
     ]
   },
   "123467b419acbc07": {
     "text": "email",
     "cat": "html",
     "where": [
-      "public/index.html:472",
-      "public/index.html:485"
+      "public/index.html:512",
+      "public/index.html:525"
     ]
   },
   "24ea3f43230aae41": {
     "text": "you@example.com",
     "cat": "html",
     "where": [
-      "public/index.html:473",
-      "public/index.html:486"
+      "public/index.html:513",
+      "public/index.html:526"
     ]
   },
   "4b1a493507b3a318": {
     "text": "password",
     "cat": "html",
     "where": [
-      "public/index.html:475",
-      "public/index.html:488"
+      "public/index.html:515",
+      "public/index.html:528"
     ]
   },
   "c83cb3057ed6fbbb": {
     "text": "at least 8 characters",
     "cat": "html",
     "where": [
-      "public/index.html:476",
+      "public/index.html:516",
       "public/accept-invite.js:241"
     ]
   },
@@ -1418,22 +1446,22 @@
     "text": "sign up",
     "cat": "html",
     "where": [
-      "public/index.html:480"
+      "public/index.html:520"
     ]
   },
   "3c09a8ce5e850b03": {
     "text": "sign in",
     "cat": "html",
     "where": [
-      "public/index.html:484",
-      "public/index.html:492"
+      "public/index.html:524",
+      "public/index.html:532"
     ]
   },
   "a7d87b64dc113843": {
     "text": "your password",
     "cat": "html",
     "where": [
-      "public/index.html:489",
+      "public/index.html:529",
       "public/accept-invite.js:196"
     ]
   },
@@ -1441,99 +1469,99 @@
     "text": "or",
     "cat": "html",
     "where": [
-      "public/index.html:497",
-      "public/index.html:503"
+      "public/index.html:537",
+      "public/index.html:543"
     ]
   },
   "ab8893bee8c2f0cf": {
     "text": "Continue with SSO",
     "cat": "html",
     "where": [
-      "public/index.html:504"
+      "public/index.html:544"
     ]
   },
   "ea8263e174b97164": {
     "text": "you@company.com",
     "cat": "html",
     "where": [
-      "public/index.html:506"
+      "public/index.html:546"
     ]
   },
   "3904c8d794b49571": {
     "text": "Continue with your company sign-in →",
     "cat": "html",
     "where": [
-      "public/index.html:508"
+      "public/index.html:548"
     ]
   },
   "af3b5fce2fbc7c63": {
     "text": "you're already signed in.",
     "cat": "html",
     "where": [
-      "public/index.html:515"
+      "public/index.html:555"
     ]
   },
   "b7e7c1321e842c0e": {
     "text": "Open app",
     "cat": "html",
     "where": [
-      "public/index.html:516"
+      "public/index.html:556"
     ]
   },
   "af00a32f7b00fccf": {
     "text": "for teams and enterprises",
     "cat": "html",
     "where": [
-      "public/index.html:522"
+      "public/index.html:562"
     ]
   },
   "e236046ea3d89b2b": {
     "text": "running an SBC estate with more than one engineer on call? a Team account turns hiccup into a shared workbench instead of everyone forwarding pcaps around.",
     "cat": "html",
     "where": [
-      "public/index.html:523"
+      "public/index.html:563"
     ]
   },
   "908dfcfe8a57f457": {
     "text": "a shared capture library — everyone sees the same uploads and the same diagnosis",
     "cat": "html",
     "where": [
-      "public/index.html:527"
+      "public/index.html:567"
     ]
   },
   "3ff5fc885b0df004": {
     "text": "owner and admin roles — invite, promote, suspend or remove teammates",
     "cat": "html",
     "where": [
-      "public/index.html:529"
+      "public/index.html:569"
     ]
   },
   "a21179b532225ed2": {
     "text": "captures up to 250 MB and priority in the queue, for every member",
     "cat": "html",
     "where": [
-      "public/index.html:531"
+      "public/index.html:571"
     ]
   },
   "d653f688b8925eb1": {
     "text": "everything on the free plan stays free — paying buys scale and teamwork, never a feature paywall on the analyser",
     "cat": "html",
     "where": [
-      "public/index.html:533"
+      "public/index.html:573"
     ]
   },
   "acfce08efc600cf3": {
     "text": "launch price",
     "cat": "html",
     "where": [
-      "public/index.html:538"
+      "public/index.html:578"
     ]
   },
   "6c6559110431703c": {
     "text": "/ month",
     "cat": "html",
     "where": [
-      "public/index.html:539",
+      "public/index.html:579",
       "public/subscribe.html:228",
       "public/subscribe.html:250"
     ]
@@ -1542,14 +1570,14 @@
     "text": "for the whole team, not per seat — or €200 / year. Working solo? Pro is €10 / month.",
     "cat": "html",
     "where": [
-      "public/index.html:540"
+      "public/index.html:580"
     ]
   },
   "302851c586974df6": {
     "text": "See plans →",
     "cat": "html",
     "where": [
-      "public/index.html:542",
+      "public/index.html:582",
       "public/team.html:176",
       "public/team.html:236"
     ]
@@ -1558,99 +1586,99 @@
     "text": "SIP failure reference",
     "cat": "html",
     "where": [
-      "public/index.html:546",
-      "public/index.html:547"
+      "public/index.html:586",
+      "public/index.html:587"
     ]
   },
   "72b75f6e2765d68f": {
     "text": "no account needed — short pages on the failures that send people looking for a trace in the first place. what the thing you are staring at means, and what to check.",
     "cat": "html",
     "where": [
-      "public/index.html:548"
+      "public/index.html:588"
     ]
   },
   "2c0e10c6af0f76b9": {
     "text": "— codec, payload-type or SRTP mismatch in the SDP",
     "cat": "html",
     "where": [
-      "public/index.html:552"
+      "public/index.html:592"
     ]
   },
   "8cffbb465c1c6a9f": {
     "text": "— the trunk refused it: carrier congestion, a CPS cap, or a dead gateway",
     "cat": "html",
     "where": [
-      "public/index.html:554"
+      "public/index.html:594"
     ]
   },
   "380bb8a70db3f109": {
     "text": "— the full mapping table, for when the PSTN is hiding behind a SIP code",
     "cat": "html",
     "where": [
-      "public/index.html:556"
+      "public/index.html:596"
     ]
   },
   "abcf3d1b765ed7a3": {
     "text": "one-way audio",
     "cat": "html",
     "where": [
-      "public/index.html:557"
+      "public/index.html:597"
     ]
   },
   "be2a6b4e618b3c14": {
     "text": "— the signalling worked and the RTP went somewhere else",
     "cat": "html",
     "where": [
-      "public/index.html:558"
+      "public/index.html:598"
     ]
   },
   "662c8219d6a2150e": {
     "text": "retransmissions and storms",
     "cat": "html",
     "where": [
-      "public/index.html:559"
+      "public/index.html:599"
     ]
   },
   "58e1d5db27a987a9": {
     "text": "— reading the ladder, and why 200 OK retransmits matter most",
     "cat": "html",
     "where": [
-      "public/index.html:560"
+      "public/index.html:600"
     ]
   },
   "ee2074488cbb8817": {
     "text": "all reference pages →",
     "cat": "html",
     "where": [
-      "public/index.html:562"
+      "public/index.html:602"
     ]
   },
   "fa63191b3d7d6f2c": {
     "text": "protocol guides: IMS, Diameter, SS7, lawful intercept →",
     "cat": "html",
     "where": [
-      "public/index.html:563"
+      "public/index.html:603"
     ]
   },
   "c56e382dd98062e7": {
     "text": "privacy",
     "cat": "html",
     "where": [
-      "public/index.html:570"
+      "public/index.html:610"
     ]
   },
   "96a94ae7dfda921e": {
     "text": "legal notice",
     "cat": "html",
     "where": [
-      "public/index.html:571"
+      "public/index.html:611"
     ]
   },
   "d486e88b5301428b": {
     "text": "self-hosted · your traces never leave this box",
     "cat": "html",
     "where": [
-      "public/index.html:573"
+      "public/index.html:613"
     ]
   },
   "5a29a54158399ac4": {
@@ -2691,7 +2719,7 @@
     "cat": "html",
     "where": [
       "public/team.html:235",
-      "server.js:2630"
+      "server.js:2631"
     ]
   },
   "7616d7621ffd4767": {
@@ -6998,581 +7026,581 @@
     "text": "analysis engine not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:906"
+      "server.js:907"
     ]
   },
   "6a2b7043de978ef9": {
     "text": "that project was not found",
     "cat": "server",
     "where": [
-      "server.js:920"
+      "server.js:921"
     ]
   },
   "a80b26feac395b9e": {
     "text": "upload exceeds the",
     "cat": "server",
     "where": [
-      "server.js:936"
+      "server.js:937"
     ]
   },
   "54c6c9cc108f2242": {
     "text": "could not read upload",
     "cat": "server",
     "where": [
-      "server.js:942",
-      "server.js:1272"
+      "server.js:943",
+      "server.js:1273"
     ]
   },
   "0801d0a52741c7bf": {
     "text": "empty upload",
     "cat": "server",
     "where": [
-      "server.js:947",
-      "server.js:1277"
+      "server.js:948",
+      "server.js:1278"
     ]
   },
   "01a383ac2116bf20": {
     "text": "capture not found",
     "cat": "server",
     "where": [
-      "server.js:1025",
-      "server.js:1163",
-      "server.js:3630",
-      "server.js:4241",
-      "server.js:4256"
+      "server.js:1026",
+      "server.js:1164",
+      "server.js:3631",
+      "server.js:4242",
+      "server.js:4257"
     ]
   },
   "f79423093897467e": {
     "text": "the rule generator is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:1071"
+      "server.js:1072"
     ]
   },
   "090e1a119d8daa21": {
     "text": "description (what the rule should do, in English) is required",
     "cat": "server",
     "where": [
-      "server.js:1077"
+      "server.js:1078"
     ]
   },
   "d7b4031340d3e796": {
     "text": "vendors must be a subset of",
     "cat": "server",
     "where": [
-      "server.js:1085"
+      "server.js:1086"
     ]
   },
   "620fd49ea6d862c9": {
     "text": "could not process that description",
     "cat": "server",
     "where": [
-      "server.js:1098"
+      "server.js:1099"
     ]
   },
   "e29465da56a30135": {
     "text": "the config-manipulation engine is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:1121"
+      "server.js:1122"
     ]
   },
   "020034a3e7c22a8c": {
     "text": "text (an SBC config excerpt) is required",
     "cat": "server",
     "where": [
-      "server.js:1127"
+      "server.js:1128"
     ]
   },
   "546478ca51bb0dbb": {
     "text": "the config-guide library is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:1202"
+      "server.js:1203"
     ]
   },
   "540a07c7e762b016": {
     "text": "this build of lib/kb.js cannot add documents",
     "cat": "server",
     "where": [
-      "server.js:1253"
+      "server.js:1254"
     ]
   },
   "e27a75ef46fcc316": {
     "text": "document exceeds the",
     "cat": "server",
     "where": [
-      "server.js:1266"
+      "server.js:1267"
     ]
   },
   "402ff74fd64be7f1": {
     "text": "this build of lib/kb.js cannot add links",
     "cat": "server",
     "where": [
-      "server.js:1309"
+      "server.js:1310"
     ]
   },
   "2a59e817abd5fd84": {
     "text": "this build of lib/kb.js cannot delete documents",
     "cat": "server",
     "where": [
-      "server.js:1349"
+      "server.js:1350"
     ]
   },
   "f9cb3b7e6e30bdb9": {
     "text": "document not found",
     "cat": "server",
     "where": [
-      "server.js:1360"
+      "server.js:1361"
     ]
   },
   "3f951aec7bc91ff5": {
     "text": "this build has no feedback module",
     "cat": "server",
     "where": [
-      "server.js:1380"
+      "server.js:1381"
     ]
   },
   "c63c0aa33a970b76": {
     "text": "admin only",
     "cat": "server",
     "where": [
-      "server.js:1424"
+      "server.js:1425"
     ]
   },
   "766bccfadc60d6b3": {
     "text": "comment is required",
     "cat": "server",
     "where": [
-      "server.js:1570"
+      "server.js:1571"
     ]
   },
   "f08c15b90c9cd570": {
     "text": "too many submissions — try again later",
     "cat": "server",
     "where": [
-      "server.js:1574"
+      "server.js:1575"
     ]
   },
   "8433e48ee25ebe05": {
     "text": "send {\"confirm\":\"DELETE\"} to confirm this irreversible deletion",
     "cat": "server",
     "where": [
-      "server.js:1672"
+      "server.js:1673"
     ]
   },
   "ce52b93db38ac16b": {
     "text": "You still own a team with other members. Transfer ownership to one of them first, then delete your account. Nothing has been deleted.",
     "cat": "server",
     "where": [
-      "server.js:1699"
+      "server.js:1700"
     ]
   },
   "750fa3e5656e2d66": {
     "text": "send {\"confirm\":\"ERASE\"} to confirm erasing your data",
     "cat": "server",
     "where": [
-      "server.js:1811"
+      "server.js:1812"
     ]
   },
   "b107b578f662fb05": {
     "text": "cross-origin request refused",
     "cat": "server",
     "where": [
-      "server.js:2058",
-      "server.js:2160"
+      "server.js:2059",
+      "server.js:2161"
     ]
   },
   "2e962d10a2a3218e": {
     "text": "send {\"superuser\": true|false} and/or {\"plan\": \"free\"|\"pro\"|\"team\"}",
     "cat": "server",
     "where": [
-      "server.js:2066"
+      "server.js:2067"
     ]
   },
   "114895a695d6cf0c": {
     "text": "no such user",
     "cat": "server",
     "where": [
-      "server.js:2072",
-      "server.js:2115"
+      "server.js:2073",
+      "server.js:2116"
     ]
   },
   "f69098f93dd285bb": {
     "text": "could not save the updated admin list to disk",
     "cat": "server",
     "where": [
-      "server.js:2096"
+      "server.js:2097"
     ]
   },
   "dfd3eff711dd27cc": {
     "text": "action must be one of:",
     "cat": "server",
     "where": [
-      "server.js:2168"
+      "server.js:2169"
     ]
   },
   "c9025488a137cf6c": {
     "text": "Not supervised by the hiccup service (state:",
     "cat": "server",
     "where": [
-      "server.js:2212"
+      "server.js:2213"
     ]
   },
   "3fb3204d07f649c4": {
     "text": "no such feedback",
     "cat": "server",
     "where": [
-      "server.js:2320"
+      "server.js:2321"
     ]
   },
   "2668e3335367971b": {
     "text": "no feedback module",
     "cat": "server",
     "where": [
-      "server.js:2343"
+      "server.js:2344"
     ]
   },
   "b5872077e7138177": {
     "text": "no digestRecipient configured",
     "cat": "server",
     "where": [
-      "server.js:2357"
+      "server.js:2358"
     ]
   },
   "3e230b47bf9bb8d3": {
     "text": "no mail module",
     "cat": "server",
     "where": [
-      "server.js:2361"
+      "server.js:2362"
     ]
   },
   "d1638c2147bb7e7d": {
     "text": "this build of lib/kb.js cannot search",
     "cat": "server",
     "where": [
-      "server.js:2388"
+      "server.js:2389"
     ]
   },
   "5337ea8f8150b659": {
     "text": "q (a search query) is required",
     "cat": "server",
     "where": [
-      "server.js:2393"
+      "server.js:2394"
     ]
   },
   "d53aa13ba29ffd09": {
     "text": "the teams module is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:2443",
-      "server.js:2736",
-      "server.js:2748",
-      "server.js:2769",
-      "server.js:3033",
-      "server.js:3083"
+      "server.js:2444",
+      "server.js:2737",
+      "server.js:2749",
+      "server.js:2770",
+      "server.js:3034",
+      "server.js:3084"
     ]
   },
   "782715c4b601e788": {
     "text": "the sso module is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:2614",
-      "server.js:2720"
+      "server.js:2615",
+      "server.js:2721"
     ]
   },
   "eca7437ca69b34e5": {
     "text": "Create a team first.",
     "cat": "server",
     "where": [
-      "server.js:2619"
+      "server.js:2620"
     ]
   },
   "41781f2557282402": {
     "text": "Only the team owner can manage single sign-on.",
     "cat": "server",
     "where": [
-      "server.js:2626"
+      "server.js:2627"
     ]
   },
   "89cd945318c06367": {
     "text": "Too many changes. Wait a minute and try again.",
     "cat": "server",
     "where": [
-      "server.js:2656"
+      "server.js:2657"
     ]
   },
   "2caa2a67e67befdb": {
     "text": "Too many tests. Wait a minute and try again.",
     "cat": "server",
     "where": [
-      "server.js:2690"
+      "server.js:2691"
     ]
   },
   "0a826825b6606449": {
     "text": "No issuer configured yet.",
     "cat": "server",
     "where": [
-      "server.js:2699"
+      "server.js:2700"
     ]
   },
   "b4557baf45c6a947": {
     "text": "this invite link is invalid or has expired",
     "cat": "server",
     "where": [
-      "server.js:2774",
-      "server.js:3043"
+      "server.js:2775",
+      "server.js:3044"
     ]
   },
   "3f36b069bc670ec9": {
     "text": "Card payment is not set up on this server yet.",
     "cat": "server",
     "where": [
-      "server.js:2799"
+      "server.js:2800"
     ]
   },
   "5a7f4408f7db2802": {
     "text": "Choose a plan and a billing period.",
     "cat": "server",
     "where": [
-      "server.js:2808"
+      "server.js:2809"
     ]
   },
   "84307029bc061442": {
     "text": "The Pro plan is not set up on this server yet.",
     "cat": "server",
     "where": [
-      "server.js:2812"
+      "server.js:2813"
     ]
   },
   "114536ca7c2810d5": {
     "text": "You are already on the paid plan.",
     "cat": "server",
     "where": [
-      "server.js:2823"
+      "server.js:2824"
     ]
   },
   "bb9c45b8ad22bb47": {
     "text": "stripe is not configured on this server",
     "cat": "server",
     "where": [
-      "server.js:2890"
+      "server.js:2891"
     ]
   },
   "39f86b43347c4755": {
     "text": "signature verification failed",
     "cat": "server",
     "where": [
-      "server.js:2899"
+      "server.js:2900"
     ]
   },
   "9c156729d644795b": {
     "text": "could not apply event",
     "cat": "server",
     "where": [
-      "server.js:2916"
+      "server.js:2917"
     ]
   },
   "d7bf7c6c99ed4407": {
     "text": "token is required",
     "cat": "server",
     "where": [
-      "server.js:3038"
+      "server.js:3039"
     ]
   },
   "baa0a3344e8c0331": {
     "text": "joined the team, but could not load the account",
     "cat": "server",
     "where": [
-      "server.js:3071"
+      "server.js:3072"
     ]
   },
   "3696efafd4e94786": {
     "text": "role or suspended is required",
     "cat": "server",
     "where": [
-      "server.js:3091"
+      "server.js:3092"
     ]
   },
   "8085f74c9d35d6d7": {
     "text": "Only the team owner can change member roles.",
     "cat": "server",
     "where": [
-      "server.js:3097"
+      "server.js:3098"
     ]
   },
   "0136bec8180be8a5": {
     "text": "Only a team owner or admin can suspend members.",
     "cat": "server",
     "where": [
-      "server.js:3109"
+      "server.js:3110"
     ]
   },
   "00adf0d1bc93484d": {
     "text": "Only a team owner or admin can remove members.",
     "cat": "server",
     "where": [
-      "server.js:3130"
+      "server.js:3131"
     ]
   },
   "408635fc82cc11a8": {
     "text": "Only the team owner can transfer ownership.",
     "cat": "server",
     "where": [
-      "server.js:3213"
+      "server.js:3214"
     ]
   },
   "4bf96ced8828fabd": {
     "text": "the projects module is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:3229",
-      "server.js:3242",
-      "server.js:3265",
-      "server.js:3291"
+      "server.js:3230",
+      "server.js:3243",
+      "server.js:3266",
+      "server.js:3292"
     ]
   },
   "0d9aceb8b8384b7f": {
     "text": "project not found",
     "cat": "server",
     "where": [
-      "server.js:3271",
-      "server.js:3297",
-      "server.js:3302"
+      "server.js:3272",
+      "server.js:3298",
+      "server.js:3303"
     ]
   },
   "8c827ee96db5d1cd": {
     "text": "messages array is required",
     "cat": "server",
     "where": [
-      "server.js:3624"
+      "server.js:3625"
     ]
   },
   "ecfc526de8ae3814": {
     "text": "local model is offline",
     "cat": "server",
     "where": [
-      "server.js:3635"
+      "server.js:3636"
     ]
   },
   "fec5f0616fdf6dd0": {
     "text": "hiccup is busy answering another question — try again in a moment",
     "cat": "server",
     "where": [
-      "server.js:3703"
+      "server.js:3704"
     ]
   },
   "644e5a3eb6ab0cc5": {
     "text": "the tokens module is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:3720",
-      "server.js:3729",
-      "server.js:3748"
+      "server.js:3721",
+      "server.js:3730",
+      "server.js:3749"
     ]
   },
   "88f7877930a28ddc": {
     "text": "API tokens for MCP need a paid plan (Pro or Team).",
     "cat": "server",
     "where": [
-      "server.js:3733"
+      "server.js:3734"
     ]
   },
   "b1ccc25f01180814": {
     "text": "no such token",
     "cat": "server",
     "where": [
-      "server.js:3750"
+      "server.js:3751"
     ]
   },
   "2c2ceca77de5dc47": {
     "text": "the MCP module is not deployed on this server yet",
     "cat": "server",
     "where": [
-      "server.js:3769"
+      "server.js:3770"
     ]
   },
   "2b865bbbb28ccaf9": {
     "text": "a valid API token is required — create one on /settings",
     "cat": "server",
     "where": [
-      "server.js:3775"
+      "server.js:3776"
     ]
   },
   "aee32d5e15b29b2f": {
     "text": "the account for this token no longer exists",
     "cat": "server",
     "where": [
-      "server.js:3781"
+      "server.js:3782"
     ]
   },
   "268930db6e924d7e": {
     "text": "MCP access needs a paid plan (Pro or Team).",
     "cat": "server",
     "where": [
-      "server.js:3785"
+      "server.js:3786"
     ]
   },
   "4147a77160e1cb4a": {
     "text": "rate limit:",
     "cat": "server",
     "where": [
-      "server.js:3790"
+      "server.js:3791"
     ]
   },
   "1ab14d1c2578506a": {
     "text": "email and password are required",
     "cat": "server",
     "where": [
-      "server.js:3840",
-      "server.js:3869"
+      "server.js:3841",
+      "server.js:3870"
     ]
   },
   "9068dc9b3017c5ef": {
     "text": "Too many accounts created from here recently. Try again later.",
     "cat": "server",
     "where": [
-      "server.js:3847"
+      "server.js:3848"
     ]
   },
   "c0fa34830fadc18a": {
     "text": "Too many sign-in attempts. Wait a few minutes and try again.",
     "cat": "server",
     "where": [
-      "server.js:3884"
+      "server.js:3885"
     ]
   },
   "98c716c4e947ddc8": {
     "text": "wrong email or password",
     "cat": "server",
     "where": [
-      "server.js:3893"
+      "server.js:3894"
     ]
   },
   "f470143a26c5b7c9": {
     "text": "credential is required",
     "cat": "server",
     "where": [
-      "server.js:3917"
+      "server.js:3918"
     ]
   },
   "c3678c5724b8e88e": {
     "text": "MCP uses POST only — this server has no server-initiated stream",
     "cat": "server",
     "where": [
-      "server.js:4143"
+      "server.js:4144"
     ]
   },
   "08565cf8a3e3ee3a": {
     "text": "not found",
     "cat": "server",
     "where": [
-      "server.js:4151",
-      "server.js:4165",
-      "server.js:4179",
-      "server.js:4201",
-      "server.js:4262",
-      "server.js:4379"
+      "server.js:4152",
+      "server.js:4166",
+      "server.js:4180",
+      "server.js:4202",
+      "server.js:4263",
+      "server.js:4380"
     ]
   }
 }
