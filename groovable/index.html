@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>groovable</title>
+<meta name="description" content="groovable pools the idle CPUs and GPUs of ordinary computers into one network for AI, and puts an app builder on top of it. Step away and your machine joins in; come back and it is yours again. In design.">
+<link rel="canonical" href="https://groovable.ai/">
+<meta property="og:title" content="groovable">
+<meta property="og:description" content="Your computer is idle most of the day. Let it groove. A compute pool made of ordinary machines, and an app builder that runs on it. In design.">
+<meta property="og:url" content="https://groovable.ai/">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#101218">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23101218'/%3E%3Ccircle cx='16' cy='16' r='11' fill='none' stroke='%238d93a2' stroke-width='1.6'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='%238d93a2' stroke-width='1.6'/%3E%3Ccircle cx='16' cy='16' r='3.2' fill='%23ff7d4d'/%3E%3C/svg%3E">
+<script src="/boot-theme.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/site.css">
+</head>
+<body>
+
+<header class="site-head">
+  <div class="wrap head-row">
+    <a class="wordmark" href="/" aria-label="groovable home">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="12" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="16" cy="16" r="7.5" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="16" cy="16" r="3.2" class="mark-dot"/></svg>
+      <span class="name">groovable<span class="tld">.ai</span></span>
+    </a>
+    <nav class="site-nav" aria-label="Sections">
+      <a href="#pool">the pool</a>
+      <a href="#builder">the builder</a>
+      <a href="#principles">principles</a>
+      <a href="#family">family</a>
+      <button id="theme-toggle" class="theme-btn" type="button" aria-label="Switch theme">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 2.5a7.5 7.5 0 0 1 0 15z" fill="currentColor"/></svg>
+      </button>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <p class="eyebrow">In design &middot; building in the open</p>
+      <h1>Your computer is idle most of the day. Let it groove.</h1>
+      <p class="lede">groovable pools the idle CPUs and GPUs of ordinary computers into one network for AI. Step away and yours joins in. Come back and it is yours again, instantly. Share your idle time, earn priority, and everyone on the pool always gets a slice.</p>
+      <div class="actions">
+        <a class="btn btn-primary" href="#how">How it works</a>
+        <a class="btn" href="#principles">Read the principles</a>
+      </div>
+    </div>
+    <figure class="groove-fig">
+      <canvas id="groove" aria-label="A spiral groove with nine machines placed along it"></canvas>
+      <figcaption>
+        <span class="key key-serving">serving</span>
+        <span class="key key-idle">idle</span>
+        <span class="key key-owner">owner just sat down</span>
+      </figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="pool" class="section">
+  <div class="wrap">
+    <h2>A pool, at a glance</h2>
+    <p class="prose">The unit of work is a whole request to one model, placed on a machine that can hold it. Not a slice of a model split across the internet: that has been tried, and every token pays a round trip. So a pool is worth exactly what its best card can run, times how many machines are free right now.</p>
+    <div class="table-wrap">
+      <table class="pool-table">
+        <thead>
+          <tr><th>machine</th><th>gpu</th><th class="num">memory</th><th>model loaded</th><th>state</th><th class="num">speed</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>studio-1</td><td>RTX 4090</td><td class="num">24 GB</td><td class="mono">qwen3.6-35b-a3b</td><td><span class="pill pill-serving">serving</span></td><td class="num">38 tok/s</td></tr>
+          <tr><td>laptop-m4</td><td>Apple M4</td><td class="num">16 GB unified</td><td class="mono">qwen3.5-9b</td><td><span class="pill pill-serving">serving</span></td><td class="num">27 tok/s</td></tr>
+          <tr><td>homelab</td><td>RTX 3060</td><td class="num">12 GB</td><td class="mono">gemma-4-12b</td><td><span class="pill pill-idle">idle</span></td><td class="num">&ndash;</td></tr>
+          <tr><td>office-3</td><td>RTX 4070</td><td class="num">12 GB</td><td class="mono">qwen3.5-9b</td><td><span class="pill pill-owner">owner active</span></td><td class="num">paused</td></tr>
+          <tr><td>mini-pc</td><td>CPU only</td><td class="num">32 GB RAM</td><td class="mono">qwen3.5-4b</td><td><span class="pill pill-serving">serving</span></td><td class="num">7 tok/s</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="footnote">Illustrative. The pool does not exist yet; these are the kinds of machines and numbers it is being designed around.</p>
+  </div>
+</section>
+
+<section id="how" class="section">
+  <div class="wrap">
+    <h2>How it works</h2>
+    <ol class="steps">
+      <li>
+        <h3>Install one small program</h3>
+        <p>One file, a tray icon, no ports to open. It only ever makes outbound connections, so it works from behind any router, office firewall or hotel wifi.</p>
+      </li>
+      <li>
+        <h3>Set your rules</h3>
+        <p>After ten minutes idle. Only on mains power. Never between nine and five. Never above eighty percent of the GPU. The machine is yours, so the rules are yours.</p>
+      </li>
+      <li>
+        <h3>Step away</h3>
+        <p>Your machine joins the pool and serves requests to models the pool curates. Prompt in, tokens out. Nothing a job sends can run as code on your computer.</p>
+      </li>
+      <li>
+        <h3>Come back</h3>
+        <p>The moment you touch the keyboard the job stops, in under a second, and re-queues on another machine. You never wait for it.</p>
+      </li>
+      <li>
+        <h3>Earn, then spend</h3>
+        <p>Credits accrue for work that verifiably completed, never for uptime. Spend them for priority on the big cards. Spend none and you still have a base slice, always.</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section id="builder" class="section">
+  <div class="wrap">
+    <h2>Two halves</h2>
+    <div class="halves">
+      <div class="half">
+        <h3>The pool</h3>
+        <p>An engine on every machine, a coordinator that matches each request to a machine with that model already loaded, and a ledger that turns shared time into priority. Anything that speaks the familiar chat-completions API can use it.</p>
+      </div>
+      <div class="half">
+        <h3>The builder</h3>
+        <p>An app builder in the spirit of Lovable, running on your own machine. One file, no account, no cloud. Describe an app; it edits a working template, checks every change with a real compiler and type checker, and shows you the result live. Generated code only ever runs in a sandbox. And when a change needs a bigger model than your card can hold, it borrows one from the pool.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="principles" class="section">
+  <div class="wrap">
+    <h2>The rules we are designing to</h2>
+    <dl class="rules">
+      <div><dt>Whole requests</dt><dd>A request runs on one machine that can hold the model. Models are never split across the internet.</dd></div>
+      <div><dt>Curated models only</dt><dd>Jobs carry prompts, not files. A node runs models the pool has vetted and nothing else.</dd></div>
+      <div><dt>Pools are trust circles</dt><dd>Whoever runs your request can see it. So you choose who is in your pool: your own machines, your team, your friends. A public pool says so, out loud, before you send anything.</dd></div>
+      <div><dt>Credits are priority, not money</dt><dd>Earned for verified work. They expire, they cannot be transferred, and they will never be a currency.</dd></div>
+      <div><dt>A base slice for everyone</dt><dd>Nobody on a pool is ever at zero.</dd></div>
+      <div><dt>Your machine, your rules</dt><dd>Idle thresholds, power and thermal limits, hours, caps. Preemption is instant and unconditional.</dd></div>
+      <div><dt>Nothing lingers</dt><dd>Prompts and outputs are gone from a node the moment the job ends.</dd></div>
+    </dl>
+  </div>
+</section>
+
+<section id="family" class="section">
+  <div class="wrap">
+    <h2>From the same studio</h2>
+    <ul class="family">
+      <li>
+        <a href="https://rfplex.ai" rel="noopener">
+          <span class="fam-name">RFPlex</span>
+          <span class="fam-domain">rfplex.ai</span>
+          <span class="fam-line">The studio. Licensing and trademarks for the whole family live here.</span>
+        </a>
+      </li>
+      <li>
+        <a href="https://hiccup.monster" rel="noopener">
+          <span class="fam-name">hiccup</span>
+          <span class="fam-domain">hiccup.monster</span>
+          <span class="fam-line">See where the call went wrong. A self-hosted SIP, H.323 and Diameter trace analyser, free for individual users.</span>
+        </a>
+      </li>
+      <li>
+        <a href="https://entriv.io" rel="noopener">
+          <span class="fam-name">Entriv</span>
+          <span class="fam-domain">entriv.io</span>
+          <span class="fam-line">Another project from the studio.</span>
+        </a>
+      </li>
+    </ul>
+  </div>
+</section>
+
+</main>
+
+<footer class="site-foot">
+  <div class="wrap foot-row">
+    <p>groovable.ai &middot; in design, 2026. Nothing to download yet. When there is, it will be one file.</p>
+    <p class="foot-links"><a href="https://rfplex.ai" rel="noopener">rfplex.ai</a> <a href="https://hiccup.monster" rel="noopener">hiccup.monster</a> <a href="https://entriv.io" rel="noopener">entriv.io</a></p>
+  </div>
+</footer>
+
+<script src="/site.js"></script>
+</body>
+</html>
