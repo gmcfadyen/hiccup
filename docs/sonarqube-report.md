@@ -160,3 +160,106 @@ docker run --rm --network host \
 ```
 
 `sonar-project.properties` in the repo root carries the source/test/exclusion layout.
+
+---
+
+# Follow-up: ReDoS triage and remediation
+
+All 56 `javascript:S8786` findings were triaged by measurement rather than by
+reading the rule description. Each flagged pattern was extracted and run against
+adversarial input at four input sizes; the scaling exponent decides whether it is
+real. A pattern that stays flat under a 16x input increase is not a ReDoS risk
+however the rule describes it.
+
+## Result
+
+| | Before | After |
+|---|---|---|
+| `S8786` findings | 56 | **28** |
+| Bugs | 18 | **17** |
+| Code smells | 1,474 | **1,456** |
+| Technical debt | 13,652 min | **13,151 min** |
+
+The bug count fell because the fix for `lib/advisor.js:2066` also removed the
+`javascript:S5842` finding on the same line — an optional group that could match
+the empty string, and so never constrained anything.
+
+Test suite after the changes: selftest 153/153, HTTP 31/31, adversarial 1/1.
+
+## Triage outcome
+
+**26 sites fixed** — measured super-linear *and* reachable from data the server
+does not control (`POST /api/captures` → `analyze.js` → `textlog.js`/`sip.js` →
+`detect.js`/`advisor.js`; `POST /api/hmr/*` → `hmr.js`; `POST /api/kb/docs` →
+`kb.js`).
+
+**8 left, not reachable** — super-linear, but the only input is
+operator-controlled configuration (`config.baseUrl`, the SMTP identity):
+`lib/oidc.js:35`, `lib/stripe.js:226`, `lib/teams.js:336`, `lib/mail.js:68`,
+`server.js:773`, `server.js:2056`, `server.js:2158`, `server.js:2528`.
+
+**20 left, measured flat** — the rule fires but the pattern does not actually
+backtrack super-linearly. Confirmed by measurement at n = 1k…8k:
+`hmr.js:468,732,805,814,823,1035,2116,2551`, `kb.js:565,690`,
+`sip.js:278,313`, `textlog.js:90,295,308,604`, `hmr-sim.js:101,183`,
+`server.js:2496`, `server.js:3795`.
+
+Two of those deserve a note, because they look alarming and are not:
+
+- `server.js:2496` is the classic-looking email regex
+  `/^[^\s@]+@[^\s@]+\.[^\s@]+$/`. Measured flat — the character classes exclude
+  `@`, so the split point is forced and there is nothing to backtrack over.
+- `server.js:3795` parses the `Authorization` header, which *is* attacker
+  controlled, but `/^Bearer\s+(.+)$/i` is anchored at both ends with one
+  whitespace run. Measured flat.
+
+## The headline fix
+
+`lib/hmr.js` section-header parsing was **~O(n⁴)**, not quadratic. The pattern
+overlapped three whitespace quantifiers with a name class that itself contains a
+space:
+
+```js
+/^\[\s*(\\?)\s*([A-Za-z0-9_ ]+?)\s*\]$/
+```
+
+Measured cost of rejecting `'[' + ' '.repeat(n)`:
+
+| n | time |
+|---|---|
+| 50 | 3 ms |
+| 200 | 164 ms |
+| 400 | 1,934 ms |
+| 800 | **29,169 ms** |
+
+An 800-character line in an uploaded AudioCodes config froze the server for 29
+seconds. Node is single-threaded, so that is the whole process, not one request.
+Replaced with a hand-written `parseSectionHeader()`: **0.06 ms at n=800**, and
+linear thereafter (800,000 characters in 0.93 ms). Equivalence was checked by
+differential testing against the old pattern over 38,416 generated inputs —
+including the degenerate `[ ]` and `[\ ]` forms, where the old regex's
+space-in-the-name-class behaviour is subtle — with zero divergence.
+
+## Fixes by shape
+
+| Shape | Sites | Fix |
+|---|---|---|
+| `/\s+$/` trailing strip | `sip.js:206`, `hmr.js:420,757,987` | `.trimEnd()` — same character set, linear |
+| Unanchored trailing-run strip | `textlog.js:112`, `kb.js:572`, `hmr.js:687` | index scan helper; the regex retries the run from every offset |
+| `^\s*` with `/m` | `hmr.js:280-297` (7 probes) | `^[ \t]*` — `\s` ate newlines, so every line start rescanned the file |
+| Ambiguous optional + whitespace | `hmr.js:1023`, `agent.js:598` | pin each optional token to the whitespace before it |
+| Unbounded `\d+` in a dotted quad | `detect.js:1455`, `server.js:1464` | `\d{1,3}` — an octet is never longer |
+| `.` inside a hostname label class | `advisor.js:1953` | bounded label length and depth (DNS allows neither to be unlimited) |
+| Redundant `+` after a collapse pass | `hmr.js:1611`, `kb.js:402` | the preceding line already collapsed runs to one character |
+| `<[^>]*>` | `kb.js:365,398` | `<[^<>]*>` — a tag cannot contain `<`; malformed markup now fails safe |
+| Unbounded run in a lookahead/scan | `hmr-generate.js:106`, `hmr-sim.js:387`, `advisor.js:2066` | bounded quantifiers |
+
+Every fixed pattern was re-measured at n = 4k/16k/64k and confirmed linear.
+Behaviour-preservation was checked by differential testing on the two rewrites
+that changed structure (`parseSectionHeader`, `stripTrailing`) and by enumerated
+case comparison on `hmr.js:1023` (1,260 inputs, zero divergence) and
+`advisor.js:1953`.
+
+Two deliberate behaviour changes, both on malformed input that is not a valid
+hostname: `a..b.com` now extracts `b.com` rather than `a..b.com`, and `.com.au`
+extracts `com.au`.

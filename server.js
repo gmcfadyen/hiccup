@@ -1461,7 +1461,7 @@ function anonymiseIp(ip) {
   const s = String(ip || '');
   if (!s) return '-';
   if (s.indexOf(':') !== -1) {                       // IPv6 (or ::ffff:1.2.3.4)
-    const v4 = s.match(/(\d+\.\d+\.\d+)\.\d+$/);        // v4-mapped: treat as IPv4
+    const v4 = s.match(/(\d{1,3}\.\d{1,3}\.\d{1,3})\.\d{1,3}$/);  // v4-mapped: treat as IPv4
     if (v4) return v4[1] + '.0';
     return s.split(':').slice(0, 3).join(':') + '::';
   }
