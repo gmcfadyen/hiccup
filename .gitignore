@@ -4,3 +4,5 @@ test/fixtures/*
 !test/fixtures/adversarial/
 *.log
 .DS_Store
+.env
+.env.*

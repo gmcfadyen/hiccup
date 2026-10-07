@@ -445,8 +445,16 @@ function setSessionCookie(res, token, expiresAt) {
     const d = new Date(expiresAt);
     if (!isNaN(d.getTime())) parts.push('Expires=' + d.toUTCString());
   }
-  if (String(config.baseUrl || '').startsWith('https')) parts.push('Secure');
+  if (String(config.baseUrl || '').startsWith('https') || _viaHttps(res)) parts.push('Secure');
   res.setHeader('Set-Cookie', parts.join('; '));
+}
+
+/** True when the request that produced `res` arrived through an https proxy. */
+function _viaHttps(res) {
+  const r = res && res.req;
+  const p = r && r.headers && r.headers['x-forwarded-proto'];
+  return typeof p === 'string' && p.split(',')[0].trim().toLowerCase() === 'https' &&
+    /^(127\.|::1$|::ffff:127\.)/.test((r.socket && r.socket.remoteAddress) || '');
 }
 
 /**
@@ -456,7 +464,7 @@ function setSessionCookie(res, token, expiresAt) {
 function clearSessionCookie(res) {
   const parts = [SESSION_COOKIE + '=', 'HttpOnly', 'SameSite=Lax', 'Path=/',
     'Expires=Thu, 01 Jan 1970 00:00:00 GMT', 'Max-Age=0'];
-  if (String(config.baseUrl || '').startsWith('https')) parts.push('Secure');
+  if (String(config.baseUrl || '').startsWith('https') || _viaHttps(res)) parts.push('Secure');
   res.setHeader('Set-Cookie', parts.join('; '));
 }
 
@@ -1443,6 +1451,10 @@ function requireSiteAdmin(req, res) {
  */
 function clientIp(req) {
   const h = req.headers || {};
+  const sock = (req.socket && req.socket.remoteAddress) || '';
+  // Forwarding headers are honoured only when the TCP peer is loopback (the
+  // tunnel); from any other peer they are attacker-controlled.
+  if (!/^(127\.|::1$|::ffff:127\.)/.test(sock)) return sock || 'unknown';
   const cf = h['cf-connecting-ip'];
   if (typeof cf === 'string' && cf.trim()) return cf.trim();
   const xff = h['x-forwarded-for'];
@@ -2047,20 +2059,7 @@ async function handleAdminUserSet(req, res, user, targetId) {
   let body;
   try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
 
-  const origin = String(req.headers.origin || '');
-  if (origin) {
-    let ok = false;
-    try {
-      const h = new URL(origin).host;
-      ok = h === String(req.headers.host || '') ||
-           h === String(config.baseUrl || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-    } catch { ok = false; }
-    if (!ok) {
-      sendJson(res, 403, { error: 'cross-origin request refused' });
-      return;
-    }
-  }
-
+  // Cross-origin POSTs are refused for every route in handle().
   const hasSuperuser = typeof body.superuser === 'boolean';
   const hasPlan = typeof body.plan === 'string' && plans.all().indexOf(body.plan) !== -1;
   if (!hasSuperuser && !hasPlan) {
@@ -2146,23 +2145,7 @@ async function handleServerControl(req, res, user) {
   let body;
   try { body = await readJsonBody(req); } catch (e) { return sendBodyError(res, e); }
 
-  // Defence in depth. The session cookie is already SameSite=Lax, which stops
-  // a cross-site POST carrying it, but this endpoint ends the process — worth
-  // a second, independent check that costs nothing.
-  const origin = String(req.headers.origin || '');
-  if (origin) {
-    let ok = false;
-    try {
-      const h = new URL(origin).host;
-      ok = h === String(req.headers.host || '') ||
-           h === String(config.baseUrl || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-    } catch { ok = false; }
-    if (!ok) {
-      sendJson(res, 403, { error: 'cross-origin request refused' });
-      return;
-    }
-  }
-
+  // Cross-origin POSTs are refused for every route in handle().
   const action = String((body && body.action) || '').trim();
   const ACTIONS = ['status', 'restart', 'restart-status', 'restart-cancel'];
   if (ACTIONS.indexOf(action) === -1) {
@@ -3992,6 +3975,17 @@ function handleLogout(req, res) {
  * @param {http.IncomingMessage} req
  * @param {http.ServerResponse} res
  */
+/** True when the request has no Origin header or its Origin is this site. */
+function originAllowed(req) {
+  const origin = String(req.headers.origin || '');
+  if (!origin) return true;
+  try {
+    const h = new URL(origin).host;
+    return h === String(req.headers.host || '') ||
+      h === String(config.baseUrl || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  } catch { return false; }
+}
+
 async function handle(req, res) {
   const url = req.url || '/';
   const qIdx = url.indexOf('?');
@@ -4010,6 +4004,14 @@ async function handle(req, res) {
   if (host === 'www.hiccup.monster') {
     res.writeHead(301, { Location: 'https://hiccup.monster' + pathname + query });
     res.end();
+    return;
+  }
+  // CSRF defence in depth for every state-changing request: SameSite=Lax is
+  // the first line, this is the second. Requests with no Origin (curl, MCP
+  // clients, the Stripe webhook) are not browser cross-site posts and pass.
+  if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS' && !originAllowed(req)) {
+    req.resume();
+    sendJson(res, 403, { error: 'cross-origin request refused' });
     return;
   }
   // People and other sites link with trailing slashes; a 404 for /sip/ throws
@@ -4477,13 +4479,7 @@ const CSP = [
  * servePublicFile so an error path or a future response helper cannot quietly
  * miss them.
  *
- * No Content-Security-Policy yet, and that omission is deliberate rather than
- * forgotten: index.html, app.js's host page and admin-status.html all carry
- * inline <script>, and the landing page loads Google Identity Services from
- * accounts.google.com. A CSP strict enough to be worth having would break all
- * of them today; shipping a permissive one with 'unsafe-inline' would just be
- * decoration. It needs the inline scripts lifted into files first -- tracked,
- * not silently dropped.
+ * A Content-Security-Policy is set below (no 'unsafe-inline' for scripts).
  *
  * HSTS is sent ONLY on requests that reached us over HTTPS, detected via
  * X-Forwarded-Proto. This is not pedantry -- sending it unconditionally is an
@@ -4542,7 +4538,8 @@ const server = http.createServer((req, res) => {
   Promise.resolve(handle(req, res)).catch((err) => {
     console.error('hiccup: unhandled route error:', err && (err.stack || err.message || err));
     if (!res.headersSent) {
-      sendJson(res, 500, { error: (err && err.message) || 'internal error' });
+      console.error('hiccup: unhandled error:', err && err.stack || err);
+      sendJson(res, 500, { error: 'internal error' });
     } else {
       try { res.end(); } catch { /* socket already gone */ }
     }
