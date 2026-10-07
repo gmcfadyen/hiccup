@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Microsoft Teams Direct Routing: what an SBC has to get right — hiccup</title>
+<meta name="description" content="How Teams Direct Routing connects an SBC to Microsoft: TLS and certificates, OPTIONS keep-alives, the Contact FQDN, SRTP, E.164 numbers, and how each one fails in a trace.">
+<link rel="canonical" href="https://hiccup.monster/knowledge/teams-direct-routing">
+<script src="/boot-theme.js"></script>
+<link rel="icon" href="/brand/favicon.ico" sizes="32x32">
+<link rel="icon" href="/brand/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:title" content="Microsoft Teams Direct Routing: what an SBC has to get right">
+<meta property="og:description" content="The short list of things Microsoft checks on every SBC, and how each failure looks in a trace.">
+<meta property="og:image" content="https://hiccup.monster/brand/social-card.png">
+<meta property="og:url" content="https://hiccup.monster/knowledge/teams-direct-routing">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hiccup.monster/brand/social-card.png">
+<link rel="stylesheet" href="/hiccup.css">
+<link rel="stylesheet" href="/sip.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "Microsoft Teams Direct Routing: what an SBC has to get right",
+  "description": "TLS, certificates, OPTIONS, Contact FQDN, SRTP and E.164 for SBCs connected to Microsoft Teams.",
+  "url": "https://hiccup.monster/knowledge/teams-direct-routing",
+  "inLanguage": "en",
+  "proficiencyLevel": "Expert",
+  "about": { "@type": "Thing", "name": "Microsoft Teams Direct Routing" },
+  "isPartOf": { "@type": "WebSite", "name": "hiccup", "url": "https://hiccup.monster/" }
+}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="logo" href="/" aria-label="hiccup.monster"><span class="brand-mark"></span><span class="brand-wordmark"></span></a>
+  <nav class="topnav" aria-label="reference">
+    <a class="topnav-link" href="/knowledge">protocol guides</a>
+    <a class="topnav-link" href="/sip">SIP failure reference</a>
+  </nav>
+  <span class="topbar-spacer"></span>
+  <button class="btn theme-toggle icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">☀</button>
+  <a class="btn btn-primary" href="/">try hiccup</a>
+</header>
+
+<main class="page">
+
+  <nav class="crumbs" aria-label="breadcrumb">
+    <a href="/">hiccup</a><span>/</span><a href="/knowledge">Protocol guides</a><span>/</span>Teams Direct Routing
+  </nav>
+
+  <article class="ref">
+
+    <h1>Microsoft Teams Direct Routing: what an SBC has to get right</h1>
+
+    <div class="ref-verdict">
+      <p><strong>Short version:</strong> Direct Routing connects your own SBC to
+      Microsoft's phone-system proxies so Teams users can make and take PSTN calls
+      through it. Microsoft is strict about a short list of things on every SBC: a
+      working TLS session with the right certificate, an answered OPTIONS keep-alive, the
+      SBC's FQDN in Contact, SRTP towards Teams, and numbers in E.164. Nearly every
+      Direct Routing fault is one of them, and each leaves a distinct mark in a
+      capture.</p>
+    </div>
+
+    <h2>The shape of the connection</h2>
+    <p>
+      The SBC sits between two worlds: a carrier or PBX on one side, and the Microsoft
+      signalling proxies (<code>sip.pstnhub.microsoft.com</code>, plus the
+      <code>sip2</code> and <code>sip3</code> names) on the other. Signalling to Microsoft is
+      SIP over TLS, port 5061, with certificates checked in both directions. Media is
+      SRTP. The SBC terminates all of that and talks plain RTP (or whatever the carrier
+      wants) on its other leg, which is why a Direct Routing capture is always a
+      <a href="/knowledge/session-border-controller">back-to-back</a> story: two legs that
+      must each be read on their own terms.</p>
+
+    <h2>The checks, and how each one fails</h2>
+    <div class="ref-table-wrap">
+      <table>
+        <thead>
+          <tr><th>What Microsoft checks</th><th>How it fails</th><th>What a capture shows</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>TLS session to the SBC FQDN on 5061, with a certificate from a CA Microsoft trusts and the FQDN in the certificate</td><td>SBC is marked inactive; no calls either way</td><td>A handshake that stops after ClientHello, or ends in an alert such as <code>bad_certificate</code> or <code>unknown_ca</code>. An encrypted capture still shows the SNI and certificate names.</td></tr>
+          <tr><td>OPTIONS keep-alives answered with 200</td><td>SBC is taken out of service</td><td>OPTIONS from the Microsoft proxy with no response, or a 4xx/5xx answer</td></tr>
+          <tr><td>The SBC FQDN (not an IP address) in Contact</td><td>Calls ring then drop; in-dialog requests refused</td><td><code>Contact: &lt;sip:...@203.0.113.10:5061&gt;</code> on requests to Microsoft</td></tr>
+          <tr><td>SRTP using SDES, AES_CM_128_HMAC_SHA1_80</td><td>488 or a 400 straight from the Microsoft proxy; or no audio</td><td>Offer is <code>RTP/AVP</code> with no <code>a=crypto</code>, or crypto with a different suite</td></tr>
+          <tr><td>Numbers in E.164</td><td>404 from Microsoft; wrong user rung; unknown caller ID</td><td>Request-URI, To or From user part without a leading <code>+</code></td></tr>
+          <tr><td>The SBC and voice routes defined in the tenant</td><td>403 or 404 from Microsoft</td><td>The rejection itself, with nothing wrong on the wire before it</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>Reading a Direct Routing capture</h2>
+    <ol>
+      <li><strong>Did TLS come up?</strong> If the capture is raw, look at the handshake
+      first: SNI, the certificate's names and dates, and any alert. A certificate that
+      does not cover the name asked for is rejected by Microsoft whatever else is right.</li>
+      <li><strong>Is the SBC answering OPTIONS?</strong> The Microsoft proxy polls it
+      constantly; the pattern of answers tells you whether the SBC is in service.</li>
+      <li><strong>Compare the two legs.</strong> The Teams side must carry E.164 numbers,
+      the SBC FQDN in Contact and an SRTP offer; the carrier side usually will not.
+      Differences that the SBC is meant to fix are your configuration to-do list.</li>
+      <li><strong>Read the Microsoft response.</strong> A 403 is usually tenant
+      definition or certificate name, a 404 is usually a number or voice route, a 488
+      is media security or codecs.</li>
+    </ol>
+
+    <h2>What hiccup does with it</h2>
+    <p>
+      hiccup recognises Direct Routing from the Microsoft proxy names, the PSTNHub
+      User-Agent and the X-MS headers (or from the SNI and certificate names when the SIP
+      is encrypted), says plainly that this is what it thinks you are trying to do, and
+      then reports the checks above with fixes for the Teams side (the PowerShell
+      cmdlets) and for AudioCodes and Oracle/Acme SBCs. The configuration blocks are
+      drafts to check against your vendor's guide. Microsoft changes details such as
+      signalling address ranges and trusted CAs over time, so confirm those against its
+      current Direct Routing documentation.</p>
+
+    <div class="ref-cta card">
+      <p><strong>hiccup</strong> reads Direct Routing traces, a decrypted SBC log or a
+      raw 5061 capture, and explains what Microsoft is objecting to.
+      Self-hosted, free for individual users.</p>
+      <a class="btn btn-primary" href="/">upload a trace</a>
+    </div>
+
+    <nav class="ref-more" aria-label="related pages">
+      See also:
+      <ul>
+        <li><a href="/knowledge/session-border-controller">Session border controllers</a> — the back-to-back model behind every SBC trace.</li>
+        <li><a href="/knowledge/e164-sip-uris">E.164 and SIP URIs</a> — number normalisation.</li>
+        <li><a href="/sip/488-not-acceptable-here">488 Not Acceptable Here</a> — when the media offer is refused.</li>
+      </ul>
+    </nav>
+
+  </article>
+
+</main>
+
+<footer class="site-footer">
+  <p>self-hosted · your traces never leave the box you run it on</p>
+  <p><a href="mailto:contact@hiccup.monster">contact@hiccup.monster</a></p>
+</footer>
+
+<script src="/theme.js"></script>
+</body>
+</html>

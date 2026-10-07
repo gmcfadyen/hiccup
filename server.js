@@ -765,6 +765,7 @@ const PUBLIC_PAGES = new Map([
   ['/knowledge/codecs-transcoding', 'knowledge/codecs-transcoding.html'],
   ['/knowledge/ss7-isup', 'knowledge/ss7-isup.html'],
   ['/knowledge/e164-sip-uris', 'knowledge/e164-sip-uris.html'],
+  ['/knowledge/teams-direct-routing', 'knowledge/teams-direct-routing.html'],
   ['/knowledge/ai-analysis-mcp', 'knowledge/ai-analysis-mcp.html'],
 ]);
 

@@ -11,6 +11,13 @@ If you have taken a SPAN of a TLS trunk and are wondering how to open it in hicc
 probably cannot, and the fix is almost always to capture somewhere else rather than to
 attack the crypto. Section 1 is the answer most of the time.
 
+**What hiccup *can* read from an encrypted capture:** the *clear* start of each TLS
+session (`lib/tls.js`) — ClientHello (version, SNI, ALPN), the server certificate on
+TLS 1.2 and earlier (names, issuer, validity), and unencrypted alerts. That answers "did the
+handshake work, and is the certificate right?" (the first thing to check on a Teams Direct
+Routing trunk) but never what is inside the encrypted records. On TLS 1.3 the certificate
+itself is encrypted, so only the version, SNI and the outcome are visible.
+
 ---
 
 ## The short version
