@@ -432,6 +432,108 @@ async function main() {
     });
   }
 
+  // ------------------------------------------------------------- TLS (raw)
+  // The clear part of a TLS handshake is readable without decrypting anything.
+  // TEST_CERT is a self-signed EC certificate (CN=sbc.example.com, SAN
+  // sbc.example.com and *.sbc.example.net) valid 2026-10-07 .. 2126-09-13.
+  {
+    const TEST_CERT = Buffer.from('308201e73082018ea00302010202143ea571d5d0321e843e3967da29277e2756ddbf60300a06082a8648ce3d04030230303118301606035504030c0f7362632e6578616d706c652e636f6d31143012060355040a0c0b4578616d706c65204c74643020170d3236313030373134333035315a180f32313236303931333134333035315a30303118301606035504030c0f7362632e6578616d706c652e636f6d31143012060355040a0c0b4578616d706c65204c74643059301306072a8648ce3d020106082a8648ce3d030107034200048656ad4322aafbf16797d9d488589727a3285113547ca81e13c4ef760eff746b5cb09f17de75975bbbc79274b7aeece4d6201e03851eb732c18a4200e42aed4ca38183308180301d0603551d0e041604142f577cd1a458f25dbfd83db855904f6be4acf74f301f0603551d230418301680142f577cd1a458f25dbfd83db855904f6be4acf74f300f0603551d130101ff040530030101ff302d0603551d1104263024820f7362632e6578616d706c652e636f6d82112a2e7362632e6578616d706c652e6e6574300a06082a8648ce3d040302034700304402204a9b8e20a337632c4d7940af7a259c4d81a51da881f28b18e53bb19acca6a2a1022067ce4b8b8662e2ebf81388bb5bb52d0385962fdd0c2efab9c99dbd10e878fc1d', 'hex');
+    const tlsLib = tryRequire(path.join('lib', 'tls.js'));
+    const u16b = (n) => Buffer.from([n >> 8, n & 255]);
+    const u24b = (n) => Buffer.from([n >> 16, (n >> 8) & 255, n & 255]);
+    const rec = (type, body) => Buffer.concat([Buffer.from([type, 3, 3]), u16b(body.length), body]);
+    const hs = (type, body) => Buffer.concat([Buffer.from([type]), u24b(body.length), body]);
+    const clientHello = (sni) => {
+      const name = Buffer.from(sni, 'latin1');
+      const sniExt = Buffer.concat([u16b(0), u16b(name.length + 5), u16b(name.length + 3), Buffer.from([0]), u16b(name.length), name]);
+      return rec(22, hs(1, Buffer.concat([u16b(0x0303), Buffer.alloc(32), Buffer.from([0]), u16b(2), u16b(0xc02f), Buffer.from([1, 0]), u16b(sniExt.length), sniExt])));
+    };
+    const serverFlight = () => {
+      const sh = hs(2, Buffer.concat([u16b(0x0303), Buffer.alloc(32), Buffer.from([0]), u16b(0xc02f), Buffer.from([0]), u16b(0)]));
+      const certBody = Buffer.concat([u24b(TEST_CERT.length + 3), u24b(TEST_CERT.length), TEST_CERT]);
+      return rec(22, Buffer.concat([sh, hs(11, certBody), hs(14, Buffer.alloc(0))]));
+    };
+    const ccs = () => rec(20, Buffer.from([1]));
+    const alert = (code) => rec(21, Buffer.from([2, code]));
+    const mkPkts = (ts, clientBytes, serverBytes) => {
+      const C = '10.0.0.1', S = '10.0.0.2';
+      const out = [];
+      let n = 0;
+      if (clientBytes.length) out.push({ n: ++n, ts, src: C, dst: S, sport: 40000, dport: 5061, transport: 'tcp', payload: clientBytes[0], tcp: { seq: 1000, syn: false, fin: false } });
+      let sseq = 5000;
+      for (const b of serverBytes) { out.push({ n: ++n, ts: ts + 0.01, src: S, dst: C, sport: 5061, dport: 40000, transport: 'tcp', payload: b, tcp: { seq: sseq, syn: false, fin: false } }); sseq += b.length; }
+      let cseq = 1000 + clientBytes[0].length;
+      for (const b of clientBytes.slice(1)) { out.push({ n: ++n, ts: ts + 0.02, src: C, dst: S, sport: 40000, dport: 5061, transport: 'tcp', payload: b, tcp: { seq: cseq, syn: false, fin: false } }); cseq += b.length; }
+      return out;
+    };
+    const run = (ts, sni, serverBytes, clientTail) => tlsLib.mod.extractTls(mkPkts(ts, [clientHello(sni)].concat(clientTail || []), serverBytes));
+    const titles = (r) => r.findings.map((f) => f.title).join(' | ');
+    const NOW = 1791400000; // 2026-10-07
+
+    await t('tls: a completed handshake is summarised from the clear records, with no findings', () => {
+      ok(!tlsLib.err, tlsLib.err);
+      const r = run(NOW, 'sbc.example.com', [serverFlight(), ccs()], [ccs()]);
+      eq(r.aux.length, 1, 'one tls aux row');
+      const d = r.aux[0].detail;
+      eq(d.complete, true, 'handshake should be complete');
+      eq(d.sni, 'sbc.example.com', 'sni');
+      eq(d.version, 'TLS 1.2', 'version');
+      eq(d.serverCert.subject, 'CN=sbc.example.com, O=Example Ltd', 'certificate subject');
+      eq(r.findings.length, 1, 'only the self-signed notice expected, got: ' + titles(r));
+      ok(/self-signed/.test(r.findings[0].title), 'self-signed notice');
+    });
+
+    await t('tls: SNI the certificate does not cover is a critical finding; wildcards match one label', () => {
+      const bad = run(NOW, 'sip.pstnhub.microsoft.com', [serverFlight(), ccs()], [ccs()]);
+      ok(/does not cover/.test(titles(bad)), 'name mismatch expected, got: ' + titles(bad));
+      const wild = run(NOW, 'edge.sbc.example.net', [serverFlight(), ccs()], [ccs()]);
+      ok(!/does not cover/.test(titles(wild)), 'wildcard SAN should cover edge.sbc.example.net');
+      const deep = run(NOW, 'a.b.sbc.example.net', [serverFlight(), ccs()], [ccs()]);
+      ok(/does not cover/.test(titles(deep)), 'a wildcard must not cover two labels');
+    });
+
+    await t('tls: expired and not-yet-valid certificates are judged against the CAPTURE time, not now', () => {
+      ok(/expired/.test(titles(run(5000000000, 'sbc.example.com', [serverFlight(), ccs()], [ccs()]))), 'capture in 2128 -> expired');
+      ok(/not yet valid/.test(titles(run(1000000000, 'sbc.example.com', [serverFlight(), ccs()], [ccs()]))), 'capture in 2001 -> not yet valid');
+    });
+
+    await t('tls: a fatal alert and a ClientHello nobody answers are both reported', () => {
+      const al = run(NOW, 'sbc.example.com', [alert(48)], []);
+      ok(/failed: unknown_ca/.test(titles(al)), 'fatal alert expected, got: ' + titles(al));
+      eq(al.aux[0].detail.complete, false, 'alert -> not complete');
+      const none = run(NOW, 'sbc.example.com', [], []);
+      ok(/no ServerHello/.test(titles(none)), 'unanswered hello expected, got: ' + titles(none));
+    });
+
+    await t('tls: plain SIP over TCP is not mistaken for TLS', () => {
+      const p = [{ n: 1, ts: NOW, src: '10.0.0.1', dst: '10.0.0.2', sport: 40000, dport: 5060, transport: 'tcp', payload: Buffer.from('INVITE sip:a@b SIP/2.0\r\n\r\n'), tcp: { seq: 1, syn: false, fin: false } }];
+      eq(tlsLib.mod.extractTls(p).aux.length, 0, 'no tls rows for plain SIP');
+    });
+
+    // Whole pipeline: a pcap holding only a Direct Routing TLS handshake.
+    await t('tls: an encrypted Direct Routing capture is still recognised and its certificate problem explained', async () => {
+      ok(analyze, 'analyze unavailable');
+      const frames = mkPkts(NOW, [clientHello('sip.pstnhub.microsoft.com'), ccs()], [serverFlight(), ccs()]);
+      const recs = [];
+      for (const p of frames) {
+        const tcp = Buffer.alloc(20); tcp.writeUInt16BE(p.sport, 0); tcp.writeUInt16BE(p.dport, 2); tcp.writeUInt32BE(p.tcp.seq >>> 0, 4); tcp[12] = 0x50; tcp[13] = 0x18;
+        const ip = Buffer.alloc(20); ip[0] = 0x45; ip.writeUInt16BE(20 + 20 + p.payload.length, 2); ip[8] = 64; ip[9] = 6;
+        p.src.split('.').forEach((x, i) => { ip[12 + i] = +x; }); p.dst.split('.').forEach((x, i) => { ip[16 + i] = +x; });
+        const eth = Buffer.alloc(14); eth.writeUInt16BE(0x0800, 12);
+        const body = Buffer.concat([eth, ip, tcp, p.payload]);
+        const h = Buffer.alloc(16); h.writeUInt32LE(Math.floor(p.ts), 0); h.writeUInt32LE(Math.round((p.ts % 1) * 1e6), 4); h.writeUInt32LE(body.length, 8); h.writeUInt32LE(body.length, 12);
+        recs.push(h, body);
+      }
+      const gh = Buffer.alloc(24); gh.writeUInt32LE(0xa1b2c3d4, 0); gh.writeUInt16LE(2, 4); gh.writeUInt16LE(4, 6); gh.writeUInt32LE(65535, 16); gh.writeUInt32LE(1, 20);
+      const a = await analyze.analyzeCapture(Buffer.concat([gh].concat(recs)));
+      eq(a.scenario.primary, 'teams-direct-routing', 'scenario from SNI alone');
+      const ids = (a.advice || []).map((x) => x.ruleId);
+      ok(ids.indexOf('tls-handshake-problem') !== -1, 'tls-handshake-problem advice, got ' + ids.join(','));
+      ok(ids.indexOf('tls-only-capture') !== -1, 'tls-only-capture advice, got ' + ids.join(','));
+      ok(a.findings.some((f) => f.category === 'tls'), 'a tls finding in the findings list');
+    });
+  }
+
   // -------------------------------------------------------------------- auth
   let auth = null;
   let authUser = null;
