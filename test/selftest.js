@@ -363,6 +363,75 @@ async function main() {
     console.log('SKIP ' + entries.length + ' fixture assertion(s) — lib/analyze.js unavailable');
   }
 
+  // ------------------------------------------------ Teams Direct Routing
+  // Synthetic sngrep-style captures: decrypted SIP between a Microsoft proxy
+  // and an SBC. The "broken" one has every classic Direct Routing mistake.
+  if (analyze) {
+    const SBC = '203.0.113.10', MS = '52.114.1.1';
+    const drCapture = (o) => {
+      let n = 0;
+      const env = (src, dst, body) => {
+        n++;
+        const t = '2026/10/07 10:00:' + String(n % 60).padStart(2, '0') + '.000000';
+        return 'T ' + t + ' ' + src + ':5061 -> ' + dst + ':5061\n' + body.replace(/\n/g, '\r\n') + '\n\n';
+      };
+      const opt = (i, status) => {
+        const hd = 'Via: SIP/2.0/TLS ' + MS + ':5061;branch=z9hG4bKo' + i + '\nFrom: <sip:sip.pstnhub.microsoft.com>;tag=m' + i +
+          '\nTo: <sip:sbc.example.com>' + (status ? ';tag=s' + i : '') + '\nCall-ID: opt' + i + '@pstnhub\nCSeq: ' + i + ' OPTIONS\n';
+        let r = env(MS, SBC, 'OPTIONS sip:sbc.example.com:5061 SIP/2.0\n' + hd + 'Contact: <sip:sip.pstnhub.microsoft.com:5061;transport=tls>\nUser-Agent: Microsoft.PSTNHub.SIPProxy v.2022.1.1.1\nMax-Forwards: 70\nContent-Length: 0\n');
+        if (status) r += env(SBC, MS, 'SIP/2.0 ' + status + ' OK\n' + hd + 'Contact: <sip:sbc.example.com:5061;transport=tls>\nContent-Length: 0\n');
+        return r;
+      };
+      const crypto = o.good
+        ? 'm=audio 20000 RTP/SAVP 0 101\na=rtpmap:0 PCMU/8000\na=rtpmap:101 telephone-event/8000\na=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:WVNfX19zZW1jdGwgKCkgewkyMjA7fQp9CnVubGVz\n'
+        : 'm=audio 20000 RTP/AVP 0 101\na=rtpmap:0 PCMU/8000\na=rtpmap:101 telephone-event/8000\n';
+      const sdp = 'v=0\no=- 1 1 IN IP4 ' + SBC + '\ns=-\nc=IN IP4 ' + SBC + '\nt=0 0\n' + crypto;
+      const user = o.good ? '+33123456789' : '0033123456789';
+      const from = o.good ? '+33987654321' : '0123456789';
+      const contact = o.good ? 'sbc.example.com' : SBC;
+      const inv = 'INVITE sip:' + user + '@sip.pstnhub.microsoft.com:5061 SIP/2.0\nVia: SIP/2.0/TLS ' + SBC + ':5061;branch=z9hG4bKinv\nFrom: <sip:' + from + '@sbc.example.com>;tag=a1\nTo: <sip:' + user + '@sip.pstnhub.microsoft.com>\nCall-ID: inv1@sbc\nCSeq: 1 INVITE\nContact: <sip:' + from + '@' + contact + ':5061;transport=tls>\nContent-Type: application/sdp\nMax-Forwards: 70\nContent-Length: ' + sdp.length + '\n\n' + sdp;
+      const resp = (code, reason, tag) => 'SIP/2.0 ' + code + ' ' + reason + '\nVia: SIP/2.0/TLS ' + SBC + ':5061;branch=z9hG4bKinv\nFrom: <sip:' + from + '@sbc.example.com>;tag=a1\nTo: <sip:' + user + '@sip.pstnhub.microsoft.com>' + tag + '\nCall-ID: inv1@sbc\nCSeq: 1 INVITE\nServer: Microsoft.PSTNHub.SIPProxy v.2022.1.1.1\nContent-Length: 0\n';
+      let out = opt(1, 200) + (o.good ? opt(2, 200) : opt(2, 0) + opt(3, 0));
+      out += env(SBC, MS, inv);
+      out += o.good ? env(MS, SBC, resp(100, 'Trying', '')) : env(MS, SBC, resp(488, 'Not Acceptable Here', ';tag=b1'));
+      return Buffer.from(out);
+    };
+    const ruleIds = (a) => (a.advice || []).map((x) => x.ruleId);
+
+    await t('teams: a Direct Routing capture is recognised and explained as such', async () => {
+      const a = await analyze.analyzeCapture(drCapture({ good: false }));
+      eq(a.scenario.primary, 'teams-direct-routing', 'scenario');
+      ok(/Direct Routing/.test(a.scenario.detail), 'the scenario text should say what the user is trying to do');
+    });
+
+    await t('teams: every classic Direct Routing mistake gets its own finding with SBC and Teams-side fixes', async () => {
+      const a = await analyze.analyzeCapture(drCapture({ good: false }));
+      const ids = ruleIds(a);
+      for (const id of ['teams-options-health', 'teams-srtp-mismatch', 'teams-contact-ip', 'teams-e164', 'teams-rejected-call']) {
+        ok(ids.indexOf(id) !== -1, 'missing advice ' + id + ' (got ' + ids.join(',') + ')');
+      }
+      const targets = new Set();
+      for (const adv of a.advice.filter((x) => /^teams-/.test(x.ruleId))) for (const f of adv.fixes) targets.add(f.target);
+      ok(targets.has('teams') && targets.has('audiocodes') && targets.has('oracle-acme'), 'fixes should cover Teams, AudioCodes and Oracle/Acme, got ' + Array.from(targets).join(','));
+      const srtp = a.advice.find((x) => x.ruleId === 'teams-srtp-mismatch');
+      ok(srtp.fixes.every((f) => !f.config || /DRAFT/.test(f.config)), 'every config block must be marked as a draft');
+    });
+
+    await t('teams: a correct Direct Routing call raises no Teams findings', async () => {
+      const a = await analyze.analyzeCapture(drCapture({ good: true }));
+      eq(a.scenario.primary, 'teams-direct-routing', 'scenario');
+      const bad = ruleIds(a).filter((id) => /^teams-/.test(id));
+      eq(bad.length, 0, 'unexpected Teams findings: ' + bad.join(','));
+    });
+
+    await t('teams: an ordinary trunk is not mistaken for Direct Routing', async () => {
+      const buf = fs.readFileSync(path.join(FIXTURES_DIR, 'raw-messages.txt'));
+      const a = await analyze.analyzeCapture(buf);
+      ok(a.scenario.primary !== 'teams-direct-routing', 'a non-Teams capture was labelled Teams');
+      eq(ruleIds(a).filter((id) => /^teams-/.test(id)).length, 0, 'Teams findings on a non-Teams capture');
+    });
+  }
+
   // -------------------------------------------------------------------- auth
   let auth = null;
   let authUser = null;
