@@ -354,7 +354,7 @@
       "public/hmr.html:188",
       "public/kb.html:166",
       "public/team.html:138",
-      "public/app.js:4762"
+      "public/app.js:4803"
     ]
   },
   "9d0140cfd4a70596": {
@@ -441,7 +441,7 @@
     "cat": "html",
     "where": [
       "public/app.html:153",
-      "public/app.js:4734"
+      "public/app.js:4775"
     ]
   },
   "9ec2699513c0f9c3": {
@@ -449,7 +449,7 @@
     "cat": "html",
     "where": [
       "public/app.html:154",
-      "public/app.html:424"
+      "public/app.html:423"
     ]
   },
   "42d935fb49da5d2d": {
@@ -554,7 +554,7 @@
     "cat": "html",
     "where": [
       "public/app.html:190",
-      "public/app.js:3654"
+      "public/app.js:3695"
     ]
   },
   "976feaa151428f7e": {
@@ -562,7 +562,7 @@
     "cat": "html",
     "where": [
       "public/app.html:191",
-      "public/app.js:4067"
+      "public/app.js:4108"
     ]
   },
   "00b600cb5a113d36": {
@@ -577,7 +577,7 @@
     "cat": "html",
     "where": [
       "public/app.html:199",
-      "public/app.js:2566"
+      "public/app.js:2607"
     ]
   },
   "75ae0bf9ba61af1d": {
@@ -592,7 +592,7 @@
     "cat": "html",
     "where": [
       "public/app.html:203",
-      "public/app.js:2516"
+      "public/app.js:2557"
     ]
   },
   "3328f554188b0d90": {
@@ -748,102 +748,95 @@
       "public/app.html:250"
     ]
   },
-  "6e5e49606812cf5f": {
-    "text": "time · Δ",
-    "cat": "html",
-    "where": [
-      "public/app.html:251"
-    ]
-  },
   "7c1ea9c38b4a0a54": {
     "text": "the ladder for the selected session is drawn here — one column per host:port, arrows coloured by class, retransmissions collapsed to a single ×N row.",
     "cat": "html",
     "where": [
-      "public/app.html:255"
+      "public/app.html:254"
     ]
   },
   "0d40d80466f736bd": {
     "text": "messages in the selection",
     "cat": "html",
     "where": [
-      "public/app.html:264"
+      "public/app.html:263"
     ]
   },
   "478fee1bd52522b5": {
     "text": "selection",
     "cat": "html",
     "where": [
-      "public/app.html:266"
+      "public/app.html:265"
     ]
   },
   "f06954424e5bdc20": {
     "text": "sort by capture order",
     "cat": "html",
     "where": [
-      "public/app.html:268"
+      "public/app.html:267"
     ]
   },
   "314fcaa85e159b47": {
     "text": "sort by number",
     "cat": "html",
     "where": [
-      "public/app.html:268"
+      "public/app.html:267"
     ]
   },
   "3ca622239962ebac": {
     "text": "sort by delta",
     "cat": "html",
     "where": [
-      "public/app.html:270"
+      "public/app.html:269"
     ]
   },
   "0cc44970c8397929": {
     "text": "description",
     "cat": "html",
     "where": [
-      "public/app.html:276"
+      "public/app.html:275"
     ]
   },
   "1ca71b7c84289429": {
     "text": "Δ ms",
     "cat": "html",
     "where": [
-      "public/app.html:277"
+      "public/app.html:276"
     ]
   },
   "50b183f1066a07fa": {
     "text": "numbered message list",
     "cat": "html",
     "where": [
-      "public/app.html:280"
+      "public/app.html:279"
     ]
   },
   "25beae50c0d77f6f": {
     "text": "every message of the selected session lands here, numbered, with the delta from the previous row — the column engineers actually read.",
     "cat": "html",
     "where": [
-      "public/app.html:281"
+      "public/app.html:280"
     ]
   },
   "ab516cd8e24a3f6b": {
     "text": "details for the selection",
     "cat": "html",
     "where": [
-      "public/app.html:290"
+      "public/app.html:289"
     ]
   },
   "0aa6088403916c02": {
     "text": "detail views",
     "cat": "html",
     "where": [
-      "public/app.html:291"
+      "public/app.html:290"
     ]
   },
   "f0ca10f343249063": {
     "text": "Contents",
     "cat": "html",
     "where": [
-      "public/app.html:293",
+      "public/app.html:292",
       "public/app.js:40"
     ]
   },
@@ -851,7 +844,7 @@
     "text": "Packet Info",
     "cat": "html",
     "where": [
-      "public/app.html:295",
+      "public/app.html:294",
       "public/app.js:41"
     ]
   },
@@ -859,7 +852,7 @@
     "text": "Media",
     "cat": "html",
     "where": [
-      "public/app.html:297",
+      "public/app.html:296",
       "public/app.js:42"
     ]
   },
@@ -867,220 +860,220 @@
     "text": "open the chat scoped to the current selection",
     "cat": "html",
     "where": [
-      "public/app.html:299"
+      "public/app.html:298"
     ]
   },
   "b0b4eedf6b94e20f": {
     "text": "explain in chat",
     "cat": "html",
     "where": [
-      "public/app.html:300",
-      "public/app.js:2670",
-      "public/app.js:3393"
+      "public/app.html:299",
+      "public/app.js:2711",
+      "public/app.js:3434"
     ]
   },
   "a2fa4b9ef7b73e88": {
     "text": "pick a message in the ladder or the selection list to read its full text here — redacted, monospaced, with search terms highlighted.",
     "cat": "html",
     "where": [
-      "public/app.html:306"
+      "public/app.html:305"
     ]
   },
   "10c71a3914dc6fb5": {
     "text": "the parsed view: SIP headers and SDP, ISUP parameters for SIP-I bodies, Q.931 information elements for H.323 — field by field.",
     "cat": "html",
     "where": [
-      "public/app.html:312"
+      "public/app.html:311"
     ]
   },
   "b5d241607288a671": {
     "text": "RTP / RTCP streams for the selected session: packets, loss, jitter, gaps and an estimated MOS, with a loss-over-time sparkline.",
     "cat": "html",
     "where": [
-      "public/app.html:318"
+      "public/app.html:317"
     ]
   },
   "d88b333cf6eb6d33": {
     "text": "resize the sessions pane",
     "cat": "html",
     "where": [
-      "public/app.html:326"
+      "public/app.html:325"
     ]
   },
   "86e347aa8da4cc38": {
     "text": "resize the ladder pane",
     "cat": "html",
     "where": [
-      "public/app.html:328"
+      "public/app.html:327"
     ]
   },
   "53a796f7a7f02712": {
     "text": "resize the selection pane",
     "cat": "html",
     "where": [
-      "public/app.html:330"
+      "public/app.html:329"
     ]
   },
   "36faf8b49e338767": {
     "text": "close chat",
     "cat": "html",
     "where": [
-      "public/app.html:357"
+      "public/app.html:356"
     ]
   },
   "765b4e47fe68816a": {
     "text": "advice for the current selection",
     "cat": "html",
     "where": [
-      "public/app.html:360"
+      "public/app.html:359"
     ]
   },
   "dfdb112320130bb1": {
     "text": "advice",
     "cat": "html",
     "where": [
-      "public/app.html:363"
+      "public/app.html:362"
     ]
   },
   "626432e10c59ddc6": {
     "text": "what is wrong, why it matters, the mechanism, then fix cards per vendor with copyable draft config and RFC citations. deterministic — no invented section numbers.",
     "cat": "html",
     "where": [
-      "public/app.html:367"
+      "public/app.html:366"
     ]
   },
   "e2947be2b8e39914": {
     "text": "hiccup and RFPlex.ai share the same local-LLM stack.",
     "cat": "html",
     "where": [
-      "public/app.html:373"
+      "public/app.html:372"
     ]
   },
   "f669755c06354255": {
     "text": "local model offline — chat is unavailable. Every other feature still works.",
     "cat": "html",
     "where": [
-      "public/app.html:378"
+      "public/app.html:377"
     ]
   },
   "f82bbec0014387a5": {
     "text": "Ask about this capture, SIP, H.323…",
     "cat": "html",
     "where": [
-      "public/app.html:382"
+      "public/app.html:381"
     ]
   },
   "57adf424d57c8a0f": {
     "text": "Send",
     "cat": "html",
     "where": [
-      "public/app.html:384"
+      "public/app.html:383"
     ]
   },
   "4b305030ec421c71": {
     "text": "Command palette",
     "cat": "html",
     "where": [
-      "public/app.html:400"
+      "public/app.html:399"
     ]
   },
   "fef0b5b4a31c4250": {
     "text": "Type a command — theme, HMR, media, sign out…",
     "cat": "html",
     "where": [
-      "public/app.html:401"
+      "public/app.html:400"
     ]
   },
   "3cc8bf892e4522d3": {
     "text": "commands",
     "cat": "html",
     "where": [
-      "public/app.html:405"
+      "public/app.html:404"
     ]
   },
   "0085f9deba09815f": {
     "text": "No command matches that.",
     "cat": "html",
     "where": [
-      "public/app.html:407"
+      "public/app.html:406"
     ]
   },
   "0d3b2977440bb113": {
     "text": "↑ ↓ move · ⏎ run · esc close",
     "cat": "html",
     "where": [
-      "public/app.html:408"
+      "public/app.html:407"
     ]
   },
   "e3b4c857f91f80d7": {
     "text": "Keyboard shortcuts",
     "cat": "html",
     "where": [
-      "public/app.html:423",
-      "public/app.js:4761"
+      "public/app.html:422",
+      "public/app.js:4802"
     ]
   },
   "b1eab5944f1d5be4": {
     "text": "Open the command palette (",
     "cat": "html",
     "where": [
-      "public/app.html:429"
+      "public/app.html:428"
     ]
   },
   "f7251d0cec55980c": {
     "text": "on a Mac). The one shortcut that still works while you are typing — except in the chat box, where it would interrupt a half-written question.",
     "cat": "html",
     "where": [
-      "public/app.html:429"
+      "public/app.html:428"
     ]
   },
   "5cb9d10965a46e0f": {
     "text": "Focus the trace search.",
     "cat": "html",
     "where": [
-      "public/app.html:434"
+      "public/app.html:433"
     ]
   },
   "2435fee70616b7b7": {
     "text": "Move down / up one row in whichever list you last selected in — the sessions tree or the selection list.",
     "cat": "html",
     "where": [
-      "public/app.html:437"
+      "public/app.html:436"
     ]
   },
   "7542880be85d168f": {
     "text": "This list.",
     "cat": "html",
     "where": [
-      "public/app.html:441"
+      "public/app.html:440"
     ]
   },
   "fab8e68a14401c3b": {
     "text": "Close the palette or this dialog · else clear and leave the search · else close the chat drawer when it is covering the panes on a narrow screen.",
     "cat": "html",
     "where": [
-      "public/app.html:444"
+      "public/app.html:443"
     ]
   },
   "81b0e97fa0c7633f": {
     "text": "Inside a dialog, cycles within it. Closing returns you to wherever you were.",
     "cat": "html",
     "where": [
-      "public/app.html:449"
+      "public/app.html:448"
     ]
   },
   "cb5963d72b509559": {
     "text": "Single-key shortcuts never fire while you are typing in a field —",
     "cat": "html",
     "where": [
-      "public/app.html:452"
+      "public/app.html:451"
     ]
   },
   "82b2c69ee50d9598": {
     "text": "in the search box types a j.",
     "cat": "html",
     "where": [
-      "public/app.html:453"
+      "public/app.html:452"
     ]
   },
   "2998d26faa5a5ffd": {
@@ -3293,7 +3286,7 @@
     "cat": "js",
     "where": [
       "public/app.js:603",
-      "public/app.js:4457",
+      "public/app.js:4498",
       "public/kb.js:215"
     ]
   },
@@ -3635,7 +3628,7 @@
     "cat": "js",
     "where": [
       "public/app.js:1671",
-      "public/app.js:4284"
+      "public/app.js:4325"
     ]
   },
   "189aa68745ab9607": {
@@ -3763,10 +3756,10 @@
     "cat": "js",
     "where": [
       "public/app.js:1968",
-      "public/app.js:2699",
-      "public/app.js:2836",
-      "public/app.js:3087",
-      "public/app.js:3265"
+      "public/app.js:2740",
+      "public/app.js:2877",
+      "public/app.js:3128",
+      "public/app.js:3306"
     ]
   },
   "e95d7a856bbf60e9": {
@@ -3810,7 +3803,7 @@
     "cat": "js",
     "where": [
       "public/app.js:2083",
-      "public/ladder.js:731"
+      "public/ladder.js:763"
     ]
   },
   "019236cadd085a11": {
@@ -3854,8 +3847,8 @@
     "where": [
       "public/app.js:2339",
       "public/app.js:2345",
-      "public/app.js:2676",
-      "public/app.js:2683"
+      "public/app.js:2717",
+      "public/app.js:2724"
     ]
   },
   "8354ed8d157e3591": {
@@ -3863,7 +3856,7 @@
     "cat": "js",
     "where": [
       "public/app.js:2340",
-      "public/app.js:2677"
+      "public/app.js:2718"
     ]
   },
   "3bbfccf71c82b137": {
@@ -3871,7 +3864,7 @@
     "cat": "js",
     "where": [
       "public/app.js:2345",
-      "public/app.js:2684"
+      "public/app.js:2725"
     ]
   },
   "85fa00a8ddbdcb55": {
@@ -3942,768 +3935,768 @@
     "text": "no protocol features detected in this capture",
     "cat": "js",
     "where": [
-      "public/app.js:2515"
+      "public/app.js:2556"
     ]
   },
   "2b31ee7710ca1985": {
     "text": "hiccup could not classify this capture",
     "cat": "js",
     "where": [
-      "public/app.js:2568"
+      "public/app.js:2609"
     ]
   },
   "36cdf600107afa24": {
     "text": "no capture open",
     "cat": "js",
     "where": [
-      "public/app.js:2569"
+      "public/app.js:2610"
     ]
   },
   "9f1f656755ff104f": {
     "text": "scenario:",
     "cat": "js",
     "where": [
-      "public/app.js:2575",
-      "public/app.js:2576"
+      "public/app.js:2616",
+      "public/app.js:2617"
     ]
   },
   "02069bd746dc6b0e": {
     "text": "— click for the full capture-wide read-out in the advice drawer",
     "cat": "js",
     "where": [
-      "public/app.js:2577"
+      "public/app.js:2618"
     ]
   },
   "546401b5d2a8d2a4": {
     "text": "message",
     "cat": "js",
     "where": [
-      "public/app.js:2668"
+      "public/app.js:2709"
     ]
   },
   "4f6a36d8e8907985": {
     "text": "stream",
     "cat": "js",
     "where": [
-      "public/app.js:2668"
+      "public/app.js:2709"
     ]
   },
   "e745ad1905623939": {
     "text": "aux",
     "cat": "js",
     "where": [
-      "public/app.js:2668"
+      "public/app.js:2709"
     ]
   },
   "0ddb70d1ae7488ac": {
     "text": "Explain this media stream (",
     "cat": "js",
     "where": [
-      "public/app.js:2680"
+      "public/app.js:2721"
     ]
   },
   "dbdc424b32ab4282": {
     "text": "). Is the loss/jitter a problem, and what would cause it?",
     "cat": "js",
     "where": [
-      "public/app.js:2680"
+      "public/app.js:2721"
     ]
   },
   "7065b78a129160f5": {
     "text": "\". What does it mean for the call?",
     "cat": "js",
     "where": [
-      "public/app.js:2684"
+      "public/app.js:2725"
     ]
   },
   "c11fcb928acece2b": {
     "text": "Nothing selected.",
     "cat": "js",
     "where": [
-      "public/app.js:2701",
-      "public/app.js:2838"
+      "public/app.js:2742",
+      "public/app.js:2879"
     ]
   },
   "d22c94a10d6dd5e8": {
     "text": "Pick a message in the ladder or the selection list to read its full text here — redacted, monospaced, with search terms highlighted.",
     "cat": "js",
     "where": [
-      "public/app.js:2702"
+      "public/app.js:2743"
     ]
   },
   "a9ff6fab66159015": {
     "text": "raw (hex — Q.931 / H.225)",
     "cat": "js",
     "where": [
-      "public/app.js:2710"
+      "public/app.js:2751"
     ]
   },
   "273022af0519354c": {
     "text": "raw (redacted)",
     "cat": "js",
     "where": [
-      "public/app.js:2710"
+      "public/app.js:2751"
     ]
   },
   "af2a36c4602f9123": {
     "text": "Digest credentials are redacted server-side before the analysis is stored.",
     "cat": "js",
     "where": [
-      "public/app.js:2715"
+      "public/app.js:2756"
     ]
   },
   "3b3bd7a9b9c7ae41": {
     "text": "media stream",
     "cat": "js",
     "where": [
-      "public/app.js:2721"
+      "public/app.js:2762"
     ]
   },
   "059a078d25abad68": {
     "text": "SRTP: the payload is encrypted. hiccup reports header-derived statistics only and never attempts decryption.",
     "cat": "js",
     "where": [
-      "public/app.js:2731"
+      "public/app.js:2772"
     ]
   },
   "17c30ae86a87a76d": {
     "text": "observation",
     "cat": "js",
     "where": [
-      "public/app.js:2737"
+      "public/app.js:2778"
     ]
   },
   "33e6f2b44e1ba302": {
     "text": "No raw bytes retained for this observation.",
     "cat": "js",
     "where": [
-      "public/app.js:2746"
+      "public/app.js:2787"
     ]
   },
   "1ea7cd8ab3decd86": {
     "text": "(unserializable)",
     "cat": "js",
     "where": [
-      "public/app.js:2795"
+      "public/app.js:2836"
     ]
   },
   "f76e08ece4d476b7": {
     "text": "(empty)",
     "cat": "js",
     "where": [
-      "public/app.js:2800",
-      "public/app.js:2813"
+      "public/app.js:2841",
+      "public/app.js:2854"
     ]
   },
   "7afbded886181495": {
     "text": "The parsed view: SIP headers and SDP, ISUP parameters for SIP-I bodies, Q.931 information elements for H.323 — field by field.",
     "cat": "js",
     "where": [
-      "public/app.js:2839"
+      "public/app.js:2880"
     ]
   },
   "a8a74aa141250df4": {
     "text": "detail",
     "cat": "js",
     "where": [
-      "public/app.js:2846"
+      "public/app.js:2887"
     ]
   },
   "c6a2be6fd6b05f04": {
     "text": "message type",
     "cat": "js",
     "where": [
-      "public/app.js:2855",
-      "public/app.js:2945"
+      "public/app.js:2896",
+      "public/app.js:2986"
     ]
   },
   "3987d636efc548c6": {
     "text": "information elements",
     "cat": "js",
     "where": [
-      "public/app.js:2861"
+      "public/app.js:2902"
     ]
   },
   "50a51275b81ed8b0": {
     "text": "call reference",
     "cat": "js",
     "where": [
-      "public/app.js:2862"
+      "public/app.js:2903"
     ]
   },
   "9b3a5bcdc7902c09": {
     "text": "(flag",
     "cat": "js",
     "where": [
-      "public/app.js:2862"
+      "public/app.js:2903"
     ]
   },
   "b355b8bc8e68943f": {
     "text": "present (heuristic)",
     "cat": "js",
     "where": [
-      "public/app.js:2869"
+      "public/app.js:2910"
     ]
   },
   "1671d117a687bb25": {
     "text": "not seen",
     "cat": "js",
     "where": [
-      "public/app.js:2869"
+      "public/app.js:2910"
     ]
   },
   "c0bbaeade40391f2": {
     "text": "No decodable IEs in this message.",
     "cat": "js",
     "where": [
-      "public/app.js:2871"
+      "public/app.js:2912"
     ]
   },
   "45a247ac358cc76f": {
     "text": "additional IEs",
     "cat": "js",
     "where": [
-      "public/app.js:2874"
+      "public/app.js:2915"
     ]
   },
   "aba13d9edb4451f7": {
     "text": "body type",
     "cat": "js",
     "where": [
-      "public/app.js:2892"
+      "public/app.js:2933"
     ]
   },
   "b02fcd4477170115": {
     "text": "retransmission of",
     "cat": "js",
     "where": [
-      "public/app.js:2894"
+      "public/app.js:2935"
     ]
   },
   "1966a1e6921d9787": {
     "text": "(call",
     "cat": "js",
     "where": [
-      "public/app.js:2897"
+      "public/app.js:2938"
     ]
   },
   "6f4a1debe5fa48b9": {
     "text": "No headers parsed.",
     "cat": "js",
     "where": [
-      "public/app.js:2903"
+      "public/app.js:2944"
     ]
   },
   "8da6bd607686d5a5": {
     "text": "o= origin",
     "cat": "js",
     "where": [
-      "public/app.js:2914"
+      "public/app.js:2955"
     ]
   },
   "854c128a264c729f": {
     "text": "c= connection",
     "cat": "js",
     "where": [
-      "public/app.js:2917"
+      "public/app.js:2958"
     ]
   },
   "788e4f672a47f1b3": {
     "text": "session a=",
     "cat": "js",
     "where": [
-      "public/app.js:2919"
+      "public/app.js:2960"
     ]
   },
   "ce7d079560c5cd4c": {
     "text": "No m= blocks.",
     "cat": "js",
     "where": [
-      "public/app.js:2923"
+      "public/app.js:2964"
     ]
   },
   "14e5faab9ce0e362": {
     "text": "block",
     "cat": "js",
     "where": [
-      "public/app.js:2927"
+      "public/app.js:2968"
     ]
   },
   "af65a6769ef39704": {
     "text": "called party",
     "cat": "js",
     "where": [
-      "public/app.js:2946"
+      "public/app.js:2987"
     ]
   },
   "3128bf195b427127": {
     "text": "calling party",
     "cat": "js",
     "where": [
-      "public/app.js:2947"
+      "public/app.js:2988"
     ]
   },
   "166b8ef87c4dac21": {
     "text": "nature of connection",
     "cat": "js",
     "where": [
-      "public/app.js:2951"
+      "public/app.js:2992"
     ]
   },
   "17b8007759802084": {
     "text": "ISUP parameters",
     "cat": "js",
     "where": [
-      "public/app.js:2954"
+      "public/app.js:2995"
     ]
   },
   "028ab3b84c4e3197": {
     "text": "No ISUP parameters decoded.",
     "cat": "js",
     "where": [
-      "public/app.js:2959"
+      "public/app.js:3000"
     ]
   },
   "68840a179f540ab0": {
     "text": "body part —",
     "cat": "js",
     "where": [
-      "public/app.js:2966"
+      "public/app.js:3007"
     ]
   },
   "5411ce164648f6eb": {
     "text": "retransmission collapse",
     "cat": "js",
     "where": [
-      "public/app.js:2976"
+      "public/app.js:3017"
     ]
   },
   "3ec32f46cd8e8576": {
     "text": "likely cause",
     "cat": "js",
     "where": [
-      "public/app.js:2983",
-      "public/app.js:3582"
+      "public/app.js:3024",
+      "public/app.js:3623"
     ]
   },
   "f2cb6775da35c5ca": {
     "text": "RTCP fraction-lost over time (%)",
     "cat": "js",
     "where": [
-      "public/app.js:3024"
+      "public/app.js:3065"
     ]
   },
   "917459c21a652cac": {
     "text": "silence / black-hole gap milliseconds over the stream",
     "cat": "js",
     "where": [
-      "public/app.js:3042"
+      "public/app.js:3083"
     ]
   },
   "f320d769df4a17c5": {
     "text": "no loss series available",
     "cat": "js",
     "where": [
-      "public/app.js:3049"
+      "public/app.js:3090"
     ]
   },
   "35681a8dc95e5d1c": {
     "text": "(overall",
     "cat": "js",
     "where": [
-      "public/app.js:3050"
+      "public/app.js:3091"
     ]
   },
   "51ba489dde4c7b4d": {
     "text": "% lost)",
     "cat": "js",
     "where": [
-      "public/app.js:3050"
+      "public/app.js:3091"
     ]
   },
   "c2e98828bf4023c9": {
     "text": "No media in this selection.",
     "cat": "js",
     "where": [
-      "public/app.js:3093"
+      "public/app.js:3134"
     ]
   },
   "00e54a3ca610663c": {
     "text": "This selection has no RTP/RTCP associated with it — widen it to the whole capture in the tree.",
     "cat": "js",
     "where": [
-      "public/app.js:3095"
+      "public/app.js:3136"
     ]
   },
   "2b499091ae0418ee": {
     "text": "This capture has no RTP/RTCP: signalling only, or an analysis produced before the media module existed.",
     "cat": "js",
     "where": [
-      "public/app.js:3096"
+      "public/app.js:3137"
     ]
   },
   "cf75f768321ab431": {
     "text": "loss %",
     "cat": "js",
     "where": [
-      "public/app.js:3106"
+      "public/app.js:3147"
     ]
   },
   "24483d1093d15687": {
     "text": "jitter ms mean/max",
     "cat": "js",
     "where": [
-      "public/app.js:3106"
+      "public/app.js:3147"
     ]
   },
   "9e6002d42d09d99d": {
     "text": "loss over time",
     "cat": "js",
     "where": [
-      "public/app.js:3106"
+      "public/app.js:3147"
     ]
   },
   "d87a0972aa18c2f3": {
     "text": "ESTIMATE only — ITU-T G.107 simplified E-model from packet loss and jitter, not a listening test",
     "cat": "js",
     "where": [
-      "public/app.js:3110"
+      "public/app.js:3151"
     ]
   },
   "642b70b5196d2acc": {
     "text": "encrypted — statistics from headers only, no decryption attempted",
     "cat": "js",
     "where": [
-      "public/app.js:3125"
+      "public/app.js:3166"
     ]
   },
   "bcab3660764766ab": {
     "text": "est.",
     "cat": "js",
     "where": [
-      "public/app.js:3142"
+      "public/app.js:3183"
     ]
   },
   "5b14e28b91fd8738": {
     "text": "— method:",
     "cat": "js",
     "where": [
-      "public/app.js:3143"
+      "public/app.js:3184"
     ]
   },
   "be9fa295f13f98ec": {
     "text": "one-way — no reverse stream seen for a paired leg",
     "cat": "js",
     "where": [
-      "public/app.js:3152"
+      "public/app.js:3193"
     ]
   },
   "13749a7d87ae764d": {
     "text": "max gap",
     "cat": "js",
     "where": [
-      "public/app.js:3153"
+      "public/app.js:3194"
     ]
   },
   "4a40dbe3e7c10d98": {
     "text": "out of order",
     "cat": "js",
     "where": [
-      "public/app.js:3154"
+      "public/app.js:3195"
     ]
   },
   "26c11773433b3b70": {
     "text": "SSRC change(s)",
     "cat": "js",
     "where": [
-      "public/app.js:3155"
+      "public/app.js:3196"
     ]
   },
   "4122273855097898": {
     "text": "marker reset(s)",
     "cat": "js",
     "where": [
-      "public/app.js:3156"
+      "public/app.js:3197"
     ]
   },
   "b8ca89b04c5b0398": {
     "text": "RFC 4733 DTMF event(s)",
     "cat": "js",
     "where": [
-      "public/app.js:3157"
+      "public/app.js:3198"
     ]
   },
   "4f32f1f9a6475d16": {
     "text": "MOS is an ESTIMATE derived from loss and jitter (ITU-T G.107 simplified) — not a listening test.",
     "cat": "js",
     "where": [
-      "public/app.js:3166"
+      "public/app.js:3207"
     ]
   },
   "f0a2bd6ff6264c43": {
     "text": "The sparkline is RTCP fraction-lost where available, otherwise silence gaps.",
     "cat": "js",
     "where": [
-      "public/app.js:3167"
+      "public/app.js:3208"
     ]
   },
   "fda562bb17645100": {
     "text": "fraction lost %",
     "cat": "js",
     "where": [
-      "public/app.js:3176"
+      "public/app.js:3217"
     ]
   },
   "bb46c13c6b4c7f74": {
     "text": "cumulative lost",
     "cat": "js",
     "where": [
-      "public/app.js:3176"
+      "public/app.js:3217"
     ]
   },
   "547d54feea4643b1": {
     "text": "confidence",
     "cat": "js",
     "where": [
-      "public/app.js:3274"
+      "public/app.js:3315"
     ]
   },
   "5b54a7e5be4b9621": {
     "text": "alternatives:",
     "cat": "js",
     "where": [
-      "public/app.js:3292"
+      "public/app.js:3333"
     ]
   },
   "f8ba4fb1cd6b2c35": {
     "text": "Other findings",
     "cat": "js",
     "where": [
-      "public/app.js:3316"
+      "public/app.js:3357"
     ]
   },
   "2812f9df9146890f": {
     "text": "Findings",
     "cat": "js",
     "where": [
-      "public/app.js:3316"
+      "public/app.js:3357"
     ]
   },
   "2dbf5a5023e76f0e": {
     "text": "This analysis has no advisory objects — findings are shown raw.",
     "cat": "js",
     "where": [
-      "public/app.js:3319"
+      "public/app.js:3360"
     ]
   },
   "de72c7317cf30d4c": {
     "text": "Re-upload the capture once the advisor module is live to get cited fixes.",
     "cat": "js",
     "where": [
-      "public/app.js:3320"
+      "public/app.js:3361"
     ]
   },
   "d7707851b64bcd0d": {
     "text": "Retransmissions",
     "cat": "js",
     "where": [
-      "public/app.js:3334"
+      "public/app.js:3375"
     ]
   },
   "83b62efa76379984": {
     "text": "Box-wide storms",
     "cat": "js",
     "where": [
-      "public/app.js:3341"
+      "public/app.js:3382"
     ]
   },
   "3f6b6c2b6b998721": {
     "text": "legs retransmitting together",
     "cat": "js",
     "where": [
-      "public/app.js:3349"
+      "public/app.js:3390"
     ]
   },
   "aeba38db6907eee9": {
     "text": "retransmissions between",
     "cat": "js",
     "where": [
-      "public/app.js:3352"
+      "public/app.js:3393"
     ]
   },
   "e6f79719051ff286": {
     "text": "and",
     "cat": "js",
     "where": [
-      "public/app.js:3352"
+      "public/app.js:3393"
     ]
   },
   "1898d566cacdd7b8": {
     "text": ". This is the box melting, not one broken call — look at licence",
     "cat": "js",
     "where": [
-      "public/app.js:3353"
+      "public/app.js:3394"
     ]
   },
   "83ee3b0a22d158d9": {
     "text": "exhaustion, CPU, or an unreachable session agent before you look at the call.",
     "cat": "js",
     "where": [
-      "public/app.js:3354"
+      "public/app.js:3395"
     ]
   },
   "597192d9e2337371": {
     "text": "Nothing to advise on for this selection.",
     "cat": "js",
     "where": [
-      "public/app.js:3360"
+      "public/app.js:3401"
     ]
   },
   "ba76acea80c2e750": {
     "text": "hiccup found no warn/crit conditions here. Widen the selection to the whole capture in the tree.",
     "cat": "js",
     "where": [
-      "public/app.js:3361"
+      "public/app.js:3402"
     ]
   },
   "839b8d908ebd2204": {
     "text": "1 advisory card for the current selection",
     "cat": "js",
     "where": [
-      "public/app.js:3377"
+      "public/app.js:3418"
     ]
   },
   "8432bd81562f2352": {
     "text": "advisory cards for the current selection",
     "cat": "js",
     "where": [
-      "public/app.js:3378"
+      "public/app.js:3419"
     ]
   },
   "8ca257d2fa743873": {
     "text": "(empty advice)",
     "cat": "js",
     "where": [
-      "public/app.js:3405"
+      "public/app.js:3446"
     ]
   },
   "7faaf1b1ba5e8e55": {
     "text": "(untitled advice)",
     "cat": "js",
     "where": [
-      "public/app.js:3411"
+      "public/app.js:3452"
     ]
   },
   "a83b53155d7f0c49": {
     "text": "Explain this advice in your own words: \"",
     "cat": "js",
     "where": [
-      "public/app.js:3413"
+      "public/app.js:3454"
     ]
   },
   "c13627107b3b04a5": {
     "text": "Use only the supplied Advice object and its citations — do not invent RFC section numbers.",
     "cat": "js",
     "where": [
-      "public/app.js:3414"
+      "public/app.js:3455"
     ]
   },
   "387ac45377e5dd68": {
     "text": "what is wrong",
     "cat": "js",
     "where": [
-      "public/app.js:3427"
+      "public/app.js:3468"
     ]
   },
   "ba39cf000f6fda38": {
     "text": "why it matters",
     "cat": "js",
     "where": [
-      "public/app.js:3428"
+      "public/app.js:3469"
     ]
   },
   "720108ac89bab3d6": {
     "text": "mechanism",
     "cat": "js",
     "where": [
-      "public/app.js:3429"
+      "public/app.js:3470"
     ]
   },
   "4caffac081d7c447": {
     "text": "opens in a new tab",
     "cat": "js",
     "where": [
-      "public/app.js:3447"
+      "public/app.js:3488"
     ]
   },
   "05e2d4c56491949a": {
     "text": "Guide excerpts ground a reviewable draft — they are not a verified change.",
     "cat": "js",
     "where": [
-      "public/app.js:3477"
+      "public/app.js:3518"
     ]
   },
   "b4c7121e50b2297a": {
     "text": "(empty fix)",
     "cat": "js",
     "where": [
-      "public/app.js:3484"
+      "public/app.js:3525"
     ]
   },
   "8558f2a1a6ccb891": {
     "text": "how likely this fix is to be the right one here",
     "cat": "js",
     "where": [
-      "public/app.js:3489"
+      "public/app.js:3530"
     ]
   },
   "8e2f2acfb3a20874": {
     "text": "copy this draft to the clipboard — review before applying",
     "cat": "js",
     "where": [
-      "public/app.js:3508"
+      "public/app.js:3549"
     ]
   },
   "cd911691efab87fe": {
     "text": "Draft only — review before applying to a live box.",
     "cat": "js",
     "where": [
-      "public/app.js:3515"
+      "public/app.js:3556"
     ]
   },
   "3d43d56fa6056e30": {
     "text": "(empty finding)",
     "cat": "js",
     "where": [
-      "public/app.js:3535"
+      "public/app.js:3576"
     ]
   },
   "bdd4786c6e6296a5": {
     "text": "(untitled)",
     "cat": "js",
     "where": [
-      "public/app.js:3539"
+      "public/app.js:3580"
     ]
   },
   "60a0278515310157": {
     "text": "Explain this finding: \"",
     "cat": "js",
     "where": [
-      "public/app.js:3541"
+      "public/app.js:3582"
     ]
   },
   "be3176b084a3d410": {
     "text": "\". What causes it and what should I check?",
     "cat": "js",
     "where": [
-      "public/app.js:3541"
+      "public/app.js:3582"
     ]
   },
   "96a6b1995e6e88bc": {
     "text": "calls:",
     "cat": "js",
     "where": [
-      "public/app.js:3550",
+      "public/app.js:3591",
       "public/hmr.js:934"
     ]
   },
@@ -4711,441 +4704,441 @@
     "text": "legs:",
     "cat": "js",
     "where": [
-      "public/app.js:3551"
+      "public/app.js:3592"
     ]
   },
   "edec1833105da35b": {
     "text": "msgs:",
     "cat": "js",
     "where": [
-      "public/app.js:3552"
+      "public/app.js:3593"
     ]
   },
   "f72276ce8bcdf349": {
     "text": "jump to the first referenced object",
     "cat": "js",
     "where": [
-      "public/app.js:3556"
+      "public/app.js:3597"
     ]
   },
   "49bceb1dc81fb4fe": {
     "text": "(empty collapse)",
     "cat": "js",
     "where": [
-      "public/app.js:3565"
+      "public/app.js:3606"
     ]
   },
   "9425399fce9442a1": {
     "text": "Explain this retransmission pattern: \"",
     "cat": "js",
     "where": [
-      "public/app.js:3576"
+      "public/app.js:3617"
     ]
   },
   "764144403cda8340": {
     "text": "\" classified as",
     "cat": "js",
     "where": [
-      "public/app.js:3576"
+      "public/app.js:3617"
     ]
   },
   "3afacdc24f661b95": {
     "text": ". What would cause it and how do I confirm it?",
     "cat": "js",
     "where": [
-      "public/app.js:3577"
+      "public/app.js:3618"
     ]
   },
   "dd36c53371afde96": {
     "text": "· outcome",
     "cat": "js",
     "where": [
-      "public/app.js:3594"
+      "public/app.js:3635"
     ]
   },
   "3902193211e92545": {
     "text": "show in ladder",
     "cat": "js",
     "where": [
-      "public/app.js:3597"
+      "public/app.js:3638"
     ]
   },
   "38e5b75e4b1fef99": {
     "text": "search raw, headers, numbers… or call: leg: callid: from: to: method: status: ip: port: codec: proto: sev: has:",
     "cat": "js",
     "where": [
-      "public/app.js:3643"
+      "public/app.js:3684"
     ]
   },
   "7bb530439e8e6f7c": {
     "text": "Substring search over raw messages, headers, URIs, Call-IDs, tags, branches, SDP,",
     "cat": "js",
     "where": [
-      "public/app.js:3645"
+      "public/app.js:3686"
     ]
   },
   "0c8057b8591a0b00": {
     "text": "H.323 numbers, aux summaries, findings and advice.",
     "cat": "js",
     "where": [
-      "public/app.js:3646"
+      "public/app.js:3687"
     ]
   },
   "a69166ccfea77a1a": {
     "text": "Digits are matched phone-normalized: 654321 finds +33987654321.",
     "cat": "js",
     "where": [
-      "public/app.js:3647"
+      "public/app.js:3688"
     ]
   },
   "4386f5ec9c826cad": {
     "text": "Filters: call: leg: callid: from: to: method: status: ip: port: codec:",
     "cat": "js",
     "where": [
-      "public/app.js:3648"
+      "public/app.js:3689"
     ]
   },
   "805aaf15c71ec39d": {
     "text": "raw (hex)",
     "cat": "js",
     "where": [
-      "public/app.js:3705"
+      "public/app.js:3746"
     ]
   },
   "cd4de79bc6c93295": {
     "text": "body",
     "cat": "js",
     "where": [
-      "public/app.js:3764"
+      "public/app.js:3805"
     ]
   },
   "dc9e7e18fec93bb8": {
     "text": "fix",
     "cat": "js",
     "where": [
-      "public/app.js:3888"
+      "public/app.js:3929"
     ]
   },
   "d5f81fa019827d1c": {
     "text": "number (digit-normalized)",
     "cat": "js",
     "where": [
-      "public/app.js:4023"
+      "public/app.js:4064"
     ]
   },
   "3f8eeb8c1460054f": {
     "text": "no matches",
     "cat": "js",
     "where": [
-      "public/app.js:4080"
+      "public/app.js:4121"
     ]
   },
   "e52f3db9da1aeade": {
     "text": "nothing in this capture matched the query",
     "cat": "js",
     "where": [
-      "public/app.js:4081"
+      "public/app.js:4122"
     ]
   },
   "de6569f1f0f8ef8a": {
     "text": "hits ·",
     "cat": "js",
     "where": [
-      "public/app.js:4086"
+      "public/app.js:4127"
     ]
   },
   "3ca2c49553a457d7": {
     "text": "session",
     "cat": "js",
     "where": [
-      "public/app.js:4087"
+      "public/app.js:4128"
     ]
   },
   "066deb2a56d74ddd": {
     "text": "capped at",
     "cat": "js",
     "where": [
-      "public/app.js:4089"
+      "public/app.js:4130"
     ]
   },
   "1b59ae268a19b4f1": {
     "text": "hits — narrow the query with a field filter such as call: or method:",
     "cat": "js",
     "where": [
-      "public/app.js:4089"
+      "public/app.js:4130"
     ]
   },
   "6ea4504960954ea8": {
     "text": "hits across",
     "cat": "js",
     "where": [
-      "public/app.js:4090"
+      "public/app.js:4131"
     ]
   },
   "bd3e27675103a469": {
     "text": "session(s)",
     "cat": "js",
     "where": [
-      "public/app.js:4090"
+      "public/app.js:4131"
     ]
   },
   "7abae245b3eb1f63": {
     "text": "search results",
     "cat": "js",
     "where": [
-      "public/app.js:4103"
+      "public/app.js:4144"
     ]
   },
   "7e0db32193238ea1": {
     "text": "clear the search and go back to the session tree",
     "cat": "js",
     "where": [
-      "public/app.js:4106"
+      "public/app.js:4147"
     ]
   },
   "f619fe19b5cfd806": {
     "text": "clear search",
     "cat": "js",
     "where": [
-      "public/app.js:4107"
+      "public/app.js:4148"
     ]
   },
   "5b2f40c57a52fcb3": {
     "text": "No matches.",
     "cat": "js",
     "where": [
-      "public/app.js:4113"
+      "public/app.js:4154"
     ]
   },
   "6b01c670890668b5": {
     "text": "Try a shorter substring, a phone-number fragment (digits are matched ignoring + - ( ) spaces), or a filter like method:INVITE or has:retrans.",
     "cat": "js",
     "where": [
-      "public/app.js:4114"
+      "public/app.js:4155"
     ]
   },
   "8ff4d0dc56cddd9a": {
     "text": "not tied to a call",
     "cat": "js",
     "where": [
-      "public/app.js:4133"
+      "public/app.js:4174"
     ]
   },
   "c72947cccfbe78e7": {
     "text": "select call",
     "cat": "js",
     "where": [
-      "public/app.js:4141"
+      "public/app.js:4182"
     ]
   },
   "c6cfc0f30f9445b8": {
     "text": "matches with no call association",
     "cat": "js",
     "where": [
-      "public/app.js:4141"
+      "public/app.js:4182"
     ]
   },
   "5c70e0f83cdfc9aa": {
     "text": "More matches exist — capped at",
     "cat": "js",
     "where": [
-      "public/app.js:4174"
+      "public/app.js:4215"
     ]
   },
   "f6f36e24d53a1b62": {
     "text": "Narrow the query with a filter (call:, method:, has:…).",
     "cat": "js",
     "where": [
-      "public/app.js:4175"
+      "public/app.js:4216"
     ]
   },
   "574193ebbf068988": {
     "text": "offline",
     "cat": "js",
     "where": [
-      "public/app.js:4295"
+      "public/app.js:4336"
     ]
   },
   "86086f09401ea1b7": {
     "text": "— shares its brain with RFPlex — answers may queue behind RFPlex work",
     "cat": "js",
     "where": [
-      "public/app.js:4302"
+      "public/app.js:4343"
     ]
   },
   "ef515a0b1ca12c03": {
     "text": "scope:",
     "cat": "js",
     "where": [
-      "public/app.js:4312"
+      "public/app.js:4353"
     ]
   },
   "6e015b5c41eca056": {
     "text": "× whole capture",
     "cat": "js",
     "where": [
-      "public/app.js:4316"
+      "public/app.js:4357"
     ]
   },
   "e5830503e61588de": {
     "text": "reset the scope to the whole capture",
     "cat": "js",
     "where": [
-      "public/app.js:4318"
+      "public/app.js:4359"
     ]
   },
   "60b7d43d3c4c2f02": {
     "text": "Open a capture first — hiccup answers about what it can see.",
     "cat": "js",
     "where": [
-      "public/app.js:4332"
+      "public/app.js:4373"
     ]
   },
   "b1b6d2de499181cd": {
     "text": "Ask about this capture or about SIP/H.323 in general.",
     "cat": "js",
     "where": [
-      "public/app.js:4336"
+      "public/app.js:4377"
     ]
   },
   "12d7d6f695a78005": {
     "text": "Try: \"why is this call ambiguous?\" · \"what does Session-Expires do?\" · \"what stripped the PAI header?\"",
     "cat": "js",
     "where": [
-      "public/app.js:4337"
+      "public/app.js:4378"
     ]
   },
   "0c8e0429a303de54": {
     "text": "checked:",
     "cat": "js",
     "where": [
-      "public/app.js:4344"
+      "public/app.js:4385"
     ]
   },
   "b7381b4347b1d935": {
     "text": "local model unavailable right now",
     "cat": "js",
     "where": [
-      "public/app.js:4431"
+      "public/app.js:4472"
     ]
   },
   "d648b4bd8a23ff08": {
     "text": "chat failed (",
     "cat": "js",
     "where": [
-      "public/app.js:4434"
+      "public/app.js:4475"
     ]
   },
   "9650a81ddc6b26be": {
     "text": "chat failed:",
     "cat": "js",
     "where": [
-      "public/app.js:4457"
+      "public/app.js:4498"
     ]
   },
   "5336719b416404c2": {
     "text": "Go to the workbench",
     "cat": "js",
     "where": [
-      "public/app.js:4726"
+      "public/app.js:4767"
     ]
   },
   "8187a3f36bee8a9e": {
     "text": "Go to the HMR translator",
     "cat": "js",
     "where": [
-      "public/app.js:4727"
+      "public/app.js:4768"
     ]
   },
   "16ab59e6303ae8b4": {
     "text": "Go to the guides",
     "cat": "js",
     "where": [
-      "public/app.js:4728"
+      "public/app.js:4769"
     ]
   },
   "b1fb2fa6c1183cbb": {
     "text": "Go to the team page",
     "cat": "js",
     "where": [
-      "public/app.js:4729"
+      "public/app.js:4770"
     ]
   },
   "3a82cb11f9a9c0bd": {
     "text": "Toggle light / dark theme",
     "cat": "js",
     "where": [
-      "public/app.js:4731"
+      "public/app.js:4772"
     ]
   },
   "7057b1384b1e8555": {
     "text": "Close the ask-hiccup drawer",
     "cat": "js",
     "where": [
-      "public/app.js:4732"
+      "public/app.js:4773"
     ]
   },
   "80b93c36dc1ec8ff": {
     "text": "Open the ask-hiccup drawer",
     "cat": "js",
     "where": [
-      "public/app.js:4732"
+      "public/app.js:4773"
     ]
   },
   "f604cc605323c662": {
     "text": "Close the manage-projects panel",
     "cat": "js",
     "where": [
-      "public/app.js:4734"
+      "public/app.js:4775"
     ]
   },
   "14fdfcc88fa79289": {
     "text": "Upload a capture",
     "cat": "js",
     "where": [
-      "public/app.js:4736"
+      "public/app.js:4777"
     ]
   },
   "eafca1af60b43437": {
     "text": "Search the trace",
     "cat": "js",
     "where": [
-      "public/app.js:4738"
+      "public/app.js:4779"
     ]
   },
   "5d7548be29b19777": {
     "text": "Clear the search",
     "cat": "js",
     "where": [
-      "public/app.js:4744"
+      "public/app.js:4785"
     ]
   },
   "716a6024e3fe999c": {
     "text": "Show",
     "cat": "js",
     "where": [
-      "public/app.js:4749"
+      "public/app.js:4790"
     ]
   },
   "884130fd8be9f65f": {
     "text": "Expand all sessions",
     "cat": "js",
     "where": [
-      "public/app.js:4756"
+      "public/app.js:4797"
     ]
   },
   "e96040ad643b096a": {
     "text": "Collapse all sessions",
     "cat": "js",
     "where": [
-      "public/app.js:4757"
+      "public/app.js:4798"
     ]
   },
   "30fa7a199fa16302": {
     "text": "Export the ladder as SVG",
     "cat": "js",
     "where": [
-      "public/app.js:4758"
+      "public/app.js:4799"
     ]
   },
   "999277b009ca9392": {
@@ -6227,21 +6220,28 @@
     "text": "others (",
     "cat": "js",
     "where": [
-      "public/ladder.js:601"
+      "public/ladder.js:602"
     ]
   },
   "c3fd34404263c304": {
     "text": "Nothing to draw for this selection.",
     "cat": "js",
     "where": [
-      "public/ladder.js:618"
+      "public/ladder.js:650"
     ]
   },
   "eb953da75975b9de": {
     "text": "finding on this message",
     "cat": "js",
     "where": [
-      "public/ladder.js:742"
+      "public/ladder.js:774"
+    ]
+  },
+  "6e5e49606812cf5f": {
+    "text": "time · Δ",
+    "cat": "js",
+    "where": [
+      "public/ladder.js:823"
     ]
   },
   "237c37150d35e79f": {
