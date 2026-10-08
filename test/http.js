@@ -739,6 +739,16 @@ async function main() {
     eq(crossOrigin.status, 403, 'a cross-origin restart POST must be refused');
   });
 
+  await t('csrf: every state-changing route refuses a cross-origin POST, and GET is unaffected', async () => {
+    const evil = { Origin: 'https://evil.example' };
+    const post = await client('POST', '/api/tokens', { name: 'x' }, evil);
+    eq(post.status, 403, 'a cross-origin POST to an ordinary route must be refused');
+    const del = await client('DELETE', '/api/me', { confirm: 'NOPE' }, evil);
+    eq(del.status, 403, 'a cross-origin DELETE must be refused');
+    const get = await client('GET', '/api/me', undefined, evil);
+    ok(get.status !== 403, 'GET is not subject to the Origin check');
+  });
+
   await t('mcp: bearer-only auth — no token 401, garbage 401, sessions do not count, GET 405', async () => {
     const anon = makeClient();
     const noAuth = await anon('POST', '/mcp', { jsonrpc: '2.0', id: 1, method: 'ping' });

@@ -363,6 +363,177 @@ async function main() {
     console.log('SKIP ' + entries.length + ' fixture assertion(s) — lib/analyze.js unavailable');
   }
 
+  // ------------------------------------------------ Teams Direct Routing
+  // Synthetic sngrep-style captures: decrypted SIP between a Microsoft proxy
+  // and an SBC. The "broken" one has every classic Direct Routing mistake.
+  if (analyze) {
+    const SBC = '203.0.113.10', MS = '52.114.1.1';
+    const drCapture = (o) => {
+      let n = 0;
+      const env = (src, dst, body) => {
+        n++;
+        const t = '2026/10/07 10:00:' + String(n % 60).padStart(2, '0') + '.000000';
+        return 'T ' + t + ' ' + src + ':5061 -> ' + dst + ':5061\n' + body.replace(/\n/g, '\r\n') + '\n\n';
+      };
+      const opt = (i, status) => {
+        const hd = 'Via: SIP/2.0/TLS ' + MS + ':5061;branch=z9hG4bKo' + i + '\nFrom: <sip:sip.pstnhub.microsoft.com>;tag=m' + i +
+          '\nTo: <sip:sbc.example.com>' + (status ? ';tag=s' + i : '') + '\nCall-ID: opt' + i + '@pstnhub\nCSeq: ' + i + ' OPTIONS\n';
+        let r = env(MS, SBC, 'OPTIONS sip:sbc.example.com:5061 SIP/2.0\n' + hd + 'Contact: <sip:sip.pstnhub.microsoft.com:5061;transport=tls>\nUser-Agent: Microsoft.PSTNHub.SIPProxy v.2022.1.1.1\nMax-Forwards: 70\nContent-Length: 0\n');
+        if (status) r += env(SBC, MS, 'SIP/2.0 ' + status + ' OK\n' + hd + 'Contact: <sip:sbc.example.com:5061;transport=tls>\nContent-Length: 0\n');
+        return r;
+      };
+      const crypto = o.good
+        ? 'm=audio 20000 RTP/SAVP 0 101\na=rtpmap:0 PCMU/8000\na=rtpmap:101 telephone-event/8000\na=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:WVNfX19zZW1jdGwgKCkgewkyMjA7fQp9CnVubGVz\n'
+        : 'm=audio 20000 RTP/AVP 0 101\na=rtpmap:0 PCMU/8000\na=rtpmap:101 telephone-event/8000\n';
+      const sdp = 'v=0\no=- 1 1 IN IP4 ' + SBC + '\ns=-\nc=IN IP4 ' + SBC + '\nt=0 0\n' + crypto;
+      const user = o.good ? '+33123456789' : '0033123456789';
+      const from = o.good ? '+33987654321' : '0123456789';
+      const contact = o.good ? 'sbc.example.com' : SBC;
+      const inv = 'INVITE sip:' + user + '@sip.pstnhub.microsoft.com:5061 SIP/2.0\nVia: SIP/2.0/TLS ' + SBC + ':5061;branch=z9hG4bKinv\nFrom: <sip:' + from + '@sbc.example.com>;tag=a1\nTo: <sip:' + user + '@sip.pstnhub.microsoft.com>\nCall-ID: inv1@sbc\nCSeq: 1 INVITE\nContact: <sip:' + from + '@' + contact + ':5061;transport=tls>\nContent-Type: application/sdp\nMax-Forwards: 70\nContent-Length: ' + sdp.length + '\n\n' + sdp;
+      const resp = (code, reason, tag) => 'SIP/2.0 ' + code + ' ' + reason + '\nVia: SIP/2.0/TLS ' + SBC + ':5061;branch=z9hG4bKinv\nFrom: <sip:' + from + '@sbc.example.com>;tag=a1\nTo: <sip:' + user + '@sip.pstnhub.microsoft.com>' + tag + '\nCall-ID: inv1@sbc\nCSeq: 1 INVITE\nServer: Microsoft.PSTNHub.SIPProxy v.2022.1.1.1\nContent-Length: 0\n';
+      let out = opt(1, 200) + (o.good ? opt(2, 200) : opt(2, 0) + opt(3, 0));
+      out += env(SBC, MS, inv);
+      out += o.good ? env(MS, SBC, resp(100, 'Trying', '')) : env(MS, SBC, resp(488, 'Not Acceptable Here', ';tag=b1'));
+      return Buffer.from(out);
+    };
+    const ruleIds = (a) => (a.advice || []).map((x) => x.ruleId);
+
+    await t('teams: a Direct Routing capture is recognised and explained as such', async () => {
+      const a = await analyze.analyzeCapture(drCapture({ good: false }));
+      eq(a.scenario.primary, 'teams-direct-routing', 'scenario');
+      ok(/Direct Routing/.test(a.scenario.detail), 'the scenario text should say what the user is trying to do');
+    });
+
+    await t('teams: every classic Direct Routing mistake gets its own finding with SBC and Teams-side fixes', async () => {
+      const a = await analyze.analyzeCapture(drCapture({ good: false }));
+      const ids = ruleIds(a);
+      for (const id of ['teams-options-health', 'teams-srtp-mismatch', 'teams-contact-ip', 'teams-e164', 'teams-rejected-call']) {
+        ok(ids.indexOf(id) !== -1, 'missing advice ' + id + ' (got ' + ids.join(',') + ')');
+      }
+      const targets = new Set();
+      for (const adv of a.advice.filter((x) => /^teams-/.test(x.ruleId))) for (const f of adv.fixes) targets.add(f.target);
+      ok(targets.has('teams') && targets.has('audiocodes') && targets.has('oracle-acme'), 'fixes should cover Teams, AudioCodes and Oracle/Acme, got ' + Array.from(targets).join(','));
+      const srtp = a.advice.find((x) => x.ruleId === 'teams-srtp-mismatch');
+      ok(srtp.fixes.every((f) => !f.config || /DRAFT/.test(f.config)), 'every config block must be marked as a draft');
+    });
+
+    await t('teams: a correct Direct Routing call raises no Teams findings', async () => {
+      const a = await analyze.analyzeCapture(drCapture({ good: true }));
+      eq(a.scenario.primary, 'teams-direct-routing', 'scenario');
+      const bad = ruleIds(a).filter((id) => /^teams-/.test(id));
+      eq(bad.length, 0, 'unexpected Teams findings: ' + bad.join(','));
+    });
+
+    await t('teams: an ordinary trunk is not mistaken for Direct Routing', async () => {
+      const buf = fs.readFileSync(path.join(FIXTURES_DIR, 'raw-messages.txt'));
+      const a = await analyze.analyzeCapture(buf);
+      ok(a.scenario.primary !== 'teams-direct-routing', 'a non-Teams capture was labelled Teams');
+      eq(ruleIds(a).filter((id) => /^teams-/.test(id)).length, 0, 'Teams findings on a non-Teams capture');
+    });
+  }
+
+  // ------------------------------------------------------------- TLS (raw)
+  // The clear part of a TLS handshake is readable without decrypting anything.
+  // TEST_CERT is a self-signed EC certificate (CN=sbc.example.com, SAN
+  // sbc.example.com and *.sbc.example.net) valid 2026-10-07 .. 2126-09-13.
+  {
+    const TEST_CERT = Buffer.from('308201e73082018ea00302010202143ea571d5d0321e843e3967da29277e2756ddbf60300a06082a8648ce3d04030230303118301606035504030c0f7362632e6578616d706c652e636f6d31143012060355040a0c0b4578616d706c65204c74643020170d3236313030373134333035315a180f32313236303931333134333035315a30303118301606035504030c0f7362632e6578616d706c652e636f6d31143012060355040a0c0b4578616d706c65204c74643059301306072a8648ce3d020106082a8648ce3d030107034200048656ad4322aafbf16797d9d488589727a3285113547ca81e13c4ef760eff746b5cb09f17de75975bbbc79274b7aeece4d6201e03851eb732c18a4200e42aed4ca38183308180301d0603551d0e041604142f577cd1a458f25dbfd83db855904f6be4acf74f301f0603551d230418301680142f577cd1a458f25dbfd83db855904f6be4acf74f300f0603551d130101ff040530030101ff302d0603551d1104263024820f7362632e6578616d706c652e636f6d82112a2e7362632e6578616d706c652e6e6574300a06082a8648ce3d040302034700304402204a9b8e20a337632c4d7940af7a259c4d81a51da881f28b18e53bb19acca6a2a1022067ce4b8b8662e2ebf81388bb5bb52d0385962fdd0c2efab9c99dbd10e878fc1d', 'hex');
+    const tlsLib = tryRequire(path.join('lib', 'tls.js'));
+    const u16b = (n) => Buffer.from([n >> 8, n & 255]);
+    const u24b = (n) => Buffer.from([n >> 16, (n >> 8) & 255, n & 255]);
+    const rec = (type, body) => Buffer.concat([Buffer.from([type, 3, 3]), u16b(body.length), body]);
+    const hs = (type, body) => Buffer.concat([Buffer.from([type]), u24b(body.length), body]);
+    const clientHello = (sni) => {
+      const name = Buffer.from(sni, 'latin1');
+      const sniExt = Buffer.concat([u16b(0), u16b(name.length + 5), u16b(name.length + 3), Buffer.from([0]), u16b(name.length), name]);
+      return rec(22, hs(1, Buffer.concat([u16b(0x0303), Buffer.alloc(32), Buffer.from([0]), u16b(2), u16b(0xc02f), Buffer.from([1, 0]), u16b(sniExt.length), sniExt])));
+    };
+    const serverFlight = () => {
+      const sh = hs(2, Buffer.concat([u16b(0x0303), Buffer.alloc(32), Buffer.from([0]), u16b(0xc02f), Buffer.from([0]), u16b(0)]));
+      const certBody = Buffer.concat([u24b(TEST_CERT.length + 3), u24b(TEST_CERT.length), TEST_CERT]);
+      return rec(22, Buffer.concat([sh, hs(11, certBody), hs(14, Buffer.alloc(0))]));
+    };
+    const ccs = () => rec(20, Buffer.from([1]));
+    const alert = (code) => rec(21, Buffer.from([2, code]));
+    const mkPkts = (ts, clientBytes, serverBytes) => {
+      const C = '10.0.0.1', S = '10.0.0.2';
+      const out = [];
+      let n = 0;
+      if (clientBytes.length) out.push({ n: ++n, ts, src: C, dst: S, sport: 40000, dport: 5061, transport: 'tcp', payload: clientBytes[0], tcp: { seq: 1000, syn: false, fin: false } });
+      let sseq = 5000;
+      for (const b of serverBytes) { out.push({ n: ++n, ts: ts + 0.01, src: S, dst: C, sport: 5061, dport: 40000, transport: 'tcp', payload: b, tcp: { seq: sseq, syn: false, fin: false } }); sseq += b.length; }
+      let cseq = 1000 + clientBytes[0].length;
+      for (const b of clientBytes.slice(1)) { out.push({ n: ++n, ts: ts + 0.02, src: C, dst: S, sport: 40000, dport: 5061, transport: 'tcp', payload: b, tcp: { seq: cseq, syn: false, fin: false } }); cseq += b.length; }
+      return out;
+    };
+    const run = (ts, sni, serverBytes, clientTail) => tlsLib.mod.extractTls(mkPkts(ts, [clientHello(sni)].concat(clientTail || []), serverBytes));
+    const titles = (r) => r.findings.map((f) => f.title).join(' | ');
+    const NOW = 1791400000; // 2026-10-07
+
+    await t('tls: a completed handshake is summarised from the clear records, with no findings', () => {
+      ok(!tlsLib.err, tlsLib.err);
+      const r = run(NOW, 'sbc.example.com', [serverFlight(), ccs()], [ccs()]);
+      eq(r.aux.length, 1, 'one tls aux row');
+      const d = r.aux[0].detail;
+      eq(d.complete, true, 'handshake should be complete');
+      eq(d.sni, 'sbc.example.com', 'sni');
+      eq(d.version, 'TLS 1.2', 'version');
+      eq(d.serverCert.subject, 'CN=sbc.example.com, O=Example Ltd', 'certificate subject');
+      eq(r.findings.length, 1, 'only the self-signed notice expected, got: ' + titles(r));
+      ok(/self-signed/.test(r.findings[0].title), 'self-signed notice');
+    });
+
+    await t('tls: SNI the certificate does not cover is a critical finding; wildcards match one label', () => {
+      const bad = run(NOW, 'sip.pstnhub.microsoft.com', [serverFlight(), ccs()], [ccs()]);
+      ok(/does not cover/.test(titles(bad)), 'name mismatch expected, got: ' + titles(bad));
+      const wild = run(NOW, 'edge.sbc.example.net', [serverFlight(), ccs()], [ccs()]);
+      ok(!/does not cover/.test(titles(wild)), 'wildcard SAN should cover edge.sbc.example.net');
+      const deep = run(NOW, 'a.b.sbc.example.net', [serverFlight(), ccs()], [ccs()]);
+      ok(/does not cover/.test(titles(deep)), 'a wildcard must not cover two labels');
+    });
+
+    await t('tls: expired and not-yet-valid certificates are judged against the CAPTURE time, not now', () => {
+      ok(/expired/.test(titles(run(5000000000, 'sbc.example.com', [serverFlight(), ccs()], [ccs()]))), 'capture in 2128 -> expired');
+      ok(/not yet valid/.test(titles(run(1000000000, 'sbc.example.com', [serverFlight(), ccs()], [ccs()]))), 'capture in 2001 -> not yet valid');
+    });
+
+    await t('tls: a fatal alert and a ClientHello nobody answers are both reported', () => {
+      const al = run(NOW, 'sbc.example.com', [alert(48)], []);
+      ok(/failed: unknown_ca/.test(titles(al)), 'fatal alert expected, got: ' + titles(al));
+      eq(al.aux[0].detail.complete, false, 'alert -> not complete');
+      const none = run(NOW, 'sbc.example.com', [], []);
+      ok(/no ServerHello/.test(titles(none)), 'unanswered hello expected, got: ' + titles(none));
+    });
+
+    await t('tls: plain SIP over TCP is not mistaken for TLS', () => {
+      const p = [{ n: 1, ts: NOW, src: '10.0.0.1', dst: '10.0.0.2', sport: 40000, dport: 5060, transport: 'tcp', payload: Buffer.from('INVITE sip:a@b SIP/2.0\r\n\r\n'), tcp: { seq: 1, syn: false, fin: false } }];
+      eq(tlsLib.mod.extractTls(p).aux.length, 0, 'no tls rows for plain SIP');
+    });
+
+    // Whole pipeline: a pcap holding only a Direct Routing TLS handshake.
+    await t('tls: an encrypted Direct Routing capture is still recognised and its certificate problem explained', async () => {
+      ok(analyze, 'analyze unavailable');
+      const frames = mkPkts(NOW, [clientHello('sip.pstnhub.microsoft.com'), ccs()], [serverFlight(), ccs()]);
+      const recs = [];
+      for (const p of frames) {
+        const tcp = Buffer.alloc(20); tcp.writeUInt16BE(p.sport, 0); tcp.writeUInt16BE(p.dport, 2); tcp.writeUInt32BE(p.tcp.seq >>> 0, 4); tcp[12] = 0x50; tcp[13] = 0x18;
+        const ip = Buffer.alloc(20); ip[0] = 0x45; ip.writeUInt16BE(20 + 20 + p.payload.length, 2); ip[8] = 64; ip[9] = 6;
+        p.src.split('.').forEach((x, i) => { ip[12 + i] = +x; }); p.dst.split('.').forEach((x, i) => { ip[16 + i] = +x; });
+        const eth = Buffer.alloc(14); eth.writeUInt16BE(0x0800, 12);
+        const body = Buffer.concat([eth, ip, tcp, p.payload]);
+        const h = Buffer.alloc(16); h.writeUInt32LE(Math.floor(p.ts), 0); h.writeUInt32LE(Math.round((p.ts % 1) * 1e6), 4); h.writeUInt32LE(body.length, 8); h.writeUInt32LE(body.length, 12);
+        recs.push(h, body);
+      }
+      const gh = Buffer.alloc(24); gh.writeUInt32LE(0xa1b2c3d4, 0); gh.writeUInt16LE(2, 4); gh.writeUInt16LE(4, 6); gh.writeUInt32LE(65535, 16); gh.writeUInt32LE(1, 20);
+      const a = await analyze.analyzeCapture(Buffer.concat([gh].concat(recs)));
+      eq(a.scenario.primary, 'teams-direct-routing', 'scenario from SNI alone');
+      const ids = (a.advice || []).map((x) => x.ruleId);
+      ok(ids.indexOf('tls-handshake-problem') !== -1, 'tls-handshake-problem advice, got ' + ids.join(','));
+      ok(ids.indexOf('tls-only-capture') !== -1, 'tls-only-capture advice, got ' + ids.join(','));
+      ok(a.findings.some((f) => f.category === 'tls'), 'a tls finding in the findings list');
+    });
+  }
+
   // -------------------------------------------------------------------- auth
   let auth = null;
   let authUser = null;

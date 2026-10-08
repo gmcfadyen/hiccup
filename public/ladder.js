@@ -587,32 +587,64 @@
     }
 
     // Host headers + lifelines.
-    for (var k = 0; k < layout.cols.length; k++) {
-      var key = layout.cols[k];
-      var hx = colX(key);
-      var label = key, full = key;
-      if (key === 'others' && layout.others) {
-        var n = 0, names = [];
-        for (var ok in layout.others) {
-          if (Object.prototype.hasOwnProperty.call(layout.others, ok) && layout.others[ok]) {
-            n++; names.push(ok);
+    function hostLabels() {
+      var out = [];
+      for (var k = 0; k < layout.cols.length; k++) {
+        var key = layout.cols[k];
+        var label = key, full = key;
+        if (key === 'others' && layout.others) {
+          var n = 0, names = [];
+          for (var ok in layout.others) {
+            if (Object.prototype.hasOwnProperty.call(layout.others, ok) && layout.others[ok]) {
+              n++; names.push(ok);
+            }
           }
+          label = _t('others (') + n + ')';
+          full = names.join(', ');
         }
-        label = _t('others (') + n + ')';
-        full = names.join(', ');
+        out.push({ x: colX(key), label: label, full: full });
       }
-      var ht = svgText(hx, 16, truncate(label, 21), 'lad-host', 'middle');
+      return out;
+    }
+    function hostText(h) {
+      var ht = svgText(h.x, 16, truncate(h.label, 21), 'lad-host', 'middle');
       ht.setAttribute('fill', C.text);
       ht.setAttribute('font-size', '11');
       ht.setAttribute('font-weight', '600');
-      addTitle(ht, full);
-      svg.appendChild(ht);
-
+      addTitle(ht, h.full);
+      return ht;
+    }
+    var labels = hostLabels();
+    for (var k = 0; k < labels.length; k++) {
+      svg.appendChild(hostText(labels[k]));
       svg.appendChild(svgEl('line', {
-        x1: hx, y1: TOP - 10, x2: hx, y2: height - 6, 'class': 'lad-lifeline',
+        x1: labels[k].x, y1: TOP - 10, x2: labels[k].x, y2: height - 6, 'class': 'lad-lifeline',
         stroke: C.border, 'stroke-width': 1, 'stroke-dasharray': '2 4'
       }));
     }
+
+    // A second, identical copy of the host-name band for the app to pin at the top
+    // of the scroll area (app.js puts it in a sticky wrapper): the names stay in
+    // view while the rows scroll. The copy in `svg` itself is kept so an exported
+    // SVG is still a complete, standalone diagram.
+    var headSvg = svgEl('svg', {
+      xmlns: SVGNS,
+      width: Math.round(width * zoom),
+      height: Math.round(TOP * zoom),
+      viewBox: '0 0 ' + width + ' ' + TOP,
+      'class': 'ladder-svg ladder-head-svg',
+      'font-family': 'ui-monospace, Consolas, monospace',
+      'aria-hidden': 'true'
+    });
+    headSvg.appendChild(svgEl('rect', { x: 0, y: 0, width: width, height: TOP, fill: C.bg, 'class': 'lad-bg' }));
+    for (var hk = 0; hk < labels.length; hk++) {
+      headSvg.appendChild(hostText(labels[hk]));
+      headSvg.appendChild(svgEl('line', {
+        x1: labels[hk].x, y1: TOP - 10, x2: labels[hk].x, y2: TOP, 'class': 'lad-lifeline',
+        stroke: C.border, 'stroke-width': 1, 'stroke-dasharray': '2 4'
+      }));
+    }
+    svg.ladderHeader = headSvg;
 
     if (!rows.length) {
       var empty = svgText(PADL + 4, TOP + 18, _t('Nothing to draw for this selection.'), 'lad-empty');
@@ -785,9 +817,11 @@
     z = Math.max(0.4, Math.min(3, z));
     var frag = document.createDocumentFragment();
 
-    var spacer = htmlEl('div', 'tg-spacer');
-    if (z !== 1) spacer.style.height = (TOP * z) + 'px';
-    spacer.setAttribute('aria-hidden', 'true');
+    // The same height as the ladder's host-name band, and pinned like it: the gutter
+    // and the ladder are separate scroll boxes that start at the same y, so row N
+    // of each sits at the same offset and scrolling one moves the other in step.
+    var spacer = htmlEl('div', 'tg-spacer', _t('time · Δ'));
+    spacer.style.height = (TOP * z) + 'px';
     frag.appendChild(spacer);
 
     for (var i = 0; i < rows.length; i++) {

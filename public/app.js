@@ -2450,6 +2450,20 @@
           }
         });
         state.ladderSvg = svg;
+        if (svg.ladderHeader) {
+          // Host names stay pinned while the rows scroll. The wrapper overlays the
+          // top of the svg (negative bottom margin cancels its height) and is
+          // sticky; the svg's own copy of the band sits underneath, unchanged,
+          // for the SVG export.
+          var stick = document.createElement('div');
+          stick.className = 'ladder-sticky-head';
+          var hh = svg.ladderHeader.getAttribute('height') + 'px';
+          stick.style.height = hh;
+          stick.style.marginBottom = '-' + hh;
+          stick.appendChild(svg.ladderHeader);
+          host.appendChild(stick);
+          host.style.scrollPaddingTop = hh;
+        }
         host.appendChild(svg);
         var groups = svg.querySelectorAll('[data-row-id]');
         for (var g = 0; g < groups.length; g++) {
@@ -2474,14 +2488,34 @@
     }
 
     wireScrollSync();
+    syncGutterExtent();
     syncLadderToolbar();
+  }
+
+  /**
+   * Give #time-gutter the same scrollable height as #ladder-svg-host so the two
+   * panes reach the same end position. The ladder scrolls its svg's bottom margin
+   * (14 units, zoomed), its own 8px padding and any horizontal scrollbar; the
+   * gutter has none of those unless told, and would otherwise stop short of the
+   * last rows and drift out of line with them.
+   */
+  function syncGutterExtent() {
+    var host = $('ladder-svg-host');
+    var gut = $('time-gutter');
+    if (!host || !gut) return;
+    var z = (typeof state.zoom === 'number' && state.zoom > 0) ? Math.max(0.4, Math.min(3, state.zoom)) : 1;
+    var bar = Math.max(0, host.offsetHeight - host.clientHeight);
+    gut.style.paddingBottom = Math.round(14 * z + 8 + bar) + 'px';
+    if (host.scrollTop !== gut.scrollTop) gut.scrollTop = host.scrollTop;
   }
 
   /** Keep #time-pane's vertical scroll locked to the ladder's, whichever scrolls. */
   function wireScrollSync() {
     if (state.scrollSyncWired) return;
     var host = $('ladder-svg-host');
-    var pane = $('time-pane') || (function () { var g = $('time-gutter'); return g && g.parentNode; })();
+    // The element that actually scrolls is #time-gutter (overflow:hidden); its
+    // parent #time-pane is a plain flex column and ignores scrollTop.
+    var pane = $('time-gutter');
     if (!host || !pane || host === pane) return;
     var syncing = false;
     function mirror(from, to) {
@@ -2494,6 +2528,13 @@
     }
     host.addEventListener('scroll', mirror(host, pane));
     pane.addEventListener('scroll', mirror(pane, host));
+    // The gutter has no scrollbar of its own; a wheel over it drives the ladder.
+    pane.addEventListener('wheel', function (ev) {
+      if (!ev.deltaY) return;
+      host.scrollTop += ev.deltaY;
+      ev.preventDefault();
+    }, { passive: false });
+    window.addEventListener('resize', syncGutterExtent);
     state.scrollSyncWired = true;
   }
 

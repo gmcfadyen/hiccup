@@ -996,6 +996,8 @@ drawer. Two agents share these files — **the DOM id contract is frozen**:
 | `lib/dns.js` | `extractDns(packets)` -> `{ aux, findings }`; `dnsEvidence(aux)` -> `{ byDest }` |
 | `lib/diameter.js` | `extractDiameter(packets, ctx)` -> `{ aux, findings }` |
 | `lib/ice.js` | `extractIce(packets)` -> `{ aux, findings }` |
+| `lib/tls.js` | `extractTls(packets)` -> `{ aux, findings }` — clear TLS handshake only (SNI, certificate, alerts); aux `protocol: 'tls'` |
+| `lib/teams-dr.js` | `analyzeTeamsDr(sipMessages, tlsAux?)` -> Direct Routing facts shared by `detect.js` (scenario `teams-direct-routing`) and `advisor.js` (the `teams-*` rules) |
 | `lib/detect.js` | `detectIndicators(analysis)` -> `[Indicator]`; `detectScenario(analysis)` -> `Scenario` |
 | `lib/advisor.js` | `buildAdvice(analysis, opts)` -> `{ advice }` |
 | `lib/hmr.js` | `parseConfig`, `explainRule`, `renderRule`, `matchAgainstAnalysis` |

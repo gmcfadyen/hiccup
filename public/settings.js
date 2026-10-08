@@ -109,11 +109,19 @@
       var d = {};
       try { d = await r.json(); } catch (e) { /* non-json */ }
       if (!r.ok) { say(_t((d && d.error) || '') || _t('Could not delete the account.'), true); return; }
-      document.body.innerHTML = '<main class="set-page"><h1>' + _t('Account deleted') + '</h1>' +
-        '<p class="set-lede"></p></main>';
-      document.querySelector('.set-lede').textContent =
+      var main = document.createElement('main');
+      main.className = 'set-page';
+      var h1 = document.createElement('h1');
+      h1.textContent = _t('Account deleted');
+      var lede = document.createElement('p');
+      lede.className = 'set-lede';
+      lede.textContent =
         _t((d.note || 'Your account has been removed.')) +
         ' ' + _t('Captures removed: ') + ((d.removed && d.removed.captures) || 0) + '.';
+      main.appendChild(h1);
+      main.appendChild(lede);
+      document.body.textContent = '';
+      document.body.appendChild(main);
     } catch (e) {
       say(_t('Could not reach the server.'), true);
       $('set-delete-go').disabled = false;
