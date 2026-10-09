@@ -3793,13 +3793,54 @@ function handleTokenRevoke(req, res, user, id) {
  * set plus list_captures, and the deps handed to it are closed over the
  * token owner's account uid, so nobody else's capture ids resolve.
  */
-function bearerUser(req) {
-  const m = /^Bearer\s+(.+)$/i.exec(String(req.headers.authorization || ''));
-  if (!m) return null;
+/**
+ * POST /oauth/token — grant_type=client_credentials only.
+ *
+ * The client_secret is a hiccup API token (hk_...); client_id is free text
+ * (use anything, e.g. the token's name). The response hands back that same
+ * token as the access_token, so every /mcp rule (plan gate, rate limit,
+ * revocation) applies unchanged. Accepts form-encoded or JSON bodies, and
+ * HTTP Basic client auth, which is what OAuth clients commonly send.
+ */
+async function handleOauthToken(req, res) {
+  res.setHeader('Cache-Control', 'no-store');
+  const fail = (status, code) => sendJson(res, status, { error: code });
+  if (_slidingLimited(_mcpByToken, 'oauth:' + clientIp(req), 30, MCP_WINDOW_MS, false)) {
+    res.setHeader('Retry-After', '60');
+    return fail(429, 'invalid_request');
+  }
+  let raw;
+  try { raw = await readRawBody(req, 16 * 1024); } catch (e) { return fail(400, 'invalid_request'); }
+  const text = raw.toString('utf8');
+  let params = {};
+  if (/^\s*\{/.test(text)) {
+    try { params = JSON.parse(text) || {}; } catch { return fail(400, 'invalid_request'); }
+  } else {
+    for (const [k, v] of new URLSearchParams(text)) params[k] = v;
+  }
+  if (params.grant_type !== 'client_credentials') return fail(400, 'unsupported_grant_type');
+  let secret = params.client_secret ? String(params.client_secret) : '';
+  const basic = /^Basic\s+(.+)$/i.exec(String(req.headers.authorization || ''));
+  if (!secret && basic) {
+    const decoded = Buffer.from(basic[1], 'base64').toString('utf8');
+    secret = decoded.slice(decoded.indexOf(':') + 1);
+  }
+  const bearer = bearerUserFromToken(secret.trim());
+  if (!bearer) return fail(401, 'invalid_client');
+  sendJson(res, 200, { access_token: secret.trim(), token_type: 'Bearer', expires_in: 3600 });
+}
+
+function bearerUserFromToken(presented) {
+  if (!presented) return null;
   const tokens = initTokensIfPossible();
-  const hit = tokens ? tokens.verifyToken(m[1].trim()) : null;
+  const hit = tokens ? tokens.verifyToken(presented) : null;
   const user = hit ? auth.findUserById(hit.userId) : null;
   return user && mcpAllowedFor(user) ? user : null;
+}
+
+function bearerUser(req) {
+  const m = /^Bearer\s+(.+)$/i.exec(String(req.headers.authorization || ''));
+  return m ? bearerUserFromToken(m[1].trim()) : null;
 }
 
 async function handleMcp(req, res) {
@@ -4214,6 +4255,16 @@ async function handle(req, res) {
     req.resume();
     res.setHeader('Allow', 'POST');
     sendJson(res, 405, { error: 'MCP uses POST only — this server has no server-initiated stream' });
+    return;
+  }
+  // OAuth 2.0 client-credentials facade over API tokens, for MCP clients such
+  // as Agentforce that register an external server by OAuth rather than a
+  // static header. See handleOauthToken.
+  if (pathname === '/oauth/token') {
+    if (method === 'POST') return handleOauthToken(req, res);
+    req.resume();
+    res.setHeader('Allow', 'POST');
+    sendJson(res, 405, { error: 'invalid_request' });
     return;
   }
   if (pathname === '/api/tokens') {

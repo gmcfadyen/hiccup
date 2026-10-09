@@ -864,6 +864,32 @@ async function main() {
     ok(rest.status === 200 || rest.status === 422, 'bearer reaches POST /api/captures, got ' + rest.status);
   });
 
+  await t('oauth: client_credentials exchanges a valid API token for a bearer, and refuses everything else', async () => {
+    const c = makeClient();
+    const su = await c('POST', '/api/auth/signup',
+      { email: 'oauth-' + Date.now() + '@example.com', password: 'correct-horse-8', name: 'OAuth' });
+    eq(su.status, 200, 'signup');
+    eq((await client('PATCH', '/api/admin/users/' + su.json.user.id, { plan: 'pro' })).status, 200, 'pro');
+    const made = await c('POST', '/api/tokens', { name: 'oauth token' });
+    const anon = makeClient();
+
+    const ok1 = await anon('POST', '/oauth/token',
+      { grant_type: 'client_credentials', client_id: 'sfdc', client_secret: made.json.token });
+    eq(ok1.status, 200, 'valid secret accepted');
+    eq(ok1.json.token_type, 'Bearer', 'bearer type');
+    const ping = await anon('POST', '/mcp', { jsonrpc: '2.0', id: 1, method: 'ping' },
+      { Authorization: 'Bearer ' + ok1.json.access_token });
+    eq(ping.status, 200, 'the issued access_token opens /mcp');
+
+    const basic = await anon('POST', '/oauth/token', { grant_type: 'client_credentials' },
+      { Authorization: 'Basic ' + Buffer.from('sfdc:' + made.json.token).toString('base64') });
+    eq(basic.status, 200, 'HTTP Basic client auth accepted');
+
+    eq((await anon('POST', '/oauth/token', { grant_type: 'client_credentials', client_secret: 'hk_nope' })).status, 401, 'bad secret');
+    eq((await anon('POST', '/oauth/token', { grant_type: 'password', client_secret: made.json.token })).status, 400, 'other grants refused');
+    eq((await anon('GET', '/oauth/token')).status, 405, 'GET refused');
+  });
+
   await t('mcp: a FREE member of a paid team gets MCP — the Team tier sells "for every member"', async () => {
     // Joining a team does not change the member's own plan field, so this is
     // the exact case a user.plan-only gate would wrongly 402 — and the case
