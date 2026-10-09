@@ -817,6 +817,53 @@ async function main() {
     eq(afterRevoke.status, 401, 'the revoked token is dead immediately');
   });
 
+  await t('mcp: analyze_capture uploads a raw SIP file with the bearer token and returns a diagnosis', async () => {
+    const c = makeClient();
+    const su = await c('POST', '/api/auth/signup',
+      { email: 'mcp-up-' + Date.now() + '@example.com', password: 'correct-horse-8', name: 'MCP Up' });
+    eq(su.status, 200, 'signup');
+    eq((await client('PATCH', '/api/admin/users/' + su.json.user.id, { plan: 'pro' })).status, 200, 'pro');
+    const made = await c('POST', '/api/tokens', { name: 'upload token' });
+    const bearer = { Authorization: 'Bearer ' + made.json.token };
+    const anon = makeClient();
+
+    const sip = 'INVITE sip:bob@example.com SIP/2.0\r\nVia: SIP/2.0/UDP 10.0.0.1:5060;branch=z9hG4bK1\r\n' +
+      'From: <sip:alice@example.com>;tag=1\r\nTo: <sip:bob@example.com>\r\nCall-ID: up-test-1\r\n' +
+      'CSeq: 1 INVITE\r\nContact: <sip:alice@10.0.0.1>\r\nContent-Length: 0\r\n\r\n';
+    const call = (id, name, args) => anon('POST', '/mcp',
+      { jsonrpc: '2.0', id, method: 'tools/call', params: { name, arguments: args } }, bearer);
+
+    const tl = await anon('POST', '/mcp', { jsonrpc: '2.0', id: 1, method: 'tools/list' }, bearer);
+    const names = tl.json.result.tools.map((x) => x.name);
+    ok(names.includes('analyze_capture') && names.includes('get_capture_summary'), 'new tools are listed');
+
+    const bad = await call(2, 'analyze_capture', { content_base64: '!!!not base64' });
+    ok(bad.json.result.isError, 'invalid base64 is an execution error');
+    const missing = await call(3, 'analyze_capture', {});
+    ok(missing.json.result.isError, 'missing content is an execution error');
+
+    const up = await call(4, 'analyze_capture',
+      { content_base64: Buffer.from(sip).toString('base64'), filename: 'case-1.log' });
+    ok(!up.json.result.isError, 'analyze_capture succeeds: ' + up.json.result.content[0].text.slice(0, 200));
+    const sum = JSON.parse(up.json.result.content[0].text);
+    ok(sum.capture_id && sum.findingCounts, 'summary carries capture_id and findingCounts');
+
+    const again = await call(5, 'get_capture_summary', { capture_id: sum.capture_id });
+    ok(!again.json.result.isError, 'get_capture_summary reads the stored capture');
+    const lc = await call(6, 'list_captures', {});
+    ok(/case-1\.log/.test(lc.json.result.content[0].text), 'the upload shows in list_captures');
+
+    // The REST upload route now accepts the same bearer token.
+    const rest = await new Promise((resolve, reject) => {
+      const body = Buffer.from(sip);
+      const r = http.request({ host: HOST, port: PORT, method: 'POST', path: '/api/captures',
+        headers: Object.assign({ 'Content-Length': body.length, 'X-Filename': 'rest.log' }, bearer) },
+      (res) => { res.resume(); res.on('end', () => resolve({ status: res.statusCode })); });
+      r.on('error', reject); r.end(body);
+    });
+    ok(rest.status === 200 || rest.status === 422, 'bearer reaches POST /api/captures, got ' + rest.status);
+  });
+
   await t('mcp: a FREE member of a paid team gets MCP — the Team tier sells "for every member"', async () => {
     // Joining a team does not change the member's own plan field, so this is
     // the exact case a user.plan-only gate would wrongly 402 — and the case

@@ -959,32 +959,56 @@ async function handleUpload(req, res, user) {
   }
   const filename = cleanFilename(req.headers['x-filename']) || 'capture.bin';
 
-  const id = store.newCaptureId();
-  const dir = store.captureDir(DATA_DIR, uid, id);
-  fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, 'original.bin'), buf);
-
   // GDPR: caller/callee masking. lib/analyze.js has always had
   // redactNumbersInMessage() behind an opts.redactNumbers flag, but nothing
   // ever set it — the masking was written and then left unreachable. The
   // header lets the uploader decide per capture; config.maskNumbersByDefault
   // decides when they say nothing (Art. 25, data protection BY DEFAULT).
-  //
-  // Note this only masks the DERIVED analysis. original.bin above is the
-  // user's own unmodified file and is never rewritten — masking a trace you
-  // uploaded yourself, in place, would be destroying your own evidence.
   const maskHeader = req.headers['x-mask-numbers'];
   const maskNumbers = (maskHeader == null || String(maskHeader).trim() === '')
     ? config.maskNumbersByDefault !== false
     : /^(1|true|yes|on)$/i.test(String(maskHeader).trim());
+
+  try {
+    const out = await ingestCapture(uid, buf, filename, maskNumbers, projectId);
+    sendJson(res, 200, { id: out.id, meta: out.meta });
+  } catch (e) {
+    sendJson(res, 422, { error: (e && e.userMessage) || 'could not parse this file' });
+  }
+}
+
+/**
+ * Store and analyse one uploaded capture. Shared by POST /api/captures and
+ * the MCP analyze_capture tool so both paths behave identically.
+ *
+ * Note masking only affects the DERIVED analysis. original.bin is the user's
+ * own unmodified file and is never rewritten — masking a trace you uploaded
+ * yourself, in place, would be destroying your own evidence.
+ * @param {string} uid resolved account id
+ * @param {Buffer} buf raw file bytes (already size-checked by the caller)
+ * @param {string} filename cleaned display name
+ * @param {boolean} maskNumbers
+ * @param {string|null} projectId already-validated project id
+ * @returns {Promise<{id:string, meta:object, analysis:object}>}
+ * @throws {Error & {userMessage?: string}} when the file cannot be parsed
+ */
+async function ingestCapture(uid, buf, filename, maskNumbers, projectId) {
+  if (!analyzeCapture) {
+    const err = new Error('analysis engine not deployed');
+    err.userMessage = 'analysis engine not deployed on this server yet';
+    throw err;
+  }
+  const id = store.newCaptureId();
+  const dir = store.captureDir(DATA_DIR, uid, id);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'original.bin'), buf);
 
   let analysis;
   try {
     analysis = await analyzeCapture(buf, { redactNumbers: maskNumbers });
   } catch (e) {
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best effort */ }
-    sendJson(res, 422, { error: (e && e.userMessage) || 'could not parse this file' });
-    return;
+    throw e;
   }
 
   const meta = {
@@ -995,11 +1019,11 @@ async function handleUpload(req, res, user) {
     maskedNumbers: maskNumbers,   // shown in the UI so nobody wonders why numbers are "…"
     stats: analysis.stats,
     findingCounts: countFindings(analysis.findings),
-    projectId,
+    projectId: projectId || null,
   };
   store.saveJson(path.join(dir, 'meta.json'), meta);
   store.saveJson(path.join(dir, 'analysis.json'), analysis);
-  sendJson(res, 200, { id, meta });
+  return { id, meta, analysis };
 }
 
 /**
@@ -3769,6 +3793,15 @@ function handleTokenRevoke(req, res, user, id) {
  * set plus list_captures, and the deps handed to it are closed over the
  * token owner's account uid, so nobody else's capture ids resolve.
  */
+function bearerUser(req) {
+  const m = /^Bearer\s+(.+)$/i.exec(String(req.headers.authorization || ''));
+  if (!m) return null;
+  const tokens = initTokensIfPossible();
+  const hit = tokens ? tokens.verifyToken(m[1].trim()) : null;
+  const user = hit ? auth.findUserById(hit.userId) : null;
+  return user && mcpAllowedFor(user) ? user : null;
+}
+
 async function handleMcp(req, res) {
   const tokens = initTokensIfPossible();
   const mcp = optionalModule('./lib/mcp');
@@ -3800,8 +3833,15 @@ async function handleMcp(req, res) {
 
   let body;
   try {
-    body = await readJsonBody(req);
+    // analyze_capture carries the file base64-encoded inside the JSON, so the
+    // ceiling is the plan's upload limit grown by base64's 4/3 plus slack.
+    const jsonMax = Math.ceil(uploadLimitMbFor(user) * 1024 * 1024 * 1.4) + 4096;
+    const raw = await readRawBody(req, jsonMax);
+    try { body = JSON.parse(raw.toString('utf8') || '{}'); }
+    catch { const err = new Error('invalid JSON body'); err.code = 'BAD_JSON'; throw err; }
+    if (!body || typeof body !== 'object') { const err = new Error('not an object'); err.code = 'BAD_JSON'; throw err; }
   } catch (e) {
+    if (e && e.code === 'TOO_LARGE') { return sendBodyError(res, e); }
     // Malformed JSON is a protocol-level condition: answer in JSON-RPC.
     sendJson(res, 200, { jsonrpc: '2.0', id: null,
       error: { code: -32700, message: 'parse error: ' + ((e && e.userMessage) || 'invalid JSON') } });
@@ -3813,6 +3853,13 @@ async function handleMcp(req, res) {
     listCaptures: () => { try { return store.listCaptures(DATA_DIR, uid); } catch { return []; } },
     loadAnalysis: (cid) => loadAnalysis(uid, cid),
     kbSearch: (q, k) => kbSearchSafe(uid, q, k),
+    uploadLimitBytes: uploadLimitMbFor(user) * 1024 * 1024,
+    writesFrozen: teamWritesFrozen(user),
+    ingest: async (buf, filename, maskNumbers) => {
+      const out = await ingestCapture(uid, buf, cleanFilename(filename) || 'capture.bin',
+        maskNumbers == null ? config.maskNumbersByDefault !== false : !!maskNumbers, null);
+      return { id: out.id, meta: out.meta, analysis: out.analysis };
+    },
   };
   const handler = mcp.createMcpHandler({
     tools: mcp.buildCaptureTools(deps),
@@ -4230,7 +4277,9 @@ async function handle(req, res) {
 
   // --- captures ---
   if (pathname === '/api/captures' && method === 'POST') {
-    const user = requireAuth(req, res);
+    // A bearer API token (the same one /mcp uses) may upload too, so an
+    // integration such as Salesforce can push a file without a login session.
+    const user = bearerUser(req) || requireAuth(req, res);
     if (!user) { req.resume(); return; }
     if (!allowTeamWrite(req, res, user)) return;
     return handleUpload(req, res, user);
