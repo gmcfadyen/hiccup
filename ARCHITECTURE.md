@@ -3360,3 +3360,54 @@ catalogue shape, capture routing and every failure lane (153/153 selftest);
 and over real HTTP, bearer-only auth (a session cookie is explicitly asserted
 NOT to work), the plan gate, the full initialize → tools/list → tools/call
 lifecycle, and revocation killing the token on the next call (30/30).
+
+---
+
+# Wave 26 — reading MCP traffic (the inverse of Wave 25)
+
+Wave 25 lets a customer's AI read *hiccup's* captures over MCP. Wave 26 lets hiccup read
+and diagnose *MCP sessions themselves*, the way it does SIP: decode, pair, apply deterministic
+rules, explain, cite. No LLM in the loop.
+
+## `lib/mcptrace.js`
+
+`extractMcp(packets, ctx) -> { aux, findings }` — same contract as `diameter.js`/`tls.js`, plus
+`sniffMcpText(buffer)` and `parseMcpText(text)` for non-pcap input. Three front ends, one model
+(`Exchange = {ts, endTs, client, server, http|null, reqBody, resBody | logMsg}`):
+
+1. **pcap**: per-direction seq-ordered TCP reassembly (any port), streams starting with an HTTP/1.x
+   start line only, framed by Content-Length / chunked / close-delimited; request *i* pairs with
+   response *i* per flow. A pcap is only treated as MCP if a body carries `"jsonrpc":"2.0"` or an
+   `Mcp-Session-Id` header, so ordinary HTTP is ignored.
+2. **HAR**: entries that look like MCP become exchanges with real status/headers/timing.
+3. **Transcript/log**: `Message from client|server: {...}`, `client:`/`server:` prefixes, bare JSON
+   lines or a JSON array. Direction is taken from the line, else inferred from the method.
+   Timestamps are parsed from the line when present. HTTP-layer checks are skipped (no HTTP).
+
+`parseInput` (analyze.js) routes text to MCP only after the SIP sniff fails; `parsed.mcpExchanges`
+rides alongside an empty `packets`, and the "no SIP" gate now also accepts MCP aux rows.
+
+## Output
+
+One `aux` row per HTTP exchange (protocol `'mcp'`): `detail = {kind, http, rpc:[{dir,kind,method,id,
+summary,error?}], issues:[...], sessionId, latencyMs}`. Each issue is `{code, severity, title,
+evidence, why, fixes, cites}` straight from the `ISSUES` table, which is the **single source of MCP
+knowledge**: adding a code adds a finding *and* advice. Findings are one per code (repeats counted,
+category `mcp`) plus one info "MCP traffic observed" summary. `lib/advisor.js` rule `mcp-problem`
+renders the issues generically as cited advice.
+
+Checks: HTTP (401/403/404-session/404/405/406/415/400/429/5xx, redirected POST, non-MCP reply such as
+an HTML page), lifecycle (request before initialize, missing `notifications/initialized`, version
+mismatch/unknown, `Mcp-Session-Id` dropped, `MCP-Protocol-Version` missing, capability not
+advertised, mid-session captures skip these), JSON-RPC (error codes, `isError`, unanswered,
+slow ≥5s/≥30s, duplicate id, orphan response, malformed envelope, batch on ≥2025-06-18, cancelled,
+legacy HTTP+SSE `endpoint` event). An HTTP error status counts as the answer to a POST, so a 401 is
+not *also* reported as "no response".
+
+## Boundaries
+
+HTTP/1.1 plaintext only; HTTP/2 and TLS are not decoded (see `docs/DECRYPTION.md`, MCP section).
+SSE event timing is approximated by the response's timestamp. Redaction (`Authorization`, cookies,
+secret-named JSON fields, truncated `Mcp-Session-Id`) happens in the module, before anything is
+stored or quoted. Tests: `npm run test:mcp` (`test/mcp.js`, in-memory pcaps + HAR + logs).
+

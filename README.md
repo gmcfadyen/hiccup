@@ -23,6 +23,13 @@ to eyeball. **Free for individual users**; accounts required.
 - **Rules from a description** — describe a change in plain English and get a draft
   rule in your vendor's syntax, with hiccup's reading shown back for review.
   Deterministic for common intents; ambiguity produces a question, never a guess.
+- **MCP (Model Context Protocol) traces** — the other direction from the MCP server:
+  hiccup can *read* an MCP-over-HTTP session (JSON-RPC over POST/SSE) from a HAR export,
+  a client log (Claude Desktop's `Message from client/server` lines, MCP Inspector, JSON
+  lines) or a plaintext-HTTP pcap, and say what broke — 401/OAuth, expired session ids,
+  proxies answering instead of the server, lifecycle and version problems, JSON-RPC
+  errors, tool failures, unanswered or slow calls — each with ordered fixes and spec
+  citations. Secrets (`Authorization`, API keys, cookies) are redacted on ingest.
 - **Your own config guides** — ingest vendor documentation (including PDF) and have
   advice grounded in the exact passage, cited back to you.
 
@@ -36,6 +43,8 @@ invites). Every analysis feature above is free for an individual.
 - sngrep/sipgrep text output and bare concatenated SIP messages
 - SIP over UDP and TCP; H.323 (Q.931/H.225 over TPKT) including SIP↔H.323 IWF pairing
 - Diameter over TCP (3868/3869), correlated to SIP via the charging vector
+- MCP over HTTP: HAR (`.har`), JSON-RPC transcripts / client logs (`.log`, `.json`, `.jsonl`), or a
+  pcap with *plaintext* HTTP/1.1. MCP over HTTPS on the wire is encrypted — see `docs/DECRYPTION.md`.
 - Vendor guides for the config KB: `.txt` `.md` `.html` `.ini` `.cfg` `.conf` `.cli`
   `.log`, plus PDF when the optional `pdf-parse` dependency is installed
 

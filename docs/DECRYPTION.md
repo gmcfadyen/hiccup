@@ -331,3 +331,22 @@ are not lost, and so nobody mistakes this page for a feature list.
 
 If you have a plaintext-capture technique that works and is not listed here — especially a
 vendor log format hiccup should parse — that is the most useful thing you could send back.
+
+---
+
+## MCP over HTTPS (Model Context Protocol)
+
+MCP's streamable HTTP transport is JSON-RPC inside HTTPS, so a wire capture is ciphertext
+and hiccup treats it exactly like SIP-over-TLS: it can report the handshake (SNI, certificate,
+alerts) but not the calls. To get something it *can* diagnose, capture where it is plaintext:
+
+| What you have | Path |
+|---|---|
+| The MCP **client** (browser app, MCP Inspector, an IDE) | Export a **HAR** from devtools / Inspector and upload the `.har`. Status codes, headers and timings are all there. |
+| **Claude Desktop / Cursor / another desktop client** | Upload the MCP server log file. Each message is logged as `Message from client:` / `Message from server:` with a timestamp. |
+| Your own client or server code | Log each JSON-RPC message (one per line) and upload it — direction is inferred if you do not say. |
+| A reverse proxy / gateway in front of the server | Capture on the **backend** side of the TLS-terminating hop (plain `http://`), then upload the pcap. |
+| A TLS capture plus a keylog | Decrypt with `SSLKEYLOGFILE` first, as above, then export/save the decrypted stream. |
+
+Plaintext HTTP/1.1 only; HTTP/2 (h2c) is not decoded. Secrets (`Authorization`, cookies,
+`*token*`/`*secret*`/`*api_key*` fields) are redacted on ingest and `Mcp-Session-Id` is truncated.

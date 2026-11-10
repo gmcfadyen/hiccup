@@ -6,9 +6,10 @@
   "scripts": {
     "start": "node server.js",
     "fixtures": "node test/make-fixtures.js",
-    "test": "node test/selftest.js && node test/http.js",
+    "test": "node test/selftest.js && node test/http.js && node test/mcp.js",
     "selftest": "node test/selftest.js",
     "test:http": "node test/http.js",
+    "test:mcp": "node test/mcp.js",
     "selftest:adversarial": "node test/adversarial.js",
     "i18n": "node bin/i18n-extract.js && node bin/i18n-build.js",
     "i18n:report": "node bin/i18n-report.js --force",
