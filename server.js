@@ -3294,7 +3294,7 @@ function handleProjectsDelete(req, res, user, rawId) {
 // Chat
 // ---------------------------------------------------------------------------
 
-const SCOPE_TYPES = new Set(['capture', 'call', 'leg', 'message', 'finding']);
+const SCOPE_TYPES = new Set(['capture', 'call', 'leg', 'message', 'finding', 'exchange']);
 
 /**
  * Compact one leg for prompt/scope serialization.
@@ -3373,6 +3373,19 @@ function buildScopeText(analysis, scope) {
     if (leg) obj = summarizeLeg(leg);
   } else if (scope.type === 'finding') {
     obj = (analysis.findings || []).find((f) => f.id === id) || null;
+  } else if (scope.type === 'exchange') {
+    // An MCP exchange (lib/mcptrace.js aux row): the plain-English explanation,
+    // HTTP envelope, JSON-RPC messages and issues — already redacted.
+    const x = (analysis.aux || []).find((a) => a && a.id === id && a.protocol === 'mcp');
+    if (x) {
+      const d = x.detail || {};
+      obj = {
+        id: x.id, summary: x.summary, explain: d.explain, latencyMs: d.latencyMs,
+        http: d.http ? { method: d.http.method, path: d.http.path, status: d.http.status, reason: d.http.reason } : null,
+        messages: (d.rpc || []).map((m) => ({ dir: m.dir, kind: m.kind, summary: m.summary, error: m.error, raw: m.raw })),
+        issues: (d.issues || []).map((i) => ({ code: i.code, severity: i.severity, title: i.title, evidence: i.evidence, why: i.why })),
+      };
+    }
   }
   if (!obj) {
     return 'The user\'s current focus is ' + scope.type + ' ' + id +
@@ -3554,18 +3567,35 @@ function kbHitsText(hits) {
  */
 function buildSystemPrompt(analysis, scope, kbHits) {
   const parts = [];
-  parts.push(
-    'You are hiccup, an expert SIP/SBC/H.323 engineer explaining a capture to an ' +
-    'SBC-curious engineer. Be precise and practical: reference message/leg/call ids ' +
-    'and timestamps from the capture when relevant, explain protocol concepts clearly, ' +
-    'and say plainly when the capture does not contain the answer. Phone-number and ' +
-    'credential material in the capture is already redacted; never invent replacements.'
-  );
+  // MCP traces (AI tool-protocol traffic) get an MCP persona and the exchange
+  // list instead of the SIP scenario/indicators, which would only say "no SIP".
+  const ag = optionalModule('./lib/agent');
+  const kind = ag && typeof ag.captureKind === 'function' ? ag.captureKind(analysis) : 'voice';
+  if (kind === 'mcp') {
+    parts.push(ag.MCP_PERSONA + ' Reference exchange ids (x1, x2...), JSON-RPC ids, tool ' +
+      'names and timestamps from the capture, and say plainly when the capture does not ' +
+      'contain the answer.');
+  } else {
+    parts.push(
+      'You are hiccup, an expert SIP/SBC/H.323 engineer explaining a capture to an ' +
+      'SBC-curious engineer. Be precise and practical: reference message/leg/call ids ' +
+      'and timestamps from the capture when relevant, explain protocol concepts clearly, ' +
+      'and say plainly when the capture does not contain the answer. Phone-number and ' +
+      'credential material in the capture is already redacted; never invent replacements.'
+    );
+    if (kind === 'mixed') {
+      parts.push('This capture ALSO carries MCP (Model Context Protocol, AI tool-call) ' +
+        'traffic alongside the voice signalling — the exchanges are listed below; keep the ' +
+        'two protocols apart in your answer.');
+    }
+  }
   parts.push('Capture stats: ' + JSON.stringify(analysis.stats || {}));
-  const scenario = scenarioText(analysis);
-  if (scenario) parts.push(scenario);
-  const indicators = indicatorsText(analysis);
-  if (indicators) parts.push(indicators);
+  if (kind !== 'mcp') {
+    const scenario = scenarioText(analysis);
+    if (scenario) parts.push(scenario);
+    const indicators = indicatorsText(analysis);
+    if (indicators) parts.push(indicators);
+  }
   const findings = analysis.findings || [];
   const counts = countFindings(findings);
   const summary = ['Findings: ' + findings.length + ' total (crit ' + counts.crit +
@@ -3578,12 +3608,29 @@ function buildSystemPrompt(analysis, scope, kbHits) {
   parts.push(summary.join('\n'));
   const advice = adviceText(analysis);
   if (advice) parts.push(advice);
-  const media = mediaText(analysis);
-  if (media) parts.push(media);
+  if (kind !== 'mcp') {
+    const media = mediaText(analysis);
+    if (media) parts.push(media);
+  }
+  if (kind !== 'voice' && typeof ag.mcpExchangesText === 'function') {
+    const ex = ag.mcpExchangesText(analysis, 30);
+    if (ex) parts.push(ex);
+  }
   const kb = kbHitsText(kbHits);
   if (kb) parts.push(kb);
   const scopeText = buildScopeText(analysis, scope);
   if (scopeText) parts.push(scopeText);
+  if (kind === 'mcp') {
+    parts.push(
+      'Citation rules (strict): the ONLY citations you may give are the ones carried by ' +
+      'the Advice objects listed above and the knowledge-base excerpts supplied above. ' +
+      'Never invent or recall a spec section, URL, RFC number or error-code meaning that ' +
+      'the material above does not carry — explain the mechanism in your own words ' +
+      'instead. Any client or server change you suggest is a reviewable draft, never a ' +
+      'verified fix.'
+    );
+    return parts.join('\n\n');
+  }
   parts.push(
     'Citation rules (strict): the ONLY citations you may give are the ones carried by ' +
     'the Advice objects listed above and the knowledge-base excerpts supplied above. ' +
@@ -3647,7 +3694,8 @@ async function handleChat(req, res, user) {
         const scopeHint = (scope && scope.type && scope.id && SCOPE_TYPES.has(scope.type) &&
           scope.type !== 'capture')
           ? 'The user is currently focused on ' + scope.type + ' ' + String(scope.id).slice(0, 24) +
-            ' in the UI — when the question says "this" or "it", that is what they mean; start there.'
+            ' in the UI — when the question says "this" or "it", that is what they mean; start there' +
+            (scope.type === 'exchange' ? ' (read it with get_mcp_exchange).' : '.')
           : null;
         a = await agentMod.runAgent({
           analysis,

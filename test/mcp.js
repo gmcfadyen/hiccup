@@ -6,6 +6,7 @@
 // Zero dependencies. Exit code 1 on any failure.
 
 const assert = require('assert');
+const eq = (a, b, m) => assert.strictEqual(a, b, m);
 const { analyzeCapture } = require('../lib/analyze');
 
 let pass = 0; let fail = 0;
@@ -235,6 +236,102 @@ t('the advisor turns MCP findings into cited advice', () => {
   const adv = a.advice.find((x) => /authentication required/.test(x.title));
   assert.ok(adv, 'advice present: ' + a.advice.map((x) => x.title).join(' | '));
   assert.ok(adv.fixes.length && adv.citations.some((c) => /modelcontextprotocol/.test(c.url || '')));
+});
+
+// ------------------------------------------- plain-English explain + chat
+function flightTrace() {
+  const OK = (id, payload, extra) => res(200, J({ id, result: Object.assign({ content: [{ type: 'text', text: JSON.stringify(payload) }] }, extra || {}) }));
+  return analyzeCapture(conversation([
+    { dir: 'c', ts: 1, text: req(INIT) },
+    { dir: 's', ts: 1.02, text: res(200, INIT_OK, SID) },
+    { dir: 'c', ts: 1.1, text: req(J({ method: 'notifications/initialized' }), SESS) },
+    { dir: 's', ts: 1.11, text: 'HTTP/1.1 202 Accepted\r\nContent-Length: 0\r\n\r\n' },
+    { dir: 'c', ts: 2, text: req(J({ id: 2, method: 'tools/call', params: { name: 'search_flights', arguments: { origin: 'NCE', destination: 'LHR', departure_date: '2026-12-09', adults: 2 } } }), SESS) },
+    { dir: 's', ts: 2.05, text: OK(2, { offers: [{ id: 'A', price_eur: '101.00' }, { id: 'B', price_eur: '163.20' }], note: 'Indicative prices. Call confirm_price before booking.' }) },
+    { dir: 'c', ts: 3, text: req(J({ id: 3, method: 'tools/call', params: { name: 'confirm_price', arguments: { offer_id: 'OFR-NOPE' } } }), SESS) },
+    { dir: 's', ts: 3.01, text: OK(3, { error: 'OFFER_NOT_FOUND', message: 'Offer not found.', next_step: 'Search again.' }, { isError: true }) },
+    { dir: 'c', ts: 4, text: req(J({ id: 4, method: 'tools/call', params: { name: 'book_flight', arguments: { travelers: [{ first_name: 'Ada', last_name: 'Lovelace' }], user_confirmed: true, confirmed_total_eur: '101.00' } } }), SESS) },
+    { dir: 's', ts: 4.01, text: OK(4, { order_id: 'ORD-1', pnr: 'ABC123', status: 'HELD', total_eur: '101.00' }) },
+    { dir: 'c', ts: 5, text: req(J({ id: 5, method: 'tools/call', params: { name: 'get_booking', arguments: { order_id: 'ORD-1' } } }), SESS) },
+    { dir: 's', ts: 5.01, text: res(404, J({ id: 'server-error', error: { code: -32600, message: 'Session not found' } })) },
+  ]));
+}
+const explainOf = (a, re) => {
+  const x = a.aux.find((r) => r.protocol === 'mcp' && re.test(r.summary));
+  assert.ok(x, 'exchange ' + re + ' present');
+  return x.detail.explain.join(' | ');
+};
+
+t('each exchange carries a plain-English explanation of request and response', () => {
+  const a = flightTrace();
+  assert.ok(/test-client opens an MCP session, asking for protocol 2025-06-18/.test(explainOf(a, /initialize/)), explainOf(a, /initialize/));
+  assert.ok(/weather 2\.0 accepts.*issues a session id/.test(explainOf(a, /initialize/)), explainOf(a, /initialize/));
+  const search = explainOf(a, /search_flights/);
+  assert.ok(/run Search flights: NCE → LHR, departing 2026-12-09, 2 adults\./.test(search), search);
+  assert.ok(/returned 2 offers \(€101\.00 – €163\.20\)/.test(search), search);
+  assert.ok(!/Indicative/.test(search), 'prose notes are left out: ' + search);
+  const fail = explainOf(a, /confirm_price/);
+  assert.ok(/tool ran but reported failure: OFFER_NOT_FOUND: Offer not found\. Suggested next step: Search again\./.test(fail), fail);
+  const book = explainOf(a, /book_flight/);
+  assert.ok(/for Ada Lovelace/.test(book) && /confirmed total €101\.00/.test(book) && /pnr ABC123, status HELD, total €101\.00/.test(book), book);
+  assert.ok(/HTTP 404 — the server no longer knows this session \(JSON-RPC -32600/.test(explainOf(a, /get_booking/)));
+  assert.ok(!JSON.stringify(a).includes('_json'), 'the parsed message helper never reaches the stored analysis');
+});
+
+t('chat: an MCP-only capture gets the MCP persona and MCP tools, not SIP ones', () => {
+  const agent = require('../lib/agent');
+  const a = flightTrace();
+  assert.strictEqual(agent.captureKind(a), 'mcp');
+  const sys = agent._buildAgentSystem(a);
+  assert.ok(/Model Context Protocol/.test(sys) && /NO SIP/.test(sys), 'MCP persona');
+  assert.ok(!/SIP\/SBC\/H\.323 engineer/.test(sys) && !/simulate_hmr/.test(sys), 'no SIP persona or HMR rules');
+  const names = agent._buildTools(a, null).map((x) => x.def.function.name);
+  for (const want of ['list_findings', 'get_advice', 'list_mcp_exchanges', 'get_mcp_exchange']) assert.ok(names.includes(want), 'has ' + want);
+  for (const not of ['list_calls', 'get_call', 'search_messages', 'get_message', 'get_media_quality', 'generate_hmr_rule', 'simulate_hmr']) {
+    assert.ok(!names.includes(not), 'must not offer ' + not + ' on an MCP trace');
+  }
+  // the full catalogue (hiccup's own MCP server) still lists everything
+  const cat = agent._buildTools({}, null, { catalogue: true }).map((x) => x.def.function.name);
+  assert.ok(cat.includes('simulate_hmr') && cat.includes('get_mcp_exchange'), 'catalogue: ' + cat.join());
+});
+
+t('chat: MCP tools find the failures and return the evidence', () => {
+  const agent = require('../lib/agent');
+  const a = flightTrace();
+  const by = new Map(agent._buildTools(a, null).map((x) => [x.def.function.name, x]));
+  const all = by.get('list_mcp_exchanges').run({});
+  assert.strictEqual(all.total, 6);
+  const bad = by.get('list_mcp_exchanges').run({ problems_only: true });
+  const outcomes = bad.exchanges.map((x) => x.outcome).join(' | ');
+  assert.ok(/isError/.test(outcomes) && /HTTP 404/.test(outcomes), outcomes);
+  assert.ok(!bad.exchanges.some((x) => /search_flights/.test(x.call)), 'a clean exchange is not a problem');
+  eq(by.get('list_mcp_exchanges').run({ tool: 'book_flight' }).matched, 1);
+  eq(by.get('list_mcp_exchanges').run({ status: '4xx' }).matched, 1);
+  const id = bad.exchanges.find((x) => /isError/.test(x.outcome)).id;
+  const one = by.get('get_mcp_exchange').run({ id });
+  assert.ok(one.explain && /OFFER_NOT_FOUND/.test(one.explain.join(' ')), 'explanation included');
+  assert.ok(one.issues.some((i) => i.code === 'tool-error' && i.citations && i.citations.length), 'issues carry their citations');
+  assert.ok(one.messages.some((m) => /OFR-NOPE/.test(m.raw || '')), 'raw JSON-RPC included');
+  assert.ok(by.get('get_mcp_exchange').run({ id: 'x99' }).error, 'unknown id names itself');
+  const text = agent.mcpExchangesText(a, 30);
+  assert.ok(/Search flights: NCE → LHR/.test(text), 'one-shot prompt text carries the explanation');
+});
+
+t('an MCP-only trace is classified as MCP (scenario + lamp), not as an unknown SIP capture', () => {
+  const a = flightTrace();
+  assert.strictEqual(a.scenario.primary, 'mcp');
+  assert.ok(/Model Context Protocol/.test(a.scenario.detail) && !/SIP trace/.test(a.scenario.detail), a.scenario.detail);
+  const lamp = a.indicators.find((i) => i.key === 'mcp');
+  assert.ok(lamp && lamp.state === 'issue', 'MCP lamp lit as issue (there is a crit finding): ' + JSON.stringify(lamp));
+});
+
+t('chat: a SIP capture is unchanged (SIP persona, SIP tools, no MCP tools)', () => {
+  const agent = require('../lib/agent');
+  const sip = { stats: { sipMessages: 2 }, messages: [{ id: 's1', protocol: 'sip', raw: 'INVITE sip:a SIP/2.0' }], aux: [] };
+  assert.strictEqual(agent.captureKind(sip), 'voice');
+  assert.ok(/SIP\/SBC\/H\.323 engineer/.test(agent._buildAgentSystem(sip)));
+  const names = agent._buildTools(sip, null).map((x) => x.def.function.name);
+  assert.ok(names.includes('simulate_hmr') && !names.includes('list_mcp_exchanges'), names.join());
 });
 
 console.log('\nMCP: ' + pass + '/' + (pass + fail) + ' passed');

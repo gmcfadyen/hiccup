@@ -2331,6 +2331,15 @@
     }
   }
 
+  /** Prefilled question + chat scope for an MCP exchange row. */
+  function mcpExplainRequest(x) {
+    return {
+      q: _t('Explain MCP exchange ') + str(x.id) + ' (' + str(x.summary) +
+        _t('): what is the client asking for, what came back, and is anything wrong?'),
+      scope: { type: 'exchange', id: x.id },
+    };
+  }
+
   /** "explain in chat" for whatever is selected right now. */
   function explainCurrentSelection() {
     var row = selectedRow();
@@ -2339,6 +2348,11 @@
       openChatPrefilled(_t('Explain this ') + (m.protocol === 'h323' ? 'H.323' : 'SIP') +
         _t(' message: what is it doing in this call, and is anything wrong with it?'),
         { type: 'message', id: row.id });
+      return;
+    }
+    if (row && row.obj && row.obj.protocol === 'mcp') {
+      var mx = mcpExplainRequest(row.obj);
+      openChatPrefilled(mx.q, mx.scope);
       return;
     }
     if (row) {
@@ -2720,6 +2734,10 @@
         } else if (row.kind === 'media') {
           q = _t('Explain this media stream (') + row.desc + _t('). Is the loss/jitter a problem, and what would cause it?');
           scope = chatScope();
+        } else if (row.obj && row.obj.protocol === 'mcp') {
+          var mx = mcpExplainRequest(row.obj);
+          q = mx.q;
+          scope = mx.scope;
         } else {
           q = _t('Explain this ') + str((row.obj && row.obj.protocol) || 'auxiliary') +
             _t(' observation: "') + str(row.obj && row.obj.summary) + _t('". What does it mean for the call?');
@@ -2775,6 +2793,10 @@
     }
 
     var x = row.obj || {};
+    if (x.protocol === 'mcp' && x.detail && x.detail.kind === 'exchange') {
+      renderMcpContents(panel, x);
+      return;
+    }
     panel.appendChild(el('h4', 'ptree-title', str(x.protocol || 'aux').toUpperCase() + _t(' observation')));
     var sum = el('p', 'mono info-aux-summary');
     appendHighlighted(sum, x.summary, state.searchTerms);
@@ -2786,6 +2808,51 @@
     } else {
       panel.appendChild(el('p', 'pane-empty', _t('No raw bytes retained for this observation.')));
     }
+  }
+
+  /**
+   * Contents for one MCP exchange: what it does in plain English, the issues
+   * hiccup found, then every JSON-RPC message pretty-printed (redacted).
+   */
+  function renderMcpContents(panel, x) {
+    var d = x.detail || {};
+    panel.appendChild(el('h4', 'ptree-title', _t('MCP exchange')));
+
+    var lines = arr(d.explain);
+    if (lines.length) {
+      var box = el('div', 'mcp-explain');
+      box.appendChild(el('div', 'mcp-explain-label', _t('What this does')));
+      lines.forEach(function (line) {
+        var p = el('p', null);
+        appendHighlighted(p, line, state.searchTerms);
+        box.appendChild(p);
+      });
+      panel.appendChild(box);
+    }
+
+    var sum = el('p', 'mono info-aux-summary');
+    appendHighlighted(sum, x.summary, state.searchTerms);
+    panel.appendChild(sum);
+
+    arr(d.issues).forEach(function (iss) {
+      var p = el('p', 'mcp-issue sev-' + str(iss.severity));
+      p.appendChild(el('strong', null, str(iss.title)));
+      if (iss.evidence) p.appendChild(document.createTextNode(' — ' + str(iss.evidence)));
+      panel.appendChild(p);
+    });
+
+    arr(d.rpc).forEach(function (m) {
+      var who = m.dir === 'c2s' ? _t('client → server') : _t('server → client');
+      panel.appendChild(el('h4', 'ptree-title', who + ' · ' + str(m.summary || m.kind)));
+      if (!m.raw) return;
+      var text = m.raw;
+      try { text = JSON.stringify(JSON.parse(m.raw), null, 2); } catch (e) { /* clipped or not JSON: show as-is */ }
+      var pre = el('pre', 'mono info-raw');
+      appendHighlighted(pre, text, state.searchTerms);
+      panel.appendChild(pre);
+    });
+    panel.appendChild(el('p', 'pane-empty',
+      _t('Session ids, tokens and credentials are redacted server-side before the analysis is stored.')));
   }
 
   /** One `.ptree-row` of the parsed-packet tree: key + monospace value. */
@@ -4373,9 +4440,20 @@
         emptyNote(box, _t('Open a capture first — hiccup answers about what it can see.'));
       } else {
         var hist = chatHistory();
+        var isMcp = !!(state.analysis && state.analysis.scenario && state.analysis.scenario.primary === 'mcp');
+        var input = $('chat-input');
+        if (input) {
+          input.placeholder = isMcp ? _t('Ask about this MCP trace: tool calls, sessions, errors\u2026')
+            : _t('Ask about this capture, SIP, H.323\u2026');
+        }
         if (!hist.length && !state.chatBusy) {
-          emptyNote(box, _t('Ask about this capture or about SIP/H.323 in general.'),
-            _t('Try: "why is this call ambiguous?" \u00b7 "what does Session-Expires do?" \u00b7 "what stripped the PAI header?"'));
+          if (isMcp) {
+            emptyNote(box, _t('Ask about this MCP trace or about MCP in general.'),
+              _t('Try: "why did the last call fail?" \u00b7 "what does isError mean?" \u00b7 "which tool calls failed, and why?"'));
+          } else {
+            emptyNote(box, _t('Ask about this capture or about SIP/H.323 in general.'),
+              _t('Try: "why is this call ambiguous?" \u00b7 "what does Session-Expires do?" \u00b7 "what stripped the PAI header?"'));
+          }
         }
         for (var i = 0; i < hist.length; i++) {
           var bubble = el('div', 'chat-bubble ' + (hist[i].role === 'user' ? 'from-user' : 'from-bot'));
